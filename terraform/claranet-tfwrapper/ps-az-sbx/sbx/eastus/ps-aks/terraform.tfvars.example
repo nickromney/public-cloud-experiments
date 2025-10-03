@@ -74,7 +74,7 @@ function_apps = {
 # Optional: Key Vault for secrets (minimal config for sandbox)
 key_vaults = {
   "secrets" = {
-    resource_group_key = "containers"
+    resource_group_key = "sandbox"  # Use the vended resource group
     soft_delete_days   = 7
     purge_protection   = false  # Disable for sandbox - allows immediate deletion
     tags = {
@@ -86,7 +86,7 @@ key_vaults = {
 # Optional: Log Analytics (minimal for sandbox)
 log_analytics_workspaces = {
   "monitoring" = {
-    resource_group_key = "containers"
+    resource_group_key = "sandbox"  # Use the vended resource group
     retention_days     = 30  # Minimum retention
   }
 }

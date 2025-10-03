@@ -6,7 +6,7 @@
 
 # Resource group for deploying workload resources
 # Pluralsight: Auto-updated by setup-env.sh (e.g., "1-12345678-playground-sandbox")
-# Test sub: Manually set to your workload RG (may differ from backend RG)
+# Test subscription: Manually set to your workload RG (may differ from backend RG)
 existing_resource_group_name = "1-CHANGE-ME-playground-sandbox"
 
 # ============================================================================
