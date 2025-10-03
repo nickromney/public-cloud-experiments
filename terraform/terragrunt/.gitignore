@@ -1,0 +1,14 @@
+# Terraform / Terragrunt
+.terraform/
+.terragrunt-cache/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Sensitive configuration files
+terraform.tfvars
+.envrc
+
+# OS
+.DS_Store
+Thumbs.db

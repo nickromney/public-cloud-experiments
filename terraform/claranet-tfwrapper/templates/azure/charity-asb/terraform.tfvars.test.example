@@ -1,0 +1,170 @@
+# Example configuration for TEST environment - Creates topics/queues in shared namespace
+# This should be deployed AFTER the shared environment
+# Deploy with: make charity-asb bootstrap test uks
+
+organisation    = "charity"
+workload        = "dataservices"
+environment     = "test"  # Topics/queues will be prefixed with "test-"
+azure_region    = "uksouth"
+subscription_id = "YOUR_NONPROD_SUBSCRIPTION_ID"  # Same as dev (nonprod)
+
+# Reference to THE SAME shared namespace as DEV
+existing_namespace_name            = "charity-sbns-dataservices-nonprod-uks"
+existing_namespace_resource_group  = "charity-rg-dataservices-servicebus-shared-uks"
+
+# Topics for TEST environment (will be prefixed with "test-")
+servicebus_topics = [
+  {
+    name = "contact-updates"
+
+    batched_operations_enabled   = true
+    partitioning_enabled         = true
+    express_enabled              = false
+    requires_duplicate_detection = false
+    support_ordering             = false
+
+    max_size_in_megabytes = 2048  # Larger for load testing
+    default_message_ttl   = "P3D"  # Shorter TTL for test
+
+    subscriptions = [
+      {
+        name               = "contact-processor"
+        max_delivery_count = 10  # Higher for testing retry logic
+        lock_duration      = "PT1M"
+
+        dead_lettering_on_message_expiration = true
+
+        rules = [
+          {
+            name           = "test-contacts"
+            filter_type    = "SqlFilter"
+            sql_expression = "TestMode = true OR ContactValue > 500"
+          }
+        ]
+      },
+      {
+        name                      = "contact-load-test"
+        max_delivery_count        = 20
+        lock_duration             = "PT2M"
+        batched_operations_enabled = true
+      }
+    ]
+  },
+  {
+    name = "donation-events"
+
+    batched_operations_enabled   = true
+    partitioning_enabled         = false
+    requires_duplicate_detection = true
+    support_ordering             = true
+
+    max_size_in_megabytes                   = 2048
+    default_message_ttl                     = "P7D"
+    duplicate_detection_history_time_window = "PT10M"
+
+    subscriptions = [
+      {
+        name               = "donation-processor"
+        max_delivery_count = 10
+        requires_session   = true
+
+        rules = [
+          {
+            name           = "test-donations"
+            filter_type    = "SqlFilter"
+            sql_expression = "TestMode = true OR Amount > 100"
+          }
+        ]
+      },
+      {
+        name                      = "donation-analytics"
+        max_delivery_count        = 15
+        batched_operations_enabled = true
+      }
+    ]
+  },
+  {
+    name = "volunteer-activities"
+
+    batched_operations_enabled = true
+    partitioning_enabled      = true
+
+    max_size_in_megabytes = 2048
+    auto_delete_on_idle   = "P3D"  # Shorter auto-delete for test
+
+    subscriptions = [
+      {
+        name               = "volunteer-notifications"
+        max_delivery_count = 10
+
+        dead_lettering_on_message_expiration = true
+        auto_delete_on_idle                  = "P1D"
+      }
+    ]
+  },
+  {
+    name = "integration-testing"
+
+    # Special topic just for test environment
+    batched_operations_enabled = true
+    partitioning_enabled      = false
+
+    max_size_in_megabytes = 1024
+    auto_delete_on_idle   = "P1D"  # Delete after 1 day
+    default_message_ttl   = "PT1H"  # 1 hour TTL
+
+    subscriptions = [
+      {
+        name                      = "integration-test-handler"
+        max_delivery_count        = 5
+        lock_duration             = "PT30S"
+        auto_delete_on_idle       = "PT12H"  # 12 hours
+        batched_operations_enabled = true
+      }
+    ]
+  }
+]
+
+# Queues for TEST environment (will be prefixed with "test-")
+servicebus_queues = [
+  {
+    name               = "email-queue"
+    max_delivery_count = 10  # Higher for testing
+    lock_duration      = "PT1M"
+
+    max_size_in_megabytes                = 2048
+    dead_lettering_on_message_expiration = true
+    auto_delete_on_idle                  = "P3D"
+  },
+  {
+    name               = "sms-queue"
+    max_delivery_count = 5
+    lock_duration      = "PT30S"
+
+    max_size_in_megabytes = 1024
+    express_enabled        = true
+  },
+  {
+    name               = "test-automation-queue"
+    max_delivery_count = 3
+    lock_duration      = "PT15S"
+
+    # Special queue for test automation
+    max_size_in_megabytes = 1024
+    auto_delete_on_idle   = "P1D"
+  }
+]
+
+# Tags
+tags = {
+  cost_center = "IT"
+  project     = "DataServices"
+  owner       = "data-team"
+  environment = "test"
+}
+
+additional_tags = {
+  deployment_method = "terraform"
+  testing_enabled   = "true"
+  load_testing      = "enabled"
+}

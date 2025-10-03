@@ -1,0 +1,49 @@
+# Example configuration for SHARED environment - Creates the Service Bus namespace
+# This should be deployed ONCE per subscription (nonprod or prod)
+# Deploy with: make charity-asb bootstrap shared uks
+
+organisation              = "charity"
+workload                  = "dataservices"
+environment               = "shared"  # MUST be "shared" to trigger namespace creation
+azure_region              = "uksouth"
+subscription_id           = "YOUR_NONPROD_SUBSCRIPTION_ID"
+shared_environment_suffix = "nonprod"  # or "prod" for production subscription
+
+# Resource Group Configuration
+create_resource_group = true
+# resource_group_name = "charity-rg-dataservices-servicebus-shared-uks"  # Optional override
+
+# Service Bus Namespace Configuration
+servicebus_namespace_sku      = "Standard"  # Use Premium for production
+servicebus_namespace_capacity  = 0          # Only for Premium (1, 2, 4, 8, 16)
+zone_redundant                 = false      # Only for Premium
+local_auth_enabled             = true       # Allow connection strings
+minimum_tls_version            = "1.2"
+public_network_access_enabled  = true       # Set to false for private endpoints only
+trusted_services_allowed       = true
+
+# Custom naming (optional - will use convention if not set)
+# namespace_custom_name = "charity-sbns-dataservices-nonprod-uks"
+
+# Diagnostic Settings (optional)
+# logs_destinations_ids = [
+#   "/subscriptions/xxx/resourceGroups/rg-monitoring/providers/Microsoft.OperationalInsights/workspaces/log-main"
+# ]
+
+# Tags
+tags = {
+  cost_center = "IT"
+  project     = "DataServices"
+  owner       = "data-team"
+  compliance  = "internal"
+}
+
+additional_tags = {
+  deployment_method = "terraform"
+  managed_by        = "platform-team"
+}
+
+# NOTE: Topics and Queues should be empty for shared environment
+# They are created by the dev/test/prod environment deployments
+servicebus_topics = []
+servicebus_queues = []

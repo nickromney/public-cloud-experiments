@@ -1,0 +1,17 @@
+---
+state_configuration_name: "azure"
+azure:
+  general:
+    mode: user # Use Azure AD authentication - uses current az login session
+    directory_id: "987654321-zyxw"
+    subscription_id: "REPLACE_WITH_SANDBOX_SUBSCRIPTION_ID"
+
+terraform:
+  legacy: false # Use OpenTofu
+  version: "1.10.5"
+  vars:
+    azure_region: "eastus"
+    client_name: "ps-sandbox"
+    environment: "sbx"
+    stack: "ps-aks"
+    subscription_id: "REPLACE_WITH_SANDBOX_SUBSCRIPTION_ID"

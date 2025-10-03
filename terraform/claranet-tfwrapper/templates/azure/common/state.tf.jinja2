@@ -1,0 +1,19 @@
+{% if region is not none %}
+{% set region = '/' + region + '/' %}
+{% else %}
+{% set region = '/' %}
+{% endif %}
+
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "{{ state_parameters.resource_group_name }}"
+    storage_account_name = "{{ state_parameters.storage_account_name }}"
+    container_name       = "terraform-states"
+    key                  = "{{ client_name }}/{{ account }}/{{ environment }}{{ region }}{{ stack }}/terraform.state"
+    {% if state_parameters.azuread_auth %}
+    use_azuread_auth     = true
+    subscription_id      = "{{ state_parameters.subscription_id }}"
+    tenant_id            = "{{ state_parameters.tenant_id | default(state_parameters.directory_id) }}"
+    {% endif %}
+  }
+}

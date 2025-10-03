@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "Bash(git clone:*)",
+      "Bash(tfwrapper -a azure-experiments -e dev -r uksouth -s platform plan)",
+      "Bash(make:*)",
+      "Bash(tree:*)",
+      "Bash(grep:*)",
+      "Bash(tofu validate:*)",
+      "Bash(tofu plan:*)",
+      "Bash(tofu force-unlock:*)",
+      "Bash(tofu init:*)",
+      "Bash(tflint:*)",
+      "Bash(tofu providers schema:*)",
+      "WebFetch(domain:help.pluralsight.com)",
+      "Bash(shellcheck:*)",
+      "Bash(brew install:*)",
+      "Bash(terragrunt init:*)",
+      "Bash(terragrunt plan:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(chmod:*)",
+      "Bash(uv init:*)",
+      "Bash(uv add:*)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(npm run build:css:*)",
+      "Bash(pre-commit run:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

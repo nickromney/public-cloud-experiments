@@ -1,0 +1,20 @@
+# tfwrapper configuration for Pluralsight Azure Sandbox
+# Stack: messaging (Service Bus demo)
+# Environment: sbx (sandbox)
+# Region: eastus
+
+account: ps-sandbox
+environment: sbx
+region: eastus
+stack: messaging
+
+azure:
+  mode: user  # Use Azure CLI authentication
+  use_azuread_auth: false  # Use storage account keys for state
+  subscription_id: "REPLACE_WITH_SANDBOX_SUBSCRIPTION_ID"
+
+terraform:
+  version: "1.10.5"
+
+# Note: State backend should ideally be in a persistent location
+# For sandbox demos, you might use local state or a temporary storage account

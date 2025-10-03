@@ -1,0 +1,15 @@
+# Terragrunt environment variables
+# Copy this file to .envrc and update with your values
+# Then run: direnv allow
+
+# Azure authentication
+export ARM_SUBSCRIPTION_ID="your-subscription-id"
+export ARM_TENANT_ID="your-tenant-id"
+
+# Terraform backend (Azure Storage)
+export TF_BACKEND_RG="your-backend-resource-group"
+export TF_BACKEND_SA="your-backend-storage-account"
+export TF_BACKEND_CONTAINER="terraform-states"
+
+# To get these values automatically:
+#   source ./setup-env.sh

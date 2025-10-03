@@ -1,0 +1,9 @@
+---
+azure:
+  - name: "azure"
+    general:
+      subscription_id: "SUBSCRIPTION_ID_PLACEHOLDER"
+      tenant_id: "TENANT_ID_PLACEHOLDER"
+      resource_group_name: "BACKEND_RG_PLACEHOLDER"
+      storage_account_name: "BACKEND_SA_PLACEHOLDER"
+      azuread_auth: true
