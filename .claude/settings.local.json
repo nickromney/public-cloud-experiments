@@ -27,7 +27,16 @@
       "Bash(npm install:*)",
       "Bash(npx tailwindcss:*)",
       "Bash(npm run build:css:*)",
-      "Bash(pre-commit run:*)"
+      "Bash(pre-commit run:*)",
+      "Bash(./cloud-networking/azure/06-container-tests.sh:*)",
+      "Bash(RESOURCE_GROUP=1-2a40e064-playground-sandbox ./06-container-tests.sh)",
+      "Bash(az container exec:*)",
+      "Bash(az network vnet subnet list:*)",
+      "Bash(for:*)",
+      "Bash(do)",
+      "Bash(echo \"=== $subnet ===\")",
+      "Bash(az network vnet subnet show:*)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []
