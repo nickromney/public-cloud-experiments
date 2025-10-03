@@ -1,0 +1,97 @@
+# Example configuration for Pluralsight Azure Sandbox
+# This sandbox expires after 4 hours - plan accordingly!
+
+# Basic configuration
+azure_region        = "eastus"  # or "westus2"
+client_name         = "ps-sandbox"
+environment         = "sbx"
+subscription_id     = "YOUR_SANDBOX_SUBSCRIPTION_ID"  # From Pluralsight sandbox credentials
+
+# Resource Groups
+resource_groups = {
+  "containers" = {
+    tags = {
+      purpose = "container-registry-demo"
+    }
+  }
+  "compute" = {
+    tags = {
+      purpose = "functions-demo"
+    }
+  }
+}
+
+# Storage Accounts (for Function Apps)
+storage_accounts = {
+  "funcs" = {
+    resource_group_key = "compute"
+    account_tier       = "Standard"
+    replication_type   = "LRS"  # Use LRS for sandbox to save costs
+    purpose            = "function"
+  }
+}
+
+# Container Registry Configuration for AKS Testing
+container_registries = {
+  "main" = {
+    resource_group_key      = "containers"
+    sku                     = "Basic"  # Basic is sufficient for sandbox testing
+    admin_enabled           = true     # Enable admin user for easier authentication
+    anonymous_pull_enabled  = false    # Keep secure
+    data_endpoint_enabled   = false    # Not needed for Basic SKU
+    zone_redundancy_enabled = false    # Not available for Basic SKU
+    tags = {
+      demo    = "pluralsight"
+      purpose = "aks-testing"
+    }
+  }
+}
+
+# App Service Plan (for Function Apps)
+app_service_plans = {
+  "consumption" = {
+    resource_group_key = "compute"
+    os_type            = "Linux"
+    sku_name           = "Y1"  # Consumption plan for sandbox
+    worker_count       = 1
+  }
+}
+
+# Function Apps for container operations (optional)
+function_apps = {
+  "container-ops" = {
+    resource_group_key      = "compute"
+    app_service_plan_key    = "consumption"
+    storage_account_key     = "funcs"
+    runtime_stack           = "python"
+    runtime_version         = "3.11"
+    app_insights_enabled    = false  # Disable for sandbox to save resources
+
+    # Connect to Container Registry
+    container_registry_key = "main"
+
+    tags = {
+      purpose = "container-operations"
+    }
+  }
+}
+
+# Optional: Key Vault for secrets (minimal config for sandbox)
+key_vaults = {
+  "secrets" = {
+    resource_group_key = "containers"
+    soft_delete_days   = 7
+    purge_protection   = false  # Disable for sandbox - allows immediate deletion
+    tags = {
+      purpose = "demo-secrets"
+    }
+  }
+}
+
+# Optional: Log Analytics (minimal for sandbox)
+log_analytics_workspaces = {
+  "monitoring" = {
+    resource_group_key = "containers"
+    retention_days     = 30  # Minimum retention
+  }
+}

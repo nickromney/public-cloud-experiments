@@ -1,0 +1,158 @@
+# Example terraform.tfvars for Pluralsight Sandbox or Test Subscription
+# This file is git-ignored to keep your environment details private
+#
+# NOTE: setup-env.sh will auto-populate this in Pluralsight (single RG)
+#       For test subscriptions with multiple RGs, manually set your workload RG
+
+# Resource group for deploying workload resources
+# Pluralsight: Auto-updated by setup-env.sh (e.g., "1-12345678-playground-sandbox")
+# Test subscription: Manually set to your workload RG (may differ from backend RG)
+existing_resource_group_name = "1-CHANGE-ME-playground-sandbox"
+
+# ============================================================================
+# Toggle Pattern Examples
+# ============================================================================
+
+# Example 1: All resources enabled (full stack)
+# Uncomment the configuration below to enable all resources
+
+# storage_accounts = {
+#   "funcapp" = {
+#     account_tier       = "Standard"
+#     replication_type   = "LRS"
+#     purpose            = "function-app-storage"
+#   }
+# }
+#
+# app_service_plans = {
+#   "consumption" = {
+#     os_type  = "Linux"
+#     sku_name = "Y1"
+#   }
+# }
+#
+# function_apps = {
+#   "api" = {
+#     app_service_plan_key = "consumption"
+#     storage_account_key  = "funcapp"
+#     runtime              = "dotnet-isolated"
+#     runtime_version      = "8.0"
+#     app_settings = {}
+#   }
+# }
+#
+# static_web_apps = {
+#   "frontend" = {
+#     sku_tier = "Free"
+#     sku_size = "Free"
+#   }
+# }
+#
+# apim_instances = {
+#   "shared" = {
+#     sku_name        = "Developer_1"
+#     publisher_name  = "Cloud Experiments"
+#     publisher_email = "your-email@example.com"
+#   }
+# }
+#
+# apim_apis = {
+#   "api-v1" = {
+#     apim_key         = "shared"
+#     function_app_key = "api"
+#     path             = "api/v1"
+#     display_name     = "API V1"
+#     protocols        = ["https"]
+#   }
+# }
+
+# ============================================================================
+# Example 2: Just Functions (no APIM, no SWA)
+# ============================================================================
+
+storage_accounts = {
+  "funcapp" = {
+    account_tier       = "Standard"
+    replication_type   = "LRS"
+    purpose            = "function-app-storage"
+  }
+}
+
+app_service_plans = {
+  "consumption" = {
+    os_type  = "Linux"
+    sku_name = "Y1"
+  }
+}
+
+function_apps = {
+  "api" = {
+    app_service_plan_key = "consumption"
+    storage_account_key  = "funcapp"
+    runtime              = "dotnet-isolated"
+    runtime_version      = "8.0"
+    app_settings = {}
+  }
+}
+
+# Disabled (empty maps):
+static_web_apps = {}
+apim_instances = {}
+apim_apis = {}
+
+# ============================================================================
+# Example 3: Just Static Web App (no backend)
+# ============================================================================
+
+# storage_accounts = {}
+# app_service_plans = {}
+# function_apps = {}
+# apim_instances = {}
+# apim_apis = {}
+#
+# static_web_apps = {
+#   "frontend" = {
+#     sku_tier = "Free"
+#     sku_size = "Free"
+#   }
+# }
+
+# ============================================================================
+# Example 4: Multiple Function Apps (0 to n pattern)
+# ============================================================================
+
+# storage_accounts = {
+#   "funcapp" = {
+#     account_tier       = "Standard"
+#     replication_type   = "LRS"
+#     purpose            = "function-app-storage"
+#   }
+# }
+#
+# app_service_plans = {
+#   "consumption" = {
+#     os_type  = "Linux"
+#     sku_name = "Y1"
+#   }
+# }
+#
+# function_apps = {
+#   "api" = {
+#     app_service_plan_key = "consumption"
+#     storage_account_key  = "funcapp"
+#     runtime              = "dotnet-isolated"
+#     runtime_version      = "8.0"
+#     app_settings = {}
+#   }
+#   "worker" = {
+#     app_service_plan_key = "consumption"
+#     storage_account_key  = "funcapp"
+#     runtime              = "python"
+#     runtime_version      = "3.11"
+#     app_settings = {}
+#   }
+# }
+#
+# static_web_apps = {}
+# apim_instances = {}
+# apim_apis = {}

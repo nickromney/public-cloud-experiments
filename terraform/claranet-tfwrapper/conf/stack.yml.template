@@ -1,0 +1,17 @@
+---
+state_configuration_name: "azure"
+azure:
+  general:
+    mode: user # Use Azure AD authentication - uses current az login session
+    directory_id: "${TENANT_ID}"
+    subscription_id: "${SUBSCRIPTION_ID}"
+
+terraform:
+  legacy: false # Use OpenTofu
+  version: "1.10.5"
+  vars:
+    azure_region: "${REGION}"
+    client_name: "${CLIENT_NAME}"
+    environment: "${ENVIRONMENT}"
+    stack: "${STACK}"
+    subscription_id: "${SUBSCRIPTION_ID}"

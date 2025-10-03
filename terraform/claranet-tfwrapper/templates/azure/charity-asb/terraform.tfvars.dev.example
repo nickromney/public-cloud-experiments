@@ -1,0 +1,154 @@
+# Example configuration for DEV environment - Creates topics/queues in shared namespace
+# This should be deployed AFTER the shared environment
+# Deploy with: make charity-asb bootstrap dev uks
+
+organisation    = "charity"
+workload        = "dataservices"
+environment     = "dev"  # Topics/queues will be prefixed with "dev-"
+azure_region    = "uksouth"
+subscription_id = "YOUR_NONPROD_SUBSCRIPTION_ID"
+
+# Reference to existing shared namespace (created by shared environment)
+existing_namespace_name            = "charity-sbns-dataservices-nonprod-uks"
+existing_namespace_resource_group  = "charity-rg-dataservices-servicebus-shared-uks"
+
+# Topics for DEV environment (will be prefixed with "dev-")
+servicebus_topics = [
+  {
+    name = "contact-updates"
+
+    batched_operations_enabled   = true
+    partitioning_enabled         = true
+    express_enabled              = false
+    requires_duplicate_detection = false
+    support_ordering             = false
+
+    max_size_in_megabytes = 1024
+    default_message_ttl   = "P7D"  # 7 days
+
+    # Subscriptions for this topic
+    subscriptions = [
+      {
+        name               = "contact-processor"
+        max_delivery_count = 5
+        lock_duration      = "PT30S"
+
+        dead_lettering_on_message_expiration = true
+
+        # SQL Filter Rule
+        rules = [
+          {
+            name           = "high-value-contacts"
+            filter_type    = "SqlFilter"
+            sql_expression = "ContactValue > 1000"
+          }
+        ]
+      },
+      {
+        name               = "contact-sync"
+        max_delivery_count = 10
+        lock_duration      = "PT1M"
+      }
+    ]
+  },
+  {
+    name = "donation-events"
+
+    batched_operations_enabled   = true
+    partitioning_enabled         = false  # Keep ordering
+    requires_duplicate_detection = true
+    support_ordering             = true
+
+    max_size_in_megabytes                   = 2048
+    default_message_ttl                     = "P14D"  # 14 days
+    duplicate_detection_history_time_window = "PT10M"
+
+    subscriptions = [
+      {
+        name               = "donation-processor"
+        max_delivery_count = 3
+        requires_session   = true  # Process donations in order per donor
+
+        rules = [
+          {
+            name           = "large-donations"
+            filter_type    = "SqlFilter"
+            sql_expression = "Amount > 500 AND Currency = 'GBP'"
+            sql_action     = "SET Priority = 'High'"
+          }
+        ]
+      },
+      {
+        name                      = "donation-analytics"
+        max_delivery_count        = 10
+        batched_operations_enabled = true
+
+        rules = [
+          {
+            name        = "uk-donations"
+            filter_type = "CorrelationFilter"
+            correlation_filter = {
+              properties = {
+                Country = "UK"
+                Type    = "Donation"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    name = "volunteer-activities"
+
+    batched_operations_enabled = true
+    partitioning_enabled      = true
+
+    max_size_in_megabytes = 1024
+    auto_delete_on_idle   = "P7D"  # Auto-delete after 7 days of inactivity (dev only)
+
+    subscriptions = [
+      {
+        name               = "volunteer-notifications"
+        max_delivery_count = 5
+
+        dead_lettering_on_message_expiration = true
+        auto_delete_on_idle                  = "P3D"  # Auto-delete after 3 days (dev only)
+      }
+    ]
+  }
+]
+
+# Queues for DEV environment (will be prefixed with "dev-")
+servicebus_queues = [
+  {
+    name               = "email-queue"
+    max_delivery_count = 3
+    lock_duration      = "PT30S"
+
+    max_size_in_megabytes                = 1024
+    dead_lettering_on_message_expiration = true
+    auto_delete_on_idle                  = "P7D"  # Dev only
+  },
+  {
+    name               = "sms-queue"
+    max_delivery_count = 2
+    lock_duration      = "PT15S"
+
+    max_size_in_megabytes = 1024
+    express_enabled        = true  # For low-latency scenarios
+  }
+]
+
+# Tags
+tags = {
+  cost_center = "IT"
+  project     = "DataServices"
+  owner       = "data-team"
+  environment = "dev"
+}
+
+additional_tags = {
+  deployment_method = "terraform"
+  testing_enabled   = "true"
+}

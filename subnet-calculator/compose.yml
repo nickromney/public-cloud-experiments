@@ -1,0 +1,15 @@
+# Podman Compose compatible configuration
+services:
+  api:
+    build:
+      context: ./api-fastapi-azure-function
+    ports:
+      - "8080:80"
+
+  frontend:
+    build:
+      context: ./frontend-python-flask
+    ports:
+      - "8000:8000"
+    environment:
+      - API_BASE_URL=http://api:80/api/v1

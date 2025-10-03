@@ -1,0 +1,16 @@
+[project]
+name = "subnet-calculator-python-api"
+version = "0.1.0"
+description = "IPv4/IPv6 subnet validation and analysis API with cloud provider support"
+readme = "README.md"
+requires-python = ">=3.11"
+
+dependencies = [
+    "azure-functions>=1.23.0",
+    "fastapi[standard]>=0.118.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
