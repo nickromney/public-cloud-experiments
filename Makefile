@@ -19,9 +19,11 @@ help: ## Show this help message
 	@echo "  terraform/terragrunt/Makefile"
 
 .PHONY: precommit
-precommit: ## Run all pre-commit hooks (strict - fails on errors)
+precommit: ## Run all pre-commit hooks on tracked AND untracked files
 	@echo "$(YELLOW)Running all pre-commit hooks...$(NC)"
 	@pre-commit run --all-files
+	@echo "$(YELLOW)Checking untracked markdown files for emojis...$(NC)"
+	@git ls-files --others --exclude-standard '*.md' '*.markdown' | xargs -r .git-hooks/check-emojis.sh || true
 
 .PHONY: precommit-check
 precommit-check: ## Run pre-commit hooks (always succeeds, for review)

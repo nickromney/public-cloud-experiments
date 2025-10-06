@@ -1,0 +1,21 @@
+{
+  "addressSpace": {
+    "addressPrefixes": [
+      "10.0.0.0/16"
+    ]
+  },
+  "enableDdosProtection": false,
+  "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-simple-vnet/providers/Microsoft.Network/virtualNetworks/vnet-simple",
+  "location": "eastus2",
+  "name": "vnet-simple",
+  "provisioningState": "Succeeded",
+  "resourceGroup": "rg-simple-vnet",
+  "subnets": [
+    {
+      "addressPrefix": "10.0.10.0/24",
+      "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-simple-vnet/providers/Microsoft.Network/virtualNetworks/vnet-simple/subnets/snet-subnet1",
+      "name": "snet-subnet1"
+    }
+  ],
+  "type": "Microsoft.Network/virtualNetworks"
+}

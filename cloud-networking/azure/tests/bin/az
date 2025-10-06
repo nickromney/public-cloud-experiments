@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+#
+# Mock az CLI for testing
+# Tracks commands and returns fixtures
+
+# Track command to file
+AZ_CALLS_FILE="${AZ_CALLS_FILE:-/tmp/az_calls_$$}"
+echo "$*" >> "$AZ_CALLS_FILE"
+
+# Handle specific commands
+case "$1 $2 $3" in
+  "account show ")
+    if [[ "${AZ_MOCK_NOT_LOGGED_IN:-}" == "true" ]]; then
+      echo "ERROR: Please run 'az login' to setup account." >&2
+      exit 1
+    fi
+    if [[ -f "${BATS_TEST_DIRNAME}/fixtures/account-show.json" ]]; then
+      cat "${BATS_TEST_DIRNAME}/fixtures/account-show.json"
+    else
+      echo '{"id":"mock-subscription","name":"mock"}'
+    fi
+    ;;
+  "container show "*)
+    if [[ "${AZ_MOCK_RESOURCE_NOT_FOUND:-}" == "true" ]]; then
+      echo "ERROR: (ResourceNotFound) The Resource 'Microsoft.ContainerInstance/containerGroups/test-container' under resource group 'test-rg' was not found." >&2
+      echo "Code: ResourceNotFound" >&2
+      echo "Message: The Resource 'Microsoft.ContainerInstance/containerGroups/test-container' under resource group 'test-rg' was not found." >&2
+      exit 3
+    fi
+    cat "${BATS_TEST_DIRNAME}/fixtures/container-show.json" 2>/dev/null || echo '{"ipAddress":{"ip":"10.0.10.4"}}'
+    ;;
+  "vm show "*)
+    if [[ "${AZ_MOCK_RESOURCE_NOT_FOUND:-}" == "true" ]]; then
+      echo "ERROR: (ResourceNotFound) The Resource 'Microsoft.Compute/virtualMachines/test-vm' under resource group 'test-rg' was not found." >&2
+      echo "Code: ResourceNotFound" >&2
+      echo "Message: The Resource 'Microsoft.Compute/virtualMachines/test-vm' under resource group 'test-rg' was not found." >&2
+      exit 3
+    fi
+    cat "${BATS_TEST_DIRNAME}/fixtures/vm-show.json" 2>/dev/null || echo '{"privateIps":"10.0.30.4"}'
+    ;;
+  "network vnet show"*)
+    if [[ "${AZ_MOCK_RESOURCE_NOT_FOUND:-}" == "true" ]]; then
+      echo "ERROR: (ResourceNotFound) The Resource 'Microsoft.Network/virtualNetworks/test-vnet' under resource group 'test-rg' was not found." >&2
+      echo "Code: ResourceNotFound" >&2
+      echo "Message: The Resource 'Microsoft.Network/virtualNetworks/test-vnet' under resource group 'test-rg' was not found." >&2
+      exit 3
+    fi
+    cat "${BATS_TEST_DIRNAME}/fixtures/vnet-show.json" 2>/dev/null || echo '{"name":"vnet-simple"}'
+    ;;
+  "network vnet subnet"*)
+    if [[ "${AZ_MOCK_RESOURCE_NOT_FOUND:-}" == "true" ]]; then
+      echo "ERROR: (ResourceNotFound) The Resource 'Microsoft.Network/virtualNetworks/test-vnet/subnets/test-subnet' under resource group 'test-rg' was not found." >&2
+      echo "Code: ResourceNotFound" >&2
+      echo "Message: The Resource 'Microsoft.Network/virtualNetworks/test-vnet/subnets/test-subnet' under resource group 'test-rg' was not found." >&2
+      exit 3
+    fi
+    # Return a valid subnet with ID
+    cat "${BATS_TEST_DIRNAME}/fixtures/subnet-show.json" 2>/dev/null || echo '{"id":"/subscriptions/test/resourceGroups/rg-test/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/snet-test","addressPrefix":"10.0.10.0/24"}'
+    ;;
+  "network nsg show"*)
+    if [[ "${AZ_MOCK_RESOURCE_NOT_FOUND:-}" == "true" ]]; then
+      echo "ERROR: (ResourceNotFound) The Resource 'Microsoft.Network/networkSecurityGroups/test-nsg' under resource group 'test-rg' was not found." >&2
+      echo "Code: ResourceNotFound" >&2
+      echo "Message: The Resource 'Microsoft.Network/networkSecurityGroups/test-nsg' under resource group 'test-rg' was not found." >&2
+      exit 3
+    fi
+    cat "${BATS_TEST_DIRNAME}/fixtures/nsg-show.json" 2>/dev/null || echo '{"name":"nsg-simple"}'
+    ;;
+  "network route-table show"*)
+    if [[ "${AZ_MOCK_RESOURCE_NOT_FOUND:-}" == "true" ]]; then
+      echo "ERROR: (ResourceNotFound) The Resource 'Microsoft.Network/routeTables/test-rt' under resource group 'test-rg' was not found." >&2
+      echo "Code: ResourceNotFound" >&2
+      echo "Message: The Resource 'Microsoft.Network/routeTables/test-rt' under resource group 'test-rg' was not found." >&2
+      exit 3
+    fi
+    cat "${BATS_TEST_DIRNAME}/fixtures/route-table-show.json" 2>/dev/null || echo '{"name":"rt-simple"}'
+    ;;
+  "network public-ip show"*)
+    if [[ "${AZ_MOCK_RESOURCE_NOT_FOUND:-}" == "true" ]]; then
+      echo "ERROR: (ResourceNotFound) The Resource 'Microsoft.Network/publicIPAddresses/test-ip' under resource group 'test-rg' was not found." >&2
+      echo "Code: ResourceNotFound" >&2
+      echo "Message: The Resource 'Microsoft.Network/publicIPAddresses/test-ip' under resource group 'test-rg' was not found." >&2
+      exit 3
+    fi
+    cat "${BATS_TEST_DIRNAME}/fixtures/public-ip-show.json" 2>/dev/null || echo '{"name":"pip-simple"}'
+    ;;
+  "group show "*)
+    if [[ "${AZ_MOCK_RESOURCE_NOT_FOUND:-}" == "true" ]]; then
+      echo "ERROR: (ResourceNotFound) The Resource 'Microsoft.Resources/resourceGroups/test-rg' was not found." >&2
+      echo "Code: ResourceNotFound" >&2
+      echo "Message: The Resource 'Microsoft.Resources/resourceGroups/test-rg' was not found." >&2
+      exit 3
+    fi
+    cat "${BATS_TEST_DIRNAME}/fixtures/group-show.json" 2>/dev/null || echo '{"name":"rg-test"}'
+    ;;
+  "network vnet create"*|\
+  "network vnet subnet"*|\
+  "network nsg create"*|\
+  "network nsg rule"*|\
+  "network route-table create"*|\
+  "network route-table route"*|\
+  "network route-table update"*|\
+  "container create"*|\
+  "container delete"*|\
+  "vm create"*|\
+  "vm delete"*|\
+  "vm run-command invoke"*|\
+  "network nic update"*|\
+  "network nic ip-config"*)
+    # Create/update/delete commands - just return success
+    echo '{"status":"Succeeded"}' >/dev/null
+    ;;
+  *)
+    # Default: return empty success
+    echo '{}' >/dev/null
+    exit 0
+    ;;
+esac
