@@ -1,0 +1,14 @@
+{
+  "addressPrefix": "10.0.10.0/24",
+  "delegations": [],
+  "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-simple-vnet/providers/Microsoft.Network/virtualNetworks/vnet-simple/subnets/snet-subnet1",
+  "name": "snet-subnet1",
+  "networkSecurityGroup": {
+    "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-simple-vnet/providers/Microsoft.Network/networkSecurityGroups/nsg-simple"
+  },
+  "privateEndpointNetworkPolicies": "Disabled",
+  "privateLinkServiceNetworkPolicies": "Enabled",
+  "provisioningState": "Succeeded",
+  "resourceGroup": "rg-simple-vnet",
+  "type": "Microsoft.Network/virtualNetworks/subnets"
+}

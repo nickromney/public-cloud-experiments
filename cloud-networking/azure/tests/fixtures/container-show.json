@@ -1,0 +1,25 @@
+{
+  "containers": [
+    {
+      "name": "aci-test",
+      "image": "nginx:latest"
+    }
+  ],
+  "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-simple-vnet/providers/Microsoft.ContainerInstance/containerGroups/aci-test",
+  "ipAddress": {
+    "ip": "10.0.10.4",
+    "ports": [
+      {
+        "port": 80,
+        "protocol": "TCP"
+      }
+    ],
+    "type": "Private"
+  },
+  "location": "eastus2",
+  "name": "aci-test",
+  "osType": "Linux",
+  "provisioningState": "Succeeded",
+  "resourceGroup": "rg-simple-vnet",
+  "type": "Microsoft.ContainerInstance/containerGroups"
+}

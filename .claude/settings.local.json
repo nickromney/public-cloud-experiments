@@ -36,7 +36,15 @@
       "Bash(do)",
       "Bash(echo \"=== $subnet ===\")",
       "Bash(az network vnet subnet show:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(bats:*)",
+      "Bash(echo \"Pattern found: $?\")",
+      "Bash(RESOURCE_GROUP=rg-test VNET_NAME=vnet-test SUBNET_NAME=snet-test CONTAINER_NAME=aci-test ./resource-container-instance.sh)",
+      "Bash(RESOURCE_GROUP=rg-test VNET_NAME=vnet-test SUBNET_NAME=snet-test CONTAINER_NAME=aci-test bash ./resource-container-instance.sh)",
+      "Bash(export RESOURCE_GROUP=rg-test VNET_NAME=vnet-test SUBNET_NAME=snet-test CONTAINER_NAME=aci-test)",
+      "Bash(./resource-container-instance.sh:*)",
+      "Bash(export AZ_MOCK_RESOURCE_NOT_FOUND=true)",
+      "Bash(./bin/az group show --name test)"
     ],
     "deny": [],
     "ask": []

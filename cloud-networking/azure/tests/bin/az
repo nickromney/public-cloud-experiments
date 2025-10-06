@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+#
+# Mock az CLI for testing
+# Tracks commands and returns fixtures
+
+# Track command to file
+AZ_CALLS_FILE="${AZ_CALLS_FILE:-/tmp/az_calls_$$}"
+echo "$*" >> "$AZ_CALLS_FILE"
+
+# Handle specific commands
+case "$1 $2" in
+  "account show")
+    if [[ "${AZ_MOCK_NOT_LOGGED_IN:-}" == "true" ]]; then
+      echo "ERROR: Please run 'az login' to setup account." >&2
+      exit 1
+    fi
+    if [[ -f "${BATS_TEST_DIRNAME}/fixtures/account-show.json" ]]; then
+      cat "${BATS_TEST_DIRNAME}/fixtures/account-show.json"
+    else
+      echo '{"id":"mock-subscription","name":"mock"}'
+    fi
+    ;;
+  "container show")
+    cat "${BATS_TEST_DIRNAME}/fixtures/container-show.json" 2>/dev/null || echo '{"ipAddress":{"ip":"10.0.10.4"}}'
+    ;;
+  "vm show")
+    cat "${BATS_TEST_DIRNAME}/fixtures/vm-show.json" 2>/dev/null || echo '{"privateIps":"10.0.30.4"}'
+    ;;
+  "network vnet show")
+    if [[ "${AZ_MOCK_RESOURCE_NOT_FOUND:-}" == "true" ]]; then
+      echo '{"error":{"code":"ResourceNotFound"}}' >&2
+      exit 1
+    fi
+    cat "${BATS_TEST_DIRNAME}/fixtures/vnet-show.json" 2>/dev/null || echo '{"name":"vnet-simple"}'
+    ;;
+  "network vnet subnet show")
+    # Return a valid subnet with ID
+    cat "${BATS_TEST_DIRNAME}/fixtures/subnet-show.json" 2>/dev/null || echo '{"id":"/subscriptions/test/resourceGroups/rg-test/providers/Microsoft.Network/virtualNetworks/vnet-test/subnets/snet-test","addressPrefix":"10.0.10.0/24"}'
+    ;;
+  "network nsg show")
+    cat "${BATS_TEST_DIRNAME}/fixtures/nsg-show.json" 2>/dev/null || echo '{"name":"nsg-simple"}'
+    ;;
+  "group show")
+    if [[ "${AZ_MOCK_RESOURCE_NOT_FOUND:-}" == "true" ]]; then
+      echo '{"error":{"code":"ResourceNotFound"}}' >&2
+      exit 1
+    fi
+    cat "${BATS_TEST_DIRNAME}/fixtures/group-show.json" 2>/dev/null || echo '{"name":"rg-test"}'
+    ;;
+  "network vnet create"|\
+  "network vnet subnet create"|\
+  "network nsg create"|\
+  "network nsg rule create"|\
+  "network nsg rule delete"|\
+  "network route-table create"|\
+  "network route-table route create"|\
+  "network route-table route delete"|\
+  "container create"|\
+  "container delete"|\
+  "vm create"|\
+  "vm delete"|\
+  "vm run-command invoke"|\
+  "network nic update"|\
+  "network nic ip-config update"|\
+  "network route-table update")
+    # Create/update/delete commands - just return success
+    echo '{"status":"Succeeded"}' >/dev/null
+    ;;
+  *)
+    # Default: return empty success
+    echo '{}' >/dev/null
+    ;;
+esac
+
+exit 0

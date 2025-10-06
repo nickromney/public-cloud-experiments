@@ -1,0 +1,23 @@
+{
+  "fqdns": "",
+  "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-simple-vnet/providers/Microsoft.Compute/virtualMachines/vm-test",
+  "location": "eastus2",
+  "macAddress": "00-0D-3A-12-34-56",
+  "name": "vm-test",
+  "networkProfile": {
+    "networkInterfaces": [
+      {
+        "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-simple-vnet/providers/Microsoft.Network/networkInterfaces/vm-test-nic",
+        "resourceGroup": "rg-simple-vnet"
+      }
+    ]
+  },
+  "osType": "Linux",
+  "powerState": "VM running",
+  "privateIps": "10.0.30.4",
+  "provisioningState": "Succeeded",
+  "publicIps": "",
+  "resourceGroup": "rg-simple-vnet",
+  "type": "Microsoft.Compute/virtualMachines",
+  "vmId": "abcdef12-3456-7890-abcd-ef1234567890"
+}

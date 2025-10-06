@@ -1,0 +1,94 @@
+#cloud-config
+# Configure nftables firewall rules on Ubuntu VM
+# - Receive traffic from subnets 1-4
+# - Drop traffic from subnet 2
+# - Allow subnet3 -> subnet2 forwarding
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - nftables
+
+write_files:
+  - path: /etc/nftables.conf
+    content: |
+      #!/usr/sbin/nft -f
+
+      # Flush all existing rules
+      flush ruleset
+
+      # Create filter table
+      table ip filter {
+        # Input chain - receive traffic from all subnets
+        chain input {
+          type filter hook input priority 0; policy drop;
+
+          # Allow loopback
+          iif lo accept
+
+          # Allow established/related
+          ct state established,related accept
+
+          # Allow from subnet 1 (10.0.10.0/24)
+          ip saddr 10.0.10.0/24 accept
+
+          # Drop from subnet 2 (10.0.20.0/24)
+          ip saddr 10.0.20.0/24 drop
+
+          # Allow from subnet 3 (10.0.30.0/24)
+          ip saddr 10.0.30.0/24 accept
+
+          # Allow from subnet 4 (10.0.40.0/24)
+          ip saddr 10.0.40.0/24 accept
+
+          # Allow SSH from any source (for management)
+          tcp dport 22 accept
+        }
+
+        # Forward chain - for routing between subnets and to internet
+        chain forward {
+          type filter hook forward priority 0; policy drop;
+
+          # Allow established/related
+          ct state established,related accept
+
+          # Allow subnet3 -> subnet2 forwarding
+          ip saddr 10.0.30.0/24 ip daddr 10.0.20.0/24 accept
+
+          # Allow subnet4 to forward out (for NVA routing)
+          ip saddr 10.0.40.0/24 accept
+
+          # Allow subnet1 and subnet2 forwarding
+          ip saddr 10.0.10.0/24 accept
+          ip saddr 10.0.20.0/24 accept
+        }
+
+        # Output chain
+        chain output {
+          type filter hook output priority 0; policy accept;
+        }
+      }
+
+      # Create NAT table for masquerading outbound traffic
+      table ip nat {
+        # Postrouting chain for NAT
+        chain postrouting {
+          type nat hook postrouting priority 100; policy accept;
+
+          # Masquerade traffic from 10.0.0.0/16 going out eth0
+          ip saddr 10.0.0.0/16 oifname "eth0" masquerade
+        }
+
+        # Prerouting chain
+        chain prerouting {
+          type nat hook prerouting priority -100; policy accept;
+        }
+      }
+
+runcmd:
+  - systemctl enable nftables
+  - systemctl start nftables
+  - nft -f /etc/nftables.conf
+  - sysctl -w net.ipv4.ip_forward=1
+  - echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
