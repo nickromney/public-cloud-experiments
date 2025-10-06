@@ -63,7 +63,12 @@
       "Bash(BATS_INTEGRATION=true RESOURCE_GROUP='1-b7ad96ae-playground-sandbox' bats test_integration_network.bats -t)",
       "Bash(./05-container-instances.sh:*)",
       "Bash(az container list:*)",
-      "Bash(./06-container-tests.sh:*)"
+      "Bash(./06-container-tests.sh:*)",
+      "Bash(az container delete:*)",
+      "Bash(az container show:*)",
+      "Bash(timeout:*)",
+      "Bash(RESOURCE_GROUP='1-b7ad96ae-playground-sandbox' ./05-container-instances.sh)",
+      "Bash(RESOURCE_GROUP='1-b7ad96ae-playground-sandbox' ./06-container-tests.sh)"
     ],
     "deny": [],
     "ask": []

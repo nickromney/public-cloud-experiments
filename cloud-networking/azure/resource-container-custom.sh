@@ -10,7 +10,7 @@ readonly RESOURCE_GROUP="${RESOURCE_GROUP:-rg-simple-vnet}"
 readonly VNET_NAME="${VNET_NAME:-vnet-simple}"
 readonly SUBNET_NAME="${SUBNET_NAME:-snet-subnet1}"
 readonly CONTAINER_NAME="${CONTAINER_NAME:-aci-test}"
-readonly IMAGE="${IMAGE:-nginx:latest}"
+readonly IMAGE="${IMAGE:-mcr.microsoft.com/oss/nginx/nginx:1.9.15-alpine}"
 
 # Subnet CIDR mapping (should match your network configuration)
 declare -A SUBNET_CIDRS=(
@@ -58,7 +58,7 @@ log_info ""
 # shellcheck disable=SC2016  # Intentional: expressions in single quotes are for container runtime
 CUSTOM_SCRIPT='#!/bin/sh
 HOSTNAME=$(hostname)
-PRIVATE_IP=$(hostname -i | awk '"'"'{print $1}'"'"')
+PRIVATE_IP=$(hostname -i | cut -d" " -f1)
 cat > /usr/share/nginx/html/index.html <<EOF
 <!DOCTYPE html>
 <html>
