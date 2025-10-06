@@ -15,6 +15,7 @@ readonly IMAGE="${IMAGE:-Ubuntu2404}"  # Ubuntu 24.04 LTS
 readonly ADMIN_USERNAME="${ADMIN_USERNAME:-azureuser}"
 readonly CUSTOM_DATA="${CUSTOM_DATA:-}"  # Optional cloud-init script path
 readonly ENABLE_IP_FORWARDING="${ENABLE_IP_FORWARDING:-false}"  # Enable IP forwarding on NIC
+readonly CREATE_PUBLIC_IP="${CREATE_PUBLIC_IP:-false}"  # Create and attach public IP
 
 # Colors
 readonly GREEN='\033[0;32m'
@@ -55,6 +56,9 @@ fi
 if [[ "${ENABLE_IP_FORWARDING}" == "true" ]]; then
   log_info "  IP Forwarding: Enabled"
 fi
+if [[ "${CREATE_PUBLIC_IP}" == "true" ]]; then
+  log_info "  Public IP: Will be created"
+fi
 log_info ""
 
 # Create NIC name based on VM name
@@ -76,6 +80,21 @@ fi
 log_info "Subnet ID: ${SUBNET_ID}"
 log_info ""
 
+# Create public IP if requested
+PUBLIC_IP_NAME=""
+if [[ "${CREATE_PUBLIC_IP}" == "true" ]]; then
+  PUBLIC_IP_NAME="${VM_NAME}-pip"
+  log_info "Creating public IP ${PUBLIC_IP_NAME}..."
+  az network public-ip create \
+    --name "${PUBLIC_IP_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --location "${LOCATION}" \
+    --sku Standard \
+    --allocation-method Static \
+    --output none
+  log_info "  Public IP created"
+fi
+
 # Create NIC
 log_info "Creating network interface ${NIC_NAME}..."
 NIC_ARGS=(
@@ -85,6 +104,12 @@ NIC_ARGS=(
   --subnet "${SUBNET_ID}"
   --output none
 )
+
+# Add public IP if created
+if [[ -n "${PUBLIC_IP_NAME}" ]]; then
+  NIC_ARGS+=(--public-ip-address "${PUBLIC_IP_NAME}")
+  log_info "  Attaching public IP ${PUBLIC_IP_NAME}"
+fi
 
 # Add IP forwarding if enabled
 if [[ "${ENABLE_IP_FORWARDING}" == "true" ]]; then

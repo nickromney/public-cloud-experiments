@@ -1,9 +1,28 @@
 #!/usr/bin/env bash
 #
-# Configure nftables on a VM
-# Use this to manually apply firewall rules to an existing VM
-# - Receive traffic from subnets 1-4
-# - Drop traffic from subnet 2
+# Configure nftables on an EXISTING VM
+#
+# PURPOSE:
+#   This script is for UPDATING or REPAIRING nftables configuration on a VM
+#   that has already been deployed. Use this to:
+#   - Update firewall rules on an existing VM
+#   - Fix nftables configuration that didn't apply correctly
+#   - Change NAT/forwarding rules without redeploying
+#
+# WHEN TO USE:
+#   - VM already exists and needs rule updates
+#   - Troubleshooting/debugging firewall rules
+#   - Manual configuration changes
+#
+# WHEN NOT TO USE:
+#   - Creating a NEW VM → Use 07-vm.sh instead
+#     (07-vm.sh configures nftables via cloud-init during VM creation)
+#
+# CONFIGURATION:
+#   - Receive traffic from subnets 1-4
+#   - Drop traffic from subnet 2
+#   - Enable IP forwarding
+#   - Configure NAT (masquerade) for NVA functionality
 
 set -euo pipefail
 
@@ -53,13 +72,15 @@ nft add rule ip filter input ip saddr 10.0.10.0/24 accept
 nft add rule ip filter input ip saddr 10.0.20.0/24 drop
 nft add rule ip filter input ip saddr 10.0.30.0/24 accept
 nft add rule ip filter input ip saddr 10.0.40.0/24 accept
+nft add rule ip filter input ip saddr 10.0.50.0/24 accept
 nft add rule ip filter input tcp dport 22 accept
 
-# Forward chain - allow forwarding from subnet4 (and others)
+# Forward chain - allow forwarding from subnet4, subnet5 (and others)
 nft add chain ip filter forward { type filter hook forward priority 0\; policy drop\; }
 nft add rule ip filter forward ct state established,related accept
 nft add rule ip filter forward ip saddr 10.0.30.0/24 ip daddr 10.0.20.0/24 accept
 nft add rule ip filter forward ip saddr 10.0.40.0/24 accept  # Allow subnet4 to forward out
+nft add rule ip filter forward ip saddr 10.0.50.0/24 accept  # Allow subnet5 to forward out
 nft add rule ip filter forward ip saddr 10.0.10.0/24 accept  # Allow subnet1
 nft add rule ip filter forward ip saddr 10.0.20.0/24 accept  # Allow subnet2
 

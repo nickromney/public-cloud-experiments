@@ -20,6 +20,8 @@ readonly SUBNET3_NAME="${SUBNET3_NAME:-snet-subnet3}"
 readonly SUBNET3_PREFIX="${SUBNET3_PREFIX:-10.0.30.0/24}"
 readonly SUBNET4_NAME="${SUBNET4_NAME:-snet-subnet4}"
 readonly SUBNET4_PREFIX="${SUBNET4_PREFIX:-10.0.40.0/24}"
+readonly SUBNET5_NAME="${SUBNET5_NAME:-snet-subnet5}"
+readonly SUBNET5_PREFIX="${SUBNET5_PREFIX:-10.0.50.0/24}"
 readonly NSG_NAME="${NSG_NAME:-nsg-simple}"
 
 # Colors
@@ -55,10 +57,11 @@ log_info "Configuration:"
 log_info "  Resource Group: ${RESOURCE_GROUP}"
 log_info "  Location: ${LOCATION}"
 log_info "  VNET: ${VNET_NAME} (${VNET_PREFIX})"
-log_info "  Subnet 1: ${SUBNET1_NAME} (${SUBNET1_PREFIX}) - Public"
+log_info "  Subnet 1: ${SUBNET1_NAME} (${SUBNET1_PREFIX}) - Public (delegated to ACI)"
 log_info "  Subnet 2: ${SUBNET2_NAME} (${SUBNET2_PREFIX}) - Public"
 log_info "  Subnet 3: ${SUBNET3_NAME} (${SUBNET3_PREFIX}) - Public (NVA/firewall)"
-log_info "  Subnet 4: ${SUBNET4_NAME} (${SUBNET4_PREFIX}) - Private"
+log_info "  Subnet 4: ${SUBNET4_NAME} (${SUBNET4_PREFIX}) - Private (defaultOutboundAccess: false)"
+log_info "  Subnet 5: ${SUBNET5_NAME} (${SUBNET5_PREFIX}) - Public (for NVA testing)"
 log_info "  NSG: ${NSG_NAME}"
 log_info ""
 
@@ -116,6 +119,14 @@ if ! az network vnet subnet show --name "${SUBNET4_NAME}" --vnet-name "${VNET_NA
   "${SCRIPT_DIR}/resource-subnet.sh" "${RESOURCE_GROUP}" "${VNET_NAME}" "${SUBNET4_NAME}" "${SUBNET4_PREFIX}" "${NSG_NAME}" "true"
 else
   log_info "Subnet ${SUBNET4_NAME} exists"
+fi
+
+# Create Subnet 5 (public - for NVA testing with public-capable subnet)
+if ! az network vnet subnet show --name "${SUBNET5_NAME}" --vnet-name "${VNET_NAME}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
+  log_info "Creating public subnet ${SUBNET5_NAME} (for NVA routing test)"
+  "${SCRIPT_DIR}/resource-subnet.sh" "${RESOURCE_GROUP}" "${VNET_NAME}" "${SUBNET5_NAME}" "${SUBNET5_PREFIX}" "${NSG_NAME}"
+else
+  log_info "Subnet ${SUBNET5_NAME} exists"
 fi
 
 log_info ""

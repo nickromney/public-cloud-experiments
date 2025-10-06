@@ -40,12 +40,13 @@ readonly LOCATION
 log_info "Deploying virtual machine with nftables firewall"
 log_info ""
 
-# Deploy VM to subnet3 with nftables cloud-init and IP forwarding enabled
-log_info "Deploying to snet-subnet3 (private subnet)..."
+# Deploy VM to subnet3 with nftables cloud-init, IP forwarding, and public IP
+log_info "Deploying to snet-subnet3 with public IP for NVA functionality..."
 SUBNET_NAME=snet-subnet3 \
   VM_NAME=vm-firewall \
   CUSTOM_DATA="${SCRIPT_DIR}/nftables-config.yaml" \
   ENABLE_IP_FORWARDING=true \
+  CREATE_PUBLIC_IP=true \
   "${SCRIPT_DIR}/resource-virtual-machine.sh"
 
 log_info ""

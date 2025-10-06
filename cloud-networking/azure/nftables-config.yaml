@@ -42,6 +42,9 @@ write_files:
           # Allow from subnet 4 (10.0.40.0/24)
           ip saddr 10.0.40.0/24 accept
 
+          # Allow from subnet 5 (10.0.50.0/24)
+          ip saddr 10.0.50.0/24 accept
+
           # Allow SSH from any source (for management)
           tcp dport 22 accept
         }
@@ -58,6 +61,9 @@ write_files:
 
           # Allow subnet4 to forward out (for NVA routing)
           ip saddr 10.0.40.0/24 accept
+
+          # Allow subnet5 to forward out (for NVA routing test)
+          ip saddr 10.0.50.0/24 accept
 
           # Allow subnet1 and subnet2 forwarding
           ip saddr 10.0.10.0/24 accept
