@@ -10,7 +10,6 @@ set -euo pipefail
 
 # Configuration
 readonly RESOURCE_GROUP="${RESOURCE_GROUP:-rg-simple-vnet}"
-readonly LOCATION="${LOCATION:-eastus2}"
 readonly VNET_NAME="${VNET_NAME:-vnet-simple}"
 readonly VNET_PREFIX="${VNET_PREFIX:-10.0.0.0/16}"
 readonly SUBNET1_NAME="${SUBNET1_NAME:-snet-subnet1}"
@@ -40,12 +39,24 @@ if ! az account show &>/dev/null; then
   exit 1
 fi
 
+# Detect location from resource group if LOCATION not set
+if [[ -z "${LOCATION:-}" ]]; then
+  if az group show --name "${RESOURCE_GROUP}" &>/dev/null; then
+    LOCATION=$(az group show --name "${RESOURCE_GROUP}" --query location -o tsv)
+    log_info "Detected location from resource group: ${LOCATION}"
+  else
+    log_error "Resource group ${RESOURCE_GROUP} not found and LOCATION not set"
+    exit 1
+  fi
+fi
+readonly LOCATION
+
 log_info "Configuration:"
 log_info "  Resource Group: ${RESOURCE_GROUP}"
 log_info "  Location: ${LOCATION}"
 log_info "  VNET: ${VNET_NAME} (${VNET_PREFIX})"
 log_info "  Subnet 1: ${SUBNET1_NAME} (${SUBNET1_PREFIX}) - Public"
-log_info "  Subnet 2: ${SUBNET2_NAME} (${SUBNET2_PREFIX}) - Private"
+log_info "  Subnet 2: ${SUBNET2_NAME} (${SUBNET2_PREFIX}) - Public"
 log_info "  Subnet 3: ${SUBNET3_NAME} (${SUBNET3_PREFIX}) - Private"
 log_info "  Subnet 4: ${SUBNET4_NAME} (${SUBNET4_PREFIX}) - Private"
 log_info "  NSG: ${NSG_NAME}"
@@ -83,10 +94,10 @@ else
   log_info "Subnet ${SUBNET1_NAME} exists"
 fi
 
-# Create Subnet 2 (private - no default outbound access)
+# Create Subnet 2 (public)
 if ! az network vnet subnet show --name "${SUBNET2_NAME}" --vnet-name "${VNET_NAME}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
-  log_info "Creating private subnet ${SUBNET2_NAME} (no default outbound access)"
-  "${SCRIPT_DIR}/resource-subnet.sh" "${RESOURCE_GROUP}" "${VNET_NAME}" "${SUBNET2_NAME}" "${SUBNET2_PREFIX}" "${NSG_NAME}" "true"
+  log_info "Creating subnet ${SUBNET2_NAME}"
+  "${SCRIPT_DIR}/resource-subnet.sh" "${RESOURCE_GROUP}" "${VNET_NAME}" "${SUBNET2_NAME}" "${SUBNET2_PREFIX}" "${NSG_NAME}"
 else
   log_info "Subnet ${SUBNET2_NAME} exists"
 fi

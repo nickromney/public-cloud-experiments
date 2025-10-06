@@ -21,6 +21,22 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 # log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }  # Unused currently
 
+# Check Azure CLI
+if ! az account show &>/dev/null; then
+  log_error "Not logged in to Azure. Run 'az login'"
+  exit 1
+fi
+
+# Detect location from resource group if LOCATION not set (for consistency)
+if [[ -z "${LOCATION:-}" ]]; then
+  LOCATION=$(az group show --name "${RESOURCE_GROUP}" --query location -o tsv 2>/dev/null || echo "")
+  if [[ -z "${LOCATION}" ]]; then
+    log_error "Could not detect location from resource group ${RESOURCE_GROUP}"
+    exit 1
+  fi
+fi
+readonly LOCATION
+
 # Test counter
 TESTS_RUN=0
 TESTS_PASSED=0

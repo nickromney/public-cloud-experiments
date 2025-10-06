@@ -34,6 +34,16 @@ if ! az account show &>/dev/null; then
   exit 1
 fi
 
+# Detect location from resource group if LOCATION not set (for consistency)
+if [[ -z "${LOCATION:-}" ]]; then
+  LOCATION=$(az group show --name "${RESOURCE_GROUP}" --query location -o tsv 2>/dev/null || echo "")
+  if [[ -z "${LOCATION}" ]]; then
+    log_error "Could not detect location from resource group ${RESOURCE_GROUP}"
+    exit 1
+  fi
+fi
+readonly LOCATION
+
 log_demo "========================================="
 log_demo "NVA Routing Tests"
 log_demo "========================================="

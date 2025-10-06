@@ -8,7 +8,6 @@ set -euo pipefail
 
 # Configuration
 readonly RESOURCE_GROUP="${RESOURCE_GROUP:-rg-simple-vnet}"
-readonly LOCATION="${LOCATION:-eastus2}"
 readonly VNET_NAME="${VNET_NAME:-vnet-simple}"
 
 # Colors
@@ -27,6 +26,16 @@ if ! az account show &>/dev/null; then
   log_error "Not logged in to Azure. Run 'az login'"
   exit 1
 fi
+
+# Detect location from resource group if LOCATION not set
+if [[ -z "${LOCATION:-}" ]]; then
+  LOCATION=$(az group show --name "${RESOURCE_GROUP}" --query location -o tsv 2>/dev/null || echo "")
+  if [[ -z "${LOCATION}" ]]; then
+    log_error "Could not detect location from resource group ${RESOURCE_GROUP}"
+    exit 1
+  fi
+fi
+readonly LOCATION
 
 log_info "Deploying container instances for network testing"
 log_info ""

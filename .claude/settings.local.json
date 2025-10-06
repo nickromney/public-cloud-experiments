@@ -54,7 +54,16 @@
       "Bash(AZ_MOCK_RESOURCE_NOT_FOUND=true tests/bin/az network vnet show --name test --resource-group test)",
       "Bash(export:*)",
       "Bash(echo:*)",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "Bash(./02-azure-simple-network.sh:*)",
+      "Bash(BATS_INTEGRATION=true RESOURCE_GROUP='1-b7ad96ae-playground-sandbox' bats test_integration_network.bats)",
+      "Bash(./03-azure-network-aci.sh:*)",
+      "Bash(az network vnet delete:*)",
+      "Bash(az network nsg delete:*)",
+      "Bash(BATS_INTEGRATION=true RESOURCE_GROUP='1-b7ad96ae-playground-sandbox' bats test_integration_network.bats -t)",
+      "Bash(./05-container-instances.sh:*)",
+      "Bash(az container list:*)",
+      "Bash(./06-container-tests.sh:*)"
     ],
     "deny": [],
     "ask": []
