@@ -49,7 +49,7 @@ log_info ""
 
 # Deploy VM to subnet4 (private subnet)
 SUBNET_NAME=snet-subnet4 \
-VM_NAME=vm-private \
+VM_NAME=vm-test4 \
 VM_SIZE=Standard_B1s \
 "${SCRIPT_DIR}/resource-virtual-machine.sh"
 

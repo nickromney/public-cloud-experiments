@@ -43,7 +43,7 @@ log_info ""
 # Deploy VM to subnet3 with nftables cloud-init, IP forwarding, and public IP
 log_info "Deploying to snet-subnet3 with public IP for NVA functionality..."
 SUBNET_NAME=snet-subnet3 \
-  VM_NAME=vm-firewall \
+  VM_NAME=vm-test3 \
   CUSTOM_DATA="${SCRIPT_DIR}/nftables-config.yaml" \
   ENABLE_IP_FORWARDING=true \
   CREATE_PUBLIC_IP=true \

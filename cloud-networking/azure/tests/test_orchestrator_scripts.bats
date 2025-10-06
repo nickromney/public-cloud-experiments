@@ -78,8 +78,8 @@ teardown() {
   assert_success
 }
 
-@test "12-private-vm.sh sets VM_NAME to vm-private" {
-  run grep "VM_NAME=vm-private" 12-private-vm.sh
+@test "12-private-vm.sh sets VM_NAME to vm-test4" {
+  run grep "VM_NAME=vm-test4" 12-private-vm.sh
 
   assert_success
 }
@@ -88,7 +88,7 @@ teardown() {
 @test "14-nva-routing.sh uses NVA_VM env var" {
   run bash -c 'source 14-nva-routing.sh 2>/dev/null; echo "$NVA_VM"' || true
 
-  assert_output --partial "vm-firewall"
+  assert_output --partial "vm-test3"
 }
 
 @test "14-nva-routing.sh has route table name variable" {

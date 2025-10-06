@@ -45,7 +45,7 @@
 │  │ (public, NVA)     │  │ (private)         │          │
 │  │                   │  │                   │          │
 │  │ ┌──────────────┐  │  │ ┌──────────────┐ │          │
-│  │ │ vm-firewall  │  │  │ │ vm-private   │ │          │
+│  │ │ vm-test3  │  │  │ │ vm-test4   │ │          │
 │  │ │ 10.0.30.4    │◄─┼──┼─│ 10.0.40.4    │ │          │
 │  │ │ (NVA)        │  │  │ │              │ │          │
 │  │ └──────────────┘  │  │ └──────────────┘ │          │
@@ -71,9 +71,9 @@
 **Traffic Flow (Expected):**
 
 ```text
-vm-private (10.0.40.4)
+vm-test4 (10.0.40.4)
   → UDR: 0.0.0.0/0 via 10.0.30.4
-  → vm-firewall (10.0.30.4)
+  → vm-test3 (10.0.30.4)
   → nftables NAT (masquerade)
   → Internet
 ```
@@ -82,7 +82,7 @@ vm-private (10.0.40.4)
 
 ### VM Settings
 
-**vm-firewall (NVA in subnet3):**
+**vm-test3 (NVA in subnet3):**
 
 - IP: 10.0.30.4
 - NIC IP Forwarding: **Enabled**
@@ -147,15 +147,15 @@ table ip nat {
 
 ### Test 1: Direct Inter-Subnet Connectivity [PASS]
 
-**Test:** vm-private (10.0.40.4) → vm-firewall (10.0.30.4)
+**Test:** vm-test4 (10.0.40.4) → vm-test3 (10.0.30.4)
 
 ```bash
 # Ping test
-$ az vm run-command invoke --name vm-private --scripts "ping -c 3 10.0.30.4"
+$ az vm run-command invoke --name vm-test4 --scripts "ping -c 3 10.0.30.4"
 OK: 3 packets transmitted, 3 received, 0% packet loss
 
 # TCP test (SSH)
-$ az vm run-command invoke --name vm-private --scripts "nc -zv -w 5 10.0.30.4 22"
+$ az vm run-command invoke --name vm-test4 --scripts "nc -zv -w 5 10.0.30.4 22"
 OK: Connection to 10.0.30.4 22 port [tcp/ssh] succeeded!
 ```
 
@@ -163,10 +163,10 @@ OK: Connection to 10.0.30.4 22 port [tcp/ssh] succeeded!
 
 ### Test 2: NVA Can Access Internet [PASS]
 
-**Test:** vm-firewall (10.0.30.4) → google.com
+**Test:** vm-test3 (10.0.30.4) → google.com
 
 ```bash
-$ az vm run-command invoke --name vm-firewall --scripts "curl -s -m 5 http://google.com"
+$ az vm run-command invoke --name vm-test3 --scripts "curl -s -m 5 http://google.com"
 OK: <HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
 OK: <TITLE>301 Moved</TITLE></HEAD><BODY>
 ```
@@ -175,14 +175,14 @@ OK: <TITLE>301 Moved</TITLE></HEAD><BODY>
 
 ### Test 3: Private VM via NVA to Internet [FAIL]
 
-**Test:** vm-private (10.0.40.4) → 8.8.8.8 via NVA
+**Test:** vm-test4 (10.0.40.4) → 8.8.8.8 via NVA
 
 ```bash
-$ az vm run-command invoke --name vm-private --scripts "curl -v -m 5 http://8.8.8.8"
+$ az vm run-command invoke --name vm-test4 --scripts "curl -v -m 5 http://8.8.8.8"
 FAIL: Connection timed out after 5002 milliseconds
 ```
 
-**Packet capture on vm-private:**
+**Packet capture on vm-test4:**
 
 ```text
 13:35:21.323622 IP 10.0.40.4.45906 > 8.8.8.8.80: Flags [S], seq 2008452674, ...
@@ -190,20 +190,20 @@ FAIL: Connection timed out after 5002 milliseconds
 13:35:23.382591 IP 10.0.40.4.45906 > 8.8.8.8.80: Flags [S], seq 2008452674, ...
 ```
 
-**Packet capture on vm-firewall (NVA):**
+**Packet capture on vm-test3 (NVA):**
 
 ```text
 # NO PACKETS FROM 10.0.40.4 OBSERVED
 ```
 
-**Route check on vm-private:**
+**Route check on vm-test4:**
 
 ```bash
-$ az vm run-command invoke --name vm-private --scripts "ip route get 8.8.8.8"
+$ az vm run-command invoke --name vm-test4 --scripts "ip route get 8.8.8.8"
 8.8.8.8 via 10.0.40.1 dev eth0 src 10.0.40.4
 ```
 
-**Effective routes on vm-private NIC:**
+**Effective routes on vm-test4 NIC:**
 
 ```text
 Source    State    Address Prefix    Next Hop Type     Next Hop IP
@@ -264,17 +264,17 @@ User      Active   0.0.0.0/0         VirtualAppliance  10.0.30.4
 
 4. **Direct inter-subnet connectivity works**
 
-   - vm-private can reach vm-firewall directly: OK:
+   - vm-test4 can reach vm-test3 directly: OK:
 
 5. **Packets never arrive at the NVA**
    - tcpdump on NVA shows no packets from 10.0.40.4
-   - OS routing table on vm-private shows next hop as 10.0.40.1 (subnet gateway), not 10.0.30.4
+   - OS routing table on vm-test4 shows next hop as 10.0.40.1 (subnet gateway), not 10.0.30.4
 
 ### Azure Packet Processing Order
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│ Packet from vm-private (10.0.40.4) to Internet (8.8.8.8)       │
+│ Packet from vm-test4 (10.0.40.4) to Internet (8.8.8.8)       │
 └─────────────────────────────────────────────────────────────────┘
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -314,7 +314,7 @@ The platform-level block happens **before** the routing decision is applied for 
 
 ### Intra-VNet Traffic Works
 
-Direct connectivity between vm-private and vm-firewall works because:
+Direct connectivity between vm-test4 and vm-test3 works because:
 
 - Traffic stays within the VNet (10.0.0.0/16)
 - `defaultOutboundAccess: false` only blocks **internet-bound** traffic
@@ -329,9 +329,9 @@ Direct connectivity between vm-private and vm-firewall works because:
 ```bash
 # Configuration
 - Subnet5: defaultOutboundAccess: true (explicitly set)
-- VM: vm-public-test (10.0.50.4) - NO public IP
+- VM: vm-test5 (10.0.50.4) - NO public IP
 - UDR: 0.0.0.0/0 → 10.0.30.4 (NVA)
-- NVA: vm-firewall (10.0.30.4) - NO public IP
+- NVA: vm-test3 (10.0.30.4) - NO public IP
 
 # Results
 OK: VM can ping/SSH to NVA directly
@@ -346,9 +346,9 @@ FAIL: Internet-bound traffic NEVER reaches NVA (tcpdump confirms)
 ```bash
 # Configuration
 - Subnet5: defaultOutboundAccess: true
-- VM: vm-public-test (10.0.50.4) - NO public IP (uses default SNAT)
+- VM: vm-test5 (10.0.50.4) - NO public IP (uses default SNAT)
 - UDR: 0.0.0.0/0 → 10.0.30.4 (NVA)
-- NVA: vm-firewall (10.0.30.4) - WITH public IP (52.159.138.16)
+- NVA: vm-test3 (10.0.30.4) - WITH public IP (52.159.138.16)
 
 # Critical Results
 OK: UDR routing NOW WORKS - packets reach NVA (tcpdump confirms)
@@ -530,7 +530,7 @@ az network public-ip create \
 
 az network nic ip-config update \
   --name ipconfig1 \
-  --nic-name vm-firewall-nic \
+  --nic-name vm-test3-nic \
   --resource-group rg-test \
   --public-ip-address pip-nva
 
@@ -542,7 +542,7 @@ az network public-ip create \
 
 az network nic ip-config update \
   --name ipconfig1 \
-  --nic-name vm-private-nic \
+  --nic-name vm-test4-nic \
   --resource-group rg-test \
   --public-ip-address pip-vm1
 ```

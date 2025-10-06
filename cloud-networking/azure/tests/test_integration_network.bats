@@ -192,20 +192,20 @@ setup() {
 }
 
 # VM tests
-@test "VM vm-firewall exists" {
+@test "VM vm-test3 exists" {
   run az vm show \
-    --name vm-firewall \
+    --name vm-test3 \
     --resource-group "${RESOURCE_GROUP}" \
     --query "name" \
     -o tsv
 
   assert_success
-  assert_output "vm-firewall"
+  assert_output "vm-test3"
 }
 
-@test "VM vm-firewall is in subnet3" {
+@test "VM vm-test3 is in subnet3" {
   run az vm show \
-    --name vm-firewall \
+    --name vm-test3 \
     --resource-group "${RESOURCE_GROUP}" \
     --query "networkProfile.networkInterfaces[0].id" \
     -o tsv
@@ -220,9 +220,9 @@ setup() {
   [[ "${NIC_SUBNET}" == *"snet-subnet3"* ]]
 }
 
-@test "VM vm-firewall NIC has IP forwarding enabled" {
+@test "VM vm-test3 NIC has IP forwarding enabled" {
   run az vm show \
-    --name vm-firewall \
+    --name vm-test3 \
     --resource-group "${RESOURCE_GROUP}" \
     --query "networkProfile.networkInterfaces[0].id" \
     -o tsv
@@ -235,20 +235,20 @@ setup() {
   [[ "${IP_FORWARDING}" == "true" ]]
 }
 
-@test "VM vm-private exists" {
+@test "VM vm-test4 exists" {
   run az vm show \
-    --name vm-private \
+    --name vm-test4 \
     --resource-group "${RESOURCE_GROUP}" \
     --query "name" \
     -o tsv
 
   assert_success
-  assert_output "vm-private"
+  assert_output "vm-test4"
 }
 
-@test "VM vm-private is in subnet4" {
+@test "VM vm-test4 is in subnet4" {
   run az vm show \
-    --name vm-private \
+    --name vm-test4 \
     --resource-group "${RESOURCE_GROUP}" \
     --query "networkProfile.networkInterfaces[0].id" \
     -o tsv
@@ -261,20 +261,20 @@ setup() {
   [[ "${NIC_SUBNET}" == *"snet-subnet4"* ]]
 }
 
-@test "VM vm-public-test exists" {
+@test "VM vm-test5 exists" {
   run az vm show \
-    --name vm-public-test \
+    --name vm-test5 \
     --resource-group "${RESOURCE_GROUP}" \
     --query "name" \
     -o tsv
 
   assert_success
-  assert_output "vm-public-test"
+  assert_output "vm-test5"
 }
 
-@test "VM vm-public-test is in subnet5" {
+@test "VM vm-test5 is in subnet5" {
   run az vm show \
-    --name vm-public-test \
+    --name vm-test5 \
     --resource-group "${RESOURCE_GROUP}" \
     --query "networkProfile.networkInterfaces[0].id" \
     -o tsv
@@ -288,20 +288,20 @@ setup() {
 }
 
 # Public IP tests
-@test "Public IP vm-firewall-pip exists" {
+@test "Public IP vm-test3-pip exists" {
   run az network public-ip show \
-    --name vm-firewall-pip \
+    --name vm-test3-pip \
     --resource-group "${RESOURCE_GROUP}" \
     --query "name" \
     -o tsv
 
   assert_success
-  assert_output "vm-firewall-pip"
+  assert_output "vm-test3-pip"
 }
 
-@test "Public IP vm-firewall-pip is attached to vm-firewall NIC" {
+@test "Public IP vm-test3-pip is attached to vm-test3 NIC" {
   run az vm show \
-    --name vm-firewall \
+    --name vm-test3 \
     --resource-group "${RESOURCE_GROUP}" \
     --query "networkProfile.networkInterfaces[0].id" \
     -o tsv
@@ -311,12 +311,12 @@ setup() {
   NIC_ID="${output}"
   PUBLIC_IP=$(az network nic show --ids "${NIC_ID}" --query "ipConfigurations[0].publicIPAddress.id" -o tsv)
 
-  [[ "${PUBLIC_IP}" == *"vm-firewall-pip"* ]]
+  [[ "${PUBLIC_IP}" == *"vm-test3-pip"* ]]
 }
 
-@test "Public IP vm-firewall-pip has an IP address allocated" {
+@test "Public IP vm-test3-pip has an IP address allocated" {
   run az network public-ip show \
-    --name vm-firewall-pip \
+    --name vm-test3-pip \
     --resource-group "${RESOURCE_GROUP}" \
     --query "ipAddress" \
     -o tsv
@@ -398,9 +398,9 @@ setup() {
 }
 
 # Connectivity tests
-@test "VM vm-private can reach vm-firewall (intra-VNet connectivity)" {
+@test "VM vm-test4 can reach vm-test3 (intra-VNet connectivity)" {
   run az vm run-command invoke \
-    --name vm-private \
+    --name vm-test4 \
     --resource-group "${RESOURCE_GROUP}" \
     --command-id RunShellScript \
     --scripts "ping -c 2 -W 5 10.0.30.4" \
@@ -411,9 +411,9 @@ setup() {
   assert_output --partial "2 packets transmitted, 2 received"
 }
 
-@test "VM vm-public-test can reach vm-firewall (intra-VNet connectivity)" {
+@test "VM vm-test5 can reach vm-test3 (intra-VNet connectivity)" {
   run az vm run-command invoke \
-    --name vm-public-test \
+    --name vm-test5 \
     --resource-group "${RESOURCE_GROUP}" \
     --command-id RunShellScript \
     --scripts "ping -c 2 -W 5 10.0.30.4" \
@@ -424,9 +424,9 @@ setup() {
   assert_output --partial "2 packets transmitted, 2 received"
 }
 
-@test "VM vm-firewall can access internet (has public IP)" {
+@test "VM vm-test3 can access internet (has public IP)" {
   run az vm run-command invoke \
-    --name vm-firewall \
+    --name vm-test3 \
     --resource-group "${RESOURCE_GROUP}" \
     --command-id RunShellScript \
     --scripts "curl -s -m 10 http://ifconfig.me" \
@@ -438,9 +438,9 @@ setup() {
   [[ -n "${output}" ]]
 }
 
-@test "VM vm-private CANNOT access internet (private subnet, no explicit outbound)" {
+@test "VM vm-test4 CANNOT access internet (private subnet, no explicit outbound)" {
   run az vm run-command invoke \
-    --name vm-private \
+    --name vm-test4 \
     --resource-group "${RESOURCE_GROUP}" \
     --command-id RunShellScript \
     --scripts "timeout 10 curl -s -m 5 http://ifconfig.me || echo FAILED" \
@@ -451,9 +451,9 @@ setup() {
   assert_output --partial "FAILED"
 }
 
-@test "VM vm-public-test CANNOT access internet via NVA (default SNAT incompatible)" {
+@test "VM vm-test5 CANNOT access internet via NVA (default SNAT incompatible)" {
   run az vm run-command invoke \
-    --name vm-public-test \
+    --name vm-test5 \
     --resource-group "${RESOURCE_GROUP}" \
     --command-id RunShellScript \
     --scripts "timeout 10 curl -s -m 5 http://ifconfig.me || echo FAILED" \

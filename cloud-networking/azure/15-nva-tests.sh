@@ -12,8 +12,8 @@ set -euo pipefail
 
 # Configuration
 readonly RESOURCE_GROUP="${RESOURCE_GROUP:-rg-simple-vnet}"
-readonly PRIVATE_VM="${PRIVATE_VM:-vm-private}"
-readonly NVA_VM="${NVA_VM:-vm-firewall}"
+readonly PRIVATE_VM="${PRIVATE_VM:-vm-test4}"
+readonly NVA_VM="${NVA_VM:-vm-test3}"
 readonly CONTAINER1="${CONTAINER1:-aci-custom-subnet1}"
 
 # Colors

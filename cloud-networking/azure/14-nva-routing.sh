@@ -11,7 +11,7 @@ set -euo pipefail
 # Configuration
 readonly RESOURCE_GROUP="${RESOURCE_GROUP:-rg-simple-vnet}"
 readonly VNET_NAME="${VNET_NAME:-vnet-simple}"
-readonly NVA_VM="${NVA_VM:-vm-firewall}"
+readonly NVA_VM="${NVA_VM:-vm-test3}"
 readonly ROUTE_TABLE_NAME="${ROUTE_TABLE_NAME:-rt-subnet4-via-nva}"
 
 # Colors
