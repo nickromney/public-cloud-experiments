@@ -127,13 +127,132 @@ teardown() {
 # Note: resource-route.sh validation logic for NEXT_HOP_IP could be improved
 # This would be a good TDD candidate
 
-# Azure resource not found errors - simplified test
-@test "Mock az can simulate resource not found" {
+# Azure resource not found errors - realistic error response
+@test "Mock az returns exit code 3 for ResourceNotFound" {
   export AZ_MOCK_RESOURCE_NOT_FOUND=true
 
-  run az group show --name nonexistent 2>&1
+  run az group show --name nonexistent
+
+  # Azure returns exit code 3 for ResourceNotFound
+  [ "$status" -eq 3 ]
+}
+
+@test "Mock az returns ResourceNotFound error message" {
+  export AZ_MOCK_RESOURCE_NOT_FOUND=true
+
+  run az network vnet show --name test --resource-group test 2>&1
 
   assert_failure
+  assert_output --partial "ResourceNotFound"
+  assert_output --partial "was not found"
+}
+
+@test "Mock az returns exit code 3 for container not found" {
+  export AZ_MOCK_RESOURCE_NOT_FOUND=true
+
+  run az container show --name test-container --resource-group test
+
+  [ "$status" -eq 3 ]
+}
+
+@test "Mock az returns ResourceNotFound for container" {
+  export AZ_MOCK_RESOURCE_NOT_FOUND=true
+
+  run az container show --name test-container --resource-group test 2>&1
+
+  assert_failure
+  assert_output --partial "ResourceNotFound"
+  assert_output --partial "Microsoft.ContainerInstance/containerGroups"
+}
+
+@test "Mock az returns exit code 3 for VM not found" {
+  export AZ_MOCK_RESOURCE_NOT_FOUND=true
+
+  run az vm show --name test-vm --resource-group test
+
+  [ "$status" -eq 3 ]
+}
+
+@test "Mock az returns ResourceNotFound for VM" {
+  export AZ_MOCK_RESOURCE_NOT_FOUND=true
+
+  run az vm show --name test-vm --resource-group test 2>&1
+
+  assert_failure
+  assert_output --partial "ResourceNotFound"
+  assert_output --partial "Microsoft.Compute/virtualMachines"
+}
+
+@test "Mock az returns exit code 3 for NSG not found" {
+  export AZ_MOCK_RESOURCE_NOT_FOUND=true
+
+  run az network nsg show --name test-nsg --resource-group test
+
+  [ "$status" -eq 3 ]
+}
+
+@test "Mock az returns ResourceNotFound for NSG" {
+  export AZ_MOCK_RESOURCE_NOT_FOUND=true
+
+  run az network nsg show --name test-nsg --resource-group test 2>&1
+
+  assert_failure
+  assert_output --partial "ResourceNotFound"
+  assert_output --partial "Microsoft.Network/networkSecurityGroups"
+}
+
+@test "Mock az returns exit code 3 for subnet not found" {
+  export AZ_MOCK_RESOURCE_NOT_FOUND=true
+
+  run az network vnet subnet show --name test-subnet --vnet-name test-vnet --resource-group test
+
+  [ "$status" -eq 3 ]
+}
+
+@test "Mock az returns ResourceNotFound for subnet" {
+  export AZ_MOCK_RESOURCE_NOT_FOUND=true
+
+  run az network vnet subnet show --name test-subnet --vnet-name test-vnet --resource-group test 2>&1
+
+  assert_failure
+  assert_output --partial "ResourceNotFound"
+  assert_output --partial "subnets/test-subnet"
+}
+
+@test "Mock az returns exit code 3 for route table not found" {
+  export AZ_MOCK_RESOURCE_NOT_FOUND=true
+
+  run az network route-table show --name test-rt --resource-group test
+
+  [ "$status" -eq 3 ]
+}
+
+@test "Mock az returns ResourceNotFound for route table" {
+  export AZ_MOCK_RESOURCE_NOT_FOUND=true
+
+  run az network route-table show --name test-rt --resource-group test 2>&1
+
+  assert_failure
+  assert_output --partial "ResourceNotFound"
+  assert_output --partial "Microsoft.Network/routeTables"
+}
+
+@test "Mock az returns exit code 3 for public IP not found" {
+  export AZ_MOCK_RESOURCE_NOT_FOUND=true
+
+  run az network public-ip show --name test-ip --resource-group test
+
+  [ "$status" -eq 3 ]
+}
+
+@test "Mock az returns ResourceNotFound for public IP" {
+  export AZ_MOCK_RESOURCE_NOT_FOUND=true
+
+  run az network public-ip show --name test-ip --resource-group test 2>&1
+
+  assert_failure
+  assert_output --partial "ResourceNotFound"
+  assert_output --partial "Microsoft.Network/publicIPAddresses"
 }
 
 # Invalid parameter values

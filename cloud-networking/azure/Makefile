@@ -1,8 +1,11 @@
-.PHONY: help test test-unit test-integration test-verbose test-watch install-bats clean quality lint
+.PHONY: help setup test test-unit test-integration test-verbose test-watch install-bats clean quality lint
 
 # Default target
 help:
 	@echo "Azure Networking Scripts - Test Targets"
+	@echo ""
+	@echo "Setup:"
+	@echo "  make setup             - Configure environment (detects resource group)"
 	@echo ""
 	@echo "Available targets:"
 	@echo "  make test              - Run all unit tests (mocked, no Azure required)"
@@ -24,6 +27,11 @@ help:
 	@echo "  tests/test_orchestrator_scripts.bats - Orchestrator script tests"
 	@echo "  tests/test_command_construction.bats - Command construction tests"
 	@echo "  tests/test_error_handling.bats       - Error handling tests"
+
+# Setup environment (interactive)
+setup:
+	@echo "Running interactive setup..."
+	@./setup-env.sh
 
 # Run all unit tests (default test target)
 test: test-unit

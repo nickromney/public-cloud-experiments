@@ -44,7 +44,17 @@
       "Bash(export RESOURCE_GROUP=rg-test VNET_NAME=vnet-test SUBNET_NAME=snet-test CONTAINER_NAME=aci-test)",
       "Bash(./resource-container-instance.sh:*)",
       "Bash(export AZ_MOCK_RESOURCE_NOT_FOUND=true)",
-      "Bash(./bin/az group show --name test)"
+      "Bash(./bin/az group show --name test)",
+      "Bash(az account:*)",
+      "Bash(az group list:*)",
+      "Bash(az network vnet list:*)",
+      "Bash(az group show:*)",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(az network vnet show:*)",
+      "Bash(AZ_MOCK_RESOURCE_NOT_FOUND=true tests/bin/az network vnet show --name test --resource-group test)",
+      "Bash(export:*)",
+      "Bash(echo:*)",
+      "Bash(bash:*)"
     ],
     "deny": [],
     "ask": []
