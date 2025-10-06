@@ -14,6 +14,7 @@ readonly VM_SIZE="${VM_SIZE:-Standard_B2s}"
 readonly IMAGE="${IMAGE:-Ubuntu2404}"  # Ubuntu 24.04 LTS
 readonly ADMIN_USERNAME="${ADMIN_USERNAME:-azureuser}"
 readonly CUSTOM_DATA="${CUSTOM_DATA:-}"  # Optional cloud-init script path
+readonly ENABLE_IP_FORWARDING="${ENABLE_IP_FORWARDING:-false}"  # Enable IP forwarding on NIC
 
 # Colors
 readonly GREEN='\033[0;32m'
@@ -51,6 +52,9 @@ log_info "  Admin User: ${ADMIN_USERNAME}"
 if [[ -n "${CUSTOM_DATA}" ]]; then
   log_info "  Custom Data: ${CUSTOM_DATA}"
 fi
+if [[ "${ENABLE_IP_FORWARDING}" == "true" ]]; then
+  log_info "  IP Forwarding: Enabled"
+fi
 log_info ""
 
 # Create NIC name based on VM name
@@ -74,12 +78,21 @@ log_info ""
 
 # Create NIC
 log_info "Creating network interface ${NIC_NAME}..."
-az network nic create \
-  --name "${NIC_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --location "${LOCATION}" \
-  --subnet "${SUBNET_ID}" \
+NIC_ARGS=(
+  --name "${NIC_NAME}"
+  --resource-group "${RESOURCE_GROUP}"
+  --location "${LOCATION}"
+  --subnet "${SUBNET_ID}"
   --output none
+)
+
+# Add IP forwarding if enabled
+if [[ "${ENABLE_IP_FORWARDING}" == "true" ]]; then
+  NIC_ARGS+=(--ip-forwarding true)
+  log_info "  IP forwarding enabled on NIC"
+fi
+
+az network nic create "${NIC_ARGS[@]}"
 
 # Build VM create command
 VM_ARGS=(

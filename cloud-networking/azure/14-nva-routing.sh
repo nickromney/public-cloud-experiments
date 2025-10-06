@@ -100,7 +100,9 @@ log_info ""
 # Step 4: Create route table
 log_info "Step 4: Creating route table..."
 if ! az network route-table show --name "${ROUTE_TABLE_NAME}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
-  ROUTE_TABLE_NAME="${ROUTE_TABLE_NAME}" \
+  export ROUTE_TABLE_NAME
+  export RESOURCE_GROUP
+  export LOCATION
   "${SCRIPT_DIR}/resource-route-table.sh"
   log_info "  ✓ Route table created: ${ROUTE_TABLE_NAME}"
 else
@@ -114,11 +116,12 @@ if ! az network route-table route show \
   --name "default-via-nva" \
   --route-table-name "${ROUTE_TABLE_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
-  ROUTE_TABLE_NAME="${ROUTE_TABLE_NAME}" \
-  ROUTE_NAME="default-via-nva" \
-  ADDRESS_PREFIX="0.0.0.0/0" \
-  NEXT_HOP_TYPE="VirtualAppliance" \
-  NEXT_HOP_IP="${NVA_IP}" \
+  export ROUTE_TABLE_NAME
+  export RESOURCE_GROUP
+  export ROUTE_NAME="default-via-nva"
+  export ADDRESS_PREFIX="0.0.0.0/0"
+  export NEXT_HOP_TYPE="VirtualAppliance"
+  export NEXT_HOP_IP="${NVA_IP}"
   "${SCRIPT_DIR}/resource-route.sh"
   log_info "  ✓ Route added: 0.0.0.0/0 -> ${NVA_IP}"
 else

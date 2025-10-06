@@ -57,7 +57,7 @@ log_info "  Location: ${LOCATION}"
 log_info "  VNET: ${VNET_NAME} (${VNET_PREFIX})"
 log_info "  Subnet 1: ${SUBNET1_NAME} (${SUBNET1_PREFIX}) - Public"
 log_info "  Subnet 2: ${SUBNET2_NAME} (${SUBNET2_PREFIX}) - Public"
-log_info "  Subnet 3: ${SUBNET3_NAME} (${SUBNET3_PREFIX}) - Private"
+log_info "  Subnet 3: ${SUBNET3_NAME} (${SUBNET3_PREFIX}) - Public (NVA/firewall)"
 log_info "  Subnet 4: ${SUBNET4_NAME} (${SUBNET4_PREFIX}) - Private"
 log_info "  NSG: ${NSG_NAME}"
 log_info ""
@@ -102,10 +102,10 @@ else
   log_info "Subnet ${SUBNET2_NAME} exists"
 fi
 
-# Create Subnet 3 (private - no default outbound access)
+# Create Subnet 3 (public - for NVA/firewall)
 if ! az network vnet subnet show --name "${SUBNET3_NAME}" --vnet-name "${VNET_NAME}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
-  log_info "Creating private subnet ${SUBNET3_NAME} (no default outbound access)"
-  "${SCRIPT_DIR}/resource-subnet.sh" "${RESOURCE_GROUP}" "${VNET_NAME}" "${SUBNET3_NAME}" "${SUBNET3_PREFIX}" "${NSG_NAME}" "true"
+  log_info "Creating public subnet ${SUBNET3_NAME} (for NVA/firewall)"
+  "${SCRIPT_DIR}/resource-subnet.sh" "${RESOURCE_GROUP}" "${VNET_NAME}" "${SUBNET3_NAME}" "${SUBNET3_PREFIX}" "${NSG_NAME}"
 else
   log_info "Subnet ${SUBNET3_NAME} exists"
 fi

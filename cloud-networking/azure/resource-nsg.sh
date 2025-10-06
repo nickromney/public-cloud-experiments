@@ -28,7 +28,7 @@ az network nsg rule create \
   --destination-port-ranges 443 \
   --output none
 
-# Allow TCP between subnets (10.0.10.0/24 and 10.0.20.0/24)
+# Allow TCP between all subnets (10.0.10.0/24, 10.0.20.0/24, 10.0.30.0/24, 10.0.40.0/24)
 az network nsg rule create \
   --name "AllowTCPBetweenSubnets" \
   --nsg-name "${NSG_NAME}" \
@@ -37,13 +37,13 @@ az network nsg rule create \
   --direction Inbound \
   --access Allow \
   --protocol Tcp \
-  --source-address-prefixes "10.0.10.0/24" "10.0.20.0/24" \
+  --source-address-prefixes "10.0.10.0/24" "10.0.20.0/24" "10.0.30.0/24" "10.0.40.0/24" \
   --source-port-ranges "*" \
-  --destination-address-prefixes "10.0.10.0/24" "10.0.20.0/24" \
+  --destination-address-prefixes "10.0.10.0/24" "10.0.20.0/24" "10.0.30.0/24" "10.0.40.0/24" \
   --destination-port-ranges "*" \
   --output none
 
-# Allow ICMP between subnets
+# Allow ICMP between all subnets
 az network nsg rule create \
   --name "AllowICMPBetweenSubnets" \
   --nsg-name "${NSG_NAME}" \
@@ -52,8 +52,23 @@ az network nsg rule create \
   --direction Inbound \
   --access Allow \
   --protocol Icmp \
-  --source-address-prefixes "10.0.10.0/24" "10.0.20.0/24" \
+  --source-address-prefixes "10.0.10.0/24" "10.0.20.0/24" "10.0.30.0/24" "10.0.40.0/24" \
   --source-port-ranges "*" \
-  --destination-address-prefixes "10.0.10.0/24" "10.0.20.0/24" \
+  --destination-address-prefixes "10.0.10.0/24" "10.0.20.0/24" "10.0.30.0/24" "10.0.40.0/24" \
   --destination-port-ranges "*" \
+  --output none
+
+# Allow DNS (UDP port 53) between all subnets
+az network nsg rule create \
+  --name "AllowDNSBetweenSubnets" \
+  --nsg-name "${NSG_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" \
+  --priority 130 \
+  --direction Inbound \
+  --access Allow \
+  --protocol Udp \
+  --source-address-prefixes "10.0.10.0/24" "10.0.20.0/24" "10.0.30.0/24" "10.0.40.0/24" \
+  --source-port-ranges "*" \
+  --destination-address-prefixes "10.0.10.0/24" "10.0.20.0/24" "10.0.30.0/24" "10.0.40.0/24" \
+  --destination-port-ranges 53 \
   --output none
