@@ -124,7 +124,7 @@ uv sync --extra dev
 uv run pytest -v
 
 # Start the API locally
-func start
+uv run func start
 ```
 
 The API will be available at `http://localhost:7071/api/`

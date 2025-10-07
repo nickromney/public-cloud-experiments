@@ -1,6 +1,7 @@
 import azure.functions as func
 import fastapi
 from fastapi import HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from ipaddress import ip_address, ip_network, IPv4Address, IPv6Address, IPv4Network, IPv6Network, AddressValueError, NetmaskValueError
 from typing import Optional, List
@@ -57,6 +58,17 @@ api = fastapi.FastAPI(
     docs_url="/api/v1/docs",
     redoc_url="/api/v1/redoc",
     openapi_url="/api/v1/openapi.json"
+)
+
+# Add CORS middleware
+# Note: host.json CORS settings don't work with func start (local development)
+# This middleware ensures CORS works both locally and in production
+api.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Accept"],
 )
 
 # RFC1918 Private Address Ranges

@@ -112,7 +112,8 @@
       "Bash(az network nic ip-config update:*)",
       "Bash(xargs:*)",
       "Bash(az network nic ip-config show:*)",
-      "Bash(BATS_INTEGRATION=true RESOURCE_GROUP='1-62680a9d-playground-sandbox' bats tests/test_integration_network.bats)"
+      "Bash(BATS_INTEGRATION=true RESOURCE_GROUP='1-62680a9d-playground-sandbox' bats tests/test_integration_network.bats)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

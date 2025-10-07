@@ -54,6 +54,7 @@ podman-compose down
 subnet-calculator/
 ├── api-fastapi-azure-function/  # Backend API (FastAPI + Azure Functions)
 ├── frontend-python-flask/       # Frontend (Flask web application)
+├── frontend-html-static/        # Static HTML frontend (pure client-side)
 ├── docker-compose.yml           # Docker Compose configuration
 ├── compose.yml                  # Podman Compose configuration
 └── README.md                    # This file
@@ -64,11 +65,8 @@ subnet-calculator/
 See individual project READMEs for local development without containers:
 
 - [API Documentation](api-fastapi-azure-function/README.md) - Backend REST API (FastAPI + Azure Functions)
-- [Frontend Documentation](frontend-python-flask/README.md) - Web frontend (Python + Flask)
-
-**Future additions:**
-
-- `frontend-html/` - Static HTML frontend (to demonstrate CORS behavior)
+- [Flask Frontend](frontend-python-flask/README.md) - Server-side rendering with Flask
+- [Static Frontend](frontend-html-static/README.md) - Pure HTML/JS/CSS (demonstrates CORS, client-side architecture)
 
 ## Architecture
 
@@ -82,14 +80,19 @@ See individual project READMEs for local development without containers:
   - Interactive Swagger UI documentation at `/api/v1/docs`
   - Python 3.11
 
-- **Frontend**: Flask web application
-  - Real-time subnet calculations via backend API
-  - Cloud provider mode selection
-  - Dark/light mode theme switcher
-  - Copy-to-clipboard functionality
+- **Frontends**:
+
+  **Flask (Server-Side Rendering)**:
+  - Server calls API, renders HTML
   - Progressive enhancement (works without JavaScript)
-  - Pico CSS styling
-  - Python 3.11
+  - CORS not required (server-to-server)
+  - Python 3.11, Pico CSS
+
+  **Static (Client-Side)**:
+  - Browser calls API directly (CORS required)
+  - Pure HTML/JS/CSS (no server runtime)
+  - Deployable to GitHub Pages, S3, Azure Storage
+  - Demonstrates "old way" of web development
 
 ## Container Details
 
