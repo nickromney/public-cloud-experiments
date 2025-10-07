@@ -1,11 +1,75 @@
 import os
 from flask import Flask, render_template, request, jsonify
 import requests
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
 # API base URL - configurable via environment variable
 API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:7071/api/v1')
+
+# JWT Authentication - optional (only used in Docker Compose)
+JWT_USERNAME = os.getenv('JWT_USERNAME')
+JWT_PASSWORD = os.getenv('JWT_PASSWORD')
+
+# Token cache (in-memory, resets on restart)
+_jwt_token = None
+_jwt_token_expires = None
+
+
+def get_jwt_token() -> str | None:
+    """
+    Get JWT token for API authentication.
+    Returns None if JWT authentication is not configured.
+    Caches token and refreshes when expired.
+    """
+    global _jwt_token, _jwt_token_expires
+
+    # If JWT not configured, return None (no auth)
+    if not JWT_USERNAME or not JWT_PASSWORD:
+        return None
+
+    # Check if we have a valid cached token
+    if _jwt_token and _jwt_token_expires and datetime.now() < _jwt_token_expires:
+        return _jwt_token
+
+    # Login to get new token
+    try:
+        login_response = requests.post(
+            f'{API_BASE_URL}/auth/login',
+            data={
+                'username': JWT_USERNAME,
+                'password': JWT_PASSWORD
+            },
+            timeout=5
+        )
+        login_response.raise_for_status()
+
+        token_data = login_response.json()
+        _jwt_token = token_data['access_token']
+
+        # Cache for 25 minutes (tokens expire in 30, refresh before that)
+        _jwt_token_expires = datetime.now() + timedelta(minutes=25)
+
+        return _jwt_token
+
+    except requests.RequestException as e:
+        print(f"JWT authentication failed: {e}")
+        # Clear cached token on failure
+        _jwt_token = None
+        _jwt_token_expires = None
+        raise
+
+
+def get_auth_headers() -> dict:
+    """
+    Get authentication headers for API requests.
+    Returns empty dict if no authentication configured.
+    """
+    token = get_jwt_token()
+    if token:
+        return {'Authorization': f'Bearer {token}'}
+    return {}
 
 
 def perform_lookup(address: str, mode: str = 'Standard') -> dict:
@@ -17,10 +81,14 @@ def perform_lookup(address: str, mode: str = 'Standard') -> dict:
     results = {}
 
     try:
+        # Get authentication headers (empty dict if no JWT configured)
+        headers = get_auth_headers()
+
         # 1. Validate the address
         validate_response = requests.post(
             f'{API_BASE_URL}/ipv4/validate',
             json={'address': address},
+            headers=headers,
             timeout=5
         )
         validate_response.raise_for_status()
@@ -30,6 +98,7 @@ def perform_lookup(address: str, mode: str = 'Standard') -> dict:
         private_response = requests.post(
             f'{API_BASE_URL}/ipv4/check-private',
             json={'address': address},
+            headers=headers,
             timeout=5
         )
         private_response.raise_for_status()
@@ -39,6 +108,7 @@ def perform_lookup(address: str, mode: str = 'Standard') -> dict:
         cloudflare_response = requests.post(
             f'{API_BASE_URL}/ipv4/check-cloudflare',
             json={'address': address},
+            headers=headers,
             timeout=5
         )
         cloudflare_response.raise_for_status()
@@ -49,6 +119,7 @@ def perform_lookup(address: str, mode: str = 'Standard') -> dict:
             subnet_response = requests.post(
                 f'{API_BASE_URL}/ipv4/subnet-info',
                 json={'network': address, 'mode': mode},
+                headers=headers,
                 timeout=5
             )
             subnet_response.raise_for_status()

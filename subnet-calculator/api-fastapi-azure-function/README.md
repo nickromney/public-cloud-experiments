@@ -22,6 +22,72 @@ This is the **backend API** for a subnet calculator project. It provides RESTful
   - Standard: 2 IP reservations
   - Special handling for /31 (point-to-point) and /32 (host routes)
 - **Interactive API Documentation**: Auto-generated Swagger UI and ReDoc interfaces
+- **Flexible Authentication**: Progressive enhancement with feature flags
+  - API Keys (X-API-Key header)
+  - No auth mode (backward compatible)
+  - Future: JWT, Azure AD/Entra ID
+
+## Authentication
+
+The API supports multiple authentication modes via the `AUTH_METHOD` environment variable:
+
+### No Authentication (Default)
+
+```bash
+# Default mode - no authentication required
+export AUTH_METHOD=none
+# Or simply omit AUTH_METHOD
+```
+
+All requests succeed without authentication headers. This maintains backward compatibility with existing deployments.
+
+### API Key Authentication
+
+```bash
+export AUTH_METHOD=api_key
+export API_KEYS=your-key-1,your-key-2,your-key-3
+```
+
+**Usage:**
+
+```bash
+curl -H "X-API-Key: your-key-1" http://localhost:7071/api/v1/health
+```
+
+**Behavior:**
+
+- Returns `401 Unauthorized` if `X-API-Key` header is missing
+- Returns `401 Unauthorized` if API key is invalid
+- API keys are case-sensitive
+- Multiple keys supported (comma-separated)
+- Leading/trailing whitespace is stripped from keys
+
+**Example responses:**
+
+```json
+// Missing header
+{"detail": "Missing X-API-Key header"}
+
+// Invalid key
+{"detail": "Invalid API key"}
+```
+
+### Testing Authentication
+
+```bash
+# Unit tests
+uv run pytest test_auth.py -v
+
+# Integration tests with curl
+./test_auth.sh
+```
+
+### Future Authentication Methods
+
+- **JWT**: Token-based authentication with claims
+- **Azure AD/Entra ID**: Enterprise SSO integration
+
+All authentication methods use the same codebase with feature flags for easy switching.
 
 ## Interactive API Documentation
 
