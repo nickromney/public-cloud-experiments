@@ -6,8 +6,16 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel, Field
-from ipaddress import ip_address, ip_network, IPv4Address, IPv6Address, IPv4Network, IPv6Network, AddressValueError, NetmaskValueError
-from typing import Optional, List
+from ipaddress import (
+    ip_address,
+    ip_network,
+    IPv4Address,
+    IPv6Address,
+    IPv4Network,
+    IPv6Network,
+    AddressValueError,
+    NetmaskValueError,
+)
 import logging
 import os
 import sys
@@ -24,9 +32,14 @@ from config import (
     get_jwt_algorithm,
     get_jwt_expiration_minutes,
     get_jwt_test_users,
-    validate_configuration
+    validate_configuration,
 )
-from auth import validate_api_key, create_access_token, decode_access_token, verify_test_user
+from auth import (
+    validate_api_key,
+    create_access_token,
+    decode_access_token,
+    verify_test_user,
+)
 
 # Startup logging using print() to ensure visibility in Azure Functions logs
 print("=" * 60, flush=True)
@@ -42,9 +55,14 @@ msi_endpoint = os.getenv("MSI_ENDPOINT")
 identity_endpoint = os.getenv("IDENTITY_ENDPOINT")
 
 if azure_client_id and (msi_endpoint or identity_endpoint):
-    print(f"✅ MANAGED IDENTITY: User-assigned (Client ID: {azure_client_id})", flush=True)
+    print(
+        f"✅ MANAGED IDENTITY: User-assigned (Client ID: {azure_client_id})", flush=True
+    )
 elif msi_endpoint or identity_endpoint:
-    print("✅ MANAGED IDENTITY: System-assigned (or user-assigned without explicit client ID)", flush=True)
+    print(
+        "✅ MANAGED IDENTITY: System-assigned (or user-assigned without explicit client ID)",
+        flush=True,
+    )
 else:
     print("ℹ️  MANAGED IDENTITY: Not available", flush=True)
 
@@ -79,13 +97,18 @@ print("=" * 60, flush=True)
 
 logger = logging.getLogger(__name__)
 
+
 # Pydantic models for request validation
 class ValidateRequest(BaseModel):
     address: str = Field(..., description="IP address or CIDR notation")
 
+
 class SubnetInfoRequest(BaseModel):
     network: str = Field(..., description="Network in CIDR notation")
-    mode: str = Field(default="Azure", description="Cloud provider mode: Azure, AWS, OCI, or Standard")
+    mode: str = Field(
+        default="Azure", description="Cloud provider mode: Azure, AWS, OCI, or Standard"
+    )
+
 
 # Create FastAPI app with OpenAPI documentation
 # Docs endpoints are disabled here and protected with custom endpoints below
@@ -95,7 +118,7 @@ api = fastapi.FastAPI(
     version="1.0.0",
     docs_url=None,  # Disable default docs - we'll create protected custom endpoint
     redoc_url=None,  # Disable default redoc - we'll create protected custom endpoint
-    openapi_url=None  # Disable default openapi.json - we'll create protected custom endpoint
+    openapi_url=None,  # Disable default openapi.json - we'll create protected custom endpoint
 )
 
 # Add CORS middleware
@@ -112,10 +135,8 @@ api.add_middleware(
 # OAuth2 scheme for JWT authentication
 # tokenUrl points to our login endpoint
 # auto_error=False means we handle AUTH_METHOD flag ourselves
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/login",
-    auto_error=False
-)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+
 
 async def get_current_user(request: Request) -> str:
     """
@@ -226,7 +247,7 @@ async def get_current_user(request: Request) -> str:
         if not principal_header:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Azure SWA authentication required but no principal found"
+                detail="Azure SWA authentication required but no principal found",
             )
 
         try:
@@ -234,7 +255,7 @@ async def get_current_user(request: Request) -> str:
             import base64
             import json
 
-            principal_json = base64.b64decode(principal_header).decode('utf-8')
+            principal_json = base64.b64decode(principal_header).decode("utf-8")
             claims = json.loads(principal_json)
 
             # Extract user identity from claims
@@ -243,7 +264,7 @@ async def get_current_user(request: Request) -> str:
             # identityProvider: aad, github, google, twitter, etc.
             user_details = claims.get("userDetails")
             user_id = claims.get("userId")
-            identity_provider = claims.get("identityProvider")
+            claims.get("identityProvider")
 
             # Return email if available, otherwise user ID
             user = user_details or user_id
@@ -251,7 +272,7 @@ async def get_current_user(request: Request) -> str:
             if not user:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid Azure SWA principal: missing user identity"
+                    detail="Invalid Azure SWA principal: missing user identity",
                 )
 
             return user
@@ -259,7 +280,7 @@ async def get_current_user(request: Request) -> str:
         except (ValueError, KeyError, json.JSONDecodeError) as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Invalid Azure SWA principal: {str(e)}"
+                detail=f"Invalid Azure SWA principal: {str(e)}",
             )
 
     # Azure API Management (APIM)
@@ -279,7 +300,7 @@ async def get_current_user(request: Request) -> str:
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="APIM authentication required but no user headers found"
+                detail="APIM authentication required but no user headers found",
             )
 
         return user
@@ -287,8 +308,9 @@ async def get_current_user(request: Request) -> str:
     # Unknown auth method
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Authentication method not implemented"
+        detail="Authentication method not implemented",
     )
+
 
 # Add authentication middleware
 @api.middleware("http")
@@ -315,7 +337,7 @@ async def authentication_middleware(request: Request, call_next):
             return Response(
                 content='{"detail":"Missing X-API-Key header"}',
                 status_code=401,
-                media_type="application/json"
+                media_type="application/json",
             )
 
         # Validate API key
@@ -324,7 +346,7 @@ async def authentication_middleware(request: Request, call_next):
             return Response(
                 content='{"detail":"Invalid API key"}',
                 status_code=401,
-                media_type="application/json"
+                media_type="application/json",
             )
 
         # Valid API key - proceed
@@ -342,11 +364,12 @@ async def authentication_middleware(request: Request, call_next):
     return Response(
         content='{"detail":"Authentication method not implemented"}',
         status_code=501,
-        media_type="application/json"
+        media_type="application/json",
     )
 
 
 # JWT Login Endpoint
+
 
 @api.post("/api/v1/auth/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -379,13 +402,10 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         data={"sub": form_data.username},
         secret_key=secret_key,
         algorithm=algorithm,
-        expires_delta=timedelta(minutes=expiration_minutes)
+        expires_delta=timedelta(minutes=expiration_minutes),
     )
 
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 # Custom OpenAPI schema with security configuration
@@ -409,12 +429,7 @@ def custom_openapi():
         openapi_schema["components"]["securitySchemes"] = {
             "OAuth2PasswordBearer": {
                 "type": "oauth2",
-                "flows": {
-                    "password": {
-                        "tokenUrl": "/api/v1/auth/login",
-                        "scopes": {}
-                    }
-                }
+                "flows": {"password": {"tokenUrl": "/api/v1/auth/login", "scopes": {}}},
             }
         }
         # Apply security to all endpoints
@@ -435,7 +450,7 @@ async def custom_swagger_ui_html(current_user: str = Depends(get_current_user)):
     return get_swagger_ui_html(
         openapi_url="/api/v1/openapi.json",
         title=f"{api.title} - Swagger UI",
-        oauth2_redirect_url="/api/v1/docs/oauth2-redirect"
+        oauth2_redirect_url="/api/v1/docs/oauth2-redirect",
     )
 
 
@@ -443,8 +458,7 @@ async def custom_swagger_ui_html(current_user: str = Depends(get_current_user)):
 async def custom_redoc_html(current_user: str = Depends(get_current_user)):
     """Protected ReDoc documentation."""
     return get_redoc_html(
-        openapi_url="/api/v1/openapi.json",
-        title=f"{api.title} - ReDoc"
+        openapi_url="/api/v1/openapi.json", title=f"{api.title} - ReDoc"
     )
 
 
@@ -505,15 +519,13 @@ async def health_check():
     - Load balancers
     - Monitoring systems (Prometheus, Datadog, etc.)
     """
-    return {
-        "status": "healthy",
-        "service": "IPv4 Validation API",
-        "version": "1.0.0"
-    }
+    return {"status": "healthy", "service": "IPv4 Validation API", "version": "1.0.0"}
 
 
 @api.post("/api/v1/ipv4/validate")
-async def validate_ipv4(request: ValidateRequest, current_user: str = Depends(get_current_user)):
+async def validate_ipv4(
+    request: ValidateRequest, current_user: str = Depends(get_current_user)
+):
     """
     Validate if an IPv4/IPv6 address or CIDR range is well-formed.
 
@@ -522,7 +534,7 @@ async def validate_ipv4(request: ValidateRequest, current_user: str = Depends(ge
     address_str = request.address
 
     # Check if it's CIDR notation (contains /)
-    if '/' in address_str:
+    if "/" in address_str:
         # Parse as network
         try:
             network = ip_network(address_str, strict=False)
@@ -535,7 +547,7 @@ async def validate_ipv4(request: ValidateRequest, current_user: str = Depends(ge
                 "prefix_length": network.prefixlen,
                 "num_addresses": network.num_addresses,
                 "is_ipv4": isinstance(network, IPv4Network),
-                "is_ipv6": isinstance(network, IPv6Network)
+                "is_ipv6": isinstance(network, IPv6Network),
             }
         except (AddressValueError, NetmaskValueError, ValueError):
             raise HTTPException(status_code=400, detail="Invalid IP network format")
@@ -548,14 +560,16 @@ async def validate_ipv4(request: ValidateRequest, current_user: str = Depends(ge
                 "type": "address",
                 "address": str(addr),
                 "is_ipv4": isinstance(addr, IPv4Address),
-                "is_ipv6": isinstance(addr, IPv6Address)
+                "is_ipv6": isinstance(addr, IPv6Address),
             }
         except (AddressValueError, ValueError):
             raise HTTPException(status_code=400, detail="Invalid IP address format")
 
 
 @api.post("/api/v1/ipv4/check-private")
-async def check_private(request: ValidateRequest, current_user: str = Depends(get_current_user)):
+async def check_private(
+    request: ValidateRequest, current_user: str = Depends(get_current_user)
+):
     """
     Check if an IPv4 address or range is RFC1918 (private) or RFC6598 (shared).
 
@@ -574,7 +588,9 @@ async def check_private(request: ValidateRequest, current_user: str = Depends(ge
 
         # Only process IPv4
         if isinstance(ip_obj, (IPv6Address, IPv6Network)):
-            raise HTTPException(status_code=400, detail="This endpoint only supports IPv4 addresses")
+            raise HTTPException(
+                status_code=400, detail="This endpoint only supports IPv4 addresses"
+            )
 
         # Check RFC1918
         is_rfc1918 = False
@@ -594,7 +610,9 @@ async def check_private(request: ValidateRequest, current_user: str = Depends(ge
         # Check RFC6598
         is_rfc6598 = False
         if isinstance(ip_obj, IPv4Network):
-            is_rfc6598 = ip_obj.subnet_of(RFC6598_RANGE) or ip_obj.supernet_of(RFC6598_RANGE)
+            is_rfc6598 = ip_obj.subnet_of(RFC6598_RANGE) or ip_obj.supernet_of(
+                RFC6598_RANGE
+            )
         else:  # IPv4Address
             is_rfc6598 = ip_obj in RFC6598_RANGE
 
@@ -613,11 +631,15 @@ async def check_private(request: ValidateRequest, current_user: str = Depends(ge
         return response
 
     except (AddressValueError, NetmaskValueError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=f"Invalid IP address or network: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid IP address or network: {str(e)}"
+        )
 
 
 @api.post("/api/v1/ipv4/check-cloudflare")
-async def check_cloudflare(request: ValidateRequest, current_user: str = Depends(get_current_user)):
+async def check_cloudflare(
+    request: ValidateRequest, current_user: str = Depends(get_current_user)
+):
     """
     Check if an IP address or range is within Cloudflare's IPv4 or IPv6 ranges.
 
@@ -655,7 +677,7 @@ async def check_cloudflare(request: ValidateRequest, current_user: str = Depends
         response = {
             "address": address_str,
             "is_cloudflare": len(matched_ranges) > 0,
-            "ip_version": ip_version
+            "ip_version": ip_version,
         }
 
         if matched_ranges:
@@ -664,11 +686,15 @@ async def check_cloudflare(request: ValidateRequest, current_user: str = Depends
         return response
 
     except (AddressValueError, NetmaskValueError, ValueError) as e:
-        raise HTTPException(status_code=400, detail=f"Invalid IP address or network: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid IP address or network: {str(e)}"
+        )
 
 
 @api.post("/api/v1/ipv4/subnet-info")
-async def subnet_info(request: SubnetInfoRequest, current_user: str = Depends(get_current_user)):
+async def subnet_info(
+    request: SubnetInfoRequest, current_user: str = Depends(get_current_user)
+):
     """
     Calculate subnet information including usable IP ranges.
 
@@ -682,11 +708,11 @@ async def subnet_info(request: SubnetInfoRequest, current_user: str = Depends(ge
     mode = request.mode
 
     # Validate mode
-    valid_modes = ['Azure', 'AWS', 'OCI', 'Standard']
+    valid_modes = ["Azure", "AWS", "OCI", "Standard"]
     if mode not in valid_modes:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid mode '{mode}'. Must be one of: {', '.join(valid_modes)}"
+            detail=f"Invalid mode '{mode}'. Must be one of: {', '.join(valid_modes)}",
         )
 
     # Parse network
@@ -697,7 +723,10 @@ async def subnet_info(request: SubnetInfoRequest, current_user: str = Depends(ge
 
     # Only support IPv4 for now
     if not isinstance(network, IPv4Network):
-        raise HTTPException(status_code=400, detail="This endpoint currently only supports IPv4 networks")
+        raise HTTPException(
+            status_code=400,
+            detail="This endpoint currently only supports IPv4 networks",
+        )
 
     prefix_len = network.prefixlen
     total_addresses = network.num_addresses
@@ -706,9 +735,9 @@ async def subnet_info(request: SubnetInfoRequest, current_user: str = Depends(ge
     if prefix_len < 31:
         # Standard subnets have network and broadcast addresses
         # Calculate first usable based on mode
-        if mode in ['Azure', 'AWS']:
+        if mode in ["Azure", "AWS"]:
             first_usable_offset = 4  # Skip .0, .1, .2, .3
-        elif mode == 'OCI':
+        elif mode == "OCI":
             first_usable_offset = 2  # Skip .0, .1
         else:  # Standard
             first_usable_offset = 1  # Skip .0
@@ -732,7 +761,7 @@ async def subnet_info(request: SubnetInfoRequest, current_user: str = Depends(ge
             "total_addresses": total_addresses,
             "usable_addresses": usable_addresses,
             "first_usable_ip": first_usable_ip,
-            "last_usable_ip": last_usable_ip
+            "last_usable_ip": last_usable_ip,
         }
     else:
         # /31 (point-to-point) or /32 (host route) - no reservations
@@ -754,7 +783,7 @@ async def subnet_info(request: SubnetInfoRequest, current_user: str = Depends(ge
                 "usable_addresses": usable_addresses,
                 "first_usable_ip": first_usable_ip,
                 "last_usable_ip": last_usable_ip,
-                "note": "RFC 3021 point-to-point link (no broadcast)"
+                "note": "RFC 3021 point-to-point link (no broadcast)",
             }
         else:  # /32
             # Single host
@@ -772,7 +801,7 @@ async def subnet_info(request: SubnetInfoRequest, current_user: str = Depends(ge
                 "usable_addresses": 1,
                 "first_usable_ip": host_ip,
                 "last_usable_ip": host_ip,
-                "note": "Single host address"
+                "note": "Single host address",
             }
 
     return response
@@ -781,8 +810,11 @@ async def subnet_info(request: SubnetInfoRequest, current_user: str = Depends(ge
 # Create the main Azure Function
 app = func.FunctionApp()
 
+
 @app.function_name(name="HttpTrigger")
 @app.route(route="{*route}", auth_level=func.AuthLevel.ANONYMOUS)
-async def http_trigger(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
+async def http_trigger(
+    req: func.HttpRequest, context: func.Context
+) -> func.HttpResponse:
     """Azure Function wrapper that forwards all requests to FastAPI via ASGI middleware"""
     return await func.AsgiMiddleware(api).handle_async(req, context)

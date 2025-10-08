@@ -12,7 +12,6 @@ This test suite covers:
 Note: Tests currently fail because JWT functionality not yet implemented (TDD).
 """
 
-import os
 import pytest
 import time
 import jwt as pyjwt
@@ -35,7 +34,10 @@ class TestJWTConfiguration:
 
         # Test config function directly
         from config import get_jwt_secret_key
-        with pytest.raises(ValueError, match="JWT_SECRET_KEY environment variable required"):
+
+        with pytest.raises(
+            ValueError, match="JWT_SECRET_KEY environment variable required"
+        ):
             get_jwt_secret_key()
 
     def test_jwt_mode_requires_long_secret(self, monkeypatch):
@@ -45,7 +47,10 @@ class TestJWTConfiguration:
 
         # Test config function directly
         from config import get_jwt_secret_key
-        with pytest.raises(ValueError, match="JWT_SECRET_KEY must be at least 32 characters"):
+
+        with pytest.raises(
+            ValueError, match="JWT_SECRET_KEY must be at least 32 characters"
+        ):
             get_jwt_secret_key()
 
     def test_jwt_default_algorithm_hs256(self, monkeypatch):
@@ -55,6 +60,7 @@ class TestJWTConfiguration:
         monkeypatch.delenv("JWT_ALGORITHM", raising=False)
 
         from config import get_jwt_algorithm
+
         assert get_jwt_algorithm() == "HS256"
 
     def test_jwt_default_expiration_30_minutes(self, monkeypatch):
@@ -64,6 +70,7 @@ class TestJWTConfiguration:
         monkeypatch.delenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", raising=False)
 
         from config import get_jwt_expiration_minutes
+
         assert get_jwt_expiration_minutes() == 30
 
     def test_jwt_test_users_from_json(self, monkeypatch):
@@ -74,6 +81,7 @@ class TestJWTConfiguration:
         monkeypatch.setenv("JWT_TEST_USERS", '{"alice":"hash1","bob":"hash2"}')
 
         from config import get_jwt_test_users
+
         users = get_jwt_test_users()
         assert users == {"alice": "hash1", "bob": "hash2"}
 
@@ -84,6 +92,7 @@ class TestJWTConfiguration:
         monkeypatch.setenv("JWT_ALGORITHM", "MD5")
 
         from config import get_jwt_algorithm
+
         with pytest.raises(ValueError, match="Invalid JWT_ALGORITHM"):
             get_jwt_algorithm()
 
@@ -101,14 +110,13 @@ class TestLoginEndpoint:
         monkeypatch.setenv(
             "JWT_TEST_USERS",
             '{"alice":"$argon2id$v=19$m=65536,t=3,p=4$3MKxLJSv0Ol1eueygZAV6w$mb8m63Id29lRAjPrYv+K180PAqxhRyoqkWBLQMPZ0ZM",'
-            '"bob":"$argon2id$v=19$m=65536,t=3,p=4$2QqZOyq9uYoLXvPnS2cRtA$w3sYdUCtbDNu2myGr8Z9g9qi9Ya2NDGdXBs5f6cbjR0"}'
+            '"bob":"$argon2id$v=19$m=65536,t=3,p=4$2QqZOyq9uYoLXvPnS2cRtA$w3sYdUCtbDNu2myGr8Z9g9qi9Ya2NDGdXBs5f6cbjR0"}',
         )
 
     def test_login_with_valid_credentials_returns_token(self):
         """Login with valid credentials should return access token."""
         response = client.post(
-            "/api/v1/auth/login",
-            data={"username": "alice", "password": "password123"}
+            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -119,7 +127,7 @@ class TestLoginEndpoint:
         """Login with invalid username should return 401."""
         response = client.post(
             "/api/v1/auth/login",
-            data={"username": "invalid", "password": "password123"}
+            data={"username": "invalid", "password": "password123"},
         )
         assert response.status_code == 401
         assert "incorrect username or password" in response.json()["detail"].lower()
@@ -128,36 +136,28 @@ class TestLoginEndpoint:
         """Login with invalid password should return 401."""
         response = client.post(
             "/api/v1/auth/login",
-            data={"username": "alice", "password": "wrongpassword"}
+            data={"username": "alice", "password": "wrongpassword"},
         )
         assert response.status_code == 401
 
     def test_login_missing_username_returns_422(self):
         """Login without username should return 422 (validation error)."""
-        response = client.post(
-            "/api/v1/auth/login",
-            data={"password": "password123"}
-        )
+        response = client.post("/api/v1/auth/login", data={"password": "password123"})
         assert response.status_code == 422
 
     def test_login_missing_password_returns_422(self):
         """Login without password should return 422."""
-        response = client.post(
-            "/api/v1/auth/login",
-            data={"username": "alice"}
-        )
+        response = client.post("/api/v1/auth/login", data={"username": "alice"})
         assert response.status_code == 422
 
     def test_login_returns_different_tokens(self):
         """Each login should generate a different token (iat differs)."""
         response1 = client.post(
-            "/api/v1/auth/login",
-            data={"username": "alice", "password": "password123"}
+            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
         )
         time.sleep(1)
         response2 = client.post(
-            "/api/v1/auth/login",
-            data={"username": "alice", "password": "password123"}
+            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
         )
 
         token1 = response1.json()["access_token"]
@@ -167,8 +167,7 @@ class TestLoginEndpoint:
     def test_login_token_contains_username(self):
         """JWT payload should contain username in 'sub' claim."""
         response = client.post(
-            "/api/v1/auth/login",
-            data={"username": "alice", "password": "password123"}
+            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
         )
         token = response.json()["access_token"]
 
@@ -179,8 +178,7 @@ class TestLoginEndpoint:
     def test_login_token_has_expiration(self):
         """JWT should have 'exp' claim set to 30 minutes from now."""
         response = client.post(
-            "/api/v1/auth/login",
-            data={"username": "alice", "password": "password123"}
+            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
         )
         token = response.json()["access_token"]
 
@@ -206,23 +204,19 @@ class TestJWTTokenValidation:
         # Use Argon2 hashed password (alice=password123)
         monkeypatch.setenv(
             "JWT_TEST_USERS",
-            '{"alice":"$argon2id$v=19$m=65536,t=3,p=4$3MKxLJSv0Ol1eueygZAV6w$mb8m63Id29lRAjPrYv+K180PAqxhRyoqkWBLQMPZ0ZM"}'
+            '{"alice":"$argon2id$v=19$m=65536,t=3,p=4$3MKxLJSv0Ol1eueygZAV6w$mb8m63Id29lRAjPrYv+K180PAqxhRyoqkWBLQMPZ0ZM"}',
         )
 
     def get_valid_token(self):
         """Helper to get a valid JWT token."""
         response = client.post(
-            "/api/v1/auth/login",
-            data={"username": "alice", "password": "password123"}
+            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
         )
         return response.json()["access_token"]
 
     def test_missing_authorization_header_returns_401(self):
         """Request without Authorization header should return 401."""
-        response = client.post(
-            "/api/v1/ipv4/validate",
-            json={"address": "192.168.1.1"}
-        )
+        response = client.post("/api/v1/ipv4/validate", json={"address": "192.168.1.1"})
         assert response.status_code == 401
         assert "authorization header" in response.json()["detail"].lower()
 
@@ -231,7 +225,7 @@ class TestJWTTokenValidation:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"Authorization": "Basic abc123"}
+            headers={"Authorization": "Basic abc123"},
         )
         assert response.status_code == 401
         assert "bearer" in response.json()["detail"].lower()
@@ -241,7 +235,7 @@ class TestJWTTokenValidation:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"Authorization": "Bearer not.a.valid.jwt"}
+            headers={"Authorization": "Bearer not.a.valid.jwt"},
         )
         assert response.status_code == 401
         assert "invalid token" in response.json()["detail"].lower()
@@ -254,7 +248,7 @@ class TestJWTTokenValidation:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"Authorization": f"Bearer {tampered}"}
+            headers={"Authorization": f"Bearer {tampered}"},
         )
         assert response.status_code == 401
 
@@ -265,8 +259,7 @@ class TestJWTTokenValidation:
 
         # Need to get a fresh token with the new expiration
         response = client.post(
-            "/api/v1/auth/login",
-            data={"username": "alice", "password": "password123"}
+            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
         )
         token = response.json()["access_token"]
 
@@ -275,7 +268,7 @@ class TestJWTTokenValidation:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 401
         assert "expired" in response.json()["detail"].lower()
@@ -286,7 +279,7 @@ class TestJWTTokenValidation:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 200
 
@@ -310,14 +303,16 @@ class TestJWTTokenValidation:
         payload = {
             "sub": "alice",
             "iat": datetime.now(timezone.utc),
-            "exp": datetime.now(timezone.utc) + timedelta(minutes=30)
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
         }
-        token = pyjwt.encode(payload, "different-secret-key-32-chars-long", algorithm="HS256")
+        token = pyjwt.encode(
+            payload, "different-secret-key-32-chars-long", algorithm="HS256"
+        )
 
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 401
 
@@ -326,14 +321,16 @@ class TestJWTTokenValidation:
         # Manually create token without 'sub'
         payload = {
             "iat": datetime.now(timezone.utc),
-            "exp": datetime.now(timezone.utc) + timedelta(minutes=30)
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
         }
-        token = pyjwt.encode(payload, "test-secret-key-minimum-32-chars-long", algorithm="HS256")
+        token = pyjwt.encode(
+            payload, "test-secret-key-minimum-32-chars-long", algorithm="HS256"
+        )
 
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 401
 
@@ -346,7 +343,7 @@ class TestJWTTokenValidation:
             response = client.post(
                 "/api/v1/ipv4/validate",
                 json={"address": "192.168.1.1"},
-                headers={"Authorization": f"{scheme} {token}"}
+                headers={"Authorization": f"{scheme} {token}"},
             )
             assert response.status_code == 200, f"Failed for scheme: {scheme}"
 
@@ -363,14 +360,13 @@ class TestJWTEdgeCases:
         # Use Argon2 hashed password (alice=password123)
         monkeypatch.setenv(
             "JWT_TEST_USERS",
-            '{"alice":"$argon2id$v=19$m=65536,t=3,p=4$3MKxLJSv0Ol1eueygZAV6w$mb8m63Id29lRAjPrYv+K180PAqxhRyoqkWBLQMPZ0ZM"}'
+            '{"alice":"$argon2id$v=19$m=65536,t=3,p=4$3MKxLJSv0Ol1eueygZAV6w$mb8m63Id29lRAjPrYv+K180PAqxhRyoqkWBLQMPZ0ZM"}',
         )
 
     def get_valid_token(self):
         """Helper to get a valid JWT token."""
         response = client.post(
-            "/api/v1/auth/login",
-            data={"username": "alice", "password": "password123"}
+            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
         )
         return response.json()["access_token"]
 
@@ -379,7 +375,7 @@ class TestJWTEdgeCases:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"Authorization": ""}
+            headers={"Authorization": ""},
         )
         assert response.status_code == 401
 
@@ -388,7 +384,7 @@ class TestJWTEdgeCases:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"Authorization": "Bearer"}
+            headers={"Authorization": "Bearer"},
         )
         assert response.status_code == 401
 
@@ -399,7 +395,7 @@ class TestJWTEdgeCases:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"Authorization": f"  Bearer   {token}  "}
+            headers={"Authorization": f"  Bearer   {token}  "},
         )
         assert response.status_code == 200
 
@@ -409,6 +405,6 @@ class TestJWTEdgeCases:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"Authorization": f"Bearer {token} extra-token"}
+            headers={"Authorization": f"Bearer {token} extra-token"},
         )
         assert response.status_code == 401

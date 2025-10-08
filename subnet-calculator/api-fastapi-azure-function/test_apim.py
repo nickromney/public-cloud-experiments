@@ -24,6 +24,7 @@ class TestAPIMConfiguration:
     def test_apim_mode_works(self):
         """APIM mode should be recognized."""
         from config import get_auth_method, AuthMethod
+
         assert get_auth_method() == AuthMethod.APIM
 
 
@@ -41,7 +42,7 @@ class TestAPIMAuthentication:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"X-User-ID": "user-123"}
+            headers={"X-User-ID": "user-123"},
         )
 
         assert response.status_code == 200
@@ -53,7 +54,7 @@ class TestAPIMAuthentication:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"X-User-Email": "user@example.com"}
+            headers={"X-User-Email": "user@example.com"},
         )
 
         assert response.status_code == 200
@@ -63,20 +64,14 @@ class TestAPIMAuthentication:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={
-                "X-User-ID": "user-123",
-                "X-User-Email": "user@example.com"
-            }
+            headers={"X-User-ID": "user-123", "X-User-Email": "user@example.com"},
         )
 
         assert response.status_code == 200
 
     def test_missing_user_headers_returns_401(self):
         """Request without user headers should return 401."""
-        response = client.post(
-            "/api/v1/ipv4/validate",
-            json={"address": "192.168.1.1"}
-        )
+        response = client.post("/api/v1/ipv4/validate", json={"address": "192.168.1.1"})
 
         assert response.status_code == 401
         assert "user headers" in response.json()["detail"].lower()
@@ -86,7 +81,7 @@ class TestAPIMAuthentication:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"X-User-ID": ""}
+            headers={"X-User-ID": ""},
         )
 
         assert response.status_code == 401
@@ -108,10 +103,7 @@ class TestAllEndpointsProtectedAPIM:
 
     def test_all_endpoints_work_with_user_headers(self):
         """All endpoints should work with valid user headers."""
-        headers = {
-            "X-User-ID": "test-user",
-            "X-User-Email": "test@example.com"
-        }
+        headers = {"X-User-ID": "test-user", "X-User-Email": "test@example.com"}
 
         endpoints = [
             ("/api/v1/ipv4/validate", {"address": "192.168.1.1"}),
@@ -139,7 +131,7 @@ class TestAPIMPolicyScenarios:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"X-User-ID": "jwt-sub-claim-value"}
+            headers={"X-User-ID": "jwt-sub-claim-value"},
         )
 
         assert response.status_code == 200
@@ -149,7 +141,7 @@ class TestAPIMPolicyScenarios:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"X-User-Email": "user@corp.com"}
+            headers={"X-User-Email": "user@corp.com"},
         )
 
         assert response.status_code == 200
@@ -163,8 +155,8 @@ class TestAPIMPolicyScenarios:
                 "X-User-ID": "user-456",
                 "X-User-Email": "admin@corp.com",
                 "X-User-Roles": "admin,editor",
-                "X-Correlation-ID": "abc-123"
-            }
+                "X-Correlation-ID": "abc-123",
+            },
         )
 
         assert response.status_code == 200

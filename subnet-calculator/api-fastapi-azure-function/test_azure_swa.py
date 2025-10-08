@@ -15,7 +15,9 @@ client = TestClient(api)
 
 
 # Helper function to create SWA principal header
-def create_swa_principal(user_details: str = None, user_id: str = None, identity_provider: str = "aad") -> str:
+def create_swa_principal(
+    user_details: str = None, user_id: str = None, identity_provider: str = "aad"
+) -> str:
     """
     Create a fake Azure SWA x-ms-client-principal header.
 
@@ -31,7 +33,7 @@ def create_swa_principal(user_details: str = None, user_id: str = None, identity
         "identityProvider": identity_provider,
         "userId": user_id or "user-123",
         "userDetails": user_details,
-        "userRoles": ["authenticated"]
+        "userRoles": ["authenticated"],
     }
     principal_json = json.dumps(claims)
     return base64.b64encode(principal_json.encode()).decode()
@@ -49,6 +51,7 @@ class TestAzureSWAConfiguration:
     def test_azure_swa_mode_works(self):
         """Azure SWA mode should be recognized."""
         from config import get_auth_method, AuthMethod
+
         assert get_auth_method() == AuthMethod.AZURE_SWA
 
 
@@ -66,13 +69,13 @@ class TestAzureSWAAuthentication:
         principal = create_swa_principal(
             user_details="alice@example.com",
             user_id="aad-user-123",
-            identity_provider="aad"
+            identity_provider="aad",
         )
 
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"x-ms-client-principal": principal}
+            headers={"x-ms-client-principal": principal},
         )
 
         assert response.status_code == 200
@@ -84,23 +87,20 @@ class TestAzureSWAAuthentication:
         principal = create_swa_principal(
             user_details=None,  # No email
             user_id="github-user-456",
-            identity_provider="github"
+            identity_provider="github",
         )
 
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"x-ms-client-principal": principal}
+            headers={"x-ms-client-principal": principal},
         )
 
         assert response.status_code == 200
 
     def test_missing_principal_returns_401(self):
         """Request without x-ms-client-principal should return 401."""
-        response = client.post(
-            "/api/v1/ipv4/validate",
-            json={"address": "192.168.1.1"}
-        )
+        response = client.post("/api/v1/ipv4/validate", json={"address": "192.168.1.1"})
 
         assert response.status_code == 401
         assert "principal" in response.json()["detail"].lower()
@@ -110,7 +110,7 @@ class TestAzureSWAAuthentication:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"x-ms-client-principal": "not-valid-base64!!!"}
+            headers={"x-ms-client-principal": "not-valid-base64!!!"},
         )
 
         assert response.status_code == 401
@@ -123,7 +123,7 @@ class TestAzureSWAAuthentication:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"x-ms-client-principal": invalid_json}
+            headers={"x-ms-client-principal": invalid_json},
         )
 
         assert response.status_code == 401
@@ -133,7 +133,7 @@ class TestAzureSWAAuthentication:
         """Principal without userId or userDetails should return 401."""
         claims = {
             "identityProvider": "aad",
-            "userRoles": ["authenticated"]
+            "userRoles": ["authenticated"],
             # Missing userId and userDetails
         }
         principal = base64.b64encode(json.dumps(claims).encode()).decode()
@@ -141,7 +141,7 @@ class TestAzureSWAAuthentication:
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"x-ms-client-principal": principal}
+            headers={"x-ms-client-principal": principal},
         )
 
         assert response.status_code == 401
@@ -165,8 +165,7 @@ class TestAllEndpointsProtectedSWA:
     def test_all_endpoints_work_with_valid_principal(self):
         """All endpoints should work with valid SWA principal."""
         principal = create_swa_principal(
-            user_details="test@example.com",
-            user_id="test-user-789"
+            user_details="test@example.com", user_id="test-user-789"
         )
 
         endpoints = [
@@ -178,9 +177,7 @@ class TestAllEndpointsProtectedSWA:
 
         for path, body in endpoints:
             response = client.post(
-                path,
-                json=body,
-                headers={"x-ms-client-principal": principal}
+                path, json=body, headers={"x-ms-client-principal": principal}
             )
             assert response.status_code == 200, f"Failed for {path}"
 
@@ -197,14 +194,13 @@ class TestDifferentIdentityProviders:
     def test_azure_ad_provider(self):
         """Test with Azure AD identity provider."""
         principal = create_swa_principal(
-            user_details="user@company.com",
-            identity_provider="aad"
+            user_details="user@company.com", identity_provider="aad"
         )
 
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"x-ms-client-principal": principal}
+            headers={"x-ms-client-principal": principal},
         )
 
         assert response.status_code == 200
@@ -212,14 +208,13 @@ class TestDifferentIdentityProviders:
     def test_github_provider(self):
         """Test with GitHub identity provider."""
         principal = create_swa_principal(
-            user_details="githubuser",
-            identity_provider="github"
+            user_details="githubuser", identity_provider="github"
         )
 
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"x-ms-client-principal": principal}
+            headers={"x-ms-client-principal": principal},
         )
 
         assert response.status_code == 200
@@ -227,14 +222,13 @@ class TestDifferentIdentityProviders:
     def test_google_provider(self):
         """Test with Google identity provider."""
         principal = create_swa_principal(
-            user_details="user@gmail.com",
-            identity_provider="google"
+            user_details="user@gmail.com", identity_provider="google"
         )
 
         response = client.post(
             "/api/v1/ipv4/validate",
             json={"address": "192.168.1.1"},
-            headers={"x-ms-client-principal": principal}
+            headers={"x-ms-client-principal": principal},
         )
 
         assert response.status_code == 200

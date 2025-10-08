@@ -11,7 +11,6 @@ This test suite covers:
 Note: Tests currently fail because auth functionality not yet implemented (TDD).
 """
 
-import os
 import pytest
 from fastapi.testclient import TestClient
 from function_app import api
@@ -63,6 +62,7 @@ class TestAuthConfiguration:
 
         # Test config function directly
         from config import get_auth_method
+
         with pytest.raises(ValueError, match="Invalid AUTH_METHOD"):
             get_auth_method()
 
@@ -73,6 +73,7 @@ class TestAuthConfiguration:
 
         # Test config function directly
         from config import get_api_keys
+
         with pytest.raises(ValueError, match="API_KEYS environment variable required"):
             get_api_keys()
 
@@ -83,6 +84,7 @@ class TestAuthConfiguration:
 
         # Test config function directly
         from config import get_api_keys
+
         with pytest.raises(ValueError, match="API_KEYS environment variable required"):
             get_api_keys()
 
@@ -104,10 +106,7 @@ class TestNoAuthMode:
 
     def test_no_auth_ignores_api_key_header(self):
         """X-API-Key header should be ignored in no auth mode."""
-        response = client.get(
-            "/api/v1/health",
-            headers={"X-API-Key": "any-key"}
-        )
+        response = client.get("/api/v1/health", headers={"X-API-Key": "any-key"})
         assert response.status_code == 200
 
     def test_no_auth_all_endpoints_accessible(self):
@@ -118,8 +117,7 @@ class TestNoAuthMode:
 
         # Validation endpoint
         response = client.post(
-            "/api/v1/ipv4/validate",
-            json={"address": "192.168.1.0/24"}
+            "/api/v1/ipv4/validate", json={"address": "192.168.1.0/24"}
         )
         assert response.status_code == 200
 
@@ -142,32 +140,22 @@ class TestAPIKeyMode:
 
     def test_invalid_api_key_returns_401(self):
         """Request with invalid API key should return 401."""
-        response = client.get(
-            "/api/v1/health",
-            headers={"X-API-Key": "invalid-key"}
-        )
+        response = client.get("/api/v1/health", headers={"X-API-Key": "invalid-key"})
         assert response.status_code == 401
         assert response.json()["detail"] == "Invalid API key"
 
     def test_valid_api_key_returns_200(self):
         """Request with valid API key should succeed."""
-        response = client.get(
-            "/api/v1/health",
-            headers={"X-API-Key": "valid-key-123"}
-        )
+        response = client.get("/api/v1/health", headers={"X-API-Key": "valid-key-123"})
         assert response.status_code == 200
 
     def test_multiple_valid_keys_all_work(self):
         """All configured API keys should work."""
-        response = client.get(
-            "/api/v1/health",
-            headers={"X-API-Key": "valid-key-123"}
-        )
+        response = client.get("/api/v1/health", headers={"X-API-Key": "valid-key-123"})
         assert response.status_code == 200
 
         response = client.get(
-            "/api/v1/health",
-            headers={"X-API-Key": "another-valid-key"}
+            "/api/v1/health", headers={"X-API-Key": "another-valid-key"}
         )
         assert response.status_code == 200
 
@@ -182,13 +170,16 @@ class TestAllEndpointsProtected:
         monkeypatch.setenv("AUTH_METHOD", "api_key")
         monkeypatch.setenv("API_KEYS", "test-key-123")
 
-    @pytest.mark.parametrize("endpoint,method,body", [
-        ("/api/v1/health", "GET", None),
-        ("/api/v1/ipv4/validate", "POST", {"address": "192.168.1.1"}),
-        ("/api/v1/ipv4/check-private", "POST", {"address": "192.168.1.1"}),
-        ("/api/v1/ipv4/check-cloudflare", "POST", {"address": "1.1.1.1"}),
-        ("/api/v1/ipv4/subnet-info", "POST", {"network": "192.168.1.0/24"}),
-    ])
+    @pytest.mark.parametrize(
+        "endpoint,method,body",
+        [
+            ("/api/v1/health", "GET", None),
+            ("/api/v1/ipv4/validate", "POST", {"address": "192.168.1.1"}),
+            ("/api/v1/ipv4/check-private", "POST", {"address": "192.168.1.1"}),
+            ("/api/v1/ipv4/check-cloudflare", "POST", {"address": "1.1.1.1"}),
+            ("/api/v1/ipv4/subnet-info", "POST", {"network": "192.168.1.0/24"}),
+        ],
+    )
     def test_endpoint_requires_auth(self, endpoint, method, body):
         """All endpoints should require authentication."""
         if method == "GET":
@@ -198,13 +189,16 @@ class TestAllEndpointsProtected:
 
         assert response.status_code == 401
 
-    @pytest.mark.parametrize("endpoint,method,body", [
-        ("/api/v1/health", "GET", None),
-        ("/api/v1/ipv4/validate", "POST", {"address": "192.168.1.1"}),
-        ("/api/v1/ipv4/check-private", "POST", {"address": "192.168.1.1"}),
-        ("/api/v1/ipv4/check-cloudflare", "POST", {"address": "1.1.1.1"}),
-        ("/api/v1/ipv4/subnet-info", "POST", {"network": "192.168.1.0/24"}),
-    ])
+    @pytest.mark.parametrize(
+        "endpoint,method,body",
+        [
+            ("/api/v1/health", "GET", None),
+            ("/api/v1/ipv4/validate", "POST", {"address": "192.168.1.1"}),
+            ("/api/v1/ipv4/check-private", "POST", {"address": "192.168.1.1"}),
+            ("/api/v1/ipv4/check-cloudflare", "POST", {"address": "1.1.1.1"}),
+            ("/api/v1/ipv4/subnet-info", "POST", {"network": "192.168.1.0/24"}),
+        ],
+    )
     def test_endpoint_works_with_valid_key(self, endpoint, method, body):
         """All endpoints should work with valid API key."""
         headers = {"X-API-Key": "test-key-123"}
@@ -229,41 +223,28 @@ class TestEdgeCases:
 
     def test_empty_api_key_header_returns_401(self):
         """Empty X-API-Key header should return 401."""
-        response = client.get(
-            "/api/v1/health",
-            headers={"X-API-Key": ""}
-        )
+        response = client.get("/api/v1/health", headers={"X-API-Key": ""})
         assert response.status_code == 401
 
     def test_whitespace_api_key_returns_401(self):
         """Whitespace-only API key should return 401."""
-        response = client.get(
-            "/api/v1/health",
-            headers={"X-API-Key": "   "}
-        )
+        response = client.get("/api/v1/health", headers={"X-API-Key": "   "})
         assert response.status_code == 401
 
     def test_api_key_case_sensitive(self):
         """API keys should be case-sensitive."""
         # Valid key
-        response = client.get(
-            "/api/v1/health",
-            headers={"X-API-Key": "valid-key-123"}
-        )
+        response = client.get("/api/v1/health", headers={"X-API-Key": "valid-key-123"})
         assert response.status_code == 200
 
         # Same key but different case should fail
-        response = client.get(
-            "/api/v1/health",
-            headers={"X-API-Key": "VALID-KEY-123"}
-        )
+        response = client.get("/api/v1/health", headers={"X-API-Key": "VALID-KEY-123"})
         assert response.status_code == 401
 
     def test_api_key_with_extra_whitespace_stripped(self):
         """API keys should have whitespace stripped during validation."""
         # Key with leading/trailing whitespace should work
         response = client.get(
-            "/api/v1/health",
-            headers={"X-API-Key": "  valid-key-123  "}
+            "/api/v1/health", headers={"X-API-Key": "  valid-key-123  "}
         )
         assert response.status_code == 200

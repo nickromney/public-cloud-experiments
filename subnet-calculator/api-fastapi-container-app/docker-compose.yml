@@ -1,0 +1,28 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      # Authentication - JWT mode for local testing
+      - AUTH_METHOD=jwt
+      - JWT_SECRET_KEY=local-dev-secret-key-minimum-32-chars-long-123456789
+      - JWT_ALGORITHM=HS256
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+      # Test users (Argon2 hashed passwords)
+      # demo: password123
+      # admin: securepass
+      - JWT_TEST_USERS={"demo":"$$argon2id$$v=19$$m=65536,t=3,p=4$$TklhcmEkyMzqJaH3KHQQDA$$rgp8AmtaR6PzBgjyZGNsivb2yJRqULRt5B+BmzUnzbo","admin":"$$argon2id$$v=19$$m=65536,t=3,p=4$$JiTJZlTwD/1jJLlMQMOwCA$$HbubnE11kzEfcszqKtMOmjvxj14vjooqbdZtgc1NYCs"}
+    volumes:
+      # Mount app directory for hot reload during development
+      - ./app:/app/app
+    # Override CMD for development with --reload flag
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
