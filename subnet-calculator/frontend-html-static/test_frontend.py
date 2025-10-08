@@ -80,8 +80,8 @@ class TestStaticFrontend:
         options = selector.locator("option")
         expect(options).to_have_count(4)
 
-        # Check default value
-        assert page.input_value("#cloud-mode") == "Azure"
+        # Check default value (Standard is the default)
+        assert page.input_value("#cloud-mode") == "Standard"
 
         # Change to AWS
         page.select_option("#cloud-mode", "AWS")

@@ -18,6 +18,11 @@ def flask_server():
 
 
 @pytest.fixture(scope="session")
-def base_url(flask_server):
-    """Provide base URL for tests"""
+def base_url(flask_server, request):
+    """Provide base URL for tests - uses CLI arg if provided, otherwise starts local server"""
+    # If --base-url provided via CLI, use it (for Docker Compose testing)
+    cli_base_url = request.config.getoption("--base-url", default=None)
+    if cli_base_url:
+        return cli_base_url
+    # Otherwise use local Flask server (for make python-test)
     return flask_server

@@ -96,7 +96,12 @@ if ! TOKEN_RESPONSE=$(curl -sf -X POST "$BASE_URL/v1/auth/login" \
     exit 1
 fi
 
-TOKEN=$(echo "$TOKEN_RESPONSE" | grep -o '"access_token":"[^"]*"' | cut -d'"' -f4)
+# Extract token (prefer jq if available, fallback to grep/cut)
+if command -v jq &> /dev/null; then
+    TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
+else
+    TOKEN=$(echo "$TOKEN_RESPONSE" | grep -o '"access_token":"[^"]*"' | cut -d'"' -f4)
+fi
 
 if [ -z "$TOKEN" ]; then
     echo "ERROR: Could not extract token from response"
