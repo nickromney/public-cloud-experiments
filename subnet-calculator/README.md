@@ -1,74 +1,127 @@
 # Subnet Calculator
 
-A full-stack IPv4/IPv6 subnet calculator with REST API backend and web frontend.
+A full-stack IPv4/IPv6 subnet calculator with multiple backend and frontend implementations demonstrating different deployment patterns.
 
 ## Quick Start
 
-### Using Docker Compose
+### Run All Services
 
-Run both the API and frontend together:
+The project includes **three complete stacks** that run simultaneously:
 
 ```bash
-docker compose up
+# Start all five services (2 backends + 3 frontends)
+podman-compose up -d
+
+# Or with Docker
+docker compose up -d
 ```
 
-Or build and run in detached mode:
+**Stack 1 - Flask + Azure Function** (Traditional):
+
+- Flask Frontend: <http://localhost:8000>
+- Azure Function API: <http://localhost:8080/api/v1/docs>
+
+**Stack 2 - Static HTML + Container App** (Modern):
+
+- Static HTML Frontend: <http://localhost:8001>
+- Container App API: <http://localhost:8090/api/v1/docs>
+
+**Stack 3 - Flask + Container App** (Hybrid):
+
+- Flask Frontend: <http://localhost:8002>
+- Container App API: <http://localhost:8090/api/v1/docs>
+
+### Run Individual Stacks
+
+**Stack 1 - Flask + Azure Function:**
 
 ```bash
-docker compose up -d --build
+podman-compose up api-fastapi-azure-function frontend-python-flask
 ```
 
-Access the application at `http://localhost:8000` (frontend) and API at `http://localhost:8080` (backend).
-
-### Using Podman Compose
-
-Run both services:
+**Stack 2 - Static HTML + Container App:**
 
 ```bash
-podman-compose up
+podman-compose up api-fastapi-container-app frontend-html-static
 ```
 
-Or:
+**Stack 3 - Flask + Container App:**
 
 ```bash
-podman compose up
+podman-compose up api-fastapi-container-app frontend-python-flask-container-app
+```
+
+### Run Individual Services
+
+Each component can run standalone from its directory:
+
+```bash
+# Azure Function API only (port 8080)
+cd api-fastapi-azure-function && podman-compose up
+
+# Container App API only (port 8090)
+cd api-fastapi-container-app && podman-compose up
+
+# Flask Frontend only (port 8000)
+cd frontend-python-flask && podman-compose up
+
+# Static Frontend only (port 8001)
+cd frontend-html-static && podman-compose up
 ```
 
 ### Stopping Services
 
-Docker Compose:
-
-```bash
-docker compose down
-```
-
-Podman Compose:
-
 ```bash
 podman-compose down
+# or
+docker compose down
 ```
 
 ## Project Structure
 
 ```text
 subnet-calculator/
-├── api-fastapi-azure-function/  # Backend API (FastAPI + Azure Functions)
-├── frontend-python-flask/       # Frontend (Flask web application)
-├── docker-compose.yml           # Docker Compose configuration
-├── compose.yml                  # Podman Compose configuration
+├── api-fastapi-azure-function/  # Azure Function API (port 8080)
+│   ├── compose.yml              # Standalone compose file
+│   ├── test_endpoints.sh        # API endpoint tests
+│   └── README.md
+├── api-fastapi-container-app/   # Container App API (port 8090)
+│   ├── compose.yml              # Standalone compose file
+│   ├── test_endpoints.sh        # API endpoint tests with JWT
+│   └── README.md
+├── frontend-python-flask/       # Flask Frontend (port 8000)
+│   ├── compose.yml              # Standalone compose file
+│   ├── test_frontend.py         # Playwright e2e tests
+│   └── README.md
+├── frontend-html-static/        # Static HTML Frontend (port 8001)
+│   ├── compose.yml              # Standalone compose file
+│   ├── test_frontend.py         # Playwright e2e tests
+│   ├── Dockerfile               # nginx-based image
+│   ├── nginx.conf               # API proxy configuration
+│   └── README.md
+├── compose.yml                  # Main compose file (all 4 services)
+├── TESTING.md                   # Complete testing guide
 └── README.md                    # This file
 ```
 
+## Service Details
+
+| Service | Type | Port | Connects To | Description |
+|---------|------|------|-------------|-------------|
+| `api-fastapi-azure-function` | Backend | 8080 | - | FastAPI via Azure Functions AsgiMiddleware |
+| `api-fastapi-container-app` | Backend | 8090 | - | FastAPI on Uvicorn (includes IPv6, no auth in compose) |
+| `frontend-python-flask` | Frontend | 8000 | Azure Function API | Server-side Flask (Stack 1) |
+| `frontend-html-static` | Frontend | 8001 | Container App API | Static HTML with nginx proxy (Stack 2) |
+| `frontend-python-flask-container-app` | Frontend | 8002 | Container App API | Server-side Flask (Stack 3) |
+
 ## Individual Projects
 
-See individual project READMEs for local development without containers:
+See individual project READMEs for local development and detailed information:
 
-- [API Documentation](api-fastapi-azure-function/README.md) - Backend REST API (FastAPI + Azure Functions)
-- [Frontend Documentation](frontend-python-flask/README.md) - Web frontend (Python + Flask)
-
-**Future additions:**
-
-- `frontend-html/` - Static HTML frontend (to demonstrate CORS behavior)
+- [Azure Function API](api-fastapi-azure-function/README.md) - Traditional Azure Functions deployment
+- [Container App API](api-fastapi-container-app/README.md) - Modern container-native deployment
+- [Flask Frontend](frontend-python-flask/README.md) - Server-side rendering (no CORS needed)
+- [Static Frontend](frontend-html-static/README.md) - Pure client-side (requires CORS/proxy)
 
 ## Architecture
 
@@ -82,64 +135,83 @@ See individual project READMEs for local development without containers:
   - Interactive Swagger UI documentation at `/api/v1/docs`
   - Python 3.11
 
-- **Frontend**: Flask web application
-  - Real-time subnet calculations via backend API
-  - Cloud provider mode selection
-  - Dark/light mode theme switcher
-  - Copy-to-clipboard functionality
+- **Frontends**:
+
+  **Flask (Server-Side Rendering)**:
+  - Server calls API, renders HTML
   - Progressive enhancement (works without JavaScript)
-  - Pico CSS styling
-  - Python 3.11
+  - CORS not required (server-to-server)
+  - Python 3.11, Pico CSS
+
+  **Static (Client-Side)**:
+  - Browser calls API directly (CORS required)
+  - Pure HTML/JS/CSS (no server runtime)
+  - Deployable to GitHub Pages, S3, Azure Storage
+  - Demonstrates "old way" of web development
 
 ## Container Details
 
-The `docker-compose.yml` includes:
+The main `compose.yml` runs all five services (2 backends + 3 frontends):
 
-- Health checks for the API service
-- Automatic dependency management (frontend waits for API to be healthy)
-- Service networking (frontend connects to API via `http://api:80/api/v1`)
-- Host port mappings (8080 for API, 8000 for frontend)
+- **Platform**: linux/amd64 (for deployment compatibility)
+- **Health checks**: Configured for both API services
+- **Networking**: Services communicate via Docker/Podman network
+- **Port Mappings**:
+  - Azure Function API: 8080 → 80 (internal)
+  - Container App API: 8090 → 8000 (internal)
+  - Flask Frontend (Stack 1): 8000
+  - Static Frontend (Stack 2): 8001
+  - Flask Frontend (Stack 3): 8002
 
-The `compose.yml` (Podman) has simplified configuration without health checks (as Podman Compose has limited support for `condition: service_healthy`).
+**Three Complete Stacks**:
+
+1. **Flask + Azure Function** (8000/8080) - Traditional Azure Functions pattern
+2. **Static HTML + Container App** (8001/8090) - Modern client-side with nginx proxy
+3. **Flask + Container App** (8002/8090) - Server-side rendering with modern API
+
+Each subdirectory contains a standalone `compose.yml` for individual service development.
 
 ## Troubleshooting
 
 ### Check container logs
 
-Docker:
-
 ```bash
-docker compose logs -f
-docker compose logs api -f
-docker compose logs frontend -f
-```
-
-Podman:
-
-```bash
+# All services
 podman-compose logs -f
+# or
+docker compose logs -f
+
+# Individual services
+podman-compose logs api-fastapi-azure-function -f
+podman-compose logs api-fastapi-container-app -f
+podman-compose logs frontend-python-flask -f
+podman-compose logs frontend-html-static -f
+podman-compose logs frontend-python-flask-container-app -f
 ```
 
 ### Rebuild containers
 
-Docker:
-
-```bash
-docker compose up --build
-```
-
-Podman:
-
 ```bash
 podman-compose up --build
+# or
+docker compose up --build
 ```
 
 ### Check service health
 
 ```bash
-# API health check
+# Azure Function API
 curl http://localhost:8080/api/v1/health
 
-# Frontend (should load HTML)
+# Container App API (no auth in compose)
+curl http://localhost:8090/api/v1/health
+
+# Flask Frontend (Stack 1 - connects to Azure Function)
 curl http://localhost:8000
+
+# Static Frontend (Stack 2 - connects to Container App)
+curl http://localhost:8001
+
+# Flask Frontend (Stack 3 - connects to Container App)
+curl http://localhost:8002
 ```

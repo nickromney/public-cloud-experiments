@@ -223,7 +223,7 @@ Health check endpoint. Returns API status and version.
 ```json
 {
   "status": "healthy",
-  "service": "IPv4 Validation API",
+  "service": "Subnet Calculator API (Azure Function)",
   "version": "1.0.0"
 }
 ```

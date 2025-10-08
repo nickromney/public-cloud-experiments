@@ -1,7 +1,4 @@
-import pytest
 from playwright.sync_api import Page, expect
-from unittest.mock import Mock, patch
-import json
 
 
 class TestFrontend:
@@ -58,8 +55,8 @@ class TestFrontend:
         options = selector.locator("option")
         expect(options).to_have_count(4)
 
-        # Check default value
-        assert page.input_value("#cloud-mode") == "Azure"
+        # Check default value (Standard is the default)
+        assert page.input_value("#cloud-mode") == "Standard"
 
         # Change to AWS
         page.select_option("#cloud-mode", "AWS")
@@ -92,9 +89,9 @@ class TestFrontend:
         expect(page.locator("#cloud-mode")).to_be_visible()
         expect(page.locator("button[type='submit']")).to_be_visible()
 
-        # Example buttons should wrap properly
-        examples = page.locator(".flex-wrap")
-        expect(examples).to_be_visible()
+        # Example buttons container should exist (has flex-wrap via CSS)
+        examples = page.locator(".example-buttons")
+        expect(examples).to_have_count(1)
 
     def test_responsive_layout_tablet(self, page: Page, base_url: str):
         """Test responsive layout on tablet viewport"""
@@ -118,9 +115,9 @@ class TestFrontend:
         expect(page.locator("#cloud-mode")).to_be_visible()
         expect(page.locator("button[type='submit']")).to_be_visible()
 
-        # On desktop, input and controls should be in a row
-        form_container = page.locator(".flex.sm\\:flex-row")
-        expect(form_container).to_be_visible()
+        # On desktop, form row should be visible (uses flexbox for layout)
+        form_row = page.locator(".form-row")
+        expect(form_row).to_be_visible()
 
     def test_copy_button_visibility(self, page: Page, base_url: str):
         """Test that copy button exists (would be visible after network lookup)"""
@@ -203,7 +200,9 @@ class TestFrontend:
         assert form.get_attribute("method").upper() == "POST"
         assert form.get_attribute("action") == "/"
 
-    def test_javascript_only_features_hidden_without_js(self, page: Page, base_url: str):
+    def test_javascript_only_features_hidden_without_js(
+        self, page: Page, base_url: str
+    ):
         """Test that JavaScript-only features are hidden when JS is disabled"""
         # Create a new context with JavaScript disabled
         browser = page.context.browser
@@ -212,10 +211,9 @@ class TestFrontend:
 
         page_no_js.goto(base_url)
 
-        # These elements should be hidden via noscript CSS
-        # We can't directly test visibility, but we can verify noscript tag exists
+        # There are 2 noscript tags: one in <head> for CSS, one in <body> for warning
         noscript = page_no_js.locator("noscript")
-        expect(noscript).to_have_count(1)
+        expect(noscript).to_have_count(2)
 
         # Verify the elements exist in DOM but would be hidden by noscript CSS
         expect(page_no_js.locator("#copy-btn")).to_have_count(1)
@@ -228,9 +226,9 @@ class TestFrontend:
         """Test that noscript warning exists"""
         page.goto(base_url)
 
-        # Check for noscript tag (won't be visible with JS enabled)
+        # There are 2 noscript tags: one in <head> for CSS, one in <body> for warning
         noscript_content = page.locator("noscript")
-        expect(noscript_content).to_have_count(1)
+        expect(noscript_content).to_have_count(2)
 
     def test_semantic_html_structure(self, page: Page, base_url: str):
         """Test that page uses semantic HTML (readable without CSS)"""

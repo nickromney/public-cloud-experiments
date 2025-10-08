@@ -1,4 +1,4 @@
-/* Minimal custom styles for subnet calculator */
+/* Minimal custom styles for subnet calculator - Static Version */
 
 /* Theme switcher button */
 #theme-switcher {
@@ -9,6 +9,7 @@
     border-radius: 4px;
     font-size: 0.875rem;
     cursor: pointer;
+    z-index: 1000;
 }
 
 /* Layout */
@@ -16,6 +17,20 @@
     max-width: 1200px;
     margin: 0 auto;
     padding: 1rem;
+}
+
+/* Header */
+header {
+    margin-bottom: 2rem;
+}
+
+.architecture-note {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 3px solid #3b82f6;
+    border-radius: 4px;
+    font-size: 0.9rem;
 }
 
 /* Form layout */
@@ -49,17 +64,20 @@
     border-radius: 4px;
     border: 1px solid;
     cursor: pointer;
-    background: #f0f0f0;
+    background: var(--pico-card-background-color);
+    transition: all 0.2s;
 }
 
 .example-btn:hover {
-    background: #e0e0e0;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .btn-rfc1918 { border-color: #9333ea; color: #9333ea; }
 .btn-rfc6598 { border-color: #ea580c; color: #ea580c; }
 .btn-public { border-color: #16a34a; color: #16a34a; }
 .btn-cloudflare { border-color: #0284c7; color: #0284c7; }
+.btn-network { border-color: #7c3aed; color: #7c3aed; }
 
 /* Alerts */
 .alert {
@@ -130,6 +148,13 @@ html[data-theme="dark"] .alert-error {
     font-size: 0.85rem;
 }
 
+/* Action buttons */
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
 /* Utility classes */
 .hidden {
     display: none !important;
@@ -143,74 +168,45 @@ html[data-theme="dark"] .alert-error {
 .mb-2 { margin-bottom: 1rem; }
 .mt-1 { margin-top: 0.5rem; }
 
-/* Loading spinner */
-.spinner {
-    display: inline-block;
-    width: 2rem;
-    height: 2rem;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* Table highlight */
-tr.highlight {
-    background-color: #dbeafe;
-}
-
-/* Header spacing */
-header {
-    margin-bottom: 2rem;
-}
-
 /* Results section */
-.results-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem;
-    background: var(--pico-card-background-color);
-    border-bottom: 1px solid var(--pico-muted-border-color);
+#results article {
+    margin-top: 1rem;
 }
 
-/* Small button */
-.btn-small {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.875rem;
+#results h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    color: var(--pico-h3-color);
 }
 
-/* Copy button states */
-.btn-copy {
-    background: #dbeafe;
-    color: #1e40af;
-    border: 1px solid #3b82f6;
+#results h4 {
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
 }
 
-.btn-copy:hover {
-    background: #bfdbfe;
+#results table {
+    margin-bottom: 1rem;
 }
 
-.btn-copy.copied {
-    background: #d1fae5;
-    color: #065f46;
-    border-color: #10b981;
+#results table th {
+    width: 40%;
+    text-align: left;
 }
 
-/* Clear button */
-.btn-clear {
-    background: #f3f4f6;
-    color: #374151;
-    border: 1px solid #d1d5db;
+#results table td {
+    font-family: monospace;
 }
 
-.btn-clear:hover {
-    background: #e5e7eb;
+#results ul {
+    margin-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+#results ul li {
+    margin-bottom: 0.25rem;
+    font-family: monospace;
+    font-size: 0.9rem;
 }
 
 /* Responsive */
@@ -225,9 +221,16 @@ header {
         width: 100%;
     }
 
-    .results-header {
+    .action-buttons {
         flex-direction: column;
-        gap: 0.5rem;
-        align-items: flex-start;
+    }
+
+    .action-buttons button {
+        width: 100%;
+    }
+
+    #theme-switcher {
+        font-size: 0.75rem;
+        padding: 0.4rem 0.8rem;
     }
 }

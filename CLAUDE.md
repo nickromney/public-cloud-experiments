@@ -372,4 +372,4 @@ This repository uses:
 
 - **Main branch**: `main`
 - **Pre-commit hooks**: Automatically run on commit
-- **No emoji policy**: Markdown linting checks for emojis
+- **No emoji policy**: Do not write emojis in markdown files. Markdown linting checks for emojis and will fail if any are present.
