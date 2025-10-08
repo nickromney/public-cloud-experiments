@@ -23,7 +23,8 @@ from ..models.subnet import (
     ValidateRequest,
 )
 
-router = APIRouter(prefix="/subnets", tags=["subnets"])
+router = APIRouter(prefix="/api/v1/ipv4", tags=["subnets"])
+router_ipv6 = APIRouter(prefix="/api/v1/ipv6", tags=["subnets"])
 
 # RFC1918 Private Address Ranges
 RFC1918_RANGES = [
@@ -66,7 +67,7 @@ CLOUDFLARE_IPV6_RANGES = [
 ]
 
 
-@router.post("/ipv4", response_model=SubnetIPv4Response)
+@router.post("/subnet-info", response_model=SubnetIPv4Response)
 async def calculate_ipv4_subnet(
     request: SubnetIPv4Request, current_user: str = Depends(get_current_user)
 ):
@@ -188,7 +189,7 @@ async def calculate_ipv4_subnet(
             )
 
 
-@router.post("/ipv6", response_model=SubnetIPv6Response)
+@router_ipv6.post("/subnet-info", response_model=SubnetIPv6Response)
 async def calculate_ipv6_subnet(
     request: SubnetIPv6Request, current_user: str = Depends(get_current_user)
 ):

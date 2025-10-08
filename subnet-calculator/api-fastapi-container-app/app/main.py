@@ -18,15 +18,16 @@ app = FastAPI(
     title="Subnet Calculator API",
     description="IPv4 and IPv6 subnet calculator with multiple authentication methods",
     version="1.0.0",
-    docs_url="/docs",  # Swagger UI
-    redoc_url="/redoc",  # ReDoc
-    openapi_url="/openapi.json",  # OpenAPI spec (for APIM import)
+    docs_url="/api/v1/docs",  # Swagger UI
+    redoc_url="/api/v1/redoc",  # ReDoc
+    openapi_url="/api/v1/openapi.json",  # OpenAPI spec (for APIM import)
 )
 
 # Include routers
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(subnets.router)
+app.include_router(subnets.router_ipv6)
 
 
 # Middleware for authentication
@@ -37,13 +38,13 @@ async def auth_middleware(request: Request, call_next):
 
     # Skip auth for health, docs, and auth endpoints
     if request.url.path in [
-        "/health",
-        "/health/ready",
-        "/health/live",
-        "/docs",
-        "/redoc",
-        "/openapi.json",
-        "/auth/login",
+        "/api/v1/health",
+        "/api/v1/health/ready",
+        "/api/v1/health/live",
+        "/api/v1/docs",
+        "/api/v1/redoc",
+        "/api/v1/openapi.json",
+        "/api/v1/auth/login",
         "/",
     ]:
         response = await call_next(request)
@@ -76,7 +77,7 @@ async def root():
     return {
         "name": "Subnet Calculator API",
         "version": "1.0.0",
-        "docs": "/docs",
-        "openapi": "/openapi.json",
-        "health": "/health",
+        "docs": "/api/v1/docs",
+        "openapi": "/api/v1/openapi.json",
+        "health": "/api/v1/health",
     }

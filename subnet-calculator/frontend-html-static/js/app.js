@@ -35,12 +35,17 @@ async function checkApiHealth() {
 
         const data = await response.json();
 
+        // Construct full endpoint URL
+        const endpointUrl = API_CONFIG.BASE_URL
+            ? `${API_CONFIG.BASE_URL}${API_CONFIG.PATHS.HEALTH}`
+            : `${window.location.origin}${API_CONFIG.PATHS.HEALTH}`;
+
         statusDiv.className = 'alert alert-success';
         statusMsg.innerHTML = `
             <strong>API Status:</strong> ${data.status} |
-            <strong>Service:</strong> ${data.service} |
+            <strong>Backend:</strong> ${data.service} |
             <strong>Version:</strong> ${data.version}<br>
-            <small>Endpoint: <code>${API_CONFIG.BASE_URL}</code></small>
+            <small>Endpoint: <code>${endpointUrl}</code></small>
         `;
         statusDiv.style.display = 'block';
     } catch (error) {

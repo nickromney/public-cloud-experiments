@@ -519,7 +519,7 @@ async def health_check():
     - Load balancers
     - Monitoring systems (Prometheus, Datadog, etc.)
     """
-    return {"status": "healthy", "service": "IPv4 Validation API", "version": "1.0.0"}
+    return {"status": "healthy", "service": "Subnet Calculator API (Azure Function)", "version": "1.0.0"}
 
 
 @api.post("/api/v1/ipv4/validate")

@@ -31,6 +31,25 @@
             <p>Enter an IPv4 address or CIDR range to analyse</p>
         </header>
 
+        <!-- API Status -->
+        {% if api_health %}
+        <div class="alert alert-success">
+            <p>
+                <strong>API Status:</strong> {{ api_health.status }} |
+                <strong>Backend:</strong> {{ api_health.service }} |
+                <strong>Version:</strong> {{ api_health.version }}<br>
+                <small>Endpoint: <code>{{ api_health.endpoint }}</code></small>
+            </p>
+        </div>
+        {% elif not api_down %}
+        <div class="alert alert-error">
+            <p>
+                <strong>API Unavailable:</strong> Unable to connect to backend API<br>
+                <small>The calculator may not function correctly</small>
+            </p>
+        </div>
+        {% endif %}
+
         <!-- No JavaScript Warning -->
         <noscript>
             <div class="alert alert-warning">

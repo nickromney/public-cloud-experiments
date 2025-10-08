@@ -13,7 +13,7 @@ def test_health_check():
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "healthy"
-    assert body["service"] == "IPv4 Validation API"
+    assert body["service"] == "Subnet Calculator API (Azure Function)"
     assert body["version"] == "1.0.0"
 
 

@@ -126,7 +126,16 @@
       "Bash(uv run:*)",
       "Bash(npx markdownlint-cli2:*)",
       "Bash(podman-compose up:*)",
-      "Bash(podman-compose:*)"
+      "Bash(podman-compose:*)",
+      "Bash(podman ps:*)",
+      "Bash(podman logs:*)",
+      "Bash(podman exec:*)",
+      "Bash(./test_endpoints.sh:*)",
+      "Bash(USE_CURL=1 ./test_endpoints.sh --detailed http://localhost:8080/api)",
+      "Bash(if [ -f test_endpoints.sh ])",
+      "Bash(then USE_CURL=1 ./test_endpoints.sh --detailed http://localhost:8090/api)",
+      "Bash(else echo \"No test_endpoints.sh found - checking with curl\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []

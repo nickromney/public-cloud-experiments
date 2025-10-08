@@ -24,11 +24,13 @@ help: ## Show this help message
 ##@ Pre-commit and Security
 
 .PHONY: precommit
-precommit: ## Run all pre-commit hooks on tracked AND untracked files
+precommit: ## Run all pre-commit hooks on all files (same as git commit hook)
 	@echo "$(YELLOW)Running all pre-commit hooks...$(NC)"
+	@echo "$(YELLOW)Note: This runs on ALL files. Git commit hook runs on staged files only.$(NC)"
 	@pre-commit run --all-files
 	@echo "$(YELLOW)Checking untracked markdown files for emojis...$(NC)"
 	@git ls-files --others --exclude-standard '*.md' '*.markdown' | xargs -r .git-hooks/check-emojis.sh || true
+	@echo "$(GREEN)✓ All pre-commit checks passed$(NC)"
 
 .PHONY: precommit-check
 precommit-check: ## Run pre-commit hooks (always succeeds, for review)

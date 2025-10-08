@@ -10,7 +10,7 @@ to determine application health, readiness, and liveness.
 
 from fastapi import APIRouter
 
-router = APIRouter(tags=["health"])
+router = APIRouter(prefix="/api/v1", tags=["health"])
 
 
 @router.get("/health")
@@ -20,7 +20,11 @@ async def health_check():
     Returns:
         Simple status indicating the application is healthy
     """
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "service": "Subnet Calculator API (Container App)",
+        "version": "1.0.0",
+    }
 
 
 @router.get("/health/ready")

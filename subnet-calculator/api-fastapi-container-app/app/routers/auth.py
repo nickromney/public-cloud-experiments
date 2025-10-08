@@ -16,7 +16,7 @@ from ..config import (
 )
 from ..auth import create_access_token, verify_test_user
 
-router = APIRouter(prefix="/auth", tags=["authentication"])
+router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 
 
 @router.post("/login")

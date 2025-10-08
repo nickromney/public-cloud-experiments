@@ -28,14 +28,14 @@ class TestNoAuthMode:
     def test_no_auth_allows_all_requests(self, client):
         """Test that no auth mode allows requests without credentials."""
         response = client.post(
-            "/subnets/ipv4", json={"network": "192.168.1.0/24", "mode": "Azure"}
+            "/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"}
         )
         assert response.status_code == 200
 
     def test_no_auth_ignores_api_key_header(self, client):
         """Test that API keys are ignored in no auth mode."""
         response = client.post(
-            "/subnets/ipv4",
+            "/api/v1/ipv4/subnet-info",
             json={"network": "192.168.1.0/24", "mode": "Azure"},
             headers={"X-API-Key": "invalid-key"},
         )
@@ -67,14 +67,14 @@ class TestAPIKeyMode:
     def test_missing_api_key_returns_401(self, client):
         """Test that missing API key returns 401."""
         response = client.post(
-            "/subnets/ipv4", json={"network": "192.168.1.0/24", "mode": "Azure"}
+            "/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"}
         )
         assert response.status_code == 401
 
     def test_invalid_api_key_returns_401(self, client):
         """Test that invalid API key returns 401."""
         response = client.post(
-            "/subnets/ipv4",
+            "/api/v1/ipv4/subnet-info",
             json={"network": "192.168.1.0/24", "mode": "Azure"},
             headers={"X-API-Key": "invalid-key"},
         )
@@ -83,7 +83,7 @@ class TestAPIKeyMode:
     def test_valid_api_key_returns_200(self, client):
         """Test that valid API key allows access."""
         response = client.post(
-            "/subnets/ipv4",
+            "/api/v1/ipv4/subnet-info",
             json={"network": "192.168.1.0/24", "mode": "Azure"},
             headers={"X-API-Key": "test-key-123"},
         )
@@ -93,7 +93,7 @@ class TestAPIKeyMode:
         """Test that all configured keys work."""
         for key in ["test-key-123", "test-key-456"]:
             response = client.post(
-                "/subnets/ipv4",
+                "/api/v1/ipv4/subnet-info",
                 json={"network": "192.168.1.0/24", "mode": "Azure"},
                 headers={"X-API-Key": key},
             )
@@ -101,18 +101,18 @@ class TestAPIKeyMode:
 
     def test_health_endpoint_requires_no_auth(self, client):
         """Test that health endpoint doesn't require auth."""
-        response = client.get("/health")
+        response = client.get("/api/v1/health")
         assert response.status_code == 200
 
     def test_docs_endpoint_requires_no_auth(self, client):
         """Test that docs endpoint doesn't require auth."""
-        response = client.get("/docs")
+        response = client.get("/api/v1/docs")
         assert response.status_code == 200
 
     def test_empty_api_key_header_returns_401(self, client):
         """Test that empty API key header returns 401."""
         response = client.post(
-            "/subnets/ipv4",
+            "/api/v1/ipv4/subnet-info",
             json={"network": "192.168.1.0/24", "mode": "Azure"},
             headers={"X-API-Key": ""},
         )
@@ -121,7 +121,7 @@ class TestAPIKeyMode:
     def test_whitespace_api_key_returns_401(self, client):
         """Test that whitespace-only API key returns 401."""
         response = client.post(
-            "/subnets/ipv4",
+            "/api/v1/ipv4/subnet-info",
             json={"network": "192.168.1.0/24", "mode": "Azure"},
             headers={"X-API-Key": "   "},
         )
@@ -165,7 +165,7 @@ class TestJWTMode:
     def valid_token(self, client):
         """Get a valid JWT token."""
         response = client.post(
-            "/auth/login", data={"username": "demo", "password": "password123"}
+            "/api/v1/auth/login", data={"username": "demo", "password": "password123"}
         )
         assert response.status_code == 200
         return response.json()["access_token"]
@@ -173,7 +173,7 @@ class TestJWTMode:
     def test_login_with_valid_credentials(self, client):
         """Test login with valid credentials returns token."""
         response = client.post(
-            "/auth/login", data={"username": "demo", "password": "password123"}
+            "/api/v1/auth/login", data={"username": "demo", "password": "password123"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -183,28 +183,28 @@ class TestJWTMode:
     def test_login_with_invalid_username(self, client):
         """Test login with invalid username returns 401."""
         response = client.post(
-            "/auth/login", data={"username": "invalid", "password": "password123"}
+            "/api/v1/auth/login", data={"username": "invalid", "password": "password123"}
         )
         assert response.status_code == 401
 
     def test_login_with_invalid_password(self, client):
         """Test login with invalid password returns 401."""
         response = client.post(
-            "/auth/login", data={"username": "demo", "password": "wrong"}
+            "/api/v1/auth/login", data={"username": "demo", "password": "wrong"}
         )
         assert response.status_code == 401
 
     def test_missing_authorization_header_returns_401(self, client):
         """Test that missing Authorization header returns 401."""
         response = client.post(
-            "/subnets/ipv4", json={"network": "192.168.1.0/24", "mode": "Azure"}
+            "/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"}
         )
         assert response.status_code == 401
 
     def test_invalid_authorization_scheme_returns_401(self, client, valid_token):
         """Test that non-Bearer scheme returns 401."""
         response = client.post(
-            "/subnets/ipv4",
+            "/api/v1/ipv4/subnet-info",
             json={"network": "192.168.1.0/24", "mode": "Azure"},
             headers={"Authorization": f"Basic {valid_token}"},
         )
@@ -213,7 +213,7 @@ class TestJWTMode:
     def test_valid_token_returns_200(self, client, valid_token):
         """Test that valid token allows access."""
         response = client.post(
-            "/subnets/ipv4",
+            "/api/v1/ipv4/subnet-info",
             json={"network": "192.168.1.0/24", "mode": "Azure"},
             headers={"Authorization": f"Bearer {valid_token}"},
         )
@@ -221,13 +221,13 @@ class TestJWTMode:
 
     def test_health_endpoint_requires_no_auth(self, client):
         """Test that health endpoint doesn't require auth."""
-        response = client.get("/health")
+        response = client.get("/api/v1/health")
         assert response.status_code == 200
 
     def test_empty_authorization_header_returns_401(self, client):
         """Test that empty Authorization header returns 401."""
         response = client.post(
-            "/subnets/ipv4",
+            "/api/v1/ipv4/subnet-info",
             json={"network": "192.168.1.0/24", "mode": "Azure"},
             headers={"Authorization": ""},
         )
@@ -236,7 +236,7 @@ class TestJWTMode:
     def test_malformed_token_returns_401(self, client):
         """Test that malformed token returns 401."""
         response = client.post(
-            "/subnets/ipv4",
+            "/api/v1/ipv4/subnet-info",
             json={"network": "192.168.1.0/24", "mode": "Azure"},
             headers={"Authorization": "Bearer not-a-valid-token"},
         )
@@ -278,7 +278,7 @@ class TestAzureSWAMode:
         encoded = base64.b64encode(json.dumps(principal).encode()).decode()
 
         response = client.post(
-            "/subnets/ipv4",
+            "/api/v1/ipv4/subnet-info",
             json={"network": "192.168.1.0/24", "mode": "Azure"},
             headers={"x-ms-client-principal": encoded},
         )
@@ -287,7 +287,7 @@ class TestAzureSWAMode:
     def test_missing_principal_returns_401(self, client):
         """Test that missing principal header returns 401."""
         response = client.post(
-            "/subnets/ipv4", json={"network": "192.168.1.0/24", "mode": "Azure"}
+            "/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"}
         )
         assert response.status_code == 401
 
@@ -317,7 +317,7 @@ class TestAPIMMode:
     def test_valid_user_id_header(self, client):
         """Test valid X-User-ID header."""
         response = client.post(
-            "/subnets/ipv4",
+            "/api/v1/ipv4/subnet-info",
             json={"network": "192.168.1.0/24", "mode": "Azure"},
             headers={"X-User-ID": "user123"},
         )
@@ -326,7 +326,7 @@ class TestAPIMMode:
     def test_valid_user_email_header(self, client):
         """Test valid X-User-Email header."""
         response = client.post(
-            "/subnets/ipv4",
+            "/api/v1/ipv4/subnet-info",
             json={"network": "192.168.1.0/24", "mode": "Azure"},
             headers={"X-User-Email": "user@example.com"},
         )
@@ -335,6 +335,6 @@ class TestAPIMMode:
     def test_missing_user_headers_returns_401(self, client):
         """Test that missing user headers returns 401."""
         response = client.post(
-            "/subnets/ipv4", json={"network": "192.168.1.0/24", "mode": "Azure"}
+            "/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"}
         )
         assert response.status_code == 401

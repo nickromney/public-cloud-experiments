@@ -69,6 +69,25 @@ def get_auth_headers() -> dict:
     return {}
 
 
+def get_api_health() -> dict | None:
+    """
+    Get API health status.
+    Returns health info dict or None if API is unavailable.
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/health",
+            timeout=2,
+        )
+        response.raise_for_status()
+        health_data = response.json()
+        # Add the endpoint URL to the health data
+        health_data["endpoint"] = f"{API_BASE_URL}/health"
+        return health_data
+    except requests.RequestException:
+        return None
+
+
 def perform_lookup(address: str, mode: str = "Standard") -> dict:
     """
     Perform IP address lookup against the API
@@ -140,6 +159,9 @@ def perform_lookup(address: str, mode: str = "Standard") -> dict:
 @app.route("/", methods=["GET", "POST"])
 def index():
     """Main page - handles both GET and traditional form POST (no-JS fallback)"""
+    # Get API health status for display
+    api_health = get_api_health()
+
     if request.method == "POST":
         # Traditional form submission (no JavaScript)
         address = request.form.get("address", "").strip()
@@ -152,12 +174,12 @@ def index():
         try:
             results = perform_lookup(address, mode)
             return render_template(
-                "index.html", results=results, address=address, mode=mode
+                "index.html", results=results, address=address, mode=mode, api_health=api_health
             )
         except ValueError as e:
             # Bad input (4xx error) - show validation error
             return render_template(
-                "index.html", error=str(e), address=address, mode=mode
+                "index.html", error=str(e), address=address, mode=mode, api_health=api_health
             )
         except requests.exceptions.RequestException as e:
             # API is down (connection error, timeout, 5xx) - suggest cidr.xyz
@@ -168,9 +190,10 @@ def index():
                 cidr_url=cidr_url,
                 address=address,
                 error=f"Backend API unavailable: {str(e)}",
+                api_health=api_health,
             )
 
-    return render_template("index.html")
+    return render_template("index.html", api_health=api_health)
 
 
 @app.route("/lookup", methods=["POST"])
