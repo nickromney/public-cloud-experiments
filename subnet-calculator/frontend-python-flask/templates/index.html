@@ -28,7 +28,7 @@
         <!-- Header -->
         <header class="text-center">
             <h1>IPv4 Subnet Calculator</h1>
-            <p>Enter an IPv4 address or CIDR range to analyse</p>
+            <p>{{ stack_name }}</p>
         </header>
 
         <!-- API Status -->
@@ -38,7 +38,7 @@
                 <strong>API Status:</strong> {{ api_health.status }} |
                 <strong>Backend:</strong> {{ api_health.service }} |
                 <strong>Version:</strong> {{ api_health.version }}<br>
-                <small>Endpoint: <code>{{ api_health.endpoint }}</code></small>
+                <small>Frontend: <code>{{ request.host_url }}</code> | Backend: <code>{{ api_health.endpoint }}</code></small>
             </p>
         </div>
         {% elif not api_down %}

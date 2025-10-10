@@ -1,44 +1,46 @@
-import azure.functions as func
-import fastapi
-from fastapi import HTTPException, Request, Response, Depends, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
-from fastapi.openapi.utils import get_openapi
-from pydantic import BaseModel, Field
-from ipaddress import (
-    ip_address,
-    ip_network,
-    IPv4Address,
-    IPv6Address,
-    IPv4Network,
-    IPv6Network,
-    AddressValueError,
-    NetmaskValueError,
-)
 import logging
 import os
 import sys
-from importlib.metadata import version
 from datetime import timedelta
+from importlib.metadata import version
+from ipaddress import (
+    AddressValueError,
+    IPv4Address,
+    IPv4Network,
+    IPv6Address,
+    IPv6Network,
+    NetmaskValueError,
+    ip_address,
+    ip_network,
+)
+
+import azure.functions as func
+import fastapi
 import jwt
+from fastapi import Depends, HTTPException, Request, Response, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
+from fastapi.openapi.utils import get_openapi
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel, Field
+
+from auth import (
+    create_access_token,
+    decode_access_token,
+    validate_api_key,
+    verify_test_user,
+)
 
 # Authentication imports
 from config import (
     AuthMethod,
-    get_auth_method,
     get_api_keys,
-    get_jwt_secret_key,
+    get_auth_method,
     get_jwt_algorithm,
     get_jwt_expiration_minutes,
+    get_jwt_secret_key,
     get_jwt_test_users,
     validate_configuration,
-)
-from auth import (
-    validate_api_key,
-    create_access_token,
-    decode_access_token,
-    verify_test_user,
 )
 
 # Startup logging using print() to ensure visibility in Azure Functions logs
@@ -55,9 +57,7 @@ msi_endpoint = os.getenv("MSI_ENDPOINT")
 identity_endpoint = os.getenv("IDENTITY_ENDPOINT")
 
 if azure_client_id and (msi_endpoint or identity_endpoint):
-    print(
-        f"✅ MANAGED IDENTITY: User-assigned (Client ID: {azure_client_id})", flush=True
-    )
+    print(f"✅ MANAGED IDENTITY: User-assigned (Client ID: {azure_client_id})", flush=True)
 elif msi_endpoint or identity_endpoint:
     print(
         "✅ MANAGED IDENTITY: System-assigned (or user-assigned without explicit client ID)",
@@ -105,9 +105,7 @@ class ValidateRequest(BaseModel):
 
 class SubnetInfoRequest(BaseModel):
     network: str = Field(..., description="Network in CIDR notation")
-    mode: str = Field(
-        default="Azure", description="Cloud provider mode: Azure, AWS, OCI, or Standard"
-    )
+    mode: str = Field(default="Azure", description="Cloud provider mode: Azure, AWS, OCI, or Standard")
 
 
 # Create FastAPI app with OpenAPI documentation
@@ -136,6 +134,7 @@ api.add_middleware(
 # tokenUrl points to our login endpoint
 # auto_error=False means we handle AUTH_METHOD flag ourselves
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+oauth2_form = Depends(OAuth2PasswordRequestForm)
 
 
 async def get_current_user(request: Request) -> str:
@@ -226,18 +225,18 @@ async def get_current_user(request: Request) -> str:
 
             return username
 
-        except jwt.ExpiredSignatureError:
+        except jwt.ExpiredSignatureError as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has expired",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
-        except jwt.InvalidTokenError:
+            ) from e
+        except jwt.InvalidTokenError as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
     # Azure Static Web Apps EasyAuth
     if auth_method == AuthMethod.AZURE_SWA:
@@ -281,7 +280,7 @@ async def get_current_user(request: Request) -> str:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Invalid Azure SWA principal: {str(e)}",
-            )
+            ) from e
 
     # Azure API Management (APIM)
     if auth_method == AuthMethod.APIM:
@@ -372,7 +371,7 @@ async def authentication_middleware(request: Request, call_next):
 
 
 @api.post("/api/v1/auth/login")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(form_data: OAuth2PasswordRequestForm = oauth2_form):
     """
     OAuth 2.0 password flow login endpoint.
 
@@ -457,9 +456,7 @@ async def custom_swagger_ui_html(current_user: str = Depends(get_current_user)):
 @api.get("/api/v1/redoc", include_in_schema=False)
 async def custom_redoc_html(current_user: str = Depends(get_current_user)):
     """Protected ReDoc documentation."""
-    return get_redoc_html(
-        openapi_url="/api/v1/openapi.json", title=f"{api.title} - ReDoc"
-    )
+    return get_redoc_html(openapi_url="/api/v1/openapi.json", title=f"{api.title} - ReDoc")
 
 
 @api.get("/api/v1/openapi.json", include_in_schema=False)
@@ -523,9 +520,7 @@ async def health_check():
 
 
 @api.post("/api/v1/ipv4/validate")
-async def validate_ipv4(
-    request: ValidateRequest, current_user: str = Depends(get_current_user)
-):
+async def validate_ipv4(request: ValidateRequest, current_user: str = Depends(get_current_user)):
     """
     Validate if an IPv4/IPv6 address or CIDR range is well-formed.
 
@@ -550,7 +545,7 @@ async def validate_ipv4(
                 "is_ipv6": isinstance(network, IPv6Network),
             }
         except (AddressValueError, NetmaskValueError, ValueError):
-            raise HTTPException(status_code=400, detail="Invalid IP network format")
+            raise HTTPException(status_code=400, detail="Invalid IP network format") from None
     else:
         # Parse as individual address
         try:
@@ -563,13 +558,11 @@ async def validate_ipv4(
                 "is_ipv6": isinstance(addr, IPv6Address),
             }
         except (AddressValueError, ValueError):
-            raise HTTPException(status_code=400, detail="Invalid IP address format")
+            raise HTTPException(status_code=400, detail="Invalid IP address format") from None
 
 
 @api.post("/api/v1/ipv4/check-private")
-async def check_private(
-    request: ValidateRequest, current_user: str = Depends(get_current_user)
-):
+async def check_private(request: ValidateRequest, current_user: str = Depends(get_current_user)):
     """
     Check if an IPv4 address or range is RFC1918 (private) or RFC6598 (shared).
 
@@ -588,9 +581,7 @@ async def check_private(
 
         # Only process IPv4
         if isinstance(ip_obj, (IPv6Address, IPv6Network)):
-            raise HTTPException(
-                status_code=400, detail="This endpoint only supports IPv4 addresses"
-            )
+            raise HTTPException(status_code=400, detail="This endpoint only supports IPv4 addresses")
 
         # Check RFC1918
         is_rfc1918 = False
@@ -610,9 +601,7 @@ async def check_private(
         # Check RFC6598
         is_rfc6598 = False
         if isinstance(ip_obj, IPv4Network):
-            is_rfc6598 = ip_obj.subnet_of(RFC6598_RANGE) or ip_obj.supernet_of(
-                RFC6598_RANGE
-            )
+            is_rfc6598 = ip_obj.subnet_of(RFC6598_RANGE) or ip_obj.supernet_of(RFC6598_RANGE)
         else:  # IPv4Address
             is_rfc6598 = ip_obj in RFC6598_RANGE
 
@@ -631,15 +620,11 @@ async def check_private(
         return response
 
     except (AddressValueError, NetmaskValueError, ValueError) as e:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid IP address or network: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid IP address or network: {str(e)}") from e
 
 
 @api.post("/api/v1/ipv4/check-cloudflare")
-async def check_cloudflare(
-    request: ValidateRequest, current_user: str = Depends(get_current_user)
-):
+async def check_cloudflare(request: ValidateRequest, current_user: str = Depends(get_current_user)):
     """
     Check if an IP address or range is within Cloudflare's IPv4 or IPv6 ranges.
 
@@ -686,15 +671,11 @@ async def check_cloudflare(
         return response
 
     except (AddressValueError, NetmaskValueError, ValueError) as e:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid IP address or network: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid IP address or network: {str(e)}") from e
 
 
 @api.post("/api/v1/ipv4/subnet-info")
-async def subnet_info(
-    request: SubnetInfoRequest, current_user: str = Depends(get_current_user)
-):
+async def subnet_info(request: SubnetInfoRequest, current_user: str = Depends(get_current_user)):
     """
     Calculate subnet information including usable IP ranges.
 
@@ -719,7 +700,7 @@ async def subnet_info(
     try:
         network = ip_network(network_str, strict=False)
     except (AddressValueError, NetmaskValueError) as e:
-        raise HTTPException(status_code=400, detail=f"Invalid network format: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid network format: {str(e)}") from e
 
     # Only support IPv4 for now
     if not isinstance(network, IPv4Network):
@@ -813,8 +794,6 @@ app = func.FunctionApp()
 
 @app.function_name(name="HttpTrigger")
 @app.route(route="{*route}", auth_level=func.AuthLevel.ANONYMOUS)
-async def http_trigger(
-    req: func.HttpRequest, context: func.Context
-) -> func.HttpResponse:
+async def http_trigger(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
     """Azure Function wrapper that forwards all requests to FastAPI via ASGI middleware"""
     return await func.AsgiMiddleware(api).handle_async(req, context)

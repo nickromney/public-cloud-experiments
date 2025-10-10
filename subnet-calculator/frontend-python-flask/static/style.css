@@ -9,6 +9,7 @@
     border-radius: 4px;
     font-size: 0.875rem;
     cursor: pointer;
+    z-index: 1000;
 }
 
 /* Layout */

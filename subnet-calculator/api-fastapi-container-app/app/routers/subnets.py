@@ -3,17 +3,19 @@
 Provides IPv4/IPv6 subnet calculations with cloud provider-specific modes.
 """
 
-from fastapi import APIRouter, HTTPException, Depends
 from ipaddress import (
+    AddressValueError,
+    IPv4Address,
+    IPv4Network,
+    IPv6Address,
+    IPv6Network,
+    NetmaskValueError,
     ip_address,
     ip_network,
-    IPv4Address,
-    IPv6Address,
-    IPv4Network,
-    IPv6Network,
-    AddressValueError,
-    NetmaskValueError,
 )
+
+from fastapi import APIRouter, Depends, HTTPException
+
 from ..auth_utils import get_current_user
 from ..models.subnet import (
     SubnetIPv4Request,
@@ -68,9 +70,7 @@ CLOUDFLARE_IPV6_RANGES = [
 
 
 @router.post("/subnet-info", response_model=SubnetIPv4Response)
-async def calculate_ipv4_subnet(
-    request: SubnetIPv4Request, current_user: str = Depends(get_current_user)
-):
+async def calculate_ipv4_subnet(request: SubnetIPv4Request, current_user: str = Depends(get_current_user)):
     """Calculate IPv4 subnet information including usable IP ranges.
 
     Cloud provider IP reservations:
@@ -104,13 +104,11 @@ async def calculate_ipv4_subnet(
     try:
         network = ip_network(network_str, strict=False)
     except (AddressValueError, NetmaskValueError) as e:
-        raise HTTPException(status_code=400, detail=f"Invalid network format: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid network format: {str(e)}") from e
 
     # Only support IPv4
     if not isinstance(network, IPv4Network):
-        raise HTTPException(
-            status_code=400, detail="This endpoint only supports IPv4 networks"
-        )
+        raise HTTPException(status_code=400, detail="This endpoint only supports IPv4 networks")
 
     prefix_len = network.prefixlen
     total_addresses = network.num_addresses
@@ -190,9 +188,7 @@ async def calculate_ipv4_subnet(
 
 
 @router_ipv6.post("/subnet-info", response_model=SubnetIPv6Response)
-async def calculate_ipv6_subnet(
-    request: SubnetIPv6Request, current_user: str = Depends(get_current_user)
-):
+async def calculate_ipv6_subnet(request: SubnetIPv6Request, current_user: str = Depends(get_current_user)):
     """Calculate IPv6 subnet information.
 
     IPv6 subnets don't have the same reserved addresses as IPv4.
@@ -213,13 +209,11 @@ async def calculate_ipv6_subnet(
     try:
         network = ip_network(network_str, strict=False)
     except (AddressValueError, NetmaskValueError) as e:
-        raise HTTPException(status_code=400, detail=f"Invalid network format: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid network format: {str(e)}") from e
 
     # Only support IPv6
     if not isinstance(network, IPv6Network):
-        raise HTTPException(
-            status_code=400, detail="This endpoint only supports IPv6 networks"
-        )
+        raise HTTPException(status_code=400, detail="This endpoint only supports IPv6 networks")
 
     return SubnetIPv6Response(
         network=network_str,
@@ -231,9 +225,7 @@ async def calculate_ipv6_subnet(
 
 
 @router.post("/validate")
-async def validate_address(
-    request: ValidateRequest, current_user: str = Depends(get_current_user)
-):
+async def validate_address(request: ValidateRequest, current_user: str = Depends(get_current_user)):
     """Validate if an IPv4/IPv6 address or CIDR range is well-formed.
 
     Returns validation result with type (address or network) and details.
@@ -267,7 +259,7 @@ async def validate_address(
                 "is_ipv6": isinstance(network, IPv6Network),
             }
         except (AddressValueError, NetmaskValueError, ValueError):
-            raise HTTPException(status_code=400, detail="Invalid IP network format")
+            raise HTTPException(status_code=400, detail="Invalid IP network format") from None
     else:
         # Parse as individual address
         try:
@@ -280,13 +272,11 @@ async def validate_address(
                 "is_ipv6": isinstance(addr, IPv6Address),
             }
         except (AddressValueError, ValueError):
-            raise HTTPException(status_code=400, detail="Invalid IP address format")
+            raise HTTPException(status_code=400, detail="Invalid IP address format") from None
 
 
 @router.post("/check-private")
-async def check_private(
-    request: ValidateRequest, current_user: str = Depends(get_current_user)
-):
+async def check_private(request: ValidateRequest, current_user: str = Depends(get_current_user)):
     """Check if an IPv4 address or range is RFC1918 (private) or RFC6598 (shared).
 
     RFC1918 ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
@@ -314,9 +304,7 @@ async def check_private(
 
         # Only process IPv4
         if isinstance(ip_obj, (IPv6Address, IPv6Network)):
-            raise HTTPException(
-                status_code=400, detail="This endpoint only supports IPv4 addresses"
-            )
+            raise HTTPException(status_code=400, detail="This endpoint only supports IPv4 addresses")
 
         # Check RFC1918
         is_rfc1918 = False
@@ -336,9 +324,7 @@ async def check_private(
         # Check RFC6598
         is_rfc6598 = False
         if isinstance(ip_obj, IPv4Network):
-            is_rfc6598 = ip_obj.subnet_of(RFC6598_RANGE) or ip_obj.supernet_of(
-                RFC6598_RANGE
-            )
+            is_rfc6598 = ip_obj.subnet_of(RFC6598_RANGE) or ip_obj.supernet_of(RFC6598_RANGE)
         else:  # IPv4Address
             is_rfc6598 = ip_obj in RFC6598_RANGE
 
@@ -357,15 +343,11 @@ async def check_private(
         return response
 
     except (AddressValueError, NetmaskValueError, ValueError) as e:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid IP address or network: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid IP address or network: {str(e)}") from e
 
 
 @router.post("/check-cloudflare")
-async def check_cloudflare(
-    request: ValidateRequest, current_user: str = Depends(get_current_user)
-):
+async def check_cloudflare(request: ValidateRequest, current_user: str = Depends(get_current_user)):
     """Check if an IP address or range is within Cloudflare's IPv4 or IPv6 ranges.
 
     Returns matched Cloudflare ranges and IP version.
@@ -421,6 +403,4 @@ async def check_cloudflare(
         return response
 
     except (AddressValueError, NetmaskValueError, ValueError) as e:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid IP address or network: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid IP address or network: {str(e)}") from e

@@ -13,6 +13,7 @@ class TestNoAuthMode:
         monkeypatch.setenv("AUTH_METHOD", "none")
         # Reload app to pick up new env vars
         from importlib import reload
+
         from app import config, main
 
         reload(config)
@@ -27,9 +28,7 @@ class TestNoAuthMode:
 
     def test_no_auth_allows_all_requests(self, client):
         """Test that no auth mode allows requests without credentials."""
-        response = client.post(
-            "/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"}
-        )
+        response = client.post("/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"})
         assert response.status_code == 200
 
     def test_no_auth_ignores_api_key_header(self, client):
@@ -52,6 +51,7 @@ class TestAPIKeyMode:
         monkeypatch.setenv("API_KEYS", "test-key-123,test-key-456")
         # Reload app to pick up new env vars
         from importlib import reload
+
         from app import config, main
 
         reload(config)
@@ -66,9 +66,7 @@ class TestAPIKeyMode:
 
     def test_missing_api_key_returns_401(self, client):
         """Test that missing API key returns 401."""
-        response = client.post(
-            "/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"}
-        )
+        response = client.post("/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"})
         assert response.status_code == 401
 
     def test_invalid_api_key_returns_401(self, client):
@@ -135,9 +133,7 @@ class TestJWTMode:
     def setup_env(self, monkeypatch):
         """Set environment to JWT mode."""
         monkeypatch.setenv("AUTH_METHOD", "jwt")
-        monkeypatch.setenv(
-            "JWT_SECRET_KEY", "test-secret-key-minimum-32-chars-long-123456789"
-        )
+        monkeypatch.setenv("JWT_SECRET_KEY", "test-secret-key-minimum-32-chars-long-123456789")
         monkeypatch.setenv("JWT_ALGORITHM", "HS256")
         monkeypatch.setenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "30")
         # Use pre-hashed password for "demo" user with password "password123"
@@ -147,7 +143,8 @@ class TestJWTMode:
         )
         # Reload app to pick up new env vars
         from importlib import reload
-        from app import config, auth, auth_utils, main
+
+        from app import auth, auth_utils, config, main
 
         reload(config)
         reload(auth)
@@ -164,17 +161,13 @@ class TestJWTMode:
     @pytest.fixture
     def valid_token(self, client):
         """Get a valid JWT token."""
-        response = client.post(
-            "/api/v1/auth/login", data={"username": "demo", "password": "password123"}
-        )
+        response = client.post("/api/v1/auth/login", data={"username": "demo", "password": "password123"})
         assert response.status_code == 200
         return response.json()["access_token"]
 
     def test_login_with_valid_credentials(self, client):
         """Test login with valid credentials returns token."""
-        response = client.post(
-            "/api/v1/auth/login", data={"username": "demo", "password": "password123"}
-        )
+        response = client.post("/api/v1/auth/login", data={"username": "demo", "password": "password123"})
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
@@ -182,23 +175,17 @@ class TestJWTMode:
 
     def test_login_with_invalid_username(self, client):
         """Test login with invalid username returns 401."""
-        response = client.post(
-            "/api/v1/auth/login", data={"username": "invalid", "password": "password123"}
-        )
+        response = client.post("/api/v1/auth/login", data={"username": "invalid", "password": "password123"})
         assert response.status_code == 401
 
     def test_login_with_invalid_password(self, client):
         """Test login with invalid password returns 401."""
-        response = client.post(
-            "/api/v1/auth/login", data={"username": "demo", "password": "wrong"}
-        )
+        response = client.post("/api/v1/auth/login", data={"username": "demo", "password": "wrong"})
         assert response.status_code == 401
 
     def test_missing_authorization_header_returns_401(self, client):
         """Test that missing Authorization header returns 401."""
-        response = client.post(
-            "/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"}
-        )
+        response = client.post("/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"})
         assert response.status_code == 401
 
     def test_invalid_authorization_scheme_returns_401(self, client, valid_token):
@@ -252,7 +239,8 @@ class TestAzureSWAMode:
         monkeypatch.setenv("AUTH_METHOD", "azure_swa")
         # Reload app to pick up new env vars
         from importlib import reload
-        from app import config, auth_utils, main
+
+        from app import auth_utils, config, main
 
         reload(config)
         reload(auth_utils)
@@ -286,9 +274,7 @@ class TestAzureSWAMode:
 
     def test_missing_principal_returns_401(self, client):
         """Test that missing principal header returns 401."""
-        response = client.post(
-            "/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"}
-        )
+        response = client.post("/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"})
         assert response.status_code == 401
 
 
@@ -301,7 +287,8 @@ class TestAPIMMode:
         monkeypatch.setenv("AUTH_METHOD", "apim")
         # Reload app to pick up new env vars
         from importlib import reload
-        from app import config, auth_utils, main
+
+        from app import auth_utils, config, main
 
         reload(config)
         reload(auth_utils)
@@ -334,7 +321,5 @@ class TestAPIMMode:
 
     def test_missing_user_headers_returns_401(self, client):
         """Test that missing user headers returns 401."""
-        response = client.post(
-            "/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"}
-        )
+        response = client.post("/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24", "mode": "Azure"})
         assert response.status_code == 401

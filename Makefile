@@ -24,7 +24,7 @@ help: ## Show this help message
 ##@ Pre-commit and Security
 
 .PHONY: precommit
-precommit: ## Run all pre-commit hooks on all files (same as git commit hook)
+precommit: python-fmt python-lint python-test ## Run formatting, linting, testing, and pre-commit hooks
 	@echo "$(YELLOW)Running all pre-commit hooks...$(NC)"
 	@echo "$(YELLOW)Note: This runs on ALL files. Git commit hook runs on staged files only.$(NC)"
 	@pre-commit run --all-files
@@ -57,6 +57,46 @@ gitleaks-protect: ## Run gitleaks on staged files (pre-commit check)
 	@echo "$(YELLOW)Checking staged files for secrets...$(NC)"
 	@gitleaks protect --staged --verbose
 
+.PHONY: trivy-scan
+trivy-scan: ## Scan all container images for vulnerabilities using Trivy (HIGH,CRITICAL)
+	@echo "$(YELLOW)Scanning container images with Trivy...$(NC)"
+	@mkdir -p $(HOME)/trivy-scans
+	@for image in \
+		subnet-calculator-api-fastapi-azure-function:latest \
+		subnet-calculator-api-fastapi-container-app:latest \
+		subnet-calculator-frontend-python-flask:latest \
+		subnet-calculator-frontend-html-static:latest \
+		subnet-calculator-frontend-typescript-vite:latest; do \
+		echo "$(YELLOW)Scanning $$image...$(NC)"; \
+		podman save -o $(HOME)/trivy-scans/image.tar localhost/$$image && \
+		podman run --rm \
+			-v $(HOME)/trivy-scans:/scans:ro \
+			-v $(HOME)/.cache/trivy:/root/.cache/trivy \
+			aquasec/trivy:latest image --input /scans/image.tar --severity HIGH,CRITICAL || exit 1; \
+	done
+	@rm -rf $(HOME)/trivy-scans
+	@echo "$(GREEN)✓ All images scanned (no HIGH or CRITICAL vulnerabilities)$(NC)"
+
+.PHONY: trivy-scan-all
+trivy-scan-all: ## Scan all container images for vulnerabilities (all severities)
+	@echo "$(YELLOW)Scanning container images with Trivy (all severities)...$(NC)"
+	@mkdir -p $(HOME)/trivy-scans
+	@for image in \
+		subnet-calculator-api-fastapi-azure-function:latest \
+		subnet-calculator-api-fastapi-container-app:latest \
+		subnet-calculator-frontend-python-flask:latest \
+		subnet-calculator-frontend-html-static:latest \
+		subnet-calculator-frontend-typescript-vite:latest; do \
+		echo "$(YELLOW)Scanning $$image...$(NC)"; \
+		podman save -o $(HOME)/trivy-scans/image.tar localhost/$$image && \
+		podman run --rm \
+			-v $(HOME)/trivy-scans:/scans:ro \
+			-v $(HOME)/.cache/trivy:/root/.cache/trivy \
+			aquasec/trivy:latest image --input /scans/image.tar; \
+	done
+	@rm -rf $(HOME)/trivy-scans
+	@echo "$(GREEN)✓ All images scanned$(NC)"
+
 ##@ Formatting and Cleaning
 
 .PHONY: fmt
@@ -71,7 +111,7 @@ fmt: ## Format all code (Terraform, Python, etc.)
 		for dir in subnet-calculator/api-fastapi-azure-function subnet-calculator/api-fastapi-container-app subnet-calculator/frontend-python-flask; do \
 			if [ -d "$$dir" ]; then \
 				echo "$(YELLOW)Formatting $$dir...$(NC)"; \
-				(cd "$$dir" && uv run black . 2>/dev/null) || true; \
+				(cd "$$dir" && uv run ruff format . 2>/dev/null) || true; \
 			fi; \
 		done; \
 	fi
@@ -124,23 +164,19 @@ python-lint: ## Run Python linting (ruff) in all Python projects
 	@for dir in subnet-calculator/api-fastapi-azure-function subnet-calculator/api-fastapi-container-app subnet-calculator/frontend-python-flask; do \
 		if [ -d "$$dir" ] && [ -f "$$dir/pyproject.toml" ]; then \
 			echo "$(YELLOW)Linting $$dir...$(NC)"; \
-			(cd "$$dir" && uv run --with ruff ruff check . 2>/dev/null) || echo "  Skipped (ruff not available)"; \
+			(cd "$$dir" && uv run ruff check .) || exit 1; \
 		fi; \
 	done
 	@echo "$(GREEN)✓ Linting complete$(NC)"
 
 .PHONY: python-fmt
-python-fmt: ## Format Python code with black and ruff
+python-fmt: ## Format Python code with ruff
 	@echo "$(YELLOW)Formatting Python code...$(NC)"
 	@for dir in subnet-calculator/api-fastapi-azure-function subnet-calculator/api-fastapi-container-app subnet-calculator/frontend-python-flask; do \
 		if [ -d "$$dir" ] && [ -f "$$dir/pyproject.toml" ]; then \
 			echo "$(YELLOW)Formatting $$dir...$(NC)"; \
-			(cd "$$dir" && uv run black . 2>/dev/null) || true; \
-			(cd "$$dir" && uv run ruff check --fix . 2>/dev/null) || true; \
+			(cd "$$dir" && uv run ruff format .) || exit 1; \
+			(cd "$$dir" && uv run ruff check --fix .) || exit 1; \
 		fi; \
 	done
 	@echo "$(GREEN)✓ Python formatting complete$(NC)"
-
-.PHONY: python-check
-python-check: python-lint python-test ## Run all Python quality checks (lint + test)
-	@echo "$(GREEN)✓ All Python checks passed$(NC)"

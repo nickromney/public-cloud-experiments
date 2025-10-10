@@ -9,9 +9,10 @@ Key differences from Azure Functions version:
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from .config import get_auth_method, get_api_keys, AuthMethod
+
 from .auth import validate_api_key
-from .routers import health, subnets, auth
+from .config import AuthMethod, get_api_keys, get_auth_method
+from .routers import auth, health, subnets
 
 # Create FastAPI app
 app = FastAPI(
@@ -55,9 +56,7 @@ async def auth_middleware(request: Request, call_next):
         api_key = request.headers.get("X-API-Key")
         valid_keys = get_api_keys()
         if not validate_api_key(api_key, valid_keys):
-            return JSONResponse(
-                status_code=401, content={"detail": "Invalid or missing API key"}
-            )
+            return JSONResponse(status_code=401, content={"detail": "Invalid or missing API key"})
 
     # JWT, Azure SWA, APIM - handled by dependencies in route handlers
     # Pass through to let get_current_user dependency handle it

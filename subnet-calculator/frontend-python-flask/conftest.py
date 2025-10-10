@@ -1,6 +1,8 @@
-import pytest
 import threading
 import time
+
+import pytest
+
 from app import app
 
 

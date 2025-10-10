@@ -9,14 +9,15 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Copy dependency files
 COPY pyproject.toml uv.lock ./
 
-# Create virtual environment and install dependencies with uv
-RUN uv sync --frozen --no-cache
+# Create virtual environment and install dependencies with uv (production only)
+RUN uv sync --frozen --no-cache --no-dev
 
 # Stage 2: Runtime - Copy only what's needed
 FROM mcr.microsoft.com/azure-functions/python:4-python3.11
 
 ENV AzureWebJobsScriptRoot=/home/site/wwwroot \
     AzureFunctionsJobHost__Logging__Console__IsEnabled=true \
+    PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"
 
 # Copy virtual environment from builder

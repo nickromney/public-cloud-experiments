@@ -3,15 +3,16 @@
 Provides get_current_user dependency for protecting endpoints.
 """
 
-from fastapi import Request, HTTPException, status
-from .config import (
-    get_auth_method,
-    get_jwt_secret_key,
-    get_jwt_algorithm,
-    AuthMethod,
-)
-from .auth import decode_access_token
 import jwt
+from fastapi import HTTPException, Request, status
+
+from .auth import decode_access_token
+from .config import (
+    AuthMethod,
+    get_auth_method,
+    get_jwt_algorithm,
+    get_jwt_secret_key,
+)
 
 
 async def get_current_user(request: Request) -> str:
@@ -105,18 +106,18 @@ async def get_current_user(request: Request) -> str:
 
             return username
 
-        except jwt.ExpiredSignatureError:
+        except jwt.ExpiredSignatureError as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has expired",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
-        except jwt.InvalidTokenError:
+            ) from e
+        except jwt.InvalidTokenError as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
     # Azure Static Web Apps EasyAuth
     if auth_method == AuthMethod.AZURE_SWA:
@@ -156,7 +157,7 @@ async def get_current_user(request: Request) -> str:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Invalid Azure SWA principal: {str(e)}",
-            )
+            ) from e
 
     # Azure API Management (APIM)
     if auth_method == AuthMethod.APIM:

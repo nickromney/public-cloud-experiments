@@ -12,11 +12,13 @@ This test suite covers:
 Note: Tests currently fail because JWT functionality not yet implemented (TDD).
 """
 
-import pytest
 import time
+from datetime import UTC, datetime, timedelta
+
 import jwt as pyjwt
-from datetime import datetime, timezone, timedelta
+import pytest
 from fastapi.testclient import TestClient
+
 from function_app import api
 
 # Create test client
@@ -35,9 +37,7 @@ class TestJWTConfiguration:
         # Test config function directly
         from config import get_jwt_secret_key
 
-        with pytest.raises(
-            ValueError, match="JWT_SECRET_KEY environment variable required"
-        ):
+        with pytest.raises(ValueError, match="JWT_SECRET_KEY environment variable required"):
             get_jwt_secret_key()
 
     def test_jwt_mode_requires_long_secret(self, monkeypatch):
@@ -48,9 +48,7 @@ class TestJWTConfiguration:
         # Test config function directly
         from config import get_jwt_secret_key
 
-        with pytest.raises(
-            ValueError, match="JWT_SECRET_KEY must be at least 32 characters"
-        ):
+        with pytest.raises(ValueError, match="JWT_SECRET_KEY must be at least 32 characters"):
             get_jwt_secret_key()
 
     def test_jwt_default_algorithm_hs256(self, monkeypatch):
@@ -115,9 +113,7 @@ class TestLoginEndpoint:
 
     def test_login_with_valid_credentials_returns_token(self):
         """Login with valid credentials should return access token."""
-        response = client.post(
-            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
-        )
+        response = client.post("/api/v1/auth/login", data={"username": "alice", "password": "password123"})
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
@@ -152,13 +148,9 @@ class TestLoginEndpoint:
 
     def test_login_returns_different_tokens(self):
         """Each login should generate a different token (iat differs)."""
-        response1 = client.post(
-            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
-        )
+        response1 = client.post("/api/v1/auth/login", data={"username": "alice", "password": "password123"})
         time.sleep(1)
-        response2 = client.post(
-            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
-        )
+        response2 = client.post("/api/v1/auth/login", data={"username": "alice", "password": "password123"})
 
         token1 = response1.json()["access_token"]
         token2 = response2.json()["access_token"]
@@ -166,9 +158,7 @@ class TestLoginEndpoint:
 
     def test_login_token_contains_username(self):
         """JWT payload should contain username in 'sub' claim."""
-        response = client.post(
-            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
-        )
+        response = client.post("/api/v1/auth/login", data={"username": "alice", "password": "password123"})
         token = response.json()["access_token"]
 
         # Decode without verification (for testing only)
@@ -177,15 +167,13 @@ class TestLoginEndpoint:
 
     def test_login_token_has_expiration(self):
         """JWT should have 'exp' claim set to 30 minutes from now."""
-        response = client.post(
-            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
-        )
+        response = client.post("/api/v1/auth/login", data={"username": "alice", "password": "password123"})
         token = response.json()["access_token"]
 
         payload = pyjwt.decode(token, options={"verify_signature": False})
 
-        exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
-        now = datetime.now(timezone.utc)
+        exp = datetime.fromtimestamp(payload["exp"], tz=UTC)
+        now = datetime.now(UTC)
         delta = exp - now
 
         # Should be approximately 30 minutes (allow 1 second variance)
@@ -209,9 +197,7 @@ class TestJWTTokenValidation:
 
     def get_valid_token(self):
         """Helper to get a valid JWT token."""
-        response = client.post(
-            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
-        )
+        response = client.post("/api/v1/auth/login", data={"username": "alice", "password": "password123"})
         return response.json()["access_token"]
 
     def test_missing_authorization_header_returns_401(self):
@@ -258,9 +244,7 @@ class TestJWTTokenValidation:
         monkeypatch.setenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "0")
 
         # Need to get a fresh token with the new expiration
-        response = client.post(
-            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
-        )
+        response = client.post("/api/v1/auth/login", data={"username": "alice", "password": "password123"})
         token = response.json()["access_token"]
 
         time.sleep(2)  # Wait for expiration
@@ -302,12 +286,10 @@ class TestJWTTokenValidation:
         # Create a token manually with a different secret
         payload = {
             "sub": "alice",
-            "iat": datetime.now(timezone.utc),
-            "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
+            "iat": datetime.now(UTC),
+            "exp": datetime.now(UTC) + timedelta(minutes=30),
         }
-        token = pyjwt.encode(
-            payload, "different-secret-key-32-chars-long", algorithm="HS256"
-        )
+        token = pyjwt.encode(payload, "different-secret-key-32-chars-long", algorithm="HS256")
 
         response = client.post(
             "/api/v1/ipv4/validate",
@@ -320,12 +302,10 @@ class TestJWTTokenValidation:
         """Token without 'sub' claim should return 401."""
         # Manually create token without 'sub'
         payload = {
-            "iat": datetime.now(timezone.utc),
-            "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
+            "iat": datetime.now(UTC),
+            "exp": datetime.now(UTC) + timedelta(minutes=30),
         }
-        token = pyjwt.encode(
-            payload, "test-secret-key-minimum-32-chars-long", algorithm="HS256"
-        )
+        token = pyjwt.encode(payload, "test-secret-key-minimum-32-chars-long", algorithm="HS256")
 
         response = client.post(
             "/api/v1/ipv4/validate",
@@ -365,9 +345,7 @@ class TestJWTEdgeCases:
 
     def get_valid_token(self):
         """Helper to get a valid JWT token."""
-        response = client.post(
-            "/api/v1/auth/login", data={"username": "alice", "password": "password123"}
-        )
+        response = client.post("/api/v1/auth/login", data={"username": "alice", "password": "password123"})
         return response.json()["access_token"]
 
     def test_empty_authorization_header_returns_401(self):

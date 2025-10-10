@@ -45,7 +45,7 @@ async function checkApiHealth() {
             <strong>API Status:</strong> ${data.status} |
             <strong>Backend:</strong> ${data.service} |
             <strong>Version:</strong> ${data.version}<br>
-            <small>Endpoint: <code>${endpointUrl}</code></small>
+            <small>Frontend: <code>${window.location.origin}/</code> | Backend: <code>${endpointUrl}</code></small>
         `;
         statusDiv.style.display = 'block';
     } catch (error) {

@@ -4,8 +4,8 @@ Authentication utilities.
 Provides functions for validating API keys, JWT tokens, and password hashing.
 """
 
-from typing import List, Optional
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+
 import jwt
 from pwdlib import PasswordHash
 
@@ -13,7 +13,7 @@ from pwdlib import PasswordHash
 pwd_hash = PasswordHash.recommended()
 
 
-def validate_api_key(api_key: Optional[str], valid_keys: List[str]) -> bool:
+def validate_api_key(api_key: str | None, valid_keys: list[str]) -> bool:
     """
     Validate an API key against the list of valid keys.
 
@@ -46,9 +46,7 @@ def validate_api_key(api_key: Optional[str], valid_keys: List[str]) -> bool:
 # JWT Authentication Functions
 
 
-def create_access_token(
-    data: dict, secret_key: str, algorithm: str, expires_delta: timedelta
-) -> str:
+def create_access_token(data: dict, secret_key: str, algorithm: str, expires_delta: timedelta) -> str:
     """
     Create a JWT access token.
 
@@ -64,10 +62,10 @@ def create_access_token(
     to_encode = data.copy()
 
     # Add issued at time
-    to_encode["iat"] = datetime.now(timezone.utc)
+    to_encode["iat"] = datetime.now(UTC)
 
     # Add expiration time
-    expire = datetime.now(timezone.utc) + expires_delta
+    expire = datetime.now(UTC) + expires_delta
     to_encode["exp"] = expire
 
     # Encode and return
@@ -75,7 +73,7 @@ def create_access_token(
     return encoded_jwt
 
 
-def decode_access_token(token: str, secret_key: str, algorithm: str) -> Optional[dict]:
+def decode_access_token(token: str, secret_key: str, algorithm: str) -> dict | None:
     """
     Decode and validate a JWT access token.
 
