@@ -1,28 +1,11 @@
-/**
- * API Configuration
- */
-
-interface ApiConfig {
-  baseUrl: string
+export const API_CONFIG = {
+  baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8090',
   paths: {
-    health: string
-    validate: string
-    checkPrivate: string
-    checkCloudflare: string
-    subnetInfo: string
-  }
-}
-
-export const API_CONFIG: ApiConfig = {
-  // Use environment variable or default to nginx proxy (empty = relative URLs)
-  // In production (Docker): nginx proxies /api/* to backend
-  // In development: can set VITE_API_BASE_URL to http://localhost:8090/api/v1
-  baseUrl: import.meta.env.VITE_API_BASE_URL || '/api/v1',
-  paths: {
-    health: '/health',
-    validate: '/ipv4/validate',
-    checkPrivate: '/ipv4/check-private',
-    checkCloudflare: '/ipv4/check-cloudflare',
-    subnetInfo: '/ipv4/subnet-info',
+    health: '/api/v1/health',
+    // Azure Function uses /ipv4/ prefix, Container App uses /address/ and /subnets/
+    validate: '/api/v1/ipv4/validate',
+    checkPrivate: '/api/v1/ipv4/check-private',
+    checkCloudflare: '/api/v1/ipv4/check-cloudflare',
+    subnetInfo: '/api/v1/ipv4/subnet-info',
   },
 }

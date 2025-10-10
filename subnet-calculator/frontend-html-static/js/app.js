@@ -27,10 +27,22 @@ async function checkApiHealth() {
     const statusMsg = document.getElementById('api-status-message');
 
     try {
-        const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.PATHS.HEALTH}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+        const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.PATHS.HEALTH}`, {
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(`API returned HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        // Check content type before parsing JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('API did not return JSON response. It may still be starting up.');
         }
 
         const data = await response.json();
@@ -49,9 +61,18 @@ async function checkApiHealth() {
         `;
         statusDiv.style.display = 'block';
     } catch (error) {
+        let errorMessage = error.message;
+
+        // Provide user-friendly error messages
+        if (error.name === 'AbortError') {
+            errorMessage = 'API request timed out. The API may be starting up or unavailable.';
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            errorMessage = 'Unable to connect to API. Please ensure the backend is running.';
+        }
+
         statusDiv.className = 'alert alert-error';
         statusMsg.innerHTML = `
-            <strong>API Unavailable:</strong> ${error.message}<br>
+            <strong>API Unavailable:</strong> ${errorMessage}<br>
             <small>Expected endpoint: <code>${API_CONFIG.BASE_URL}${API_CONFIG.PATHS.HEALTH}</code></small><br>
             <small>Make sure the API is running (docker compose up)</small>
         `;
@@ -115,20 +136,47 @@ document.getElementById('lookup-form').addEventListener('submit', async (e) => {
 async function callApi(path, body) {
     const url = `${API_CONFIG.BASE_URL}${path}`;
 
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body)
-    });
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            // Try to get error details from response
+            const contentType = response.headers.get('content-type');
+            let errorData = {};
+            if (contentType && contentType.includes('application/json')) {
+                errorData = await response.json().catch(() => ({}));
+            }
+            throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        // Check content type before parsing JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('API did not return JSON response. It may still be starting up.');
+        }
+
+        return response.json();
+    } catch (error) {
+        // Provide user-friendly error messages
+        if (error.name === 'AbortError') {
+            throw new Error('API request timed out. The API may be starting up or unavailable.');
+        }
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            throw new Error('Unable to connect to API. Please ensure the backend is running.');
+        }
+        throw error;
     }
-
-    return response.json();
 }
 
 /**

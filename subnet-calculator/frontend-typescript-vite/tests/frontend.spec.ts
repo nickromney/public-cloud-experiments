@@ -217,4 +217,97 @@ test.describe('TypeScript Vite Frontend', () => {
     await expect(page.locator('.btn-public')).toBeVisible()
     await expect(page.locator('.btn-cloudflare')).toBeVisible()
   })
+
+  test('API unavailable shows helpful error message', async ({ page }) => {
+    // Intercept API health check and simulate connection failure
+    await page.route('**/api/v1/health', (route) => route.abort('failed'))
+
+    await page.goto('/')
+
+    const apiStatus = page.locator('#api-status')
+    await expect(apiStatus).toBeVisible()
+
+    // Should show user-friendly error message
+    await expect(apiStatus).toContainText(/Unavailable|connect|backend/i)
+    // Should NOT show cryptic JSON error
+    await expect(apiStatus).not.toContainText(/Failed to execute 'json'/i)
+  })
+
+  test('API timeout shows helpful error message', async ({ page }) => {
+    // Intercept API health check and delay response beyond timeout
+    await page.route('**/api/v1/health', async (route) => {
+      await page.waitForTimeout(6000) // Longer than 5s timeout
+      await route.fulfill({
+        status: 200,
+        body: JSON.stringify({ status: 'ok' }),
+      })
+    })
+
+    await page.goto('/')
+
+    const apiStatus = page.locator('#api-status')
+    await expect(apiStatus).toBeVisible({ timeout: 10000 })
+
+    // Should show timeout error
+    await expect(apiStatus).toContainText(/timeout|starting up|unavailable/i)
+  })
+
+  test('API returns non-JSON shows helpful error message', async ({ page }) => {
+    // Intercept API health check and return HTML instead of JSON
+    await page.route('**/api/v1/health', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<html><body>Service Starting...</body></html>',
+      })
+    )
+
+    await page.goto('/')
+
+    const apiStatus = page.locator('#api-status')
+    await expect(apiStatus).toBeVisible()
+
+    // Should show helpful error about non-JSON response
+    await expect(apiStatus).toContainText(/did not return JSON|starting up/i)
+    // Should NOT show cryptic JSON parsing error
+    await expect(apiStatus).not.toContainText(/Unexpected end of JSON input/i)
+  })
+
+  test('API returns HTTP error shows status code', async ({ page }) => {
+    // Intercept API health check and return 503 Service Unavailable
+    await page.route('**/api/v1/health', (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: 'text/html',
+        body: 'Service Unavailable',
+      })
+    )
+
+    await page.goto('/')
+
+    const apiStatus = page.locator('#api-status')
+    await expect(apiStatus).toBeVisible()
+
+    // Should show HTTP status
+    await expect(apiStatus).toContainText(/503|unavailable/i)
+  })
+
+  test('form submission when API unavailable shows error', async ({ page }) => {
+    await page.goto('/')
+
+    // Intercept API calls and simulate connection failure
+    await page.route('**/api/v1/address/validate', (route) => route.abort('failed'))
+
+    // Fill and submit form
+    await page.fill('#ip-address', '192.168.1.1')
+    await page.click('button[type="submit"]')
+
+    // Should show error message
+    const error = page.locator('#error')
+    await expect(error).toBeVisible({ timeout: 5000 })
+
+    // Should show user-friendly message, not cryptic error
+    await expect(error).toContainText(/connect|unavailable|backend/i)
+    await expect(error).not.toContainText(/Failed to execute 'json'/i)
+  })
 })

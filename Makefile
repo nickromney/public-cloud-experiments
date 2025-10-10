@@ -24,7 +24,7 @@ help: ## Show this help message
 ##@ Pre-commit and Security
 
 .PHONY: precommit
-precommit: python-fmt python-lint python-test ## Run formatting, linting, testing, and pre-commit hooks
+precommit: python-fmt python-lint python-test typescript-check typescript-lint ## Run formatting, linting, testing, and pre-commit hooks
 	@echo "$(YELLOW)Running all pre-commit hooks...$(NC)"
 	@echo "$(YELLOW)Note: This runs on ALL files. Git commit hook runs on staged files only.$(NC)"
 	@pre-commit run --all-files
@@ -164,9 +164,39 @@ python-lint: ## Run Python linting (ruff) in all Python projects
 	@for dir in subnet-calculator/api-fastapi-azure-function subnet-calculator/api-fastapi-container-app subnet-calculator/frontend-python-flask; do \
 		if [ -d "$$dir" ] && [ -f "$$dir/pyproject.toml" ]; then \
 			echo "$(YELLOW)Linting $$dir...$(NC)"; \
+			(cd "$$dir" && uv sync --extra dev --quiet 2>/dev/null || uv sync --quiet) || exit 1; \
 			(cd "$$dir" && uv run ruff check .) || exit 1; \
 		fi; \
 	done
+
+##@ TypeScript Development
+
+.PHONY: typescript-check
+typescript-check: ## Run TypeScript type checking
+	@echo "$(YELLOW)Running TypeScript type checking...$(NC)"
+	@if [ -d "subnet-calculator/frontend-typescript-vite" ]; then \
+		echo "$(YELLOW)Type checking subnet-calculator/frontend-typescript-vite...$(NC)"; \
+		(cd subnet-calculator/frontend-typescript-vite && npm run type-check) || exit 1; \
+	fi
+	@echo "$(GREEN)✓ TypeScript type checking passed$(NC)"
+
+.PHONY: typescript-lint
+typescript-lint: ## Run Biome linting on TypeScript code
+	@echo "$(YELLOW)Running Biome linting...$(NC)"
+	@if [ -d "subnet-calculator/frontend-typescript-vite" ]; then \
+		echo "$(YELLOW)Linting subnet-calculator/frontend-typescript-vite...$(NC)"; \
+		(cd subnet-calculator/frontend-typescript-vite && npm run lint) || exit 1; \
+	fi
+	@echo "$(GREEN)✓ Biome linting passed$(NC)"
+
+.PHONY: typescript-test
+typescript-test: ## Run Playwright tests
+	@echo "$(YELLOW)Running Playwright tests...$(NC)"
+	@if [ -d "subnet-calculator/frontend-typescript-vite" ]; then \
+		echo "$(YELLOW)Testing subnet-calculator/frontend-typescript-vite...$(NC)"; \
+		(cd subnet-calculator/frontend-typescript-vite && npm test) || exit 1; \
+	fi
+	@echo "$(GREEN)✓ Playwright tests passed$(NC)"
 	@echo "$(GREEN)✓ Linting complete$(NC)"
 
 .PHONY: python-fmt
@@ -175,6 +205,7 @@ python-fmt: ## Format Python code with ruff
 	@for dir in subnet-calculator/api-fastapi-azure-function subnet-calculator/api-fastapi-container-app subnet-calculator/frontend-python-flask; do \
 		if [ -d "$$dir" ] && [ -f "$$dir/pyproject.toml" ]; then \
 			echo "$(YELLOW)Formatting $$dir...$(NC)"; \
+			(cd "$$dir" && uv sync --extra dev --quiet 2>/dev/null || uv sync --quiet) || exit 1; \
 			(cd "$$dir" && uv run ruff format .) || exit 1; \
 			(cd "$$dir" && uv run ruff check --fix .) || exit 1; \
 		fi; \
