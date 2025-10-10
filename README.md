@@ -6,16 +6,33 @@ Investigations into various cloud technologies, typically on Azure, with some AW
 
 ### Subnet Calculator
 
-A full-stack IPv4/IPv6 subnet calculator with REST API backend and web frontend.
+A full-stack IPv4/IPv6 subnet calculator with multiple backend and frontend implementations demonstrating different architectural patterns.
 
-**Quick Start:**
+**Architecture:**
+
+- **2 Backend APIs**: Azure Function (with JWT auth) and Container App (no auth)
+- **4 Frontend Options**: Flask (server-side), Static HTML (client-side), TypeScript Vite (modern SPA)
+- **4 Complete Stacks**: Mix and match backends with frontends
+
+**Quick Start (All Stacks):**
 
 ```bash
 cd subnet-calculator
-docker compose up
+podman-compose up -d
+
+# Stack 1 - Flask + Azure Function:        http://localhost:8000
+# Stack 2 - Static HTML + Container App:   http://localhost:8001
+# Stack 3 - Flask + Container App:         http://localhost:8002
+# Stack 4 - TypeScript Vite + Container App: http://localhost:3000
 ```
 
-Access at `http://localhost:8000` (frontend) and `http://localhost:8080/api/v1/docs` (API docs).
+**Quick Start (Single Stack):**
+
+```bash
+# Stack 4 - Modern TypeScript SPA (recommended)
+podman-compose up api-fastapi-container-app frontend-typescript-vite
+# Access at http://localhost:3000
+```
 
 **Features:**
 
@@ -25,6 +42,8 @@ Access at `http://localhost:8000` (frontend) and `http://localhost:8080/api/v1/d
 - Cloud provider-specific subnet calculations (Azure, AWS, OCI, Standard)
 - Modern responsive web UI with dark/light mode
 - Interactive Swagger UI API documentation
+- Comprehensive test coverage (188 tests across all components)
+- Security scanning with Trivy (4/5 images have 0 vulnerabilities)
 
 See [subnet-calculator/README.md](subnet-calculator/README.md) for details.
 
@@ -43,20 +62,36 @@ See [subnet-calculator/README.md](subnet-calculator/README.md) for details.
 ├── .gitignore
 ├── README.md
 ├── subnet-calculator/                # IPv4/IPv6 subnet calculator
-│   ├── docker-compose.yml            # Docker Compose configuration
-│   ├── compose.yml                   # Podman Compose configuration
+│   ├── compose.yml                   # Docker/Podman Compose (all 6 services)
 │   ├── README.md                     # Project documentation
-│   ├── api-fastapi-azure-function/   # Backend API (FastAPI + Azure Functions)
+│   ├── api-fastapi-azure-function/   # Backend API 1 (Azure Function + JWT)
 │   │   ├── function_app.py           # FastAPI app with validation
-│   │   ├── test_function_app.py      # pytest test suite
+│   │   ├── auth.py                   # JWT authentication
+│   │   ├── test_*.py                 # pytest test suite (108 tests)
 │   │   ├── Dockerfile                # Azure Functions Python 3.11 runtime
-│   │   ├── host.json                 # Azure Functions configuration
 │   │   └── README.md
-│   └── frontend-python-flask/        # Frontend (Flask + Pico CSS)
-│       ├── app.py                    # Flask application
-│       ├── templates/                # Jinja2 templates
-│       ├── static/                   # CSS/JS assets
-│       ├── Dockerfile
+│   ├── api-fastapi-container-app/    # Backend API 2 (Container App)
+│   │   ├── app/main.py               # FastAPI app (Uvicorn)
+│   │   ├── app/auth.py               # Optional JWT/Entra ID auth
+│   │   ├── tests/test_*.py           # pytest test suite (60 tests)
+│   │   ├── Dockerfile                # Python 3.11 slim container
+│   │   └── README.md
+│   ├── frontend-python-flask/        # Frontend 1 (Flask + Pico CSS)
+│   │   ├── app.py                    # Flask application
+│   │   ├── templates/                # Jinja2 templates
+│   │   ├── test_frontend.py          # pytest tests (20 tests)
+│   │   ├── Dockerfile
+│   │   └── README.md
+│   ├── frontend-html-static/         # Frontend 2 (Static HTML + JS)
+│   │   ├── index.html                # HTML + Pico CSS
+│   │   ├── js/app.js                 # Vanilla JavaScript
+│   │   ├── Dockerfile                # nginx Alpine
+│   │   └── README.md
+│   └── frontend-typescript-vite/     # Frontend 3 (TypeScript SPA)
+│       ├── src/main.ts               # TypeScript application
+│       ├── tests/frontend.spec.ts    # Playwright E2E tests
+│       ├── Dockerfile                # Multi-stage nginx build
+│       ├── package.json              # Node dependencies
 │       └── README.md
 └── terraform/
     ├── claranet-tfwrapper/        # Claranet tfwrapper experiment
@@ -82,12 +117,28 @@ See [subnet-calculator/README.md](subnet-calculator/README.md) for details.
 
 ### Running Subnet Calculator
 
+**All stacks:**
+
 ```bash
 cd subnet-calculator
-docker compose up
+podman-compose up -d
 ```
 
-Access the frontend at `http://localhost:8000` and API documentation at `http://localhost:8080/api/v1/docs`.
+Access all stacks:
+
+- Stack 1 (Flask + Azure Function): <http://localhost:8000>
+- Stack 2 (Static HTML + Container App): <http://localhost:8001>
+- Stack 3 (Flask + Container App): <http://localhost:8002>
+- Stack 4 (TypeScript Vite + Container App): <http://localhost:3000>
+
+**Single stack (Stack 4 - recommended):**
+
+```bash
+cd subnet-calculator
+podman-compose up api-fastapi-container-app frontend-typescript-vite
+```
+
+Access at <http://localhost:3000> and API docs at <http://localhost:8090/api/v1/docs>.
 
 ### Terraform Experiments
 

@@ -200,9 +200,7 @@ class TestFrontend:
         assert form.get_attribute("method").upper() == "POST"
         assert form.get_attribute("action") == "/"
 
-    def test_javascript_only_features_hidden_without_js(
-        self, page: Page, base_url: str
-    ):
+    def test_javascript_only_features_hidden_without_js(self, page: Page, base_url: str):
         """Test that JavaScript-only features are hidden when JS is disabled"""
         # Create a new context with JavaScript disabled
         browser = page.context.browser

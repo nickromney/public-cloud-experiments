@@ -1,12 +1,16 @@
 import os
-from flask import Flask, render_template, request, jsonify
-import requests
 from datetime import datetime, timedelta
+
+import requests
+from flask import Flask, jsonify, render_template, request
 
 app = Flask(__name__)
 
 # API base URL - configurable via environment variable
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:7071/api/v1")
+
+# Stack identifier for UI display
+STACK_NAME = os.getenv("STACK_NAME", "Python Flask + Azure Function")
 
 # JWT Authentication - optional (only used in Docker Compose)
 JWT_USERNAME = os.getenv("JWT_USERNAME")
@@ -151,7 +155,7 @@ def perform_lookup(address: str, mode: str = "Standard") -> dict:
                 error_detail = e.response.json().get("detail", str(e))
             except Exception:
                 error_detail = str(e)
-            raise ValueError(f"Invalid input: {error_detail}")
+            raise ValueError(f"Invalid input: {error_detail}") from e
         # 5xx errors are server errors - treat as API down
         raise
 
@@ -168,18 +172,18 @@ def index():
         mode = request.form.get("mode", "Standard")
 
         if not address:
-            return render_template("index.html", error="Address is required")
+            return render_template("index.html", error="Address is required", stack_name=STACK_NAME)
 
         # Call lookup and render results on same page
         try:
             results = perform_lookup(address, mode)
             return render_template(
-                "index.html", results=results, address=address, mode=mode, api_health=api_health
+                "index.html", results=results, address=address, mode=mode, api_health=api_health, stack_name=STACK_NAME
             )
         except ValueError as e:
             # Bad input (4xx error) - show validation error
             return render_template(
-                "index.html", error=str(e), address=address, mode=mode, api_health=api_health
+                "index.html", error=str(e), address=address, mode=mode, api_health=api_health, stack_name=STACK_NAME
             )
         except requests.exceptions.RequestException as e:
             # API is down (connection error, timeout, 5xx) - suggest cidr.xyz
@@ -191,9 +195,10 @@ def index():
                 address=address,
                 error=f"Backend API unavailable: {str(e)}",
                 api_health=api_health,
+                stack_name=STACK_NAME,
             )
 
-    return render_template("index.html", api_health=api_health)
+    return render_template("index.html", api_health=api_health, stack_name=STACK_NAME)
 
 
 @app.route("/lookup", methods=["POST"])

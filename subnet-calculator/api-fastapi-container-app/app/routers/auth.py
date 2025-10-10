@@ -3,24 +3,29 @@
 Provides login endpoint for JWT token generation.
 """
 
-from fastapi import APIRouter, HTTPException, status, Depends
-from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+
+from ..auth import create_access_token, verify_test_user
 from ..config import (
+    AuthMethod,
     get_auth_method,
-    get_jwt_secret_key,
     get_jwt_algorithm,
     get_jwt_expiration_minutes,
+    get_jwt_secret_key,
     get_jwt_test_users,
-    AuthMethod,
 )
-from ..auth import create_access_token, verify_test_user
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 
+# Module-level dependency to avoid B008 warning
+oauth2_form = Depends(OAuth2PasswordRequestForm)
+
 
 @router.post("/login")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(form_data: OAuth2PasswordRequestForm = oauth2_form):
     """
     JWT login endpoint for test users (development only).
 

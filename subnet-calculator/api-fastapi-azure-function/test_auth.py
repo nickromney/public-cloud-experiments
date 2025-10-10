@@ -13,6 +13,7 @@ Note: Tests currently fail because auth functionality not yet implemented (TDD).
 
 import pytest
 from fastapi.testclient import TestClient
+
 from function_app import api
 
 # Create test client
@@ -116,9 +117,7 @@ class TestNoAuthMode:
         assert response.status_code == 200
 
         # Validation endpoint
-        response = client.post(
-            "/api/v1/ipv4/validate", json={"address": "192.168.1.0/24"}
-        )
+        response = client.post("/api/v1/ipv4/validate", json={"address": "192.168.1.0/24"})
         assert response.status_code == 200
 
 
@@ -154,9 +153,7 @@ class TestAPIKeyMode:
         response = client.get("/api/v1/health", headers={"X-API-Key": "valid-key-123"})
         assert response.status_code == 200
 
-        response = client.get(
-            "/api/v1/health", headers={"X-API-Key": "another-valid-key"}
-        )
+        response = client.get("/api/v1/health", headers={"X-API-Key": "another-valid-key"})
         assert response.status_code == 200
 
 
@@ -244,7 +241,5 @@ class TestEdgeCases:
     def test_api_key_with_extra_whitespace_stripped(self):
         """API keys should have whitespace stripped during validation."""
         # Key with leading/trailing whitespace should work
-        response = client.get(
-            "/api/v1/health", headers={"X-API-Key": "  valid-key-123  "}
-        )
+        response = client.get("/api/v1/health", headers={"X-API-Key": "  valid-key-123  "})
         assert response.status_code == 200

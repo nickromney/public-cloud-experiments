@@ -17,6 +17,7 @@ dev = [
     "pytest>=8.3.4",
     "pytest-asyncio>=0.25.0",
     "httpx>=0.28.1",              # For FastAPI TestClient
+    "ruff>=0.8.0",
 ]
 
 [build-system]
@@ -35,3 +36,25 @@ addopts = "-v --strict-markers"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

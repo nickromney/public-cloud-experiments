@@ -6,7 +6,6 @@ Handles loading and validating authentication settings from environment variable
 
 import os
 from enum import Enum
-from typing import List
 
 
 class AuthMethod(str, Enum):
@@ -42,9 +41,7 @@ def get_jwt_secret_key() -> str:
     secret = os.getenv("JWT_SECRET_KEY", "").strip()
 
     if not secret:
-        raise ValueError(
-            "JWT_SECRET_KEY environment variable required when AUTH_METHOD=jwt"
-        )
+        raise ValueError("JWT_SECRET_KEY environment variable required when AUTH_METHOD=jwt")
 
     if len(secret) < 32:
         raise ValueError("JWT_SECRET_KEY must be at least 32 characters long")
@@ -77,10 +74,7 @@ def get_jwt_algorithm() -> str:
     ]
 
     if algorithm not in valid_algorithms:
-        raise ValueError(
-            f"Invalid JWT_ALGORITHM: '{algorithm}'. "
-            f"Valid options: {', '.join(valid_algorithms)}"
-        )
+        raise ValueError(f"Invalid JWT_ALGORITHM: '{algorithm}'. Valid options: {', '.join(valid_algorithms)}")
 
     return algorithm
 
@@ -123,7 +117,7 @@ def get_jwt_test_users() -> dict:
             raise ValueError("JWT_TEST_USERS must be a JSON object")
         return users
     except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON in JWT_TEST_USERS: {e}")
+        raise ValueError(f"Invalid JSON in JWT_TEST_USERS: {e}") from e
 
 
 def get_auth_method() -> AuthMethod:
@@ -140,15 +134,12 @@ def get_auth_method() -> AuthMethod:
 
     try:
         return AuthMethod(auth_method_str)
-    except ValueError:
+    except ValueError as e:
         valid_methods = ", ".join([m.value for m in AuthMethod])
-        raise ValueError(
-            f"Invalid AUTH_METHOD: '{auth_method_str}'. "
-            f"Valid options: {valid_methods}"
-        )
+        raise ValueError(f"Invalid AUTH_METHOD: '{auth_method_str}'. Valid options: {valid_methods}") from e
 
 
-def get_api_keys() -> List[str]:
+def get_api_keys() -> list[str]:
     """
     Get configured API keys from environment.
 
@@ -166,9 +157,7 @@ def get_api_keys() -> List[str]:
     api_keys_str = os.getenv("API_KEYS", "").strip()
 
     if not api_keys_str:
-        raise ValueError(
-            "API_KEYS environment variable required when AUTH_METHOD=api_key"
-        )
+        raise ValueError("API_KEYS environment variable required when AUTH_METHOD=api_key")
 
     # Split by comma and strip whitespace from each key
     keys = [key.strip() for key in api_keys_str.split(",")]

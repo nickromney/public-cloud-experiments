@@ -7,17 +7,17 @@ This header contains base64-encoded JSON with user claims.
 
 import base64
 import json
+
 import pytest
 from fastapi.testclient import TestClient
+
 from function_app import api
 
 client = TestClient(api)
 
 
 # Helper function to create SWA principal header
-def create_swa_principal(
-    user_details: str = None, user_id: str = None, identity_provider: str = "aad"
-) -> str:
+def create_swa_principal(user_details: str = None, user_id: str = None, identity_provider: str = "aad") -> str:
     """
     Create a fake Azure SWA x-ms-client-principal header.
 
@@ -50,7 +50,7 @@ class TestAzureSWAConfiguration:
 
     def test_azure_swa_mode_works(self):
         """Azure SWA mode should be recognized."""
-        from config import get_auth_method, AuthMethod
+        from config import AuthMethod, get_auth_method
 
         assert get_auth_method() == AuthMethod.AZURE_SWA
 
@@ -164,9 +164,7 @@ class TestAllEndpointsProtectedSWA:
 
     def test_all_endpoints_work_with_valid_principal(self):
         """All endpoints should work with valid SWA principal."""
-        principal = create_swa_principal(
-            user_details="test@example.com", user_id="test-user-789"
-        )
+        principal = create_swa_principal(user_details="test@example.com", user_id="test-user-789")
 
         endpoints = [
             ("/api/v1/ipv4/validate", {"address": "192.168.1.1"}),
@@ -176,9 +174,7 @@ class TestAllEndpointsProtectedSWA:
         ]
 
         for path, body in endpoints:
-            response = client.post(
-                path, json=body, headers={"x-ms-client-principal": principal}
-            )
+            response = client.post(path, json=body, headers={"x-ms-client-principal": principal})
             assert response.status_code == 200, f"Failed for {path}"
 
 
@@ -193,9 +189,7 @@ class TestDifferentIdentityProviders:
 
     def test_azure_ad_provider(self):
         """Test with Azure AD identity provider."""
-        principal = create_swa_principal(
-            user_details="user@company.com", identity_provider="aad"
-        )
+        principal = create_swa_principal(user_details="user@company.com", identity_provider="aad")
 
         response = client.post(
             "/api/v1/ipv4/validate",
@@ -207,9 +201,7 @@ class TestDifferentIdentityProviders:
 
     def test_github_provider(self):
         """Test with GitHub identity provider."""
-        principal = create_swa_principal(
-            user_details="githubuser", identity_provider="github"
-        )
+        principal = create_swa_principal(user_details="githubuser", identity_provider="github")
 
         response = client.post(
             "/api/v1/ipv4/validate",
@@ -221,9 +213,7 @@ class TestDifferentIdentityProviders:
 
     def test_google_provider(self):
         """Test with Google identity provider."""
-        principal = create_swa_principal(
-            user_details="user@gmail.com", identity_provider="google"
-        )
+        principal = create_swa_principal(user_details="user@gmail.com", identity_provider="google")
 
         response = client.post(
             "/api/v1/ipv4/validate",

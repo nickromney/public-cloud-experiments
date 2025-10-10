@@ -7,6 +7,7 @@ The API trusts APIM and reads user claims from injected headers.
 
 import pytest
 from fastapi.testclient import TestClient
+
 from function_app import api
 
 client = TestClient(api)
@@ -23,7 +24,7 @@ class TestAPIMConfiguration:
 
     def test_apim_mode_works(self):
         """APIM mode should be recognized."""
-        from config import get_auth_method, AuthMethod
+        from config import AuthMethod, get_auth_method
 
         assert get_auth_method() == AuthMethod.APIM
 

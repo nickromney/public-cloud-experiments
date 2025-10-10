@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
-from function_app import api
 
+from function_app import api
 
 # Create test client for FastAPI app
 client = TestClient(api)
@@ -48,9 +48,7 @@ class TestValidateIPv4:
         assert body["is_ipv6"] is False
 
     def test_valid_ipv4_network(self):
-        response = client.post(
-            "/api/v1/ipv4/validate", json={"address": "192.168.1.0/24"}
-        )
+        response = client.post("/api/v1/ipv4/validate", json={"address": "192.168.1.0/24"})
 
         assert response.status_code == 200
         body = response.json()
@@ -60,9 +58,7 @@ class TestValidateIPv4:
         assert body["num_addresses"] == 256
 
     def test_valid_ipv6_address(self):
-        response = client.post(
-            "/api/v1/ipv4/validate", json={"address": "2606:4700::1"}
-        )
+        response = client.post("/api/v1/ipv4/validate", json={"address": "2606:4700::1"})
 
         assert response.status_code == 200
         body = response.json()
@@ -71,9 +67,7 @@ class TestValidateIPv4:
         assert body["is_ipv6"] is True
 
     def test_invalid_address(self):
-        response = client.post(
-            "/api/v1/ipv4/validate", json={"address": "999.999.999.999"}
-        )
+        response = client.post("/api/v1/ipv4/validate", json={"address": "999.999.999.999"})
 
         assert response.status_code == 400
         body = response.json()
@@ -91,9 +85,7 @@ class TestCheckPrivate:
     """Tests for RFC1918/RFC6598 check endpoint"""
 
     def test_rfc1918_10_network(self):
-        response = client.post(
-            "/api/v1/ipv4/check-private", json={"address": "10.1.1.1"}
-        )
+        response = client.post("/api/v1/ipv4/check-private", json={"address": "10.1.1.1"})
 
         assert response.status_code == 200
         body = response.json()
@@ -102,9 +94,7 @@ class TestCheckPrivate:
         assert body["matched_rfc1918_range"] == "10.0.0.0/8"
 
     def test_rfc1918_172_network(self):
-        response = client.post(
-            "/api/v1/ipv4/check-private", json={"address": "172.16.0.1"}
-        )
+        response = client.post("/api/v1/ipv4/check-private", json={"address": "172.16.0.1"})
 
         assert response.status_code == 200
         body = response.json()
@@ -112,9 +102,7 @@ class TestCheckPrivate:
         assert body["matched_rfc1918_range"] == "172.16.0.0/12"
 
     def test_rfc1918_192_network(self):
-        response = client.post(
-            "/api/v1/ipv4/check-private", json={"address": "192.168.1.1"}
-        )
+        response = client.post("/api/v1/ipv4/check-private", json={"address": "192.168.1.1"})
 
         assert response.status_code == 200
         body = response.json()
@@ -122,9 +110,7 @@ class TestCheckPrivate:
         assert body["matched_rfc1918_range"] == "192.168.0.0/16"
 
     def test_rfc6598_shared_address_space(self):
-        response = client.post(
-            "/api/v1/ipv4/check-private", json={"address": "100.64.1.1"}
-        )
+        response = client.post("/api/v1/ipv4/check-private", json={"address": "100.64.1.1"})
 
         assert response.status_code == 200
         body = response.json()
@@ -133,9 +119,7 @@ class TestCheckPrivate:
         assert body["matched_rfc6598_range"] == "100.64.0.0/10"
 
     def test_public_ipv4_address(self):
-        response = client.post(
-            "/api/v1/ipv4/check-private", json={"address": "8.8.8.8"}
-        )
+        response = client.post("/api/v1/ipv4/check-private", json={"address": "8.8.8.8"})
 
         assert response.status_code == 200
         body = response.json()
@@ -143,9 +127,7 @@ class TestCheckPrivate:
         assert body["is_rfc6598"] is False
 
     def test_ipv6_rejected(self):
-        response = client.post(
-            "/api/v1/ipv4/check-private", json={"address": "2606:4700::1"}
-        )
+        response = client.post("/api/v1/ipv4/check-private", json={"address": "2606:4700::1"})
 
         assert response.status_code == 400
         body = response.json()
@@ -156,9 +138,7 @@ class TestCheckCloudflare:
     """Tests for Cloudflare range check endpoint"""
 
     def test_cloudflare_ipv4_address(self):
-        response = client.post(
-            "/api/v1/ipv4/check-cloudflare", json={"address": "104.16.1.1"}
-        )
+        response = client.post("/api/v1/ipv4/check-cloudflare", json={"address": "104.16.1.1"})
 
         assert response.status_code == 200
         body = response.json()
@@ -167,9 +147,7 @@ class TestCheckCloudflare:
         assert "104.16.0.0/13" in body["matched_ranges"]
 
     def test_cloudflare_ipv6_address(self):
-        response = client.post(
-            "/api/v1/ipv4/check-cloudflare", json={"address": "2606:4700::1"}
-        )
+        response = client.post("/api/v1/ipv4/check-cloudflare", json={"address": "2606:4700::1"})
 
         assert response.status_code == 200
         body = response.json()
@@ -178,9 +156,7 @@ class TestCheckCloudflare:
         assert "2606:4700::/32" in body["matched_ranges"]
 
     def test_non_cloudflare_ipv4(self):
-        response = client.post(
-            "/api/v1/ipv4/check-cloudflare", json={"address": "8.8.8.8"}
-        )
+        response = client.post("/api/v1/ipv4/check-cloudflare", json={"address": "8.8.8.8"})
 
         assert response.status_code == 200
         body = response.json()
@@ -188,9 +164,7 @@ class TestCheckCloudflare:
         assert body["ip_version"] == 4
 
     def test_cloudflare_ipv4_network(self):
-        response = client.post(
-            "/api/v1/ipv4/check-cloudflare", json={"address": "173.245.48.0/20"}
-        )
+        response = client.post("/api/v1/ipv4/check-cloudflare", json={"address": "173.245.48.0/20"})
 
         assert response.status_code == 200
         body = response.json()
@@ -198,9 +172,7 @@ class TestCheckCloudflare:
         assert "173.245.48.0/20" in body["matched_ranges"]
 
     def test_invalid_address_format(self):
-        response = client.post(
-            "/api/v1/ipv4/check-cloudflare", json={"address": "invalid"}
-        )
+        response = client.post("/api/v1/ipv4/check-cloudflare", json={"address": "invalid"})
 
         assert response.status_code == 400
         body = response.json()
@@ -211,9 +183,7 @@ class TestSubnetInfo:
     """Tests for subnet information endpoint"""
 
     def test_standard_subnet_azure_mode(self):
-        response = client.post(
-            "/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24"}
-        )
+        response = client.post("/api/v1/ipv4/subnet-info", json={"network": "192.168.1.0/24"})
 
         assert response.status_code == 200
         body = response.json()
@@ -228,9 +198,7 @@ class TestSubnetInfo:
         assert body["last_usable_ip"] == "192.168.1.254"
 
     def test_standard_subnet_aws_mode(self):
-        response = client.post(
-            "/api/v1/ipv4/subnet-info", json={"network": "10.0.0.0/24", "mode": "AWS"}
-        )
+        response = client.post("/api/v1/ipv4/subnet-info", json={"network": "10.0.0.0/24", "mode": "AWS"})
 
         assert response.status_code == 200
         body = response.json()
@@ -239,9 +207,7 @@ class TestSubnetInfo:
         assert body["first_usable_ip"] == "10.0.0.4"
 
     def test_standard_subnet_oci_mode(self):
-        response = client.post(
-            "/api/v1/ipv4/subnet-info", json={"network": "10.0.0.0/24", "mode": "OCI"}
-        )
+        response = client.post("/api/v1/ipv4/subnet-info", json={"network": "10.0.0.0/24", "mode": "OCI"})
 
         assert response.status_code == 200
         body = response.json()
@@ -262,9 +228,7 @@ class TestSubnetInfo:
         assert body["first_usable_ip"] == "10.0.0.1"  # Skip .0 only
 
     def test_slash_31_subnet(self):
-        response = client.post(
-            "/api/v1/ipv4/subnet-info", json={"network": "10.0.0.0/31"}
-        )
+        response = client.post("/api/v1/ipv4/subnet-info", json={"network": "10.0.0.0/31"})
 
         assert response.status_code == 200
         body = response.json()
@@ -276,9 +240,7 @@ class TestSubnetInfo:
         assert "point-to-point" in body["note"]
 
     def test_slash_32_subnet(self):
-        response = client.post(
-            "/api/v1/ipv4/subnet-info", json={"network": "10.0.0.5/32"}
-        )
+        response = client.post("/api/v1/ipv4/subnet-info", json={"network": "10.0.0.5/32"})
 
         assert response.status_code == 200
         body = response.json()
@@ -290,9 +252,7 @@ class TestSubnetInfo:
         assert "Single host" in body["note"]
 
     def test_large_subnet(self):
-        response = client.post(
-            "/api/v1/ipv4/subnet-info", json={"network": "10.0.0.0/16", "mode": "Azure"}
-        )
+        response = client.post("/api/v1/ipv4/subnet-info", json={"network": "10.0.0.0/16", "mode": "Azure"})
 
         assert response.status_code == 200
         body = response.json()
@@ -319,18 +279,14 @@ class TestSubnetInfo:
         assert "detail" in body
 
     def test_ipv6_rejected(self):
-        response = client.post(
-            "/api/v1/ipv4/subnet-info", json={"network": "2001:db8::/32"}
-        )
+        response = client.post("/api/v1/ipv4/subnet-info", json={"network": "2001:db8::/32"})
 
         assert response.status_code == 400
         body = response.json()
         assert "only supports IPv4" in body["detail"]
 
     def test_wildcard_mask(self):
-        response = client.post(
-            "/api/v1/ipv4/subnet-info", json={"network": "10.0.0.0/24"}
-        )
+        response = client.post("/api/v1/ipv4/subnet-info", json={"network": "10.0.0.0/24"})
 
         assert response.status_code == 200
         body = response.json()

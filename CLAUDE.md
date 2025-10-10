@@ -10,40 +10,93 @@ This is a multi-project repository for cloud technology experiments, primarily f
 
 ### 1. Subnet Calculator (`subnet-calculator/`)
 
-A full-stack IPv4/IPv6 subnet calculator with containerized microservices architecture.
+A full-stack IPv4/IPv6 subnet calculator with multiple backend and frontend implementations.
 
 **Architecture:**
 
-- **Backend**: FastAPI-based Azure Function App (Python 3.11)
-- **Frontend**: Flask web application with Pico CSS (Python 3.11)
-- **Deployment**: Docker Compose / Podman Compose
+- **2 Backend APIs**: Azure Function (JWT auth) and Container App (no auth)
+- **4 Frontend Options**: Flask (server-side), Static HTML (client-side), TypeScript Vite (modern SPA)
+- **4 Complete Stacks**: Mix and match backends with frontends
+- **Test Coverage**: 188 total tests (108 Azure Function + 60 Container App + 20 Flask)
+- **Security**: 4/5 container images have 0 HIGH/CRITICAL vulnerabilities
 
-**Quick Start:**
+**Frontend Options:**
+
+1. **Flask + Azure Function** (Stack 1) - Server-side rendering with JWT auth
+   - Port: 8000
+   - Backend: Azure Function API (port 8080)
+   - Auth: JWT with Argon2 hashed passwords
+2. **Static HTML + Container App** (Stack 2) - Pure client-side JavaScript
+   - Port: 8001
+   - Backend: Container App API (port 8090)
+   - Auth: None
+3. **Flask + Container App** (Stack 3) - Server-side rendering, no auth
+   - Port: 8002
+   - Backend: Container App API (port 8090)
+   - Auth: None
+4. **TypeScript Vite + Container App** (Stack 4) - Modern SPA with Playwright tests
+   - Port: 3000
+   - Backend: Container App API (port 8090)
+   - Auth: None
+   - Tools: TypeScript, Vite, Playwright, Biome
+
+**Quick Start (All Stacks):**
 
 ```bash
 cd subnet-calculator
-docker compose up
-# Access frontend at http://localhost:8000
-# Access API docs at http://localhost:8080/api/v1/docs
+podman-compose up -d
+# Stack 1: http://localhost:8000
+# Stack 2: http://localhost:8001
+# Stack 3: http://localhost:8002
+# Stack 4: http://localhost:3000
 ```
 
-**Backend Development:**
+**Quick Start (Stack 4 - Recommended):**
+
+```bash
+cd subnet-calculator
+podman-compose up api-fastapi-container-app frontend-typescript-vite
+# Access at http://localhost:3000
+# API docs at http://localhost:8090/api/v1/docs
+```
+
+**Backend Development (Azure Function):**
 
 ```bash
 cd subnet-calculator/api-fastapi-azure-function
 uv sync --extra dev          # Install dependencies
-uv run pytest -v             # Run tests
+uv run pytest -v             # Run tests (108 tests)
 func start                   # Run locally (port 7071)
 ./test_endpoints.sh          # Test all endpoints
 ```
 
-**Frontend Development:**
+**Backend Development (Container App):**
+
+```bash
+cd subnet-calculator/api-fastapi-container-app
+uv sync --extra dev          # Install dependencies
+uv run pytest -v             # Run tests (60 tests)
+uv run uvicorn app.main:app --reload  # Run locally (port 8000)
+```
+
+**Frontend Development (Flask):**
 
 ```bash
 cd subnet-calculator/frontend-python-flask
 uv sync --extra dev          # Install dependencies
-uv run pytest -v             # Run tests
+uv run pytest -v             # Run tests (20 tests)
 uv run flask run             # Run locally (port 5000)
+```
+
+**Frontend Development (TypeScript Vite):**
+
+```bash
+cd subnet-calculator/frontend-typescript-vite
+npm install                  # Install dependencies
+npm run dev                  # Run dev server (port 5173)
+npm test                     # Run Playwright tests
+npm run lint                 # Run Biome linting
+npm run check                # Run all checks
 ```
 
 ### 2. Terraform with Claranet tfwrapper (`terraform/claranet-tfwrapper/`)
@@ -176,7 +229,8 @@ pre-commit install           # Enable hooks
 **Manual Execution:**
 
 ```bash
-pre-commit run --all-files   # Run all hooks
+make precommit               # Run all quality checks (format, lint, test, hooks)
+pre-commit run --all-files   # Run all hooks only
 gitleaks detect --verbose    # Secret scanning
 ```
 
@@ -185,8 +239,27 @@ gitleaks detect --verbose    # Secret scanning
 - **Gitleaks**: Secret scanning
 - **Terraform**: Format, validate, tflint, tfsec (excludes claranet-tfwrapper/)
 - **Shellcheck**: Shell script linting
-- **Markdownlint**: Markdown formatting and linting
+- **Markdownlint**: Markdown formatting and linting (auto-fixes issues)
 - **General**: Trailing whitespace, EOF fixer, YAML validation, large files check
+
+### Security Scanning
+
+**Trivy Container Scanning:**
+
+```bash
+make trivy-scan              # Scan for HIGH/CRITICAL vulnerabilities (CI gate)
+make trivy-scan-all          # Scan for all severity levels (informational)
+```
+
+**Current Security Status:**
+
+- **api-fastapi-azure-function**: 429 vulnerabilities (Microsoft base image - Debian 11.11)
+- **api-fastapi-container-app**: 0 vulnerabilities (Debian 13.1)
+- **frontend-python-flask**: 0 vulnerabilities (Debian 13.1)
+- **frontend-html-static**: 0 vulnerabilities (Alpine 3.22.2)
+- **frontend-typescript-vite**: 0 vulnerabilities (Alpine 3.22.2)
+
+**Note**: Azure Function vulnerabilities are in the Microsoft-maintained base image and cannot be fixed without a Microsoft update. All application code and other images are secure.
 
 ### GitHub Actions
 
@@ -206,6 +279,9 @@ gitleaks detect --verbose    # Secret scanning
 # Python (for subnet-calculator)
 brew install uv azure-functions-core-tools
 
+# Node.js (for TypeScript frontend)
+brew install node
+
 # Terraform/OpenTofu
 brew install opentofu tflint tfsec
 uv tool install claranet-tfwrapper
@@ -213,6 +289,9 @@ brew install terragrunt
 
 # Container runtime
 brew install docker          # or podman
+
+# Security scanning
+brew install trivy gitleaks
 ```
 
 ## Common Patterns
@@ -290,14 +369,46 @@ make validate                # Validate configuration
 ### Python Tests
 
 ```bash
-# Subnet calculator API
+# Run all Python tests from root
+make python-test                    # 188 tests total (3 projects)
+
+# Individual projects
 cd subnet-calculator/api-fastapi-azure-function
-uv run pytest -v                    # Run all tests (30 tests)
+uv run pytest -v                    # 108 tests
 ./test_endpoints.sh --detailed      # Test all endpoints
 
-# Subnet calculator frontend
+cd subnet-calculator/api-fastapi-container-app
+uv run pytest -v                    # 60 tests
+
 cd subnet-calculator/frontend-python-flask
-uv run pytest -v                    # Run all tests
+uv run pytest -v                    # 20 tests
+```
+
+### TypeScript Tests
+
+```bash
+cd subnet-calculator/frontend-typescript-vite
+npm test                            # Playwright E2E tests (headless)
+npm run test:headed                 # Run tests with browser visible
+npm run test:ui                     # Interactive test UI
+```
+
+### Quality Checks
+
+```bash
+# Python
+make python-lint                    # Run ruff on all Python projects
+make python-fmt                     # Format and fix Python code
+make python-test                    # Run pytest on all Python projects
+
+# TypeScript
+cd subnet-calculator/frontend-typescript-vite
+npm run lint                        # Run Biome linting
+npm run format                      # Format code with Biome
+npm run check                       # Run all checks (lint + type-check)
+
+# All projects
+make precommit                      # Run everything (format, lint, test, hooks)
 ```
 
 ### Terraform Validation
