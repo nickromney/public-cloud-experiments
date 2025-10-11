@@ -295,7 +295,7 @@ function copyResults() {
  */
 function clearResults() {
     document.getElementById('ip-address').value = '';
-    document.getElementById('cloud-mode').value = 'Standard';
+    document.getElementById('cloud-mode').value = 'Azure';
     hideResults();
     hideValidationError();
 }

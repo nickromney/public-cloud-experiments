@@ -94,9 +94,9 @@
                             required
                         />
                         <select id="cloud-mode" name="mode">
-                            <option value="Standard" {% if mode == 'Standard' or not mode %}selected{% endif %}>Standard</option>
+                            <option value="Standard" {% if mode == 'Standard' %}selected{% endif %}>Standard</option>
                             <option value="AWS" {% if mode == 'AWS' %}selected{% endif %}>AWS</option>
-                            <option value="Azure" {% if mode == 'Azure' %}selected{% endif %}>Azure</option>
+                            <option value="Azure" {% if mode == 'Azure' or not mode %}selected{% endif %}>Azure</option>
                             <option value="OCI" {% if mode == 'OCI' %}selected{% endif %}>OCI</option>
                         </select>
                         <button type="submit">Lookup</button>
@@ -318,7 +318,7 @@
         // Clear results function
         function clearResults() {
             ipInput.value = '';
-            cloudMode.value = 'Standard';
+            cloudMode.value = 'Azure';
             results.classList.add('hidden');
             error.classList.add('hidden');
             clearBtn.classList.add('hidden');

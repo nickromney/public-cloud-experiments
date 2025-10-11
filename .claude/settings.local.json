@@ -169,7 +169,10 @@
       "Bash(az functionapp config appsettings delete:*)",
       "Bash(az functionapp config appsettings set:*)",
       "Bash(uv pip compile:*)",
-      "Bash(RESOURCE_GROUP=\"1-620ead67-playground-sandbox\" FUNCTION_APP_NAME=\"func-subnet-calc\" DISABLE_AUTH=true ./21-deploy-function.sh)"
+      "Bash(RESOURCE_GROUP=\"1-620ead67-playground-sandbox\" FUNCTION_APP_NAME=\"func-subnet-calc\" DISABLE_AUTH=true ./21-deploy-function.sh)",
+      "Bash(npx playwright test:*)",
+      "Bash(test -f /Users/nickromney/Developer/personal/public-cloud-experiments/subnet-calculator/frontend-python-flask/conftest.py)",
+      "Bash(podman rm:*)"
     ],
     "deny": [],
     "ask": []

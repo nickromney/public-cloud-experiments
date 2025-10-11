@@ -6,6 +6,29 @@ GREEN := \033[0;32m
 YELLOW := \033[1;33m
 NC := \033[0m
 
+# Auto-detect projects
+# Find Python projects (have pyproject.toml)
+PYTHON_PROJECTS := $(shell find . -name "pyproject.toml" \
+	-not -path "*/.*" \
+	-not -path "*/node_modules/*" \
+	-not -path "*/.venv/*" \
+	-not -path "*/.terraform/*" \
+	2>/dev/null | xargs -I {} dirname {})
+
+# Find TypeScript projects (have tsconfig.json)
+TYPESCRIPT_PROJECTS := $(shell find . -name "tsconfig.json" \
+	-not -path "*/.*" \
+	-not -path "*/node_modules/*" \
+	-not -path "*/.terraform/*" \
+	2>/dev/null | xargs -I {} dirname {})
+
+# Find Terraform projects (have *.tf files)
+TERRAFORM_PROJECTS := $(shell find . -name "*.tf" \
+	-not -path "*/.*" \
+	-not -path "*/.terraform/*" \
+	-not -path "*/.terragrunt-cache/*" \
+	2>/dev/null | xargs -I {} dirname {} | sort -u)
+
 .DEFAULT_GOAL := help
 
 ##@ Help
@@ -20,6 +43,22 @@ help: ## Show this help message
 	@echo "Project-specific Makefiles:"
 	@echo "  terraform/claranet-tfwrapper/Makefile"
 	@echo "  terraform/terragrunt/Makefile"
+
+.PHONY: show-projects
+show-projects: ## Show all auto-detected projects
+	@echo "$(GREEN)Auto-detected Projects$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Python Projects ($(words $(PYTHON_PROJECTS)))$(NC)"
+	@for dir in $(PYTHON_PROJECTS); do echo "  - $$dir"; done
+	@echo ""
+	@echo "$(YELLOW)TypeScript Projects ($(words $(TYPESCRIPT_PROJECTS)))$(NC)"
+	@for dir in $(TYPESCRIPT_PROJECTS); do echo "  - $$dir"; done
+	@echo ""
+	@echo "$(YELLOW)Terraform Projects ($(words $(TERRAFORM_PROJECTS)))$(NC)"
+	@for dir in $(TERRAFORM_PROJECTS); do echo "  - $$dir"; done | head -10
+	@if [ $(words $(TERRAFORM_PROJECTS)) -gt 10 ]; then \
+		echo "  ... and $(shell expr $(words $(TERRAFORM_PROJECTS)) - 10) more"; \
+	fi
 
 ##@ Pre-commit and Security
 
@@ -108,10 +147,14 @@ fmt: ## Format all code (Terraform, Python, etc.)
 		terraform fmt -recursive terraform/; \
 	fi
 	@if command -v uv &>/dev/null; then \
-		for dir in subnet-calculator/api-fastapi-azure-function subnet-calculator/api-fastapi-container-app subnet-calculator/frontend-python-flask; do \
-			if [ -d "$$dir" ]; then \
+		for dir in $(PYTHON_PROJECTS); do \
+			if [ -f "$$dir/pyproject.toml" ]; then \
 				echo "$(YELLOW)Formatting $$dir...$(NC)"; \
-				(cd "$$dir" && uv run ruff format . 2>/dev/null) || true; \
+				if (cd "$$dir" && uv run ruff --version >/dev/null 2>&1); then \
+					(cd "$$dir" && uv run ruff format . 2>/dev/null) || true; \
+				else \
+					echo "$(YELLOW)  Skipping (no ruff installed)$(NC)"; \
+				fi; \
 			fi; \
 		done; \
 	fi
@@ -145,13 +188,19 @@ clean-git: ## Remove nested .git directories (dangerous - prompts first)
 		echo "Cancelled"; \
 	fi
 
+##@ Testing
+
+.PHONY: test
+test: python-test typescript-test ## Run all tests (Python + TypeScript)
+	@echo "$(GREEN)✓ All tests passed (Python + TypeScript)$(NC)"
+
 ##@ Python Development
 
 .PHONY: python-test
 python-test: ## Run Python tests with pytest in all Python projects
 	@echo "$(YELLOW)Running Python tests...$(NC)"
-	@for dir in subnet-calculator/api-fastapi-azure-function subnet-calculator/api-fastapi-container-app subnet-calculator/frontend-python-flask; do \
-		if [ -d "$$dir" ] && [ -f "$$dir/pyproject.toml" ]; then \
+	@for dir in $(PYTHON_PROJECTS); do \
+		if [ -f "$$dir/pyproject.toml" ]; then \
 			echo "$(YELLOW)Testing $$dir...$(NC)"; \
 			(cd "$$dir" && uv run pytest -v) || exit 1; \
 		fi; \
@@ -161,53 +210,66 @@ python-test: ## Run Python tests with pytest in all Python projects
 .PHONY: python-lint
 python-lint: ## Run Python linting (ruff) in all Python projects
 	@echo "$(YELLOW)Running Python linting...$(NC)"
-	@for dir in subnet-calculator/api-fastapi-azure-function subnet-calculator/api-fastapi-container-app subnet-calculator/frontend-python-flask; do \
-		if [ -d "$$dir" ] && [ -f "$$dir/pyproject.toml" ]; then \
+	@for dir in $(PYTHON_PROJECTS); do \
+		if [ -f "$$dir/pyproject.toml" ]; then \
 			echo "$(YELLOW)Linting $$dir...$(NC)"; \
 			(cd "$$dir" && uv sync --extra dev --quiet 2>/dev/null || uv sync --quiet) || exit 1; \
-			(cd "$$dir" && uv run ruff check .) || exit 1; \
+			if (cd "$$dir" && uv run ruff --version >/dev/null 2>&1); then \
+				(cd "$$dir" && uv run ruff check .) || exit 1; \
+			else \
+				echo "$(YELLOW)  Skipping (no ruff installed)$(NC)"; \
+			fi; \
 		fi; \
 	done
+
+.PHONY: python-fmt
+python-fmt: ## Format Python code with ruff
+	@echo "$(YELLOW)Formatting Python code...$(NC)"
+	@for dir in $(PYTHON_PROJECTS); do \
+		if [ -f "$$dir/pyproject.toml" ]; then \
+			echo "$(YELLOW)Formatting $$dir...$(NC)"; \
+			(cd "$$dir" && uv sync --extra dev --quiet 2>/dev/null || uv sync --quiet) || exit 1; \
+			if (cd "$$dir" && uv run ruff --version >/dev/null 2>&1); then \
+				(cd "$$dir" && uv run ruff format .) || exit 1; \
+				(cd "$$dir" && uv run ruff check --fix .) || exit 1; \
+			else \
+				echo "$(YELLOW)  Skipping (no ruff installed)$(NC)"; \
+			fi; \
+		fi; \
+	done
+	@echo "$(GREEN)✓ Python formatting complete$(NC)"
 
 ##@ TypeScript Development
 
 .PHONY: typescript-check
 typescript-check: ## Run TypeScript type checking
 	@echo "$(YELLOW)Running TypeScript type checking...$(NC)"
-	@if [ -d "subnet-calculator/frontend-typescript-vite" ]; then \
-		echo "$(YELLOW)Type checking subnet-calculator/frontend-typescript-vite...$(NC)"; \
-		(cd subnet-calculator/frontend-typescript-vite && npm run type-check) || exit 1; \
-	fi
+	@for dir in $(TYPESCRIPT_PROJECTS); do \
+		if [ -f "$$dir/package.json" ]; then \
+			echo "$(YELLOW)Type checking $$dir...$(NC)"; \
+			(cd "$$dir" && npm run type-check) || exit 1; \
+		fi; \
+	done
 	@echo "$(GREEN)✓ TypeScript type checking passed$(NC)"
 
 .PHONY: typescript-lint
 typescript-lint: ## Run Biome linting on TypeScript code
 	@echo "$(YELLOW)Running Biome linting...$(NC)"
-	@if [ -d "subnet-calculator/frontend-typescript-vite" ]; then \
-		echo "$(YELLOW)Linting subnet-calculator/frontend-typescript-vite...$(NC)"; \
-		(cd subnet-calculator/frontend-typescript-vite && npm run lint) || exit 1; \
-	fi
+	@for dir in $(TYPESCRIPT_PROJECTS); do \
+		if [ -f "$$dir/package.json" ]; then \
+			echo "$(YELLOW)Linting $$dir...$(NC)"; \
+			(cd "$$dir" && npm run lint) || exit 1; \
+		fi; \
+	done
 	@echo "$(GREEN)✓ Biome linting passed$(NC)"
 
 .PHONY: typescript-test
 typescript-test: ## Run Playwright tests
 	@echo "$(YELLOW)Running Playwright tests...$(NC)"
-	@if [ -d "subnet-calculator/frontend-typescript-vite" ]; then \
-		echo "$(YELLOW)Testing subnet-calculator/frontend-typescript-vite...$(NC)"; \
-		(cd subnet-calculator/frontend-typescript-vite && npm test) || exit 1; \
-	fi
-	@echo "$(GREEN)✓ Playwright tests passed$(NC)"
-	@echo "$(GREEN)✓ Linting complete$(NC)"
-
-.PHONY: python-fmt
-python-fmt: ## Format Python code with ruff
-	@echo "$(YELLOW)Formatting Python code...$(NC)"
-	@for dir in subnet-calculator/api-fastapi-azure-function subnet-calculator/api-fastapi-container-app subnet-calculator/frontend-python-flask; do \
-		if [ -d "$$dir" ] && [ -f "$$dir/pyproject.toml" ]; then \
-			echo "$(YELLOW)Formatting $$dir...$(NC)"; \
-			(cd "$$dir" && uv sync --extra dev --quiet 2>/dev/null || uv sync --quiet) || exit 1; \
-			(cd "$$dir" && uv run ruff format .) || exit 1; \
-			(cd "$$dir" && uv run ruff check --fix .) || exit 1; \
+	@for dir in $(TYPESCRIPT_PROJECTS); do \
+		if [ -f "$$dir/package.json" ]; then \
+			echo "$(YELLOW)Testing $$dir...$(NC)"; \
+			(cd "$$dir" && npm test) || exit 1; \
 		fi; \
 	done
-	@echo "$(GREEN)✓ Python formatting complete$(NC)"
+	@echo "$(GREEN)✓ Playwright tests passed$(NC)"
