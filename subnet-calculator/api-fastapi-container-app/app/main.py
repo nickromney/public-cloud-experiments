@@ -8,6 +8,7 @@ Key differences from Azure Functions version:
 """
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .auth import validate_api_key
@@ -22,6 +23,20 @@ app = FastAPI(
     docs_url="/api/v1/docs",  # Swagger UI
     redoc_url="/api/v1/redoc",  # ReDoc
     openapi_url="/api/v1/openapi.json",  # OpenAPI spec (for APIM import)
+)
+
+# Configure CORS for local development
+# Allows TypeScript Vite (localhost:3000) and Static HTML (localhost:8001) frontends
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # TypeScript Vite frontend
+        "http://localhost:8001",  # Static HTML frontend
+        "http://localhost:5173",  # Vite dev server
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include routers

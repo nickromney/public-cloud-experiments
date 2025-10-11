@@ -62,6 +62,23 @@ repos:
         args: ["--fix"]
         exclude: ^.*/tests/test_helper/(bats-assert|bats-support)/
 
+  # TypeScript/JavaScript linting with Biome
+  - repo: local
+    hooks:
+      - id: biome-check
+        name: Biome lint and format
+        entry: bash -c 'cd subnet-calculator/frontend-typescript-vite && npm run lint:fix'
+        language: system
+        files: ^subnet-calculator/frontend-typescript-vite/.*\.(ts|tsx|js|jsx|json)$
+        pass_filenames: false
+
+      - id: typescript-check
+        name: TypeScript type checking
+        entry: bash -c 'cd subnet-calculator/frontend-typescript-vite && npm run type-check'
+        language: system
+        files: ^subnet-calculator/frontend-typescript-vite/.*\.(ts|tsx)$
+        pass_filenames: false
+
   # Check for emojis in markdown files
   - repo: local
     hooks:
