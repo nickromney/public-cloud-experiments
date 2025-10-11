@@ -11,7 +11,9 @@ set -euo pipefail
 # Configuration
 readonly RESOURCE_GROUP="${RESOURCE_GROUP:-rg-subnet-calc}"
 readonly STORAGE_ACCOUNT_NAME="${STORAGE_ACCOUNT_NAME:-stsubnetcalc$(date +%s | tail -c 6)}"
-readonly FUNCTION_APP_NAME="${FUNCTION_APP_NAME:-func-subnet-calc}"
+# Add random suffix to function name to ensure uniqueness
+readonly RANDOM_SUFFIX="${RANDOM_SUFFIX:-$(date +%s | tail -c 6)}"
+readonly FUNCTION_APP_NAME="${FUNCTION_APP_NAME:-func-subnet-calc-${RANDOM_SUFFIX}}"
 readonly PYTHON_VERSION="${PYTHON_VERSION:-3.11}"
 
 # Colors

@@ -2,6 +2,8 @@
 
 Shell scripts for deploying the subnet calculator to Azure using Static Web Apps and Azure Functions.
 
+**[Complete Deployment Guide](../../docs/AZURE_DEPLOYMENT.md)** - Comprehensive documentation including troubleshooting, region considerations, and production recommendations.
+
 ## Architecture
 
 ```text
@@ -76,11 +78,18 @@ export RESOURCE_GROUP="rg-subnet-calc"  # For your own subscription
 ### 2. Deploy Application
 
 ```bash
-# Deploy TypeScript Vite frontend (recommended)
-FRONTEND=typescript ./20-deploy-frontend.sh
-
 # Deploy Function API (with auth disabled for simplicity)
-DISABLE_AUTH=true ./21-deploy-function.sh
+RESOURCE_GROUP="xxx" \
+FUNCTION_APP_NAME="func-subnet-calc-12345" \
+DISABLE_AUTH=true \
+./22-deploy-function-zip.sh
+
+# Deploy TypeScript Vite frontend (recommended)
+RESOURCE_GROUP="xxx" \
+STATIC_WEB_APP_NAME="swa-subnet-calc" \
+FRONTEND=typescript \
+API_URL="https://func-subnet-calc-12345.azurewebsites.net" \
+./20-deploy-frontend.sh
 ```
 
 ### 3. Test

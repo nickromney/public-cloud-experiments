@@ -114,7 +114,9 @@ case "${FRONTEND}" in
     swa deploy \
       --app-location dist \
       --deployment-token "${DEPLOYMENT_TOKEN}" \
-      --env production
+      --env production \
+      --api-language node \
+      --api-version 20
 
     ;;
 
@@ -141,7 +143,9 @@ case "${FRONTEND}" in
     swa deploy \
       --app-location . \
       --deployment-token "${DEPLOYMENT_TOKEN}" \
-      --env production
+      --env production \
+      --api-language node \
+      --api-version 20
 
     # Restore original file if we made changes
     if [[ -n "${API_URL}" ]] && [[ -f "js/app.js.bak" ]]; then
