@@ -109,6 +109,30 @@ else
   log_info "Function App ${FUNCTION_APP_NAME} not found (skipping)"
 fi
 
+# Find and delete APIM instances
+log_info "Finding APIM instances in resource group..."
+APIM_INSTANCES=$(az apim list \
+  --resource-group "${RESOURCE_GROUP}" \
+  --query "[].name" -o tsv 2>/dev/null || true)
+
+if [[ -n "${APIM_INSTANCES}" ]]; then
+  while IFS= read -r apim_instance; do
+    if [[ -n "${apim_instance}" ]]; then
+      log_warn "Deleting APIM instance ${apim_instance}..."
+      log_warn "⏱️  This may take 15-20 minutes"
+      az apim delete \
+        --name "${apim_instance}" \
+        --resource-group "${RESOURCE_GROUP}" \
+        --yes \
+        --no-wait \
+        --output none
+      log_info "APIM deletion initiated (running in background)"
+    fi
+  done <<< "${APIM_INSTANCES}"
+else
+  log_info "No APIM instances found (skipping)"
+fi
+
 # Find and delete storage accounts
 log_info "Finding storage accounts in resource group..."
 STORAGE_ACCOUNTS=$(az storage account list \

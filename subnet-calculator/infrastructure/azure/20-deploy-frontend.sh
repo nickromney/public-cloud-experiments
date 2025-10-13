@@ -16,7 +16,10 @@ set -euo pipefail
 readonly RESOURCE_GROUP="${RESOURCE_GROUP:-rg-subnet-calc}"
 readonly STATIC_WEB_APP_NAME="${STATIC_WEB_APP_NAME:-swa-subnet-calc}"
 readonly FRONTEND="${FRONTEND:-typescript}"
-readonly API_URL="${API_URL:-}"
+readonly USE_APIM="${USE_APIM:-false}"
+readonly APIM_NAME="${APIM_NAME:-}"
+readonly API_PATH="${API_PATH:-subnet-calc}"
+API_URL="${API_URL:-}"
 
 # Colors
 readonly GREEN='\033[0;32m'
@@ -59,6 +62,32 @@ case "${FRONTEND}" in
     ;;
 esac
 
+# Handle APIM configuration
+if [[ "${USE_APIM}" == "true" ]]; then
+  if [[ -z "${APIM_NAME}" ]]; then
+    log_error "APIM_NAME required when USE_APIM=true"
+    exit 1
+  fi
+
+  # Verify APIM exists and get gateway URL
+  if ! az apim show \
+    --name "${APIM_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
+    log_error "APIM instance ${APIM_NAME} not found"
+    log_error "Run ./30-apim-instance.sh first"
+    exit 1
+  fi
+
+  APIM_GATEWAY=$(az apim show \
+    --name "${APIM_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --query gatewayUrl -o tsv)
+
+  # Calculate API URL from APIM gateway
+  API_URL="${APIM_GATEWAY}/${API_PATH}"
+  log_info "Using APIM gateway: ${API_URL}"
+fi
+
 # Get deployment token
 log_info "Retrieving deployment token..."
 DEPLOYMENT_TOKEN=$(az staticwebapp secrets list \
@@ -77,6 +106,7 @@ log_info "  Resource Group: ${RESOURCE_GROUP}"
 log_info "  Static Web App: ${STATIC_WEB_APP_NAME}"
 log_info "  Frontend: ${FRONTEND}"
 log_info "  Target URL: https://${SWA_URL}"
+[[ "${USE_APIM}" == "true" ]] && log_info "  Using APIM: ${APIM_NAME}"
 [[ -n "${API_URL}" ]] && log_info "  API URL: ${API_URL}"
 
 # Deploy based on frontend type

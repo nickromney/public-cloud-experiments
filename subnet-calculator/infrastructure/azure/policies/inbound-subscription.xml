@@ -1,0 +1,48 @@
+<policies>
+    <inbound>
+        <base />
+        <!-- Validate subscription key -->
+        <check-header name="Ocp-Apim-Subscription-Key" failed-check-httpcode="401" failed-check-error-message="Subscription key required" ignore-case="false">
+            <value>@(context.Subscription.Key)</value>
+        </check-header>
+        <!-- Rate limiting: 100 requests per minute per subscription -->
+        <rate-limit-by-key calls="100"
+                           renewal-period="60"
+                           counter-key="@(context.Subscription.Id)" />
+        <!-- CORS policy for frontend access -->
+        <cors allow-credentials="false">
+            <allowed-origins>
+                <origin>*</origin>
+            </allowed-origins>
+            <allowed-methods>
+                <method>GET</method>
+                <method>POST</method>
+                <method>OPTIONS</method>
+            </allowed-methods>
+            <allowed-headers>
+                <header>*</header>
+            </allowed-headers>
+        </cors>
+        <!-- Inject user context header for Function App -->
+        <!-- Function App expects X-User-ID when AUTH_METHOD=apim -->
+        <set-header name="X-User-ID" exists-action="override">
+            <value>@(context.Subscription.Id)</value>
+        </set-header>
+        <!-- Optional: Add subscription name as user identifier -->
+        <set-header name="X-User-Name" exists-action="override">
+            <value>@(context.Subscription.Name)</value>
+        </set-header>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <!-- Remove internal headers from response -->
+        <set-header name="X-User-ID" exists-action="delete" />
+        <set-header name="X-User-Name" exists-action="delete" />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
