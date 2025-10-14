@@ -1,0 +1,33 @@
+<policies>
+    <inbound>
+        <base />
+        <!-- No authentication required - open access -->
+        <!-- Rate limiting: 100 requests per minute per IP -->
+        <rate-limit-by-key calls="100"
+                           renewal-period="60"
+                           counter-key="@(context.Request.IpAddress)" />
+        <!-- CORS policy for frontend access -->
+        <cors allow-credentials="false">
+            <allowed-origins>
+                <origin>*</origin>
+            </allowed-origins>
+            <allowed-methods>
+                <method>GET</method>
+                <method>POST</method>
+                <method>OPTIONS</method>
+            </allowed-methods>
+            <allowed-headers>
+                <header>*</header>
+            </allowed-headers>
+        </cors>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

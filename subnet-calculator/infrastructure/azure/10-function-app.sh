@@ -8,14 +8,6 @@
 
 set -euo pipefail
 
-# Configuration
-readonly RESOURCE_GROUP="${RESOURCE_GROUP:-rg-subnet-calc}"
-readonly STORAGE_ACCOUNT_NAME="${STORAGE_ACCOUNT_NAME:-stsubnetcalc$(date +%s | tail -c 6)}"
-# Add random suffix to function name to ensure uniqueness
-readonly RANDOM_SUFFIX="${RANDOM_SUFFIX:-$(date +%s | tail -c 6)}"
-readonly FUNCTION_APP_NAME="${FUNCTION_APP_NAME:-func-subnet-calc-${RANDOM_SUFFIX}}"
-readonly PYTHON_VERSION="${PYTHON_VERSION:-3.11}"
-
 # Colors
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
@@ -26,14 +18,90 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
-# Get script directory (reserved for future use)
-# SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 # Check Azure CLI
 if ! az account show &>/dev/null; then
   log_error "Not logged in to Azure. Run 'az login'"
   exit 1
 fi
+
+# Auto-detect or prompt for RESOURCE_GROUP
+if [[ -z "${RESOURCE_GROUP:-}" ]]; then
+  log_info "RESOURCE_GROUP not set. Looking for resource groups..."
+  RG_COUNT=$(az group list --query "length(@)" -o tsv)
+
+  if [[ "${RG_COUNT}" -eq 0 ]]; then
+    log_error "No resource groups found in subscription"
+    log_error "Create one with: az group create --name rg-subnet-calc --location eastus"
+    exit 1
+  elif [[ "${RG_COUNT}" -eq 1 ]]; then
+    RESOURCE_GROUP=$(az group list --query "[0].name" -o tsv)
+    RG_LOCATION=$(az group list --query "[0].location" -o tsv)
+    log_info "Found single resource group: ${RESOURCE_GROUP} (${RG_LOCATION})"
+    log_info "This appears to be a sandbox or constrained environment."
+    read -r -p "Use this resource group? (Y/n): " confirm
+    confirm=${confirm:-y}
+    if [[ ! "${confirm}" =~ ^[Yy]$ ]]; then
+      log_info "Cancelled"
+      exit 0
+    fi
+  else
+    log_warn "Multiple resource groups found:"
+    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
+    read -r -p "Enter resource group name: " RESOURCE_GROUP
+    if [[ -z "${RESOURCE_GROUP}" ]]; then
+      log_error "Resource group name is required"
+      exit 1
+    fi
+  fi
+fi
+
+# Check for existing Function Apps (informational only - multiple allowed)
+if [[ -z "${FUNCTION_APP_NAME:-}" ]]; then
+  FUNC_COUNT=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "length(@)" -o tsv 2>/dev/null || echo "0")
+
+  if [[ "${FUNC_COUNT}" -eq 1 ]]; then
+    EXISTING_FUNC_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
+    EXISTING_FUNC_URL=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[0].defaultHostName" -o tsv)
+
+    log_info "Found existing Function App: ${EXISTING_FUNC_NAME}"
+    log_info "  URL: https://${EXISTING_FUNC_URL}"
+    log_info ""
+    log_info "Multiple Function Apps are allowed in the same resource group."
+    log_info "This is useful for different services (api, worker, processor, etc.)"
+    read -r -p "Create new Function App or use existing? (new/Existing): " choice
+    choice=${choice:-existing}
+
+    if [[ "${choice,,}" =~ ^e ]]; then
+      FUNCTION_APP_NAME="${EXISTING_FUNC_NAME}"
+
+      log_info ""
+      log_info "✓ Using existing Function App"
+      log_info ""
+      log_info "Function App Details:"
+      log_info "  Name: ${FUNCTION_APP_NAME}"
+      log_info "  URL: https://${EXISTING_FUNC_URL}"
+      log_info ""
+      log_info "Next steps:"
+      log_info "  1. Deploy code: ./21-deploy-function.sh"
+      exit 0
+    else
+      log_info "Creating new Function App alongside existing one..."
+    fi
+  elif [[ "${FUNC_COUNT}" -gt 1 ]]; then
+    log_info "Found ${FUNC_COUNT} existing Function Apps in ${RESOURCE_GROUP}:"
+    az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[].[name,defaultHostName]" -o tsv | \
+      awk '{printf "  - %s (https://%s)\n", $1, $2}'
+    log_info ""
+    log_info "Multiple Function Apps are normal for complex applications."
+    log_info "Creating new Function App with unique name..."
+  fi
+fi
+
+# Configuration with defaults (generate random suffix if not set)
+readonly RANDOM_SUFFIX="${RANDOM_SUFFIX:-$(date +%s | tail -c 6)}"
+readonly STORAGE_ACCOUNT_NAME="${STORAGE_ACCOUNT_NAME:-stsubnetcalc$(date +%s | tail -c 6)}"
+readonly FUNCTION_APP_NAME="${FUNCTION_APP_NAME:-func-subnet-calc-${RANDOM_SUFFIX}}"
+readonly PYTHON_VERSION="${PYTHON_VERSION:-3.11}"
 
 # Detect location from resource group if LOCATION not set
 if [[ -z "${LOCATION:-}" ]]; then

@@ -11,11 +11,6 @@
 
 set -euo pipefail
 
-# Configuration
-readonly RESOURCE_GROUP="${RESOURCE_GROUP:-rg-subnet-calc}"
-readonly FUNCTION_APP_NAME="${FUNCTION_APP_NAME:-func-subnet-calc}"
-readonly DISABLE_AUTH="${DISABLE_AUTH:-false}"
-
 # Colors
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
@@ -36,6 +31,55 @@ if ! az account show &>/dev/null; then
   log_error "Not logged in to Azure. Run 'az login'"
   exit 1
 fi
+
+# Auto-detect or prompt for RESOURCE_GROUP
+if [[ -z "${RESOURCE_GROUP:-}" ]]; then
+  log_info "RESOURCE_GROUP not set. Looking for resource groups..."
+  RG_COUNT=$(az group list --query "length(@)" -o tsv)
+
+  if [[ "${RG_COUNT}" -eq 0 ]]; then
+    log_error "No resource groups found in subscription"
+    exit 1
+  elif [[ "${RG_COUNT}" -eq 1 ]]; then
+    RESOURCE_GROUP=$(az group list --query "[0].name" -o tsv)
+    log_info "Auto-detected single resource group: ${RESOURCE_GROUP}"
+  else
+    log_warn "Multiple resource groups found:"
+    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
+    read -r -p "Enter resource group name: " RESOURCE_GROUP
+    if [[ -z "${RESOURCE_GROUP}" ]]; then
+      log_error "Resource group name is required"
+      exit 1
+    fi
+  fi
+fi
+
+# Auto-detect or prompt for FUNCTION_APP_NAME
+if [[ -z "${FUNCTION_APP_NAME:-}" ]]; then
+  log_info "FUNCTION_APP_NAME not set. Checking for existing Function Apps..."
+  FUNC_COUNT=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "length(@)" -o tsv 2>/dev/null || echo "0")
+
+  if [[ "${FUNC_COUNT}" -eq 0 ]]; then
+    log_error "No Function Apps found in resource group ${RESOURCE_GROUP}"
+    log_error "Run 10-function-app.sh first to create one"
+    exit 1
+  elif [[ "${FUNC_COUNT}" -eq 1 ]]; then
+    FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
+    log_info "Auto-detected single Function App: ${FUNCTION_APP_NAME}"
+  else
+    log_warn "Multiple Function Apps found:"
+    az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[].[name,defaultHostName]" -o tsv | \
+      awk '{printf "  - %s (https://%s)\n", $1, $2}'
+    read -r -p "Enter Function App name: " FUNCTION_APP_NAME
+    if [[ -z "${FUNCTION_APP_NAME}" ]]; then
+      log_error "Function App name is required"
+      exit 1
+    fi
+  fi
+fi
+
+# Configuration with defaults
+readonly DISABLE_AUTH="${DISABLE_AUTH:-false}"
 
 # Check if Function App exists
 if ! az functionapp show \
