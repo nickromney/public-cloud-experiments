@@ -12,15 +12,6 @@
 
 set -euo pipefail
 
-# Configuration
-readonly RESOURCE_GROUP="${RESOURCE_GROUP:-rg-subnet-calc}"
-readonly STATIC_WEB_APP_NAME="${STATIC_WEB_APP_NAME:-swa-subnet-calc}"
-readonly FRONTEND="${FRONTEND:-typescript}"
-readonly USE_APIM="${USE_APIM:-false}"
-readonly APIM_NAME="${APIM_NAME:-}"
-readonly API_PATH="${API_PATH:-subnet-calc}"
-API_URL="${API_URL:-}"
-
 # Colors
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
@@ -40,6 +31,59 @@ if ! az account show &>/dev/null; then
   log_error "Not logged in to Azure. Run 'az login'"
   exit 1
 fi
+
+# Auto-detect or prompt for RESOURCE_GROUP
+if [[ -z "${RESOURCE_GROUP:-}" ]]; then
+  log_info "RESOURCE_GROUP not set. Looking for resource groups..."
+  RG_COUNT=$(az group list --query "length(@)" -o tsv)
+
+  if [[ "${RG_COUNT}" -eq 0 ]]; then
+    log_error "No resource groups found in subscription"
+    exit 1
+  elif [[ "${RG_COUNT}" -eq 1 ]]; then
+    RESOURCE_GROUP=$(az group list --query "[0].name" -o tsv)
+    log_info "Auto-detected single resource group: ${RESOURCE_GROUP}"
+  else
+    log_warn "Multiple resource groups found:"
+    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
+    read -r -p "Enter resource group name: " RESOURCE_GROUP
+    if [[ -z "${RESOURCE_GROUP}" ]]; then
+      log_error "Resource group name is required"
+      exit 1
+    fi
+  fi
+fi
+
+# Auto-detect or prompt for STATIC_WEB_APP_NAME
+if [[ -z "${STATIC_WEB_APP_NAME:-}" ]]; then
+  log_info "STATIC_WEB_APP_NAME not set. Checking for existing Static Web Apps..."
+  SWA_COUNT=$(az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "length(@)" -o tsv 2>/dev/null || echo "0")
+
+  if [[ "${SWA_COUNT}" -eq 0 ]]; then
+    log_error "No Static Web Apps found in resource group ${RESOURCE_GROUP}"
+    log_error "Run 00-static-web-app.sh first to create one"
+    exit 1
+  elif [[ "${SWA_COUNT}" -eq 1 ]]; then
+    STATIC_WEB_APP_NAME=$(az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
+    log_info "Auto-detected single Static Web App: ${STATIC_WEB_APP_NAME}"
+  else
+    log_warn "Multiple Static Web Apps found:"
+    az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "[].[name,defaultHostname]" -o tsv | \
+      awk '{printf "  - %s (https://%s)\n", $1, $2}'
+    read -r -p "Enter Static Web App name: " STATIC_WEB_APP_NAME
+    if [[ -z "${STATIC_WEB_APP_NAME}" ]]; then
+      log_error "Static Web App name is required"
+      exit 1
+    fi
+  fi
+fi
+
+# Configuration with defaults
+readonly FRONTEND="${FRONTEND:-typescript}"
+readonly USE_APIM="${USE_APIM:-false}"
+readonly APIM_NAME="${APIM_NAME:-}"
+readonly API_PATH="${API_PATH:-subnet-calc}"
+API_URL="${API_URL:-}"
 
 # Check if Static Web App exists
 if ! az staticwebapp show \

@@ -452,21 +452,25 @@ Pluralsight actively monitors for abuse. Examples of prohibited activities:
 Since many production features (Entra ID, Managed Identities, role assignments) are blocked:
 
 1. **Authentication:**
-   - Use API keys or JWT tokens (as we currently do)
-   - Cannot test Entra ID integration in sandbox
-   - Cannot test Managed Service Identity
-   - Cannot test Easy Auth
 
-2. **Resource Groups:**
-   - Must use the single provided resource group
-   - Plan resource naming carefully
-   - Use cleanup scripts to manage ephemeral resources
+- Use API keys or JWT tokens (as we currently do)
+- Cannot test Entra ID integration in sandbox
+- Cannot test Managed Service Identity
+- Cannot test Easy Auth
 
-3. **Regions:**
-   - Check Static Web Apps availability (not all sandbox regions support it)
-   - May need to override region for specific services
+1. **Resource Groups:**
 
-4. **Time Limit:**
-   - 4-hour sessions mean everything is ephemeral
-   - Use infrastructure-as-code scripts for quick rebuild
-   - Test deployment automation, not long-running workloads
+- Must use the single provided resource group
+- Plan resource naming carefully
+- Use cleanup scripts to manage ephemeral resources
+
+1. **Regions:**
+
+- Check Static Web Apps availability (not all sandbox regions support it)
+- May need to override region for specific services
+
+1. **Time Limit:**
+
+- 4-hour sessions mean everything is ephemeral
+- Use infrastructure-as-code scripts for quick rebuild
+- Test deployment automation, not long-running workloads

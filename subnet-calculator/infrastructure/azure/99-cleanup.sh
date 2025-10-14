@@ -2,8 +2,12 @@
 #
 # Clean up all Azure resources created for subnet calculator
 # - Deletes Static Web App
-# - Deletes Function App
-# - Deletes Storage Account
+# - Deletes Function Apps (Consumption and App Service Plan based)
+# - Deletes App Service Plans
+# - Deletes VNet and subnets
+# - Deletes NSG
+# - Deletes APIM instances
+# - Deletes Storage Accounts
 # - Optionally deletes Resource Group
 #
 # Usage:
@@ -16,6 +20,9 @@ set -euo pipefail
 readonly RESOURCE_GROUP="${RESOURCE_GROUP:-rg-subnet-calc}"
 readonly STATIC_WEB_APP_NAME="${STATIC_WEB_APP_NAME:-swa-subnet-calc}"
 readonly FUNCTION_APP_NAME="${FUNCTION_APP_NAME:-func-subnet-calc}"
+readonly VNET_NAME="${VNET_NAME:-vnet-subnet-calc}"
+readonly NSG_NAME="${NSG_NAME:-nsg-subnet-calc}"
+readonly APP_SERVICE_PLAN_NAME="${APP_SERVICE_PLAN_NAME:-plan-subnet-calc}"
 readonly DELETE_RG="${DELETE_RG:-false}"
 
 # Colors
@@ -131,6 +138,77 @@ if [[ -n "${APIM_INSTANCES}" ]]; then
   done <<< "${APIM_INSTANCES}"
 else
   log_info "No APIM instances found (skipping)"
+fi
+
+# Find and delete all Function Apps (including ASP-based ones)
+log_info "Finding all Function Apps in resource group..."
+ALL_FUNCTION_APPS=$(az functionapp list \
+  --resource-group "${RESOURCE_GROUP}" \
+  --query "[].name" -o tsv 2>/dev/null || true)
+
+if [[ -n "${ALL_FUNCTION_APPS}" ]]; then
+  while IFS= read -r func_app; do
+    if [[ -n "${func_app}" ]]; then
+      log_info "Deleting Function App ${func_app}..."
+      az functionapp delete \
+        --name "${func_app}" \
+        --resource-group "${RESOURCE_GROUP}" \
+        --output none
+      log_info "Function App ${func_app} deleted"
+    fi
+  done <<< "${ALL_FUNCTION_APPS}"
+else
+  log_info "No additional Function Apps found (skipping)"
+fi
+
+# Find and delete App Service Plans
+log_info "Finding App Service Plans in resource group..."
+APP_SERVICE_PLANS=$(az appservice plan list \
+  --resource-group "${RESOURCE_GROUP}" \
+  --query "[].name" -o tsv 2>/dev/null || true)
+
+if [[ -n "${APP_SERVICE_PLANS}" ]]; then
+  while IFS= read -r plan; do
+    if [[ -n "${plan}" ]]; then
+      log_info "Deleting App Service Plan ${plan}..."
+      az appservice plan delete \
+        --name "${plan}" \
+        --resource-group "${RESOURCE_GROUP}" \
+        --yes \
+        --output none
+      log_info "App Service Plan ${plan} deleted"
+    fi
+  done <<< "${APP_SERVICE_PLANS}"
+else
+  log_info "No App Service Plans found (skipping)"
+fi
+
+# Delete VNet (this will delete all subnets)
+if az network vnet show \
+  --name "${VNET_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
+  log_info "Deleting VNet ${VNET_NAME} (includes all subnets)..."
+  az network vnet delete \
+    --name "${VNET_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --output none
+  log_info "VNet deleted"
+else
+  log_info "VNet ${VNET_NAME} not found (skipping)"
+fi
+
+# Delete NSG
+if az network nsg show \
+  --name "${NSG_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
+  log_info "Deleting NSG ${NSG_NAME}..."
+  az network nsg delete \
+    --name "${NSG_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --output none
+  log_info "NSG deleted"
+else
+  log_info "NSG ${NSG_NAME} not found (skipping)"
 fi
 
 # Find and delete storage accounts

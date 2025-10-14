@@ -8,11 +8,6 @@
 
 set -euo pipefail
 
-# Configuration
-readonly RESOURCE_GROUP="${RESOURCE_GROUP:-rg-subnet-calc}"
-readonly STATIC_WEB_APP_NAME="${STATIC_WEB_APP_NAME:-swa-subnet-calc}"
-readonly STATIC_WEB_APP_SKU="${STATIC_WEB_APP_SKU:-Free}"
-
 # Colors
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
@@ -22,9 +17,6 @@ readonly NC='\033[0m'
 log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
-
-# Get script directory (reserved for future use)
-# SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Check Azure CLI
 if ! az account show &>/dev/null; then
@@ -37,6 +29,93 @@ if ! az staticwebapp --help &>/dev/null; then
   log_warn "Azure CLI Static Web Apps extension not found. Installing..."
   az extension add --name staticwebapp --yes
 fi
+
+# Auto-detect or prompt for RESOURCE_GROUP
+if [[ -z "${RESOURCE_GROUP:-}" ]]; then
+  log_info "RESOURCE_GROUP not set. Looking for resource groups..."
+  RG_COUNT=$(az group list --query "length(@)" -o tsv)
+
+  if [[ "${RG_COUNT}" -eq 0 ]]; then
+    log_error "No resource groups found in subscription"
+    log_error "Create one with: az group create --name rg-subnet-calc --location eastus"
+    exit 1
+  elif [[ "${RG_COUNT}" -eq 1 ]]; then
+    RESOURCE_GROUP=$(az group list --query "[0].name" -o tsv)
+    RG_LOCATION=$(az group list --query "[0].location" -o tsv)
+    log_info "Found single resource group: ${RESOURCE_GROUP} (${RG_LOCATION})"
+    log_info "This appears to be a sandbox or constrained environment."
+    read -r -p "Use this resource group? (Y/n): " confirm
+    confirm=${confirm:-y}
+    if [[ ! "${confirm}" =~ ^[Yy]$ ]]; then
+      log_info "Cancelled"
+      exit 0
+    fi
+  else
+    log_warn "Multiple resource groups found:"
+    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
+    read -r -p "Enter resource group name: " RESOURCE_GROUP
+    if [[ -z "${RESOURCE_GROUP}" ]]; then
+      log_error "Resource group name is required"
+      exit 1
+    fi
+  fi
+fi
+
+# Check for existing Static Web Apps before using default name
+if [[ -z "${STATIC_WEB_APP_NAME:-}" ]]; then
+  log_info "STATIC_WEB_APP_NAME not set. Checking for existing Static Web Apps..."
+  SWA_COUNT=$(az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "length(@)" -o tsv 2>/dev/null || echo "0")
+
+  if [[ "${SWA_COUNT}" -eq 1 ]]; then
+    EXISTING_SWA_NAME=$(az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
+    EXISTING_SWA_URL=$(az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "[0].defaultHostname" -o tsv)
+
+    log_info "Found existing Static Web App: ${EXISTING_SWA_NAME}"
+    log_info "  URL: https://${EXISTING_SWA_URL}"
+    log_warn "Static Web App already exists and is ready!"
+    read -r -p "Use existing Static Web App? (Y/n): " use_existing
+    use_existing=${use_existing:-y}
+
+    if [[ "${use_existing}" =~ ^[Yy]$ ]]; then
+      STATIC_WEB_APP_NAME="${EXISTING_SWA_NAME}"
+
+      # Get deployment token
+      DEPLOYMENT_TOKEN=$(az staticwebapp secrets list \
+        --name "${STATIC_WEB_APP_NAME}" \
+        --resource-group "${RESOURCE_GROUP}" \
+        --query properties.apiKey -o tsv)
+
+      log_info ""
+      log_info "✓ Using existing Static Web App"
+      log_info ""
+      log_info "Static Web App Details:"
+      log_info "  Name: ${STATIC_WEB_APP_NAME}"
+      log_info "  URL: https://${EXISTING_SWA_URL}"
+      log_info "  Deployment token retrieved"
+      log_info ""
+      log_info "Next steps:"
+      log_info "  1. Deploy frontend: ./20-deploy-frontend.sh"
+      exit 0
+    fi
+  elif [[ "${SWA_COUNT}" -gt 1 ]]; then
+    log_error "Multiple Static Web Apps already exist in ${RESOURCE_GROUP}:"
+    az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "[].[name,defaultHostname]" -o tsv | \
+      awk '{printf "  - %s (https://%s)\n", $1, $2}'
+    log_error ""
+    log_error "This is unusual for a single application."
+    log_error "Use STATIC_WEB_APP_NAME environment variable to specify which one:"
+    log_error ""
+    log_error "  STATIC_WEB_APP_NAME=swa-subnet-calc ./20-deploy-frontend.sh"
+    log_error ""
+    log_error "Or clean up unused instances first:"
+    log_error "  az staticwebapp delete --name swa-old-name --resource-group ${RESOURCE_GROUP}"
+    exit 1
+  fi
+fi
+
+# Configuration
+readonly STATIC_WEB_APP_NAME="${STATIC_WEB_APP_NAME:-swa-subnet-calc}"
+readonly STATIC_WEB_APP_SKU="${STATIC_WEB_APP_SKU:-Free}"
 
 # Detect location from resource group if LOCATION not set
 if [[ -z "${LOCATION:-}" ]]; then

@@ -42,18 +42,18 @@ All policies follow the standard APIM structure:
 
 ```xml
 <policies>
-    <inbound>
-        <!-- Pre-processing: auth, rate limiting, CORS, header injection -->
-    </inbound>
-    <backend>
-        <!-- Backend communication -->
-    </backend>
-    <outbound>
-        <!-- Post-processing: response headers, cleanup -->
-    </outbound>
-    <on-error>
-        <!-- Error handling -->
-    </on-error>
+ <inbound>
+ <!-- Pre-processing: auth, rate limiting, CORS, header injection -->
+ </inbound>
+ <backend>
+ <!-- Backend communication -->
+ </backend>
+ <outbound>
+ <!-- Post-processing: response headers, cleanup -->
+ </outbound>
+ <on-error>
+ <!-- Error handling -->
+ </on-error>
 </policies>
 ```
 
@@ -116,15 +116,15 @@ Edit the `rate-limit-by-key` element:
 
 ```xml
 <rate-limit-by-key calls="200"
-                   renewal-period="60"
-                   counter-key="@(context.Subscription.Id)" />
+ renewal-period="60"
+ counter-key="@(context.Subscription.Id)" />
 ```
 
 ### Add Custom Headers
 
 ```xml
 <set-header name="X-Custom-Header" exists-action="override">
-    <value>custom-value</value>
+ <value>custom-value</value>
 </set-header>
 ```
 
@@ -132,8 +132,8 @@ Edit the `rate-limit-by-key` element:
 
 ```xml
 <allowed-origins>
-    <origin>https://app1.example.com</origin>
-    <origin>https://app2.example.com</origin>
+ <origin>https://app1.example.com</origin>
+ <origin>https://app2.example.com</origin>
 </allowed-origins>
 ```
 
@@ -151,14 +151,14 @@ curl https://apim-name.azure-api.net/subnet-calc/api/v1/health
 
 ```bash
 curl -H "Ocp-Apim-Subscription-Key: your-key" \
-  https://apim-name.azure-api.net/subnet-calc/api/v1/health
+ https://apim-name.azure-api.net/subnet-calc/api/v1/health
 ```
 
 **JWT token:**
 
 ```bash
 curl -H "Authorization: Bearer your-jwt-token" \
-  https://apim-name.azure-api.net/subnet-calc/api/v1/health
+ https://apim-name.azure-api.net/subnet-calc/api/v1/health
 ```
 
 ## References

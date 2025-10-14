@@ -8,13 +8,6 @@
 
 set -euo pipefail
 
-# Configuration
-readonly RESOURCE_GROUP="${RESOURCE_GROUP:?RESOURCE_GROUP environment variable is required}"
-readonly APIM_NAME="${APIM_NAME:?APIM_NAME environment variable is required}"
-readonly FUNCTION_APP_NAME="${FUNCTION_APP_NAME:?FUNCTION_APP_NAME environment variable is required}"
-readonly API_PATH="${API_PATH:-subnet-calc}"  # URL path: /subnet-calc/api/v1/*
-readonly API_DISPLAY_NAME="${API_DISPLAY_NAME:-Subnet Calculator API}"
-
 # Colors
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
@@ -30,6 +23,66 @@ if ! az account show &>/dev/null; then
   log_error "Not logged in to Azure. Run 'az login'"
   exit 1
 fi
+
+# Auto-detect or prompt for RESOURCE_GROUP
+if [[ -z "${RESOURCE_GROUP:-}" ]]; then
+  log_info "RESOURCE_GROUP not set. Looking for resource groups..."
+  RG_COUNT=$(az group list --query "length(@)" -o tsv)
+
+  if [[ "${RG_COUNT}" -eq 0 ]]; then
+    log_error "No resource groups found"
+    exit 1
+  elif [[ "${RG_COUNT}" -eq 1 ]]; then
+    RESOURCE_GROUP=$(az group list --query "[0].name" -o tsv)
+    log_info "Auto-detected single resource group: ${RESOURCE_GROUP}"
+  else
+    log_warn "Multiple resource groups found:"
+    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
+    read -r -p "Enter resource group name: " RESOURCE_GROUP
+  fi
+fi
+
+# Auto-detect or prompt for APIM_NAME
+if [[ -z "${APIM_NAME:-}" ]]; then
+  log_info "APIM_NAME not set. Looking for APIM instances in ${RESOURCE_GROUP}..."
+  APIM_COUNT=$(az apim list --resource-group "${RESOURCE_GROUP}" --query "length(@)" -o tsv 2>/dev/null || echo "0")
+
+  if [[ "${APIM_COUNT}" -eq 0 ]]; then
+    log_error "No APIM instances found in ${RESOURCE_GROUP}"
+    log_error "Run ./30-apim-instance.sh first"
+    exit 1
+  elif [[ "${APIM_COUNT}" -eq 1 ]]; then
+    APIM_NAME=$(az apim list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
+    log_info "Auto-detected APIM instance: ${APIM_NAME}"
+  else
+    log_warn "Multiple APIM instances found:"
+    az apim list --resource-group "${RESOURCE_GROUP}" --query "[].[name]" -o tsv | awk '{printf "  - %s\n", $1}'
+    read -r -p "Enter APIM instance name: " APIM_NAME
+  fi
+fi
+
+# Auto-detect or prompt for FUNCTION_APP_NAME
+if [[ -z "${FUNCTION_APP_NAME:-}" ]]; then
+  log_info "FUNCTION_APP_NAME not set. Looking for Function Apps in ${RESOURCE_GROUP}..."
+  FUNC_COUNT=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "length(@)" -o tsv 2>/dev/null || echo "0")
+
+  if [[ "${FUNC_COUNT}" -eq 0 ]]; then
+    log_error "No Function Apps found in ${RESOURCE_GROUP}"
+    log_error "Run ./10-function-app.sh first"
+    exit 1
+  elif [[ "${FUNC_COUNT}" -eq 1 ]]; then
+    FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
+    log_info "Auto-detected Function App: ${FUNCTION_APP_NAME}"
+  else
+    log_warn "Multiple Function Apps found:"
+    az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[].[name]" -o tsv | awk '{printf "  - %s\n", $1}'
+    read -r -p "Enter Function App name: " FUNCTION_APP_NAME
+  fi
+fi
+
+# Configuration
+readonly API_PATH="${API_PATH:-subnet-calc}"  # URL path: /subnet-calc/api/v1/*
+readonly API_DISPLAY_NAME="${API_DISPLAY_NAME:-Subnet Calculator API}"
 
 log_info "Configuration:"
 log_info "  Resource Group: ${RESOURCE_GROUP}"
@@ -62,30 +115,6 @@ FUNCTION_URL=$(az functionapp show \
   --query defaultHostName -o tsv)
 
 log_info "Function App URL: https://${FUNCTION_URL}"
-
-# Check if backend already exists
-BACKEND_ID="${FUNCTION_APP_NAME}-backend"
-if az apim backend show \
-  --resource-group "${RESOURCE_GROUP}" \
-  --service-name "${APIM_NAME}" \
-  --backend-id "${BACKEND_ID}" &>/dev/null; then
-  log_info "Backend ${BACKEND_ID} already exists, updating..."
-else
-  log_info "Creating backend ${BACKEND_ID}..."
-fi
-
-# Create or update backend
-az apim backend create \
-  --resource-group "${RESOURCE_GROUP}" \
-  --service-name "${APIM_NAME}" \
-  --backend-id "${BACKEND_ID}" \
-  --url "https://${FUNCTION_URL}" \
-  --protocol http \
-  --title "Subnet Calculator Function App" \
-  --description "Backend for subnet calculator API" \
-  --output none
-
-log_info "✓ Backend created/updated"
 
 # Download OpenAPI spec from Function App
 log_info "Downloading OpenAPI spec from Function App..."
@@ -139,18 +168,6 @@ else
 
   log_info "✓ API imported from OpenAPI spec"
 fi
-
-# Set backend for all operations
-log_info "Configuring backend for all operations..."
-
-az apim api update \
-  --resource-group "${RESOURCE_GROUP}" \
-  --service-name "${APIM_NAME}" \
-  --api-id "${API_PATH}" \
-  --service-url "https://${FUNCTION_URL}" \
-  --output none
-
-log_info "✓ Backend configured"
 
 # Get APIM gateway URL
 APIM_GATEWAY=$(az apim show \

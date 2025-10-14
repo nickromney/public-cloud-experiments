@@ -134,14 +134,18 @@ fi
 # Get resource group location for reference
 RG_LOCATION=$(az group show --name "${RESOURCE_GROUP}" --query location -o tsv)
 
+# Auto-detect PUBLISHER_EMAIL from Azure account (required for APIM)
+PUBLISHER_EMAIL=$(az account show --query user.name -o tsv)
+
 echo ""
 echo "✓ Configuration complete!"
 echo ""
 echo "================================================================"
-echo "Copy and paste this command into your shell:"
+echo "Copy and paste these commands into your shell:"
 echo "================================================================"
 echo ""
 echo "export RESOURCE_GROUP='${RESOURCE_GROUP}'"
+echo "export PUBLISHER_EMAIL='${PUBLISHER_EMAIL}'"
 echo ""
 echo "================================================================"
 echo ""
@@ -150,6 +154,7 @@ echo ""
 echo "Configuration:"
 echo "  Resource Group: ${RESOURCE_GROUP}"
 echo "  Location: ${RG_LOCATION}"
+echo "  Publisher Email: ${PUBLISHER_EMAIL}"
 echo ""
 echo "Next steps:"
 echo "  1. Run the export command above"
