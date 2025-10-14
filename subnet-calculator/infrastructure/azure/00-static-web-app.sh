@@ -120,8 +120,37 @@ readonly STATIC_WEB_APP_SKU="${STATIC_WEB_APP_SKU:-Free}"
 # Detect location from resource group if LOCATION not set
 if [[ -z "${LOCATION:-}" ]]; then
   if az group show --name "${RESOURCE_GROUP}" &>/dev/null; then
-    LOCATION=$(az group show --name "${RESOURCE_GROUP}" --query location -o tsv)
-    log_info "Detected location from resource group: ${LOCATION}"
+    RG_LOCATION=$(az group show --name "${RESOURCE_GROUP}" --query location -o tsv)
+    log_info "Detected resource group location: ${RG_LOCATION}"
+
+    # Static Web Apps are only available in specific regions
+    # Available: westus2, centralus, eastus2, westeurope, eastasia
+    # Map common regions to nearest Static Web App region
+    case "${RG_LOCATION}" in
+      westus|westus3)
+        LOCATION="westus2"
+        log_warn "Resource group is in ${RG_LOCATION}, but Static Web Apps not available there"
+        log_info "Using nearest supported region: ${LOCATION}"
+        ;;
+      eastus|eastus3)
+        LOCATION="eastus2"
+        log_warn "Resource group is in ${RG_LOCATION}, but Static Web Apps not available there"
+        log_info "Using nearest supported region: ${LOCATION}"
+        ;;
+      centralus|westus2|eastus2|westeurope|eastasia)
+        LOCATION="${RG_LOCATION}"
+        log_info "Using resource group location: ${LOCATION} (Static Web Apps supported)"
+        ;;
+      *)
+        # Default to centralus for other regions
+        LOCATION="centralus"
+        log_warn "Resource group is in ${RG_LOCATION}, but Static Web Apps not available there"
+        log_info "Using default region: ${LOCATION}"
+        log_info ""
+        log_info "Available Static Web App regions: westus2, centralus, eastus2, westeurope, eastasia"
+        log_info "Override with: LOCATION=westus2 ./00-static-web-app.sh"
+        ;;
+    esac
   else
     log_error "Resource group ${RESOURCE_GROUP} not found and LOCATION not set"
     log_error "Either create the resource group first or set LOCATION environment variable"
