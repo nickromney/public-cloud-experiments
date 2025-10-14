@@ -205,7 +205,12 @@
       "Bash(az apim:*)",
       "Bash(RESOURCE_GROUP='1-5a32dcec-playground-sandbox' APIM_NAME='apim-subnet-calc-47022' AUTH_MODE='none' ./32-apim-policies.sh)",
       "Bash(az find:*)",
-      "Bash(./scripts/markdown/fix-all-docs.sh:*)"
+      "Bash(./scripts/markdown/fix-all-docs.sh:*)",
+      "Bash(find-skills:*)",
+      "Bash(/Users/nickromney/.config/superpowers/skills/skills/using-skills/find-skills plan implementation)",
+      "Read(//Users/nickromney/.config/superpowers/skills/skills/collaboration/writing-plans/**)",
+      "Bash(./stack-01-public-simple.sh:*)",
+      "Bash(yes)"
     ],
     "deny": [],
     "ask": []
