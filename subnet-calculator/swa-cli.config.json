@@ -1,0 +1,25 @@
+{
+  "$schema": "https://aka.ms/azure/static-web-apps-cli/schema",
+  "configurations": {
+    "stack4-no-auth": {
+      "appLocation": "frontend-typescript-vite",
+      "apiLocation": "api-fastapi-azure-function",
+      "outputLocation": "dist",
+      "appBuildCommand": "npm run build",
+      "run": "npm run dev",
+      "appDevserverUrl": "http://localhost:3000",
+      "apiPort": 7071,
+      "port": 4280
+    },
+    "stack5-jwt": {
+      "appLocation": "frontend-typescript-vite",
+      "apiLocation": "api-fastapi-azure-function",
+      "outputLocation": "dist",
+      "appBuildCommand": "npm run build",
+      "run": "npm run dev",
+      "appDevserverUrl": "http://localhost:3000",
+      "apiPort": 7071,
+      "port": 4281
+    }
+  }
+}
