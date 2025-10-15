@@ -7,28 +7,35 @@
 #   - frontend-python-flask: Flask frontend (connects to Azure Function backend)
 #   - frontend-html-static: Static HTML frontend (connects to Container App backend)
 #   - frontend-python-flask-container-app: Flask frontend (connects to Container App backend)
-#   - frontend-typescript-vite: TypeScript + Vite SPA (connects to Container App backend)
+#   - frontend-typescript-vite: TypeScript + Vite SPA (connects to Container App backend, no auth)
+#   - frontend-typescript-vite-jwt: TypeScript + Vite SPA (connects to Azure Function backend, JWT auth)
 #
 # Usage:
 #   podman-compose up                           # Start all services
-#   podman-compose up api-fastapi-azure-function frontend-python-flask              # Stack 1
-#   podman-compose up api-fastapi-container-app frontend-html-static                # Stack 2
-#   podman-compose up api-fastapi-container-app frontend-python-flask-container-app # Stack 3
-#   podman-compose up api-fastapi-container-app frontend-typescript-vite            # Stack 4
+#   podman-compose up api-fastapi-azure-function frontend-python-flask                # Stack 1
+#   podman-compose up api-fastapi-container-app frontend-html-static                  # Stack 2
+#   podman-compose up api-fastapi-container-app frontend-python-flask-container-app   # Stack 3
+#   podman-compose up api-fastapi-container-app frontend-typescript-vite              # Stack 4
+#   podman-compose up api-fastapi-azure-function frontend-typescript-vite-jwt         # Stack 5
 #
 # Access:
-#   Stack 1 - Flask + Azure Function:
+#   Stack 1 - Flask + Azure Function (JWT):
 #     - Flask Frontend: http://localhost:8000
 #     - API docs: http://localhost:8080/api/v1/docs
-#   Stack 2 - Static HTML + Container App:
+#     - Login: demo / password123
+#   Stack 2 - Static HTML + Container App (no auth):
 #     - Static Frontend: http://localhost:8001
 #     - API docs: http://localhost:8090/api/v1/docs
-#   Stack 3 - Flask + Container App:
+#   Stack 3 - Flask + Container App (no auth):
 #     - Flask Frontend: http://localhost:8002
 #     - API docs: http://localhost:8090/api/v1/docs
-#   Stack 4 - TypeScript Vite + Container App:
+#   Stack 4 - TypeScript Vite + Container App (no auth):
 #     - Vite SPA: http://localhost:3000
 #     - API docs: http://localhost:8090/api/v1/docs
+#   Stack 5 - TypeScript Vite + Azure Function (JWT):
+#     - Vite SPA: http://localhost:3001
+#     - API docs: http://localhost:8080/api/v1/docs
+#     - JWT: Automatic authentication (demo / password123)
 services:
   api-fastapi-azure-function:
     build:
@@ -118,10 +125,39 @@ services:
     build:
       context: ./frontend-typescript-vite
       dockerfile: Dockerfile
+      args:
+        - VITE_AUTH_ENABLED=false
+        - VITE_API_URL=http://localhost:8090
     platform: linux/amd64
     image: subnet-calculator-frontend-typescript-vite:latest
     ports:
       - "3000:80"
+    environment:
+      # No authentication (default)
+      - VITE_AUTH_ENABLED=false
+      - VITE_API_URL=http://localhost:8090
     depends_on:
       api-fastapi-container-app:
+        condition: service_healthy
+
+  frontend-typescript-vite-jwt:
+    build:
+      context: ./frontend-typescript-vite
+      dockerfile: Dockerfile
+      args:
+        - VITE_AUTH_ENABLED=true
+        - VITE_JWT_USERNAME=demo
+        - VITE_JWT_PASSWORD=password123
+        - VITE_API_URL=http://localhost:8080
+    platform: linux/amd64
+    image: subnet-calculator-frontend-typescript-vite-jwt:latest
+    ports:
+      - "3001:80"
+    environment:
+      - VITE_AUTH_ENABLED=true
+      - VITE_JWT_USERNAME=demo
+      - VITE_JWT_PASSWORD=password123
+      - VITE_API_URL=http://localhost:8080
+    depends_on:
+      api-fastapi-azure-function:
         condition: service_healthy

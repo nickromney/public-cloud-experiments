@@ -5,9 +5,31 @@
  * See: subnet-calculator/docs/TEST_SPECIFICATION.md
  *
  * Total: 30 tests (excludes progressive enhancement tests 31-32)
+ *
+ * JWT Authentication Support:
+ * Tests work with or without JWT authentication enabled.
+ * When auth enabled (VITE_AUTH_ENABLED=true), login endpoint is mocked.
  */
 
-import { expect, test } from '@playwright/test'
+import { type Page, expect, test } from '@playwright/test'
+
+/**
+ * Mock JWT login endpoint if authentication is enabled
+ * Call this before any test that makes API requests when VITE_AUTH_ENABLED=true
+ */
+async function mockJwtLogin(page: Page) {
+  // Mock the login endpoint to return a valid JWT token
+  await page.route('**/api/v1/auth/login', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        access_token: 'mock-jwt-token-for-testing',
+        token_type: 'bearer',
+      }),
+    })
+  )
+}
 
 test.describe('Frontend Tests', () => {
   // Group 1: Basic Page & Elements (5 tests)
@@ -79,6 +101,9 @@ test.describe('Frontend Tests', () => {
 
   test('06 - invalid ip validation', async ({ page }) => {
     await page.goto('/')
+
+    // Mock JWT login if auth enabled
+    await mockJwtLogin(page)
 
     // TypeScript Vite frontend doesn't have client-side validation error display
     // It relies on API validation, so we mock an error response
@@ -302,6 +327,9 @@ test.describe('Frontend Tests', () => {
   // Group 8: API Error Handling (6 tests)
 
   test('23 - api status panel displays', async ({ page }) => {
+    // Mock JWT login if auth enabled
+    await mockJwtLogin(page)
+
     await page.goto('/')
 
     // API status should be visible
@@ -396,6 +424,9 @@ test.describe('Frontend Tests', () => {
   })
 
   test('28 - form submission when api unavailable', async ({ page }) => {
+    // Mock JWT login if auth enabled
+    await mockJwtLogin(page)
+
     await page.goto('/')
 
     // Intercept API calls and simulate connection failure
@@ -418,6 +449,9 @@ test.describe('Frontend Tests', () => {
   // Group 9: Full API Integration (2 tests)
 
   test('29 - form submission with valid ip mocked', async ({ page }) => {
+    // Mock JWT login if auth enabled
+    await mockJwtLogin(page)
+
     // Mock API responses
     await page.route('**/api/v1/ipv4/validate', (route) =>
       route.fulfill({
@@ -474,6 +508,9 @@ test.describe('Frontend Tests', () => {
   })
 
   test('30 - form submission with cidr range mocked', async ({ page }) => {
+    // Mock JWT login if auth enabled
+    await mockJwtLogin(page)
+
     // Mock API responses
     await page.route('**/api/v1/ipv4/validate', (route) =>
       route.fulfill({

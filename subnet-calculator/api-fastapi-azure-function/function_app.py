@@ -127,7 +127,7 @@ api.add_middleware(
     allow_origins=["*"],  # For production, replace with specific origins
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Accept"],
+    allow_headers=["Content-Type", "Accept", "Authorization"],
 )
 
 # OAuth2 scheme for JWT authentication

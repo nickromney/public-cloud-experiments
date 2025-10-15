@@ -2,6 +2,7 @@
  * API client for subnet calculator
  */
 
+import { TokenManager } from './auth'
 import { API_CONFIG } from './config'
 import type {
   ApiResults,
@@ -14,9 +15,17 @@ import type {
 
 class ApiClient {
   private baseUrl: string
+  private tokenManager: TokenManager | null
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl
+
+    // Initialize TokenManager if auth is enabled
+    if (API_CONFIG.auth.enabled) {
+      this.tokenManager = new TokenManager(baseUrl, API_CONFIG.auth.username, API_CONFIG.auth.password)
+    } else {
+      this.tokenManager = null
+    }
   }
 
   getBaseUrl(): string {
@@ -56,7 +65,13 @@ class ApiClient {
 
   async checkHealth(): Promise<HealthResponse> {
     try {
+      // Get auth headers if enabled
+      const authHeaders = this.tokenManager ? await this.tokenManager.getAuthHeaders() : {}
+
       const response = await fetch(`${this.baseUrl}${API_CONFIG.paths.health}`, {
+        headers: {
+          ...authHeaders,
+        },
         signal: AbortSignal.timeout(5000), // 5 second timeout
       })
 
@@ -72,9 +87,15 @@ class ApiClient {
 
   async validateAddress(address: string): Promise<ValidateResponse> {
     try {
+      // Get auth headers if enabled
+      const authHeaders = this.tokenManager ? await this.tokenManager.getAuthHeaders() : {}
+
       const response = await fetch(`${this.baseUrl}${API_CONFIG.paths.validate}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
         body: JSON.stringify({ address }),
         signal: AbortSignal.timeout(10000), // 10 second timeout
       })
@@ -92,9 +113,15 @@ class ApiClient {
 
   async checkPrivate(address: string): Promise<PrivateCheckResponse> {
     try {
+      // Get auth headers if enabled
+      const authHeaders = this.tokenManager ? await this.tokenManager.getAuthHeaders() : {}
+
       const response = await fetch(`${this.baseUrl}${API_CONFIG.paths.checkPrivate}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
         body: JSON.stringify({ address }),
         signal: AbortSignal.timeout(10000),
       })
@@ -112,9 +139,15 @@ class ApiClient {
 
   async checkCloudflare(address: string): Promise<CloudflareCheckResponse> {
     try {
+      // Get auth headers if enabled
+      const authHeaders = this.tokenManager ? await this.tokenManager.getAuthHeaders() : {}
+
       const response = await fetch(`${this.baseUrl}${API_CONFIG.paths.checkCloudflare}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
         body: JSON.stringify({ address }),
         signal: AbortSignal.timeout(10000),
       })
@@ -132,9 +165,15 @@ class ApiClient {
 
   async getSubnetInfo(network: string, mode: string): Promise<SubnetInfoResponse> {
     try {
+      // Get auth headers if enabled
+      const authHeaders = this.tokenManager ? await this.tokenManager.getAuthHeaders() : {}
+
       const response = await fetch(`${this.baseUrl}${API_CONFIG.paths.subnetInfo}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
         body: JSON.stringify({ network, mode }),
         signal: AbortSignal.timeout(10000),
       })
