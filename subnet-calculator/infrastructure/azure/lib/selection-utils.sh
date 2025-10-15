@@ -32,13 +32,13 @@ select_from_list() {
   local items=("$@")
   local count=${#items[@]}
 
-  # Display numbered list
+  # Display numbered list (to terminal, not captured by command substitution)
   local i=1
   for item in "${items[@]}"; do
-    echo "  ${i}. ${item}"
+    echo "  ${i}. ${item}" >/dev/tty
     ((i++))
   done
-  echo ""
+  echo "" >/dev/tty
 
   # Prompt for selection
   local selection

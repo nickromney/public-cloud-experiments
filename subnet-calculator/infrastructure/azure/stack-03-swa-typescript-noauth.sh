@@ -103,25 +103,36 @@ if [[ ! "${confirm}" =~ ^[Yy]$ ]]; then
 fi
 echo ""
 
+# Auto-detect or prompt for RESOURCE_GROUP before calling subscripts
+if [[ -z "${RESOURCE_GROUP:-}" ]]; then
+  log_info "RESOURCE_GROUP not set. Looking for resource groups..."
+  RG_COUNT=$(az group list --query "length(@)" -o tsv)
+
+  if [[ "${RG_COUNT}" -eq 0 ]]; then
+    log_error "No resource groups found in subscription"
+    log_error "Create one with: az group create --name rg-subnet-calc --location uksouth"
+    exit 1
+  elif [[ "${RG_COUNT}" -eq 1 ]]; then
+    RESOURCE_GROUP=$(az group list --query "[0].name" -o tsv)
+    log_info "Auto-detected single resource group: ${RESOURCE_GROUP}"
+  else
+    log_warn "Multiple resource groups found:"
+    # Source selection utilities
+    source "${SCRIPT_DIR}/lib/selection-utils.sh"
+    RESOURCE_GROUP=$(select_resource_group) || exit 1
+    log_info "Selected: ${RESOURCE_GROUP}"
+  fi
+  echo ""
+fi
+
 # Step 1: Create Static Web App
 log_step "Step 1/4: Creating Azure Static Web App..."
 echo ""
 
+export RESOURCE_GROUP
 export STATIC_WEB_APP_NAME
 # Don't export LOCATION - let 00-static-web-app.sh auto-detect and map from resource group
 "${SCRIPT_DIR}/00-static-web-app.sh"
-
-# Extract Static Web App details
-if [[ -z "${RESOURCE_GROUP:-}" ]]; then
-  RG_COUNT=$(az group list --query "length(@)" -o tsv)
-  if [[ "${RG_COUNT}" -eq 1 ]]; then
-    RESOURCE_GROUP=$(az group list --query "[0].name" -o tsv)
-    log_info "Auto-detected resource group: ${RESOURCE_GROUP}"
-  else
-    log_error "Could not auto-detect resource group. Please set RESOURCE_GROUP environment variable."
-    exit 1
-  fi
-fi
 
 SWA_URL=$(az staticwebapp show \
   --name "${STATIC_WEB_APP_NAME}" \

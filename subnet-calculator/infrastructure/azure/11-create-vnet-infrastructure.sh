@@ -67,12 +67,13 @@ if [[ -z "${VNET_NAME:-}" ]]; then
     log_info "Found existing VNet: ${EXISTING_VNET_NAME}"
     log_info "  Address space: ${EXISTING_VNET_SPACE}"
     log_info ""
-    log_info "Multiple VNets are allowed in the same resource group."
-    log_info "This is useful for network isolation (dev/test, different apps, etc.)"
-    read -r -p "Create new VNet or use existing? (new/Existing): " choice
-    choice=${choice:-existing}
+    log_info "Note: Multiple VNets are allowed in the same resource group."
+    log_info "      Useful for network isolation (dev/test, different apps, etc.)"
+    log_info ""
+    read -r -p "Use existing VNet? (Y/n): " use_existing
+    use_existing=${use_existing:-y}
 
-    if [[ "${choice,,}" =~ ^e ]]; then
+    if [[ "${use_existing}" =~ ^[Yy]$ ]]; then
       VNET_NAME="${EXISTING_VNET_NAME}"
 
       log_info ""

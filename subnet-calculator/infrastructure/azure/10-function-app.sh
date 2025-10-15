@@ -66,12 +66,13 @@ if [[ -z "${FUNCTION_APP_NAME:-}" ]]; then
     log_info "Found existing Function App: ${EXISTING_FUNC_NAME}"
     log_info "  URL: https://${EXISTING_FUNC_URL}"
     log_info ""
-    log_info "Multiple Function Apps are allowed in the same resource group."
-    log_info "This is useful for different services (api, worker, processor, etc.)"
-    read -r -p "Create new Function App or use existing? (new/Existing): " choice
-    choice=${choice:-existing}
+    log_info "Note: Multiple Function Apps are allowed in the same resource group."
+    log_info "      Useful for different services (api, worker, processor, etc.)"
+    log_info ""
+    read -r -p "Use existing Function App? (Y/n): " use_existing
+    use_existing=${use_existing:-y}
 
-    if [[ "${choice,,}" =~ ^e ]]; then
+    if [[ "${use_existing}" =~ ^[Yy]$ ]]; then
       FUNCTION_APP_NAME="${EXISTING_FUNC_NAME}"
 
       log_info ""

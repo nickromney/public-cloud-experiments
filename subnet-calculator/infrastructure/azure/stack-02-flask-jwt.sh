@@ -105,6 +105,28 @@ if [[ ! "${confirm}" =~ ^[Yy]$ ]]; then
 fi
 echo ""
 
+# Auto-detect or prompt for RESOURCE_GROUP before calling subscripts
+if [[ -z "${RESOURCE_GROUP:-}" ]]; then
+  log_info "RESOURCE_GROUP not set. Looking for resource groups..."
+  RG_COUNT=$(az group list --query "length(@)" -o tsv)
+
+  if [[ "${RG_COUNT}" -eq 0 ]]; then
+    log_error "No resource groups found in subscription"
+    log_error "Create one with: az group create --name rg-subnet-calc --location uksouth"
+    exit 1
+  elif [[ "${RG_COUNT}" -eq 1 ]]; then
+    RESOURCE_GROUP=$(az group list --query "[0].name" -o tsv)
+    log_info "Auto-detected single resource group: ${RESOURCE_GROUP}"
+  else
+    log_warn "Multiple resource groups found:"
+    # Source selection utilities
+    source "${SCRIPT_DIR}/lib/selection-utils.sh"
+    RESOURCE_GROUP=$(select_resource_group) || exit 1
+    log_info "Selected: ${RESOURCE_GROUP}"
+  fi
+  echo ""
+fi
+
 # Generate shared JWT secret
 export JWT_SECRET_KEY="${JWT_SECRET_KEY:-$(openssl rand -base64 32)}"
 export JWT_USERNAME="${JWT_USERNAME:-admin}"
@@ -122,19 +144,8 @@ echo ""
 log_step "Step 1/6: Creating Azure Virtual Network infrastructure..."
 echo ""
 
+export RESOURCE_GROUP
 "${SCRIPT_DIR}/11-create-vnet-infrastructure.sh"
-
-# Extract VNet details
-if [[ -z "${RESOURCE_GROUP:-}" ]]; then
-  RG_COUNT=$(az group list --query "length(@)" -o tsv)
-  if [[ "${RG_COUNT}" -eq 1 ]]; then
-    RESOURCE_GROUP=$(az group list --query "[0].name" -o tsv)
-    log_info "Auto-detected resource group: ${RESOURCE_GROUP}"
-  else
-    log_error "Could not auto-detect resource group. Please set RESOURCE_GROUP environment variable."
-    exit 1
-  fi
-fi
 
 if [[ -z "${VNET_NAME:-}" ]]; then
   VNET_COUNT=$(az network vnet list --resource-group "${RESOURCE_GROUP}" --query "length(@)" -o tsv 2>/dev/null || echo "0")
