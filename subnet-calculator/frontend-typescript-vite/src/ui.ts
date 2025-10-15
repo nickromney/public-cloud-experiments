@@ -39,12 +39,15 @@ export function showApiStatus(healthy: boolean, service?: string, version?: stri
   if (!statusDiv) return
 
   if (healthy && service && version) {
+    // Show backend URL, or indicate it's proxied via SWA CLI if empty
+    const backendUrl = endpoint && endpoint !== '' ? endpoint : `${window.location.origin}/api`
+
     statusDiv.className = 'alert alert-success'
     statusDiv.innerHTML = `
       <strong>API Status:</strong> healthy |
       <strong>Backend:</strong> ${service} |
       <strong>Version:</strong> ${version}<br>
-      <small>Frontend: <code>${window.location.origin}/</code> | Backend: <code>${endpoint || 'N/A'}</code></small>
+      <small>Frontend: <code>${window.location.origin}/</code> | Backend: <code>${backendUrl}</code></small>
     `
   } else {
     statusDiv.className = 'alert alert-error'

@@ -210,7 +210,22 @@
       "Bash(/Users/nickromney/.config/superpowers/skills/skills/using-skills/find-skills plan implementation)",
       "Read(//Users/nickromney/.config/superpowers/skills/skills/collaboration/writing-plans/**)",
       "Bash(./stack-01-public-simple.sh:*)",
-      "Bash(yes)"
+      "Bash(yes)",
+      "Bash(/Users/nickromney/.config/superpowers/skills/skills/using-skills/find-skills jwt auth config test)",
+      "Bash(podman rmi:*)",
+      "Bash(VITE_AUTH_ENABLED=true VITE_JWT_USERNAME=demo VITE_JWT_PASSWORD=password123 VITE_API_URL=http://localhost:8080 npm test)",
+      "Bash(BASE_URL=http://localhost:3001 npm test:*)",
+      "Bash(npm run test:*)",
+      "Bash(lsof:*)",
+      "Bash(npm run test:integration:*)",
+      "Bash(npm run swa:*)",
+      "WebFetch(domain:azure.github.io)",
+      "Bash(test:*)",
+      "Bash(uv pip install:*)",
+      "Bash(npx swa:*)",
+      "Bash(nu -c:*)",
+      "Bash(kill:*)",
+      "Bash(npx @usebruno/cli@latest:*)"
     ],
     "deny": [],
     "ask": []

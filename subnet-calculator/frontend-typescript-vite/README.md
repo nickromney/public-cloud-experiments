@@ -64,11 +64,82 @@ podman run -d -p 3000:80 subnet-calculator-frontend-typescript-vite:latest
 From the `subnet-calculator/` directory:
 
 ```bash
-# Start TypeScript frontend with Container App API (Stack 4)
+# Stack 4: TypeScript frontend + Container App API (no auth)
 podman-compose up api-fastapi-container-app frontend-typescript-vite
-
 # Access frontend at http://localhost:3000
 # Access API docs at http://localhost:8090/api/v1/docs
+
+# Stack 5: TypeScript frontend + Azure Function API (JWT auth)
+podman-compose up api-fastapi-azure-function frontend-typescript-vite-jwt
+# Access frontend at http://localhost:3001
+# Access API docs at http://localhost:8080/api/v1/docs
+# JWT authentication handled automatically (demo/password123)
+```
+
+## JWT Authentication
+
+The TypeScript frontend supports optional JWT authentication to connect to backends that require it (like the Azure Function API).
+
+### Configuration
+
+Authentication is controlled via environment variables at **build time**:
+
+- `VITE_AUTH_ENABLED` - Set to `"true"` to enable JWT auth (default: `"false"`)
+- `VITE_JWT_USERNAME` - JWT username (default: empty)
+- `VITE_JWT_PASSWORD` - JWT password (default: empty)
+- `VITE_API_URL` - API base URL (default: `http://localhost:8090`)
+
+### Local Development with JWT
+
+```bash
+# Development with JWT authentication
+VITE_AUTH_ENABLED=true \
+VITE_JWT_USERNAME=demo \
+VITE_JWT_PASSWORD=password123 \
+VITE_API_URL=http://localhost:8080 \
+npm run dev
+
+# Access at http://localhost:5173
+# Connects to Azure Function API with automatic JWT authentication
+```
+
+### Building with JWT
+
+```bash
+# Build with JWT enabled
+podman build \
+  --build-arg VITE_AUTH_ENABLED=true \
+  --build-arg VITE_JWT_USERNAME=demo \
+  --build-arg VITE_JWT_PASSWORD=password123 \
+  --build-arg VITE_API_URL=http://api-fastapi-azure-function:80 \
+  -t subnet-calculator-frontend-typescript-vite-jwt:latest .
+```
+
+### How JWT Works
+
+When `VITE_AUTH_ENABLED=true`:
+
+1. **Automatic Login**: Frontend logs in on first API call using configured credentials
+2. **Token Caching**: JWT token cached for 25 minutes (refreshes before 30-min expiration)
+3. **Auth Headers**: All API requests include `Authorization: Bearer <token>` header
+4. **Transparent**: No UI changes - authentication happens automatically
+
+When `VITE_AUTH_ENABLED=false` (default):
+
+- No authentication
+- Works with public APIs (like Container App backend)
+- No login or auth headers sent
+
+### Testing with JWT
+
+```bash
+# Run tests with JWT mocking enabled
+VITE_AUTH_ENABLED=true \
+VITE_JWT_USERNAME=demo \
+VITE_JWT_PASSWORD=password123 \
+npm test
+
+# All 30 tests pass with or without JWT enabled
 ```
 
 ## Development Workflow
@@ -105,8 +176,10 @@ npm run check
 
 ### 4. Test
 
+#### Unit Tests (Mocked API)
+
 ```bash
-# Run all Playwright tests
+# Run all Playwright tests (mocked API responses)
 npm test
 
 # Run tests in headed mode (see browser)
@@ -123,6 +196,38 @@ Tests are located in `tests/frontend.spec.ts` and cover:
 - IPv6 subnet calculations
 - Form validation
 - Error handling
+
+#### Integration Tests (Real Containers)
+
+Test against real running containerized backends - NO MOCKING:
+
+```bash
+# Prerequisites: Start containers first
+cd ..
+podman-compose up api-fastapi-azure-function frontend-typescript-vite-jwt  # Stack 5 (JWT)
+# OR
+podman-compose up api-fastapi-container-app frontend-typescript-vite        # Stack 4 (no auth)
+
+# Run integration tests against Stack 5 (JWT auth)
+npm run test:integration
+
+# Run integration tests against Stack 4 (no auth)
+npm run test:integration:stack4
+
+# Run integration tests with browser visible
+npm run test:integration:headed
+```
+
+Integration tests are located in `tests/integration.spec.ts` and validate:
+
+- Real API connectivity and health checks
+- JWT authentication flow (Stack 5)
+- JWT token caching and reuse
+- Authorization headers in requests
+- Real IPv4/IPv6 validation via API
+- Real subnet calculations (Azure/AWS/OCI modes)
+- Real RFC1918 private address detection
+- Real Cloudflare IP range detection
 
 ### 5. Build
 

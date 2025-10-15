@@ -4,6 +4,7 @@
 
 import './style.css'
 import { apiClient } from './api'
+import { getStackDescription } from './config'
 import { renderResults, showApiStatus, showError, showLoading } from './ui'
 
 // Theme management
@@ -32,7 +33,7 @@ function toggleTheme(): void {
 async function checkApiHealth(): Promise<void> {
   try {
     const health = await apiClient.checkHealth()
-    showApiStatus(true, health.service, health.version, `${apiClient.getBaseUrl()}/health`)
+    showApiStatus(true, health.service, health.version, apiClient.getBaseUrl())
   } catch (error) {
     console.error('API health check failed:', error)
     showApiStatus(false)
@@ -78,6 +79,12 @@ function handleExampleClick(event: Event): void {
 
 // Initialize app
 function init(): void {
+  // Set stack description based on config
+  const stackDesc = document.getElementById('stack-description')
+  if (stackDesc) {
+    stackDesc.textContent = getStackDescription()
+  }
+
   // Initialize theme
   initTheme()
 
