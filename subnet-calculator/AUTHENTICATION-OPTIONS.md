@@ -13,10 +13,10 @@ Research document comparing authentication methods for FastAPI/Azure Functions.
 Public API (anyone can call)?
 ├─ Yes → API Keys + Rate Limiting
 └─ No → Who needs access?
-    ├─ Just your frontends → JWT with backend login
-    ├─ Enterprise users → Azure AD / OAuth 2.0
-    ├─ Service-to-service → Managed Identity (Azure) or mTLS
-    └─ Zero trust / multi-cloud → JWT + mTLS + API Gateway
+ ├─ Just your frontends → JWT with backend login
+ ├─ Enterprise users → Azure AD / OAuth 2.0
+ ├─ Service-to-service → Managed Identity (Azure) or mTLS
+ └─ Zero trust / multi-cloud → JWT + mTLS + API Gateway
 ```
 
 ---
@@ -74,13 +74,13 @@ YES **Excellent** - Just set environment variable or hardcode for dev
 from fastapi import Header, HTTPException
 
 async def verify_api_key(x_api_key: str = Header(...)):
-    if x_api_key != "dev-key-123":  # In prod: check database
-        raise HTTPException(status_code=401, detail="Invalid API key")
-    return x_api_key
+ if x_api_key != "dev-key-123": # In prod: check database
+ raise HTTPException(status_code=401, detail="Invalid API key")
+ return x_api_key
 
 @app.get("/api/v1/health")
 async def health(api_key: str = Depends(verify_api_key)):
-    return {"status": "healthy"}
+ return {"status": "healthy"}
 ```
 
 ### Example Use Cases
@@ -98,9 +98,9 @@ async def health(api_key: str = Depends(verify_api_key)):
 **Token structure:**
 
 ```text
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.    # Header (algorithm)
-eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6I  # Payload (claims: user, expiry)
-SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_ad  # Signature
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9. # Header (algorithm)
+eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6I # Payload (claims: user, expiry)
+SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_ad # Signature
 ```
 
 **Flow:**
@@ -165,18 +165,18 @@ SECRET_KEY = "dev-secret-key-change-in-production"
 ALGORITHM = "HS256"
 
 def create_token(data: dict, expires_delta: timedelta = timedelta(hours=1)):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+ to_encode = data.copy()
+ expire = datetime.utcnow() + expires_delta
+ to_encode.update({"exp": expire})
+ return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 async def verify_token(authorization: str = Header(...)):
-    try:
-        token = authorization.replace("Bearer ", "")
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+ try:
+ token = authorization.replace("Bearer ", "")
+ payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+ return payload
+ except JWTError:
+ raise HTTPException(status_code=401, detail="Invalid token")
 
 # Generate test token
 test_token = create_token({"sub": "test@example.com", "roles": ["user"]})
@@ -284,14 +284,15 @@ WARNING **Moderate** - Need OAuth provider or mock server
 
 1. **Use real provider (recommended):**
 
-   - Google OAuth (free, easy setup)
-   - GitHub OAuth (free, easy setup)
-   - Auth0 (free tier available)
+- Google OAuth (free, easy setup)
+- GitHub OAuth (free, easy setup)
+- Auth0 (free tier available)
 
-2. **Mock OAuth server:**
-   - `pytest-httpx` for testing
-   - Manually validate test tokens
-   - Use `id_token` from real provider, validate locally
+1. **Mock OAuth server:**
+
+- `pytest-httpx` for testing
+- Manually validate test tokens
+- Use `id_token` from real provider, validate locally
 
 ```python
 # FastAPI with Google OAuth
@@ -299,23 +300,23 @@ from authlib.integrations.starlette_client import OAuth
 
 oauth = OAuth()
 oauth.register(
-    name='google',
-    client_id='your-client-id.apps.googleusercontent.com',
-    client_secret='your-client-secret',
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_kwargs={'scope': 'openid email profile'}
+ name='google',
+ client_id='your-client-id.apps.googleusercontent.com',
+ client_secret='your-client-secret',
+ server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+ client_kwargs={'scope': 'openid email profile'}
 )
 
 # Validate token
 async def verify_google_token(authorization: str = Header(...)):
-    token = authorization.replace("Bearer ", "")
-    # Verify against Google's public keys
-    payload = jwt.decode(
-        token,
-        options={"verify_signature": True},
-        audience="your-client-id.apps.googleusercontent.com"
-    )
-    return payload
+ token = authorization.replace("Bearer ", "")
+ # Verify against Google's public keys
+ payload = jwt.decode(
+ token,
+ options={"verify_signature": True},
+ audience="your-client-id.apps.googleusercontent.com"
+ )
+ return payload
 ```
 
 **Local testing:**
@@ -419,69 +420,69 @@ YES **Good** - Use Azure AD tenant (even free tier)
 
 1. **Use real Azure AD tenant:**
 
-   - Free with Azure subscription
-   - Create test users
-   - Register app in Azure Portal
+- Free with Azure subscription
+- Create test users
+- Register app in Azure Portal
 
-2. **Use Microsoft identity platform emulator (limited):**
+1. **Use Microsoft identity platform emulator (limited):**
 
-   - `azurite` doesn't support AD
-   - Must use real Azure AD
+- `azurite` doesn't support AD
+- Must use real Azure AD
 
-3. **Mock tokens for unit tests:**
+1. **Mock tokens for unit tests:**
 
-   ```python
-   # Generate mock Azure AD token
-   mock_token = create_jwt({
-       "iss": "https://login.microsoftonline.com/tenant-id/v2.0",
-       "aud": "your-app-client-id",
-       "sub": "user-object-id",
-       "email": "user@company.com",
-       "roles": ["User"]
-   })
-   ```
+```python
+# Generate mock Azure AD token
+mock_token = create_jwt({
+"iss": "https://login.microsoftonline.com/tenant-id/v2.0",
+"aud": "your-app-client-id",
+"sub": "user-object-id",
+"email": "user@company.com",
+"roles": ["User"]
+})
+```
 
 **Setup for local testing:**
 
 1. **Register app in Azure Portal:**
 
-   - App Registrations → New registration
-   - Name: "Subnet Calculator API"
-   - Redirect URI: `http://localhost:7071/.auth/login/aad/callback`
+- App Registrations → New registration
+- Name: "Subnet Calculator API"
+- Redirect URI: `http://localhost:7071/.auth/login/aad/callback`
 
-2. **Get credentials:**
+1. **Get credentials:**
 
-   ```bash
-   TENANT_ID="..."
-   CLIENT_ID="..."
-   CLIENT_SECRET="..."
-   ```
+```bash
+TENANT_ID="..."
+CLIENT_ID="..."
+CLIENT_SECRET="..."
+```
 
-3. **FastAPI with MSAL:**
+1. **FastAPI with MSAL:**
 
-   ```python
-   from msal import ConfidentialClientApplication
+```python
+from msal import ConfidentialClientApplication
 
-   app_config = {
-       "client_id": CLIENT_ID,
-       "client_secret": CLIENT_SECRET,
-       "authority": f"https://login.microsoftonline.com/{TENANT_ID}"
-   }
+app_config = {
+"client_id": CLIENT_ID,
+"client_secret": CLIENT_SECRET,
+"authority": f"https://login.microsoftonline.com/{TENANT_ID}"
+}
 
-   async def verify_azure_ad_token(authorization: str = Header(...)):
-       token = authorization.replace("Bearer ", "")
-       # Validate against Azure AD
-       # Use MSAL to verify token signature
-       return payload
-   ```
+async def verify_azure_ad_token(authorization: str = Header(...)):
+token = authorization.replace("Bearer ", "")
+# Validate against Azure AD
+# Use MSAL to verify token signature
+return payload
+```
 
-4. **Get test token:**
+1. **Get test token:**
 
-   ```bash
-   # Use Azure CLI
-   az login
-   az account get-access-token --resource "api://your-app-client-id" --query accessToken -o tsv
-   ```
+```bash
+# Use Azure CLI
+az login
+az account get-access-token --resource "api://your-app-client-id" --query accessToken -o tsv
+```
 
 ### Azure Functions Specific
 
@@ -515,10 +516,10 @@ from msal import ConfidentialClientApplication
 ```text
 1. Client initiates TLS connection
 2. Server presents its certificate
-3. Client validates server cert (normal TLS) ✓
+3. Client validates server cert (normal TLS)
 4. Server requests client certificate
 5. Client presents its certificate
-6. Server validates client cert → authenticated ✓
+6. Server validates client cert → authenticated
 ```
 
 **Result:** Both parties cryptographically verified
@@ -560,44 +561,44 @@ WARNING **Difficult** - Need to generate certificates
 
 1. **Generate CA and certificates:**
 
-   ```bash
-   # Create CA
-   openssl req -x509 -newkey rsa:4096 -nodes \
-     -keyout ca-key.pem -out ca-cert.pem \
-     -days 365 -subj "/CN=Local CA"
+```bash
+# Create CA
+openssl req -x509 -newkey rsa:4096 -nodes \
+-keyout ca-key.pem -out ca-cert.pem \
+-days 365 -subj "/CN=Local CA"
 
-   # Create client certificate
-   openssl req -newkey rsa:4096 -nodes \
-     -keyout client-key.pem -out client-req.pem \
-     -subj "/CN=client"
+# Create client certificate
+openssl req -newkey rsa:4096 -nodes \
+-keyout client-key.pem -out client-req.pem \
+-subj "/CN=client"
 
-   # Sign with CA
-   openssl x509 -req -in client-req.pem \
-     -CA ca-cert.pem -CAkey ca-key.pem \
-     -CAcreateserial -out client-cert.pem -days 365
-   ```
+# Sign with CA
+openssl x509 -req -in client-req.pem \
+-CA ca-cert.pem -CAkey ca-key.pem \
+-CAcreateserial -out client-cert.pem -days 365
+```
 
-2. **Configure FastAPI to require client cert:**
+1. **Configure FastAPI to require client cert:**
 
-   ```python
-   import ssl
-   import uvicorn
+```python
+import ssl
+import uvicorn
 
-   ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-   ssl_context.load_cert_chain('server-cert.pem', 'server-key.pem')
-   ssl_context.load_verify_locations('ca-cert.pem')
-   ssl_context.verify_mode = ssl.CERT_REQUIRED
+ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+ssl_context.load_cert_chain('server-cert.pem', 'server-key.pem')
+ssl_context.load_verify_locations('ca-cert.pem')
+ssl_context.verify_mode = ssl.CERT_REQUIRED
 
-   uvicorn.run(app, host="0.0.0.0", port=8443, ssl=ssl_context)
-   ```
+uvicorn.run(app, host="0.0.0.0", port=8443, ssl=ssl_context)
+```
 
-3. **Test with curl:**
+1. **Test with curl:**
 
-   ```bash
-   curl --cert client-cert.pem --key client-key.pem \
-        --cacert ca-cert.pem \
-        https://localhost:8443/api/v1/health
-   ```
+```bash
+curl --cert client-cert.pem --key client-key.pem \
+--cacert ca-cert.pem \
+https://localhost:8443/api/v1/health
+```
 
 **Easier option for testing:** Use Cloudflare Tunnel or similar service that handles mTLS.
 
@@ -625,22 +626,22 @@ WARNING **Difficult** - Need to generate certificates
 
 ```text
 User/Service → Identity Provider → Issues short-lived JWT
-                                   ↓
-                               API Gateway
-                                   ↓ Validates JWT
-                               API (validates again)
-                                   ↓ Checks permissions
-                               Data access
+ ↓
+ API Gateway
+ ↓ Validates JWT
+ API (validates again)
+ ↓ Checks permissions
+ Data access
 ```
 
 ### Network-Based (Traditional)
 
 ```text
 Client → API Gateway (mTLS, JWT validation, IP allow-list)
-           ↓ Adds internal auth header
-         Private Network
-           ↓
-         API (trusts gateway, validates again for defense in depth)
+ ↓ Adds internal auth header
+ Private Network
+ ↓
+ API (trusts gateway, validates again for defense in depth)
 ```
 
 ### Tools by Cloud
@@ -660,11 +661,11 @@ Client → API Gateway (mTLS, JWT validation, IP allow-list)
 
 ```text
 Browser → Azure Static Web App (Azure AD login)
-            ↓ Gets JWT from Azure AD
-          Cloudflare Worker API
-            ↓ Validates Azure AD JWT (checks public keys)
-            ↓ Checks permissions in JWT claims
-          Returns data
+ ↓ Gets JWT from Azure AD
+ Cloudflare Worker API
+ ↓ Validates Azure AD JWT (checks public keys)
+ ↓ Checks permissions in JWT claims
+ Returns data
 ```
 
 **Requirements:**
@@ -728,9 +729,10 @@ NO **Difficult** - Need to mock/run multiple services
 
 1. **Use real cloud services** (Azure AD + Cloudflare Workers)
 2. **Mock each layer:**
-   - Identity: Use test JWT with known secret
-   - Network: Run API gateway locally (Envoy, nginx)
-   - Policy: Inline validation
+
+- Identity: Use test JWT with known secret
+- Network: Run API gateway locally (Envoy, nginx)
+- Policy: Inline validation
 
 ### When to Use
 
@@ -774,15 +776,15 @@ NO **Difficult** - Need to mock/run multiple services
 ```python
 @app.middleware("http")
 async def auth_middleware(request, call_next):
-    if not os.getenv("AUTH_ENABLED", "false") == "true":
-        return await call_next(request)  # Skip auth
+ if not os.getenv("AUTH_ENABLED", "false") == "true":
+ return await call_next(request) # Skip auth
 
-    # Check API key
-    api_key = request.headers.get("X-API-Key")
-    if not api_key or api_key != os.getenv("API_KEY"):
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+ # Check API key
+ api_key = request.headers.get("X-API-Key")
+ if not api_key or api_key != os.getenv("API_KEY"):
+ return JSONResponse({"error": "Unauthorized"}, status_code=401)
 
-    return await call_next(request)
+ return await call_next(request)
 ```
 
 ### Phase 3: JWT (Part 9)
@@ -792,14 +794,14 @@ async def auth_middleware(request, call_next):
 - Feature flag: `AUTH_METHOD=jwt`
 
 ```python
-AUTH_METHOD = os.getenv("AUTH_METHOD", "none")  # none, api_key, jwt
+AUTH_METHOD = os.getenv("AUTH_METHOD", "none") # none, api_key, jwt
 
 if AUTH_METHOD == "jwt":
-    # JWT validation
+ # JWT validation
 elif AUTH_METHOD == "api_key":
-    # API key validation
+ # API key validation
 else:
-    # No auth
+ # No auth
 ```
 
 ### Phase 4: Azure AD (Part 10)
@@ -809,9 +811,9 @@ else:
 
 ```python
 if AUTH_METHOD == "azure_ad":
-    # Validate Azure AD token
+ # Validate Azure AD token
 elif AUTH_METHOD == "jwt":
-    # JWT validation
+ # JWT validation
 # ... etc
 ```
 
@@ -869,26 +871,27 @@ elif AUTH_METHOD == "jwt":
 
 1. **Implement API Keys (Part 8)**
 
-   - Simple header validation
-   - Environment variable for dev
-   - Database for production
+- Simple header validation
+- Environment variable for dev
+- Database for production
 
-2. **Add JWT (Part 9)**
+1. **Add JWT (Part 9)**
 
-   - Login endpoint
-   - Token generation
-   - Token validation
+- Login endpoint
+- Token generation
+- Token validation
 
-3. **Azure AD integration (Part 10)**
+1. **Azure AD integration (Part 10)**
 
-   - App registration
-   - MSAL library
-   - EasyAuth option
+- App registration
+- MSAL library
+- EasyAuth option
 
-4. **Zero Trust (Optional Part 11)**
-   - Multi-cloud setup
-   - Defense in depth
-   - Advanced topic
+1. **Zero Trust (Optional Part 11)**
+
+- Multi-cloud setup
+- Defense in depth
+- Advanced topic
 
 ---
 
@@ -899,25 +902,25 @@ elif AUTH_METHOD == "jwt":
 ```python
 # Test without auth
 def test_health_no_auth():
-    response = client.get("/api/v1/health")
-    assert response.status_code == 200
+ response = client.get("/api/v1/health")
+ assert response.status_code == 200
 
 # Test with API key
 def test_health_with_api_key():
-    response = client.get(
-        "/api/v1/health",
-        headers={"X-API-Key": "test-key"}
-    )
-    assert response.status_code == 200
+ response = client.get(
+ "/api/v1/health",
+ headers={"X-API-Key": "test-key"}
+ )
+ assert response.status_code == 200
 
 # Test with JWT
 def test_health_with_jwt():
-    token = create_test_jwt({"sub": "test@example.com"})
-    response = client.get(
-        "/api/v1/health",
-        headers={"Authorization": f"Bearer {token}"}
-    )
-    assert response.status_code == 200
+ token = create_test_jwt({"sub": "test@example.com"})
+ response = client.get(
+ "/api/v1/health",
+ headers={"Authorization": f"Bearer {token}"}
+ )
+ assert response.status_code == 200
 ```
 
 ### Integration Tests

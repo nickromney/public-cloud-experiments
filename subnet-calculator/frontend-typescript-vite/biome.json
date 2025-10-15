@@ -31,6 +31,15 @@
     }
   },
   "files": {
-    "ignore": ["dist", "node_modules", "*.config.js", "*.config.ts", "tsconfig*.json", "vite-env.d.ts"]
+    "ignore": [
+      "dist",
+      "node_modules",
+      "test-results",
+      "playwright-report",
+      "*.config.js",
+      "*.config.ts",
+      "tsconfig*.json",
+      "vite-env.d.ts"
+    ]
   }
 }

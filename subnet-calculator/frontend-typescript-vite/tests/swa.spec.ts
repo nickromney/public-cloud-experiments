@@ -8,13 +8,13 @@ import { expect, test } from '@playwright/test'
  * - Tests authentication/authorization flow if enabled
  * - Tests staticwebapp.config.json route configuration
  *
- * Prerequisites:
+ * Prerequisites (Terminal 1):
  *   cd ..
- *   npm run swa -- start stack4   # Port 4280, no auth
+ *   make start-stack4             # Port 4280, Azure Function, no auth
  *   # OR
- *   npm run swa -- start stack5   # Port 4281, JWT auth
+ *   make start-stack5             # Port 4281, Azure Function, JWT auth
  *
- * Then run:
+ * Then run (Terminal 2):
  *   npm run test:swa:stack4        # Test Stack 4
  *   npm run test:swa:stack5        # Test Stack 5
  */

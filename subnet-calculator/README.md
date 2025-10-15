@@ -88,6 +88,117 @@ podman-compose down
 docker compose down
 ```
 
+## Azure Static Web Apps (SWA CLI) Development
+
+The project includes three additional stacks using the [Azure Static Web Apps CLI](https://azure.github.io/static-web-apps-cli/) for local development. These stacks demonstrate different authentication patterns suitable for Azure deployment.
+
+**Prerequisites:**
+
+```bash
+npm install -g @azure/static-web-apps-cli
+```
+
+### SWA Stack Overview
+
+All SWA stacks use:
+
+- **Frontend**: TypeScript + Vite (same as podman-compose Stack 4)
+- **Backend**: Azure Function API (Python + FastAPI)
+- **Management**: SWA CLI handles both Vite dev server and Azure Function runtime
+
+**Key Differences:**
+
+| Stack | Port | Authentication | Backend Auth | Use Case |
+|-------|------|----------------|--------------|----------|
+| Stack 4 | 4280 | None | `AUTH_METHOD=none` | Public APIs, development |
+| Stack 5 | 4281 | JWT (Application) | `AUTH_METHOD=jwt` | Custom user management |
+| Stack 6 | 4282 | Entra ID (Platform) | `AUTH_METHOD=none` | Enterprise SSO |
+
+### Run SWA Stacks
+
+**Important**: Only run ONE stack at a time (port conflicts on 3000/7071).
+
+**Stack 4 - No Authentication:**
+
+```bash
+cd ~/Developer/personal/public-cloud-experiments/subnet-calculator
+make start-stack4
+# Access at: http://localhost:4280
+```
+
+**Stack 5 - JWT Authentication:**
+
+```bash
+make start-stack5
+# Access at: http://localhost:4281
+# Login with: username=demo, password=password123
+```
+
+**Stack 6 - Entra ID Authentication:**
+
+```bash
+make start-stack6
+# Access at: http://localhost:4282
+# Uses SWA platform auth (emulated locally)
+```
+
+### Stack Authentication Details
+
+**Stack 4 (No Auth)**:
+
+- Open access to all endpoints
+- Suitable for public APIs
+- Same as podman-compose Stack 4
+
+**Stack 5 (JWT Auth)**:
+
+- Application-level authentication
+- Login endpoint: `POST /api/v1/auth/login`
+- JWT token in `Authorization: Bearer <token>` header
+- Backend validates JWT and checks Argon2 password hashes
+- Test user: `demo` / `password123`
+
+**Stack 6 (Entra ID Auth)**:
+
+- Platform-level authentication via Azure Static Web Apps
+- Login endpoint: `/.auth/login/aad` (SWA managed)
+- Backend receives authenticated user via SWA headers (`x-ms-client-principal`)
+- Locally: SWA CLI emulates authentication (no real Azure AD)
+- Production: Real Azure AD/Entra ID integration
+- See [SWA-ENTRA-AUTH.md](SWA-ENTRA-AUTH.md) for detailed setup
+
+### SWA Configuration Files
+
+- `swa-cli.config.json` - SWA CLI configuration (ports, paths)
+- `staticwebapp.config.json` - SWA authentication and routing rules (Stack 6)
+- `Makefile` - Commands to start each stack with correct environment variables
+
+### Clean Up Stuck Processes
+
+If you close terminals without stopping the stack, processes may remain running:
+
+```bash
+make clean-stacks
+# Kills processes on ports: 3000, 7071, 4280-4282
+```
+
+### Local vs Production Differences
+
+**Local Development (SWA CLI)**:
+
+- Stack 6 authentication is **emulated** (no real Azure AD)
+- Environment variables in `Makefile` and `local.settings.json`
+- All stacks accessible on localhost
+
+**Production (Azure Static Web Apps)**:
+
+- Stack 6 requires Azure AD App Registration
+- Environment variables in Azure App Settings
+- `staticwebapp.config.json` enforces authentication
+- JWT secrets and test users from Key Vault or App Settings
+
+See [SWA-ENTRA-AUTH.md](SWA-ENTRA-AUTH.md) for production deployment guide.
+
 ## Project Structure
 
 ```text
@@ -220,6 +331,332 @@ location /api/ {
 4. **Benefits**: No CORS configuration needed, same-origin from browser perspective
 
 Each subdirectory contains a standalone `compose.yml` for individual service development.
+
+## API Testing and Debugging
+
+This section shows how to inspect HTTP traffic to understand what's actually happening in each stack's authentication flow.
+
+### Tools
+
+**curl** - Universal HTTP client (installed on most systems):
+
+```bash
+curl --version
+```
+
+**xh** - Modern curl alternative with simpler syntax:
+
+```bash
+brew install xh
+# or
+cargo install xh
+```
+
+**Bruno** - Open-source API client (GUI alternative to Postman):
+
+```bash
+brew install --cask bruno
+# or download from https://www.usebruno.com
+```
+
+### Stack 4 (SWA - No Auth) Testing
+
+**Check health endpoint:**
+
+```bash
+# curl (verbose to see headers)
+curl -v http://localhost:4280/api/v1/health
+
+# xh (cleaner output)
+xh GET localhost:4280/api/v1/health
+
+# Expected response
+{
+  "status": "healthy",
+  "service": "FastAPI Subnet Calculator",
+  "version": "1.0.0"
+}
+```
+
+**Calculate subnet:**
+
+```bash
+# curl
+curl -X POST http://localhost:4280/api/v1/calculate \
+  -H "Content-Type: application/json" \
+  -d '{"cidr": "10.0.0.0/24", "provider": "azure"}'
+
+# xh (simpler syntax)
+xh POST localhost:4280/api/v1/calculate \
+  cidr=10.0.0.0/24 \
+  provider=azure
+```
+
+**What to observe:**
+
+- No `Authorization` header needed
+- No authentication cookies
+- Direct access to all endpoints
+
+### Stack 5 (SWA - JWT Auth) Testing
+
+**Step 1: Login to get JWT token:**
+
+```bash
+# curl
+curl -X POST http://localhost:4281/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"demo","password":"password123"}' \
+  | jq -r '.access_token'
+
+# xh
+xh POST localhost:4281/api/v1/auth/login \
+  username=demo \
+  password=password123
+
+# Save token to variable
+TOKEN=$(curl -s -X POST http://localhost:4281/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"demo","password":"password123"}' \
+  | jq -r '.access_token')
+
+echo $TOKEN
+```
+
+**Step 2: Use token for API calls:**
+
+```bash
+# curl - check health (protected endpoint)
+curl -v http://localhost:4281/api/v1/health \
+  -H "Authorization: Bearer $TOKEN"
+
+# curl - calculate subnet
+curl -X POST http://localhost:4281/api/v1/calculate \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"cidr":"10.0.0.0/24"}'
+
+# xh - cleaner syntax
+xh POST localhost:4281/api/v1/calculate \
+  "Authorization:Bearer $TOKEN" \
+  cidr=10.0.0.0/24
+```
+
+**Test without token (should fail):**
+
+```bash
+# Should return 401 Unauthorized
+curl -v http://localhost:4281/api/v1/health
+
+# Response: {"detail": "Not authenticated"}
+```
+
+**What to observe:**
+
+- Login returns JWT token in response body
+- Token must be sent in `Authorization: Bearer <token>` header
+- Backend validates JWT signature and expiration
+- Tokens expire after 1 hour (configurable)
+
+**Inspect JWT token:**
+
+```bash
+# Decode JWT (header.payload.signature)
+echo $TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq
+
+# Or use jwt.io website to decode and inspect claims
+```
+
+### Stack 6 (SWA - Entra ID Auth) Testing
+
+**Check authentication status:**
+
+```bash
+# Try to access protected endpoint (will fail)
+curl -v http://localhost:4282/api/v1/health
+
+# Check user info (SWA endpoint)
+curl -v http://localhost:4282/.auth/me
+
+# Response when not authenticated
+{
+  "clientPrincipal": null
+}
+```
+
+**Login via browser (SWA CLI emulation):**
+
+```bash
+# Open browser to login URL
+open http://localhost:4282/.auth/login/aad
+
+# Or on Linux
+xdg-open http://localhost:4282/.auth/login/aad
+```
+
+**After login, SWA sets authentication cookies:**
+
+```bash
+# Save cookies to file
+curl -c cookies.txt -L http://localhost:4282/.auth/login/aad
+
+# Use cookies for API calls
+curl -b cookies.txt http://localhost:4282/api/v1/health
+
+# Check authenticated user info
+curl -b cookies.txt http://localhost:4282/.auth/me
+
+# Response when authenticated
+{
+  "clientPrincipal": {
+    "userId": "demo@example.com",
+    "userRoles": ["authenticated"],
+    "claims": [...]
+  }
+}
+```
+
+**What to observe:**
+
+- No `Authorization` header needed (SWA uses cookies)
+- SWA sets `StaticWebAppsAuthCookie` cookie after login
+- SWA injects `x-ms-client-principal*` headers to backend
+- Backend has `AUTH_METHOD=none` (SWA handles authentication)
+- In production: Real Entra ID, locally: SWA CLI emulation
+
+**Inspect SWA headers sent to backend:**
+
+```bash
+# Backend receives these headers (visible in Azure Function logs)
+x-ms-client-principal: <base64-encoded user info>
+x-ms-client-principal-id: <user-id>
+x-ms-client-principal-name: <user-name>
+```
+
+### Bruno Collections
+
+For GUI-based testing, create Bruno collections:
+
+**Collection structure:**
+
+```text
+subnet-calculator/
+├── Stack 4 - No Auth/
+│   ├── Health Check.bru
+│   ├── Calculate Subnet.bru
+│   └── List Providers.bru
+├── Stack 5 - JWT Auth/
+│   ├── Login.bru              # Saves token to environment
+│   ├── Health Check.bru       # Uses {{token}} variable
+│   └── Calculate Subnet.bru
+└── Stack 6 - Entra ID/
+    ├── Login (Browser).bru    # Open /.auth/login/aad
+    ├── User Info.bru          # Check /.auth/me
+    └── Calculate Subnet.bru   # Uses cookies
+```
+
+**Stack 5 JWT - Login request (Login.bru):**
+
+```bruno
+meta {
+  name: Login
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+}
+
+body:json {
+  {
+    "username": "demo",
+    "password": "password123"
+  }
+}
+
+script:post-response {
+  const data = res.getBody();
+  bru.setEnvVar("token", data.access_token);
+}
+```
+
+**Stack 5 JWT - Protected request (Health Check.bru):**
+
+```bruno
+meta {
+  name: Health Check
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/health
+  headers: {
+    Authorization: Bearer {{token}}
+  }
+}
+```
+
+**Bruno environments:**
+
+```json
+{
+  "Stack 4 (No Auth)": {
+    "baseUrl": "http://localhost:4280"
+  },
+  "Stack 5 (JWT)": {
+    "baseUrl": "http://localhost:4281",
+    "token": ""
+  },
+  "Stack 6 (Entra ID)": {
+    "baseUrl": "http://localhost:4282"
+  }
+}
+```
+
+### Debugging Tips
+
+**View all HTTP headers (curl):**
+
+```bash
+curl -v http://localhost:4280/api/v1/health 2>&1 | grep -E '^(<|>)'
+```
+
+**Follow redirects and show cookies:**
+
+```bash
+curl -L -c cookies.txt -b cookies.txt -v http://localhost:4282/.auth/login/aad
+```
+
+**Test JWT expiration:**
+
+```bash
+# Wait 1 hour or modify JWT_EXPIRATION_MINUTES in local.settings.json
+# Then try using old token (should fail with 401)
+curl -v http://localhost:4281/api/v1/health \
+  -H "Authorization: Bearer $OLD_TOKEN"
+```
+
+**Compare SWA proxy behavior:**
+
+```bash
+# Direct Azure Function call (bypasses SWA)
+curl http://localhost:7071/api/v1/health
+
+# Via SWA proxy
+curl http://localhost:4280/api/v1/health
+
+# Notice: SWA adds headers, handles CORS, manages authentication
+```
+
+**Check Azure Function logs:**
+
+```bash
+# While Stack 5 is running, look for authentication logs
+# Terminal shows: [Authentication] Validating JWT token...
+```
 
 ## Troubleshooting
 

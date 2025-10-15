@@ -20,6 +20,16 @@
       "appDevserverUrl": "http://localhost:3000",
       "apiPort": 7071,
       "port": 4281
+    },
+    "stack6-entra": {
+      "appLocation": "frontend-typescript-vite",
+      "apiLocation": "api-fastapi-azure-function",
+      "outputLocation": "dist",
+      "appBuildCommand": "npm run build",
+      "run": "npm run dev",
+      "appDevserverUrl": "http://localhost:3000",
+      "apiPort": 7071,
+      "port": 4282
     }
   }
 }

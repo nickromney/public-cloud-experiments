@@ -224,7 +224,8 @@
       "Bash(uv pip install:*)",
       "Bash(npx swa:*)",
       "Bash(nu -c:*)",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "Bash(npx @usebruno/cli@latest:*)"
     ],
     "deny": [],
     "ask": []

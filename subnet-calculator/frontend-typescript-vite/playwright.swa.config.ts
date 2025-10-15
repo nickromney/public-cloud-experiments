@@ -4,14 +4,16 @@ import { defineConfig, devices } from '@playwright/test';
  * Playwright Configuration for SWA CLI Testing
  *
  * Tests against Azure Static Web Apps CLI emulator
- * - Stack 4: http://localhost:4280 (Container App, no auth)
+ * - Stack 4: http://localhost:4280 (Azure Function, no auth)
  * - Stack 5: http://localhost:4281 (Azure Function, JWT auth)
  *
- * Prerequisites:
+ * Prerequisites (Terminal 1):
  *   cd ..
- *   npm run swa -- start stack4   # or stack5
+ *   make start-stack4              # Start Stack 4
+ *   # OR
+ *   make start-stack5              # Start Stack 5
  *
- * Usage:
+ * Then run tests (Terminal 2):
  *   npm run test:swa:stack4        # Test Stack 4 (no auth)
  *   npm run test:swa:stack5        # Test Stack 5 (JWT auth)
  */
