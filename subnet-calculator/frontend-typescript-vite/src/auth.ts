@@ -34,7 +34,7 @@ export class TokenManager {
    * Check if authentication is configured
    */
   isAuthEnabled(): boolean {
-    return !!(this.username && this.password)
+    return this.username !== '' && this.password !== ''
   }
 
   /**
