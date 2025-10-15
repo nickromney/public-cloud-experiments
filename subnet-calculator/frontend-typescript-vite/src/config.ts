@@ -22,9 +22,8 @@ export function getStackDescription(): string {
   const isAuthEnabled = API_CONFIG.auth.enabled
   const apiUrl = API_CONFIG.baseUrl
 
-  // Check for Azure Function indicators
-  const isAzureFunction =
-    apiUrl.includes(':7071') || apiUrl.includes(':8080') || (isAuthEnabled && (apiUrl === '' || apiUrl === '/'))
+  // Check for Azure Function indicators (relative paths or specific ports)
+  const isAzureFunction = apiUrl === '' || apiUrl === '/' || apiUrl.includes(':7071') || apiUrl.includes(':8080')
 
   if (isAzureFunction && isAuthEnabled) {
     return 'TypeScript + Vite + Azure Function (JWT)'
