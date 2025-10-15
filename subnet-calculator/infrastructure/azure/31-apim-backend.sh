@@ -18,6 +18,11 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
+# Get script directory and source shared utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/selection-utils.sh
+source "${SCRIPT_DIR}/lib/selection-utils.sh"
+
 # Check Azure CLI
 if ! az account show &>/dev/null; then
   log_error "Not logged in to Azure. Run 'az login'"
@@ -37,8 +42,8 @@ if [[ -z "${RESOURCE_GROUP:-}" ]]; then
     log_info "Auto-detected single resource group: ${RESOURCE_GROUP}"
   else
     log_warn "Multiple resource groups found:"
-    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
-    read -r -p "Enter resource group name: " RESOURCE_GROUP
+    RESOURCE_GROUP=$(select_resource_group) || exit 1
+    log_info "Selected: ${RESOURCE_GROUP}"
   fi
 fi
 
@@ -56,8 +61,8 @@ if [[ -z "${APIM_NAME:-}" ]]; then
     log_info "Auto-detected APIM instance: ${APIM_NAME}"
   else
     log_warn "Multiple APIM instances found:"
-    az apim list --resource-group "${RESOURCE_GROUP}" --query "[].[name]" -o tsv | awk '{printf "  - %s\n", $1}'
-    read -r -p "Enter APIM instance name: " APIM_NAME
+    APIM_NAME=$(select_apim_instance "${RESOURCE_GROUP}") || exit 1
+    log_info "Selected: ${APIM_NAME}"
   fi
 fi
 
@@ -75,8 +80,8 @@ if [[ -z "${FUNCTION_APP_NAME:-}" ]]; then
     log_info "Auto-detected Function App: ${FUNCTION_APP_NAME}"
   else
     log_warn "Multiple Function Apps found:"
-    az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[].[name]" -o tsv | awk '{printf "  - %s\n", $1}'
-    read -r -p "Enter Function App name: " FUNCTION_APP_NAME
+    FUNCTION_APP_NAME=$(select_function_app "${RESOURCE_GROUP}") || exit 1
+    log_info "Selected: ${FUNCTION_APP_NAME}"
   fi
 fi
 

@@ -74,7 +74,7 @@ async function checkApiHealth() {
         statusMsg.innerHTML = `
             <strong>API Unavailable:</strong> ${errorMessage}<br>
             <small>Expected endpoint: <code>${API_CONFIG.BASE_URL}${API_CONFIG.PATHS.HEALTH}</code></small><br>
-            <small>Make sure the API is running (docker compose up)</small>
+            <small>Make sure the API backend is deployed and accessible.</small>
         `;
         statusDiv.style.display = 'block';
     }

@@ -9,6 +9,10 @@
 #
 set -euo pipefail
 
+# Source selection utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/selection-utils.sh"
+
 # Parse arguments
 RESOURCE_GROUP=""
 while [[ $# -gt 0 ]]; do
@@ -119,15 +123,9 @@ if [[ -z "${RESOURCE_GROUP}" ]]; then
   else
     # Multiple resource groups - show list and prompt
     echo "Available resource groups:"
-    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
+    RESOURCE_GROUP=$(select_resource_group) || exit 1
+    echo "Selected: ${RESOURCE_GROUP}"
     echo ""
-    read -r -p "Enter resource group name to use: " RESOURCE_GROUP
-
-    # Verify the selected resource group exists
-    if ! az group show --name "${RESOURCE_GROUP}" --only-show-errors &>/dev/null 2>&1; then
-      echo "❌ Resource group '${RESOURCE_GROUP}' not found"
-      exit 1
-    fi
   fi
 fi
 

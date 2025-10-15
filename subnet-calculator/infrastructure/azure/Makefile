@@ -58,6 +58,12 @@ create-swa: check-env ## Create Azure Static Web App
 	@./00-static-web-app.sh
 	@echo "$(GREEN)✓ Static Web App created$(NC)"
 
+.PHONY: create-storage
+create-storage: check-env ## Create Azure Storage Account with static website
+	@echo "$(YELLOW)Creating Storage Account with static website...$(NC)"
+	@./05-static-website-storage.sh
+	@echo "$(GREEN)✓ Storage Account created$(NC)"
+
 .PHONY: create-function
 create-function: check-env ## Create Azure Function App
 	@echo "$(YELLOW)Creating Function App...$(NC)"
@@ -86,6 +92,12 @@ deploy-static: check-env ## Deploy static HTML frontend to SWA
 	@FRONTEND=static ./20-deploy-frontend.sh
 	@echo "$(GREEN)✓ Frontend deployed$(NC)"
 
+.PHONY: deploy-storage
+deploy-storage: check-env ## Deploy static HTML to Storage static website
+	@echo "$(YELLOW)Deploying static HTML to Storage...$(NC)"
+	@./25-deploy-static-website-storage.sh
+	@echo "$(GREEN)✓ Static website deployed$(NC)"
+
 .PHONY: deploy-api
 deploy-api: check-env ## Deploy Function API (without auth)
 	@echo "$(YELLOW)Deploying Function API...$(NC)"
@@ -106,6 +118,37 @@ deploy-all: deploy-typescript deploy-api ## Deploy everything (TypeScript + API)
 	@echo "Test your deployment:"
 	@echo "  make test-api"
 	@echo "  make show-urls"
+
+##@ Production Stacks
+
+.PHONY: deploy-stack3
+deploy-stack3: check-env ## Deploy Stack 3: SWA TypeScript (No Auth)
+	@echo "$(YELLOW)Deploying Stack 3: SWA TypeScript (No Auth)...$(NC)"
+	@./stack-03-swa-typescript-noauth.sh
+
+.PHONY: deploy-stack4
+deploy-stack4: check-env ## Deploy Stack 4: SWA TypeScript (JWT Auth)
+	@echo "$(YELLOW)Deploying Stack 4: SWA TypeScript (JWT Auth)...$(NC)"
+	@./stack-04-swa-typescript-jwt.sh
+
+.PHONY: deploy-stack5
+deploy-stack5: check-env ## Deploy Stack 5: SWA TypeScript (Entra ID)
+	@echo "$(YELLOW)Deploying Stack 5: SWA TypeScript (Entra ID)...$(NC)"
+	@./stack-05-swa-typescript-entraid.sh
+
+.PHONY: deploy-stack6
+deploy-stack6: check-env ## Deploy Stack 6: Flask App Service
+	@echo "$(YELLOW)Deploying Stack 6: Flask App Service...$(NC)"
+	@./stack-06-flask-appservice.sh
+
+.PHONY: deploy-production-all
+deploy-production-all: ## Deploy all production stacks (3, 4, 5, 6)
+	@echo "$(YELLOW)Deploying all production stacks...$(NC)"
+	@make deploy-stack3
+	@make deploy-stack4
+	@make deploy-stack5
+	@make deploy-stack6
+	@echo "$(GREEN)✓ All production stacks deployed!$(NC)"
 
 ##@ Testing
 

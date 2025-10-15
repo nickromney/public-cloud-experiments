@@ -21,6 +21,10 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
+# Get script directory and source selection utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/selection-utils.sh"
+
 # Check Azure CLI
 if ! az account show &>/dev/null; then
   log_error "Not logged in to Azure. Run 'az login'"
@@ -49,12 +53,8 @@ if [[ -z "${RESOURCE_GROUP:-}" ]]; then
     fi
   else
     log_warn "Multiple resource groups found:"
-    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
-    read -r -p "Enter resource group name: " RESOURCE_GROUP
-    if [[ -z "${RESOURCE_GROUP}" ]]; then
-      log_error "Resource group name is required"
-      exit 1
-    fi
+    RESOURCE_GROUP=$(select_resource_group) || exit 1
+    log_info "Selected: ${RESOURCE_GROUP}"
   fi
 fi
 
@@ -80,13 +80,8 @@ if [[ -z "${APP_SERVICE_PLAN:-}" ]]; then
     fi
   else
     log_info "Found ${PLAN_COUNT} App Service Plans in ${RESOURCE_GROUP}:"
-    az appservice plan list --resource-group "${RESOURCE_GROUP}" --query "[].[name,sku.name,sku.tier]" -o tsv | \
-      awk '{printf "  - %s (%s/%s)\n", $1, $2, $3}'
-    read -r -p "Enter App Service Plan name: " APP_SERVICE_PLAN
-    if [[ -z "${APP_SERVICE_PLAN}" ]]; then
-      log_error "App Service Plan name is required"
-      exit 1
-    fi
+    APP_SERVICE_PLAN=$(select_app_service_plan "${RESOURCE_GROUP}") || exit 1
+    log_info "Selected: ${APP_SERVICE_PLAN}"
   fi
 fi
 

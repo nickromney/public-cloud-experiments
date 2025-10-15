@@ -22,6 +22,11 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 
+# Get script directory and source shared utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/selection-utils.sh
+source "${SCRIPT_DIR}/lib/selection-utils.sh"
+
 # Check Azure CLI
 if ! az account show &>/dev/null; then
   log_error "Not logged in to Azure. Run 'az login'"
@@ -47,12 +52,8 @@ if [[ -z "${RESOURCE_GROUP:-}" ]]; then
     log_info "Auto-detected single resource group: ${RESOURCE_GROUP}"
   else
     log_warn "Multiple resource groups found:"
-    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
-    read -r -p "Enter resource group name: " RESOURCE_GROUP
-    if [[ -z "${RESOURCE_GROUP}" ]]; then
-      log_error "Resource group name is required"
-      exit 1
-    fi
+    RESOURCE_GROUP=$(select_resource_group) || exit 1
+    log_info "Selected: ${RESOURCE_GROUP}"
   fi
 fi
 
@@ -76,13 +77,8 @@ if [[ -z "${FUNCTION_APP_NAME:-}" ]]; then
     fi
   else
     log_info "Found ${FUNC_COUNT} Function Apps in ${RESOURCE_GROUP}:"
-    az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[].[name,defaultHostName]" -o tsv | \
-      awk '{printf "  - %s (https://%s)\n", $1, $2}'
-    read -r -p "Enter Function App name: " FUNCTION_APP_NAME
-    if [[ -z "${FUNCTION_APP_NAME}" ]]; then
-      log_error "Function App name is required"
-      exit 1
-    fi
+    FUNCTION_APP_NAME=$(select_function_app "${RESOURCE_GROUP}") || exit 1
+    log_info "Selected: ${FUNCTION_APP_NAME}"
   fi
 fi
 
@@ -99,13 +95,13 @@ if [[ -z "${VNET_NAME:-}" ]]; then
     log_info "Auto-detected VNet: ${VNET_NAME}"
   else
     log_info "Found ${VNET_COUNT} VNets in ${RESOURCE_GROUP}:"
-    az network vnet list --resource-group "${RESOURCE_GROUP}" --query "[].[name,addressSpace.addressPrefixes[0]]" -o tsv | \
-      awk '{printf "  - %s (%s)\n", $1, $2}'
-    read -r -p "Enter VNet name: " VNET_NAME
-    if [[ -z "${VNET_NAME}" ]]; then
-      log_error "VNet name is required"
-      exit 1
-    fi
+    # Build array for selection
+    vnet_items=()
+    while IFS=$'\t' read -r name prefix; do
+      vnet_items+=("${name} (${prefix})")
+    done < <(az network vnet list --resource-group "${RESOURCE_GROUP}" --query "[].[name,addressSpace.addressPrefixes[0]]" -o tsv)
+    VNET_NAME=$(select_from_list "Enter VNet" "${vnet_items[@]}") || exit 1
+    log_info "Selected: ${VNET_NAME}"
   fi
 fi
 
