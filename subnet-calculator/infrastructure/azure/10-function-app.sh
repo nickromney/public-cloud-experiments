@@ -18,6 +18,10 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
+# Source selection utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/selection-utils.sh"
+
 # Check Azure CLI
 if ! az account show &>/dev/null; then
   log_error "Not logged in to Azure. Run 'az login'"
@@ -46,12 +50,8 @@ if [[ -z "${RESOURCE_GROUP:-}" ]]; then
     fi
   else
     log_warn "Multiple resource groups found:"
-    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
-    read -r -p "Enter resource group name: " RESOURCE_GROUP
-    if [[ -z "${RESOURCE_GROUP}" ]]; then
-      log_error "Resource group name is required"
-      exit 1
-    fi
+    RESOURCE_GROUP=$(select_resource_group) || exit 1
+    log_info "Selected: ${RESOURCE_GROUP}"
   fi
 fi
 
@@ -66,12 +66,13 @@ if [[ -z "${FUNCTION_APP_NAME:-}" ]]; then
     log_info "Found existing Function App: ${EXISTING_FUNC_NAME}"
     log_info "  URL: https://${EXISTING_FUNC_URL}"
     log_info ""
-    log_info "Multiple Function Apps are allowed in the same resource group."
-    log_info "This is useful for different services (api, worker, processor, etc.)"
-    read -r -p "Create new Function App or use existing? (new/Existing): " choice
-    choice=${choice:-existing}
+    log_info "Note: Multiple Function Apps are allowed in the same resource group."
+    log_info "      Useful for different services (api, worker, processor, etc.)"
+    log_info ""
+    read -r -p "Use existing Function App? (Y/n): " use_existing
+    use_existing=${use_existing:-y}
 
-    if [[ "${choice,,}" =~ ^e ]]; then
+    if [[ "${use_existing}" =~ ^[Yy]$ ]]; then
       FUNCTION_APP_NAME="${EXISTING_FUNC_NAME}"
 
       log_info ""

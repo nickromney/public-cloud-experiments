@@ -22,6 +22,9 @@ log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 POLICIES_DIR="${SCRIPT_DIR}/policies"
 
+# Source selection utilities
+source "${SCRIPT_DIR}/lib/selection-utils.sh"
+
 # Check Azure CLI
 if ! az account show &>/dev/null; then
   log_error "Not logged in to Azure. Run 'az login'"
@@ -41,8 +44,8 @@ if [[ -z "${RESOURCE_GROUP:-}" ]]; then
     log_info "Auto-detected single resource group: ${RESOURCE_GROUP}"
   else
     log_warn "Multiple resource groups found:"
-    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
-    read -r -p "Enter resource group name: " RESOURCE_GROUP
+    RESOURCE_GROUP=$(select_resource_group) || exit 1
+    log_info "Selected: ${RESOURCE_GROUP}"
   fi
 fi
 
@@ -60,8 +63,8 @@ if [[ -z "${APIM_NAME:-}" ]]; then
     log_info "Auto-detected APIM instance: ${APIM_NAME}"
   else
     log_warn "Multiple APIM instances found:"
-    az apim list --resource-group "${RESOURCE_GROUP}" --query "[].[name]" -o tsv | awk '{printf "  - %s\n", $1}'
-    read -r -p "Enter APIM instance name: " APIM_NAME
+    APIM_NAME=$(select_apim_instance "${RESOURCE_GROUP}") || exit 1
+    log_info "Selected: ${APIM_NAME}"
   fi
 fi
 

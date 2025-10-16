@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 #
-# stack-01-public-simple.sh - Deploy complete Stack 01: Public Simple (No Auth)
+# stack-03-swa-typescript-noauth.sh - Deploy Stack 03: SWA TypeScript (No Auth)
 #
 # Architecture:
 #   ┌─────────────────────────────────────┐
 #   │ Azure Static Web App (Free)         │
-#   │ - Static HTML + JavaScript          │
-#   │ - Client-side only                  │
+#   │ - TypeScript Vite SPA               │
+#   │ - Modern reactive UI                │
+#   │ - All API calls visible in browser  │
 #   └──────────────┬──────────────────────┘
 #                  │ HTTPS (public)
 #   ┌──────────────▼──────────────────────┐
@@ -17,19 +18,23 @@
 #   └─────────────────────────────────────┘
 #
 # Components:
-#   - Frontend: Static HTML + JavaScript (client-side only)
+#   - Frontend: TypeScript Vite (modern SPA)
 #   - Backend: Function App (Consumption plan, public)
 #   - Authentication: None - completely open
+#   - Use case: Public API testing, demos
 #   - Cost: ~$0 (Free tier SWA + Consumption)
-#   - Use case: Quick demos, testing, learning
 #
 # Usage:
-#   ./stack-01-public-simple.sh
+#   ./stack-03-swa-typescript-noauth.sh
+#   CUSTOM_DOMAIN="yourdomain.com" ./stack-03-swa-typescript-noauth.sh
 #
 # Environment variables (optional):
 #   RESOURCE_GROUP       - Azure resource group (auto-detected if not set)
-#   STATIC_WEB_APP_NAME  - Static Web App name (default: swa-subnet-calc)
+#   LOCATION             - Azure region (default: uksouth)
+#   STATIC_WEB_APP_NAME  - Static Web App name (default: swa-subnet-calc-noauth)
 #   FUNCTION_APP_NAME    - Function App name (default: func-subnet-calc-{random})
+#   CUSTOM_DOMAIN        - Base domain for DNS (default: publiccloudexperiments.net)
+#   SUBDOMAIN            - Subdomain prefix (default: noauth)
 
 set -euo pipefail
 
@@ -48,22 +53,30 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Configuration
+# LOCATION - Let 00-static-web-app.sh auto-detect from resource group and map to valid SWA region
+# (e.g., uksouth → westeurope, eastus → eastus2, etc.)
+readonly CUSTOM_DOMAIN="${CUSTOM_DOMAIN:-publiccloudexperiments.net}"
+readonly SUBDOMAIN="${SUBDOMAIN:-noauth}"
+readonly STATIC_WEB_APP_NAME="${STATIC_WEB_APP_NAME:-swa-subnet-calc-noauth}"
+
 # Banner
 echo ""
 log_info "========================================="
-log_info "Stack 01: Public Simple (No Auth)"
+log_info "Stack 03: SWA TypeScript (No Auth)"
 log_info "========================================="
 log_info ""
 log_info "Architecture:"
-log_info "  Frontend: Static HTML + JavaScript"
+log_info "  Frontend: TypeScript Vite SPA"
 log_info "  Backend:  Function App (Consumption)"
 log_info "  Auth:     None - completely public"
-log_info "  Cost:     ~\$0 (Free tiers)"
+log_info "  Cost:     ~\$9/month (Standard tier SWA + Consumption Function)"
+log_info "  Domain:   ${SUBDOMAIN}.${CUSTOM_DOMAIN}"
 log_info ""
 log_info "This will deploy a complete stack with:"
-log_info "  1. Azure Static Web App (Free)"
+log_info "  1. Azure Static Web App (Standard tier - custom domain support)"
 log_info "  2. Azure Function App (Consumption)"
-log_info "  3. Static HTML frontend"
+log_info "  3. TypeScript Vite frontend"
 log_info "  4. Function App API (no authentication)"
 log_info ""
 log_info "========================================="
@@ -117,16 +130,9 @@ log_step "Step 1/4: Creating Azure Static Web App..."
 echo ""
 
 export RESOURCE_GROUP
+export STATIC_WEB_APP_NAME
+# Don't export LOCATION - let 00-static-web-app.sh auto-detect and map from resource group
 "${SCRIPT_DIR}/00-static-web-app.sh"
-
-if [[ -z "${STATIC_WEB_APP_NAME:-}" ]]; then
-  SWA_COUNT=$(az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "length(@)" -o tsv 2>/dev/null || echo "0")
-  if [[ "${SWA_COUNT}" -eq 1 ]]; then
-    STATIC_WEB_APP_NAME=$(az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
-  else
-    STATIC_WEB_APP_NAME="swa-subnet-calc"
-  fi
-fi
 
 SWA_URL=$(az staticwebapp show \
   --name "${STATIC_WEB_APP_NAME}" \
@@ -145,6 +151,7 @@ echo ""
 log_step "Step 2/4: Creating Azure Function App..."
 echo ""
 
+export RESOURCE_GROUP
 "${SCRIPT_DIR}/10-function-app.sh"
 
 # Extract Function App details
@@ -179,7 +186,6 @@ echo ""
 log_step "Step 3/4: Deploying Function App code (no authentication)..."
 echo ""
 
-export RESOURCE_GROUP
 export FUNCTION_APP_NAME
 export DISABLE_AUTH=true
 
@@ -194,11 +200,10 @@ log_info "Waiting for Function App to be fully ready (30 seconds)..."
 sleep 30
 
 # Step 4: Deploy frontend with API URL
-log_step "Step 4/4: Deploying Static HTML frontend..."
+log_step "Step 4/4: Deploying TypeScript Vite frontend..."
 echo ""
 
-export STATIC_WEB_APP_NAME
-export FRONTEND=static
+export FRONTEND=typescript
 export API_URL="${FUNCTION_APP_URL}"
 
 "${SCRIPT_DIR}/20-deploy-frontend.sh"
@@ -210,7 +215,7 @@ echo ""
 # Final summary
 echo ""
 log_info "========================================="
-log_info "Stack 01 deployment complete!"
+log_info "Stack 03 deployment complete!"
 log_info "========================================="
 log_info ""
 log_info "Resources created:"
@@ -219,32 +224,46 @@ log_info "  Static Web App: ${STATIC_WEB_APP_NAME}"
 log_info "  Function App:   ${FUNCTION_APP_NAME}"
 log_info ""
 log_info "URLs:"
-log_info "  Frontend:     https://${SWA_URL}"
-log_info "  Backend API:  ${FUNCTION_APP_URL}"
-log_info "  API Docs:     ${FUNCTION_APP_URL}/api/v1/docs"
-log_info "  API Health:   ${FUNCTION_APP_URL}/api/v1/health"
+log_info "  Frontend (Azure):  https://${SWA_URL}"
+log_info "  Backend API:       ${FUNCTION_APP_URL}"
+log_info "  API Docs:          ${FUNCTION_APP_URL}/api/v1/docs"
+log_info "  API Health:        ${FUNCTION_APP_URL}/api/v1/health"
+log_info ""
+log_info "DNS Configuration:"
+log_info "  Custom Domain: ${SUBDOMAIN}.${CUSTOM_DOMAIN}"
+log_info ""
+log_info "  Add CNAME record in Cloudflare:"
+log_info "    Name:   ${SUBDOMAIN}"
+log_info "    Type:   CNAME"
+log_info "    Target: ${SWA_URL}"
+log_info "    Proxy:  DNS only (grey cloud)"
+log_info ""
+log_info "  After DNS propagation, configure custom domain on SWA:"
+log_info "    ./40-configure-custom-domain-swa.sh"
 log_info ""
 log_info "Test commands:"
 log_info "  # Test API health"
 log_info "  curl ${FUNCTION_APP_URL}/api/v1/health"
 log_info ""
 log_info "  # Test IPv4 calculation"
-log_info "  curl '${FUNCTION_APP_URL}/api/v1/calculate/ipv4?cidr=10.0.0.0/24'"
+log_info "  curl '${FUNCTION_APP_URL}/api/v1/ipv4/subnet-info' \\"
+log_info "    -H 'Content-Type: application/json' \\"
+log_info "    -d '{\"network\":\"10.0.0.0/24\",\"mode\":\"simple\"}'"
 log_info ""
-log_info "  # Test IPv6 calculation"
-log_info "  curl '${FUNCTION_APP_URL}/api/v1/calculate/ipv6?cidr=2001:db8::/32'"
-log_info ""
-log_info "  # Open frontend in browser"
+log_info "  # Open frontend in browser (Azure URL)"
 log_info "  open https://${SWA_URL}"
 log_info ""
+log_info "  # Open frontend in browser (Custom domain - after DNS)"
+log_info "  open https://${SUBDOMAIN}.${CUSTOM_DOMAIN}"
+log_info ""
 log_info "Architecture summary:"
-log_info "  - Static HTML frontend (client-side only)"
+log_info "  - TypeScript Vite frontend (modern SPA)"
 log_info "  - Function App API (Consumption plan)"
 log_info "  - No authentication - completely public"
 log_info "  - Cost: ~\$0 (Free tier SWA + Consumption)"
 log_info ""
 log_info "Note: Initial deployment may take 1-2 minutes to fully propagate."
-log_info "      If the frontend doesn't work immediately, wait a moment and refresh."
+log_info "      DNS propagation may take 5-10 minutes."
 log_info ""
 log_info "========================================="
 echo ""

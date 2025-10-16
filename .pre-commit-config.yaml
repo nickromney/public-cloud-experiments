@@ -53,6 +53,7 @@ repos:
         name: Shellcheck
         files: \.(sh|bash)$
         exclude: ^.*/tests/test_helper/(bats-assert|bats-support)/
+        args: ["-e", "SC1091"]
 
   # Markdown linting and fixing
   - repo: https://github.com/DavidAnson/markdownlint-cli2

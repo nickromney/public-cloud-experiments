@@ -94,6 +94,100 @@ Shell scripts for deploying the subnet calculator to Azure using Static Web Apps
 az login
 ```
 
+## Shell Compatibility
+
+The deployment scripts are bash scripts that work with any shell, but environment variable syntax differs between shells.
+
+### Bash / Zsh
+
+```bash
+# Set environment variables
+export RESOURCE_GROUP="rg-subnet-calc"
+export LOCATION="uksouth"
+export CUSTOM_DOMAIN="publiccloudexperiments.net"
+
+# Run scripts (they inherit the environment)
+./stack-03-swa-typescript-noauth.sh
+```
+
+**Automated setup:**
+
+```bash
+# Interactive setup (auto-detects resource group)
+source ./setup-env.sh
+
+# Then run scripts
+./stack-03-swa-typescript-noauth.sh
+```
+
+### Nushell
+
+```nushell
+# Set environment variables
+$env.RESOURCE_GROUP = "rg-subnet-calc"
+$env.LOCATION = "uksouth"
+$env.CUSTOM_DOMAIN = "publiccloudexperiments.net"
+
+# Run scripts (they inherit the environment)
+./stack-03-swa-typescript-noauth.sh
+```
+
+**Automated setup:**
+
+```nushell
+# Interactive setup (auto-detects resource group)
+source setup-env.nu
+
+# Or use the exported function
+overlay use setup-env.nu
+setup
+
+# Then run scripts
+./stack-03-swa-typescript-noauth.sh
+```
+
+**Temporary scope with with-env:**
+
+```nushell
+with-env {
+  RESOURCE_GROUP: "rg-subnet-calc"
+  LOCATION: "uksouth"
+  CUSTOM_DOMAIN: "publiccloudexperiments.net"
+} {
+  ./stack-03-swa-typescript-noauth.sh
+}
+```
+
+**Inline environment variables:**
+
+```nushell
+RESOURCE_GROUP="rg-subnet-calc" LOCATION="uksouth" ./stack-03-swa-typescript-noauth.sh
+```
+
+### PowerShell
+
+```powershell
+# Set environment variables
+$env:RESOURCE_GROUP = "rg-subnet-calc"
+$env:LOCATION = "uksouth"
+$env:CUSTOM_DOMAIN = "publiccloudexperiments.net"
+
+# Run scripts using bash/sh
+bash ./stack-03-swa-typescript-noauth.sh
+```
+
+### Fish
+
+```fish
+# Set environment variables
+set -x RESOURCE_GROUP "rg-subnet-calc"
+set -x LOCATION "uksouth"
+set -x CUSTOM_DOMAIN "publiccloudexperiments.net"
+
+# Run scripts (they inherit the environment)
+./stack-03-swa-typescript-noauth.sh
+```
+
 ## Script Numbering Convention
 
 - **0x** - Static Web App scripts (00: create)
@@ -422,6 +516,193 @@ az functionapp config appsettings list \
 - [IMPLEMENTATION-PLAN.md](docs/IMPLEMENTATION-PLAN.md) - Master plan for all phases
 - [PHASE-2-VNET-INTEGRATION.md](docs/PHASE-2-VNET-INTEGRATION.md) - Detailed Phase 2 specs
 - [SANDBOX-TESTING-GUIDE.md](docs/SANDBOX-TESTING-GUIDE.md) - Step-by-step sandbox testing
+
+## Production Deployment Stacks
+
+Complete end-to-end stacks for permanent Azure deployments with custom domain support.
+
+**[Complete Production Guide](docs/PRODUCTION-DEPLOYMENT.md)** - Comprehensive deployment documentation
+**[DNS Configuration Guide](docs/DNS-CONFIGURATION.md)** - Custom domain setup with Cloudflare
+
+### Configuration
+
+All stack scripts use these defaults (override via environment variables):
+
+```bash
+# Default location
+export LOCATION="uksouth"  # UK South region
+
+# Custom domain (configure your own)
+export CUSTOM_DOMAIN="publiccloudexperiments.net"  # Change to your domain
+
+# Resource naming
+export RESOURCE_GROUP="rg-subnet-calc-prod"  # Or auto-detected
+```
+
+### Stack 0: Storage Static Website
+
+**What**: Classic static website hosting on Azure Storage
+
+**Cost**: ~$0.05/month
+
+```bash
+# Create storage with static website
+./05-static-website-storage.sh
+
+# Deploy static HTML frontend
+SUBDOMAIN="static" ./25-deploy-static-website-storage.sh
+```
+
+**URL**: `https://static.publiccloudexperiments.net` (after DNS configuration)
+
+**DNS**: CNAME `static` → `<storage>.z33.web.core.windows.net`
+
+### Stack 3: SWA TypeScript (No Auth)
+
+**What**: Modern TypeScript SPA with public API access
+
+**Cost**: ~$0/month (Free tier SWA + Consumption Function)
+
+```bash
+# Deploy complete stack
+SUBDOMAIN="noauth" ./stack-03-swa-typescript-noauth.sh
+```
+
+**URLs**:
+
+- Frontend: `https://noauth.publiccloudexperiments.net`
+- API: Auto-deployed Function App
+
+**DNS**: CNAME `noauth` → `<swa>.azurestaticapps.net`
+
+**Use Case**: Public APIs, demos, testing
+
+### Stack 4: SWA TypeScript (JWT Auth)
+
+**What**: Modern TypeScript SPA with JWT authentication
+
+**Cost**: ~$0/month (Free tier SWA + Consumption Function)
+
+```bash
+# Deploy complete stack
+SUBDOMAIN="jwt" \
+JWT_USERNAME="demo" \
+JWT_PASSWORD="your-secure-password" \
+./stack-04-swa-typescript-jwt.sh
+```
+
+**URLs**:
+
+- Frontend: `https://jwt.publiccloudexperiments.net`
+- API: Auto-deployed Function App with JWT validation
+
+**DNS**: CNAME `jwt` → `<swa>.azurestaticapps.net`
+
+**Use Case**: Custom authentication, user management
+
+**Login**: Username/password set during deployment
+
+### Stack 5: SWA TypeScript (Entra ID)
+
+**What**: Modern TypeScript SPA with enterprise SSO
+
+**Cost**: ~$0/month (Free tier SWA + Consumption Function)
+
+**Prerequisites**: Entra ID App Registration (see [PRODUCTION-DEPLOYMENT.md](docs/PRODUCTION-DEPLOYMENT.md#entra-id-setup))
+
+```bash
+# Deploy complete stack
+SUBDOMAIN="entraid" \
+AZURE_CLIENT_ID="<your-client-id>" \
+AZURE_CLIENT_SECRET="<your-client-secret>" \
+./stack-05-swa-typescript-entraid.sh
+```
+
+**URLs**:
+
+- Frontend: `https://entraid.publiccloudexperiments.net`
+- API: Auto-deployed Function App (no auth, SWA handles)
+
+**DNS**: CNAME `entraid` → `<swa>.azurestaticapps.net`
+
+**Use Case**: Enterprise SSO, Microsoft 365 integration
+
+**Security**: Platform auth with opaque HttpOnly cookies (XSS/CSRF protected)
+
+### Stack 6: Flask App Service
+
+**What**: Server-side rendered Flask application
+
+**Cost**: ~$13/month (App Service Plan B1)
+
+```bash
+# Deploy complete stack
+SUBDOMAIN="flask" ./stack-06-flask-appservice.sh
+```
+
+**URLs**:
+
+- Frontend: `https://flask.publiccloudexperiments.net`
+- API: Auto-deployed Function App with JWT
+
+**DNS**: CNAME `flask` → `<appservice>.azurewebsites.net`
+
+**Use Case**: Traditional web apps, server-side rendering
+
+**Authentication**: JWT handled server-side (tokens not visible to browser)
+
+### Cost Summary
+
+| Stack | Resources | Monthly Cost | Notes |
+|-------|-----------|--------------|-------|
+| **Storage** | Storage Account | ~$0.05 | Static website only |
+| **Stack 3** | SWA + Function | ~$0.00 | Free tiers |
+| **Stack 4** | SWA + Function | ~$0.00 | Shared Function with Stack 3 |
+| **Stack 5** | SWA + Function | ~$0.00 | Shared Function with Stack 3/4 |
+| **Stack 6** | App Service Plan B1 | ~$13.00 | Runs 24/7, shares with others |
+| **Total** | | **~$13.05/month** | All 6 stacks |
+
+**Cost Optimization**: Skip Stack 6 (Flask) for serverless-only deployment (~$0.05/month total)
+
+### Comparison Matrix
+
+| Feature | Stack 0 | Stack 3 | Stack 4 | Stack 5 | Stack 6 |
+|---------|---------|---------|---------|---------|---------|
+| **Hosting** | Storage | SWA | SWA | SWA | App Service |
+| **Frontend** | HTML/JS | TypeScript | TypeScript | TypeScript | Flask |
+| **Rendering** | Client | Client | Client | Client | Server |
+| **Auth Method** | None | None | JWT (App) | Entra ID (Platform) | JWT (Server) |
+| **Token Visibility** | N/A | N/A | Visible in browser | Opaque cookies | Server-side only |
+| **XSS Protection** | N/A | None | None | HttpOnly cookies | Server-side |
+| **CSRF Protection** | N/A | Manual | Manual | SameSite cookies | Manual |
+| **Cold Start** | None | Possible | Possible | Possible | None (Always On) |
+| **Cost** | ~$0.05 | ~$0 | ~$0 | ~$0 | ~$13 |
+| **Use Case** | Simple sites | Public APIs | Custom auth | Enterprise SSO | Traditional apps |
+
+### Quick Start - All Stacks
+
+```bash
+# Set environment
+export RESOURCE_GROUP="rg-subnet-calc-prod"
+export LOCATION="uksouth"
+export CUSTOM_DOMAIN="publiccloudexperiments.net"
+
+# Deploy all stacks
+./stack-03-swa-typescript-noauth.sh
+./stack-04-swa-typescript-jwt.sh
+./stack-05-swa-typescript-entraid.sh  # Requires Entra ID setup
+./stack-06-flask-appservice.sh
+
+# Also deploy storage static website
+./05-static-website-storage.sh
+./25-deploy-static-website-storage.sh
+
+# Configure DNS (see DNS-CONFIGURATION.md)
+# Add CNAME records in Cloudflare for each subdomain
+
+# Configure custom domains on Azure resources
+# (After DNS propagation - see PRODUCTION-DEPLOYMENT.md)
+```
 
 ## Complete Working Example - APIM in Pluralsight Sandbox
 

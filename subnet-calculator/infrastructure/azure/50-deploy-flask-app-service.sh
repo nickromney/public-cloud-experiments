@@ -27,6 +27,10 @@ log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_DIR="${SCRIPT_DIR}/../../frontend-python-flask"
 
+# Source shared utilities
+# shellcheck source=lib/selection-utils.sh
+source "${SCRIPT_DIR}/lib/selection-utils.sh"
+
 # Check Azure CLI
 if ! az account show &>/dev/null; then
   log_error "Not logged in to Azure. Run 'az login'"
@@ -46,12 +50,8 @@ if [[ -z "${RESOURCE_GROUP:-}" ]]; then
     log_info "Auto-detected single resource group: ${RESOURCE_GROUP}"
   else
     log_warn "Multiple resource groups found:"
-    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
-    read -r -p "Enter resource group name: " RESOURCE_GROUP
-    if [[ -z "${RESOURCE_GROUP}" ]]; then
-      log_error "Resource group name is required"
-      exit 1
-    fi
+    RESOURCE_GROUP=$(select_resource_group) || exit 1
+    log_info "Selected: ${RESOURCE_GROUP}"
   fi
 fi
 
@@ -83,13 +83,8 @@ if [[ -z "${API_BASE_URL:-}" ]]; then
       log_info "API URL: ${API_BASE_URL}"
     elif [[ "${FUNC_COUNT}" -gt 1 ]]; then
       log_warn "Multiple Function Apps found:"
-      az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[].[name,defaultHostName]" -o tsv | \
-        awk '{printf "  - %s (https://%s)\n", $1, $2}'
-      read -r -p "Enter Function App name: " FUNCTION_APP_NAME
-      if [[ -z "${FUNCTION_APP_NAME}" ]]; then
-        log_error "Function App name is required"
-        exit 1
-      fi
+      FUNCTION_APP_NAME=$(select_function_app "${RESOURCE_GROUP}") || exit 1
+      log_info "Selected: ${FUNCTION_APP_NAME}"
       API_BASE_URL="https://$(az functionapp show \
         --name "${FUNCTION_APP_NAME}" \
         --resource-group "${RESOURCE_GROUP}" \
@@ -139,9 +134,35 @@ if [[ -z "${APP_SERVICE_PLAN_NAME}" ]]; then
     log_info "Reusing this plan to avoid additional costs"
   elif [[ "${PLAN_COUNT}" -gt 1 ]]; then
     log_warn "Multiple App Service Plans found:"
-    az appservice plan list --resource-group "${RESOURCE_GROUP}" --query "[].[name,sku.name]" -o tsv | \
-      awk '{printf "  - %s (%s)\n", $1, $2}'
-    read -r -p "Enter App Service Plan name (or press Enter to create new): " APP_SERVICE_PLAN_NAME
+    # Build array for selection (allow empty selection to create new)
+    plan_items=()
+    while IFS=$'\t' read -r name sku; do
+      plan_items+=("${name} (${sku})")
+    done < <(az appservice plan list --resource-group "${RESOURCE_GROUP}" --query "[].[name,sku.name]" -o tsv)
+
+    # Display plans
+    i=1
+    for item in "${plan_items[@]}"; do
+      echo "  ${i}. ${item}"
+      ((i++))
+    done
+    echo ""
+
+    read -r -p "Enter App Service Plan (1-${#plan_items[@]}) or name (press Enter to create new): " plan_selection
+
+    if [[ -n "${plan_selection}" ]]; then
+      if [[ "${plan_selection}" =~ ^[0-9]+$ ]]; then
+        if [[ "${plan_selection}" -ge 1 && "${plan_selection}" -le "${#plan_items[@]}" ]]; then
+          APP_SERVICE_PLAN_NAME=$(echo "${plan_items[$((plan_selection - 1))]}" | awk '{print $1}')
+          log_info "Selected: ${APP_SERVICE_PLAN_NAME}"
+        else
+          log_error "Invalid selection"
+          exit 1
+        fi
+      else
+        APP_SERVICE_PLAN_NAME="${plan_selection}"
+      fi
+    fi
   fi
 fi
 

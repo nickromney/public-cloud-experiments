@@ -21,6 +21,11 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
+# Get script directory and source shared utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/selection-utils.sh
+source "${SCRIPT_DIR}/lib/selection-utils.sh"
+
 # Check Azure CLI
 if ! az account show &>/dev/null; then
   log_error "Not logged in to Azure. Run 'az login'"
@@ -40,12 +45,8 @@ if [[ -z "${RESOURCE_GROUP:-}" ]]; then
     log_info "Auto-detected single resource group: ${RESOURCE_GROUP}"
   else
     log_warn "Multiple resource groups found:"
-    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
-    read -r -p "Enter resource group name: " RESOURCE_GROUP
-    if [[ -z "${RESOURCE_GROUP}" ]]; then
-      log_error "Resource group name is required"
-      exit 1
-    fi
+    RESOURCE_GROUP=$(select_resource_group) || exit 1
+    log_info "Selected: ${RESOURCE_GROUP}"
   fi
 fi
 
@@ -69,13 +70,8 @@ if [[ -z "${STATIC_WEB_APP_NAME:-}" ]]; then
     fi
   else
     log_info "Found ${SWA_COUNT} Static Web Apps in ${RESOURCE_GROUP}:"
-    az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "[].[name,defaultHostname]" -o tsv | \
-      awk '{printf "  - %s (https://%s)\n", $1, $2}'
-    read -r -p "Enter Static Web App name: " STATIC_WEB_APP_NAME
-    if [[ -z "${STATIC_WEB_APP_NAME}" ]]; then
-      log_error "Static Web App name is required"
-      exit 1
-    fi
+    STATIC_WEB_APP_NAME=$(select_static_web_app "${RESOURCE_GROUP}") || exit 1
+    log_info "Selected: ${STATIC_WEB_APP_NAME}"
   fi
 fi
 

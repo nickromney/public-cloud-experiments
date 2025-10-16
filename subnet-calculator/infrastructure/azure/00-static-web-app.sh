@@ -18,6 +18,10 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
+# Source selection utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/selection-utils.sh"
+
 # Check Azure CLI
 if ! az account show &>/dev/null; then
   log_error "Not logged in to Azure. Run 'az login'"
@@ -52,12 +56,8 @@ if [[ -z "${RESOURCE_GROUP:-}" ]]; then
     fi
   else
     log_warn "Multiple resource groups found:"
-    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
-    read -r -p "Enter resource group name: " RESOURCE_GROUP
-    if [[ -z "${RESOURCE_GROUP}" ]]; then
-      log_error "Resource group name is required"
-      exit 1
-    fi
+    RESOURCE_GROUP=$(select_resource_group) || exit 1
+    log_info "Selected: ${RESOURCE_GROUP}"
   fi
 fi
 
@@ -115,40 +115,72 @@ fi
 
 # Configuration
 readonly STATIC_WEB_APP_NAME="${STATIC_WEB_APP_NAME:-swa-subnet-calc}"
-readonly STATIC_WEB_APP_SKU="${STATIC_WEB_APP_SKU:-Free}"
+readonly STATIC_WEB_APP_SKU="${STATIC_WEB_APP_SKU:-Standard}"
+
+# SKU Options:
+# - Free: Good for testing only
+#   - 100 GB bandwidth/month
+#   - 0.5 GB storage
+#   - Azure domains only (*.azurestaticapps.net)
+#   - No custom authentication
+#   - Managed Functions (limited regions)
+#
+# - Standard: Recommended for production (DEFAULT)
+#   - ~$9/month per app
+#   - Custom domains with free SSL certificates (up to 5 per app)
+#   - Custom authentication (Entra ID, etc.)
+#   - 100 GB bandwidth/month
+#   - 2 GB storage (4x more than Free)
+#   - Managed or Bring Your Own Functions
+#   - SLA available
+#
+# To use Free tier for testing: STATIC_WEB_APP_SKU=Free ./00-static-web-app.sh
 
 # Detect location from resource group if LOCATION not set
 if [[ -z "${LOCATION:-}" ]]; then
   if az group show --name "${RESOURCE_GROUP}" &>/dev/null; then
     RG_LOCATION=$(az group show --name "${RESOURCE_GROUP}" --query location -o tsv)
     log_info "Detected resource group location: ${RG_LOCATION}"
+    log_info ""
+    log_info "NOTE: Azure Static Web Apps is a global service."
+    log_info "  - Static assets are globally distributed (CDN)"
+    log_info "  - Region selection ONLY affects managed Azure Functions location"
+    log_info "  - If using 'Bring Your Own Functions', region doesn't matter"
+    log_info ""
 
-    # Static Web Apps are only available in specific regions
+    # Static Web Apps managed functions are only available in specific regions
     # Available: westus2, centralus, eastus2, westeurope, eastasia
+    # Default: westeurope (good for EU/UK deployments)
     # Map common regions to nearest Static Web App region
     case "${RG_LOCATION}" in
       westus|westus3)
         LOCATION="westus2"
-        log_warn "Resource group is in ${RG_LOCATION}, but Static Web Apps not available there"
-        log_info "Using nearest supported region: ${LOCATION}"
+        log_info "Resource group is in ${RG_LOCATION}"
+        log_info "Using nearest SWA managed functions region: ${LOCATION}"
         ;;
       eastus|eastus3)
         LOCATION="eastus2"
-        log_warn "Resource group is in ${RG_LOCATION}, but Static Web Apps not available there"
-        log_info "Using nearest supported region: ${LOCATION}"
+        log_info "Resource group is in ${RG_LOCATION}"
+        log_info "Using nearest SWA managed functions region: ${LOCATION}"
         ;;
-      centralus|westus2|eastus2|westeurope|eastasia)
+      centralus|westus2|eastus2|eastasia)
         LOCATION="${RG_LOCATION}"
-        log_info "Using resource group location: ${LOCATION} (Static Web Apps supported)"
+        log_info "Using resource group location for managed functions: ${LOCATION}"
+        ;;
+      westeurope|uksouth|ukwest|northeurope)
+        LOCATION="westeurope"
+        log_info "Resource group is in ${RG_LOCATION}"
+        log_info "Using westeurope for SWA managed functions (recommended for EU/UK)"
         ;;
       *)
-        # Default to centralus for other regions
-        LOCATION="centralus"
-        log_warn "Resource group is in ${RG_LOCATION}, but Static Web Apps not available there"
-        log_info "Using default region: ${LOCATION}"
+        # Default to westeurope for other regions
+        LOCATION="westeurope"
+        log_info "Resource group is in ${RG_LOCATION}"
+        log_info "Using default SWA managed functions region: ${LOCATION}"
         log_info ""
-        log_info "Available Static Web App regions: westus2, centralus, eastus2, westeurope, eastasia"
-        log_info "Override with: LOCATION=westus2 ./00-static-web-app.sh"
+        log_info "Available SWA managed functions regions:"
+        log_info "  westus2, centralus, eastus2, westeurope, eastasia"
+        log_info "Override with: LOCATION=eastus2 ./00-static-web-app.sh"
         ;;
     esac
   else
@@ -160,9 +192,29 @@ fi
 
 log_info "Configuration:"
 log_info "  Resource Group: ${RESOURCE_GROUP}"
-log_info "  Location: ${LOCATION}"
+log_info "  Location: ${LOCATION} (for managed Functions only - static assets are global)"
 log_info "  Static Web App Name: ${STATIC_WEB_APP_NAME}"
 log_info "  SKU: ${STATIC_WEB_APP_SKU}"
+if [[ "${STATIC_WEB_APP_SKU}" == "Free" ]]; then
+  log_info ""
+  log_warn "Using Free tier - suitable for testing only"
+  log_warn "Limitations:"
+  log_warn "  - Azure domains only (*.azurestaticapps.net)"
+  log_warn "  - No custom authentication (Entra ID)"
+  log_warn "  - No custom domains"
+  log_warn "  - 0.5 GB storage (vs 2 GB on Standard)"
+  log_warn ""
+  log_info "For production, use Standard tier (~\$9/month):"
+  log_info "  STATIC_WEB_APP_SKU=Standard ./00-static-web-app.sh"
+elif [[ "${STATIC_WEB_APP_SKU}" == "Standard" ]]; then
+  log_info ""
+  log_info "Using Standard tier (~\$9/month per app) - recommended for production"
+  log_info "Features enabled:"
+  log_info "  ✓ Custom domains with free SSL (up to 5 per app)"
+  log_info "  ✓ Custom authentication (Entra ID)"
+  log_info "  ✓ 2 GB storage"
+  log_info "  ✓ SLA available"
+fi
 
 # Create or verify resource group
 if ! az group show --name "${RESOURCE_GROUP}" &>/dev/null; then
@@ -230,13 +282,37 @@ log_info "========================================="
 log_info "Name: ${STATIC_WEB_APP_NAME}"
 log_info "URL: https://${HOSTNAME}"
 log_info "SKU: ${STATIC_WEB_APP_SKU}"
+log_info "Location: ${LOCATION} (managed Functions only - static assets globally distributed)"
 log_info ""
+if [[ "${STATIC_WEB_APP_SKU}" == "Standard" ]]; then
+  log_info "Standard tier features:"
+  log_info "  ✓ Custom domains (up to 5) with free SSL certificates"
+  log_info "  ✓ Custom authentication (Entra ID, custom providers)"
+  log_info "  ✓ 2 GB storage"
+  log_info "  ✓ SLA available"
+  log_info "  ✓ Cost: ~\$9/month per app"
+  log_info ""
+elif [[ "${STATIC_WEB_APP_SKU}" == "Free" ]]; then
+  log_warn "Free tier limitations:"
+  log_warn "  - Azure domains only (*.azurestaticapps.net)"
+  log_warn "  - No custom authentication (Entra ID)"
+  log_warn "  - No custom domains"
+  log_warn "  - 0.5 GB storage"
+  log_warn ""
+  log_info "To upgrade to Standard tier (~\$9/month):"
+  log_info "  1. Azure Portal: Static Web App → Settings → Hosting plan → Upgrade"
+  log_info "  2. Or recreate with: STATIC_WEB_APP_SKU=Standard ./00-static-web-app.sh"
+  log_info ""
+fi
 log_info "Deployment Token (save this securely):"
 echo "${DEPLOYMENT_TOKEN}"
 log_info ""
 log_info "Next steps:"
 log_info "1. Use 20-deploy-frontend.sh to deploy a frontend"
 log_info "2. Or set up GitHub Actions with this deployment token"
+if [[ "${STATIC_WEB_APP_SKU}" == "Standard" ]]; then
+  log_info "3. Configure custom domain: az staticwebapp hostname set --name ${STATIC_WEB_APP_NAME} --resource-group ${RESOURCE_GROUP} --hostname your-domain.com"
+fi
 log_info ""
 log_info "To get the deployment token again, run:"
 log_info "  az staticwebapp secrets list --name ${STATIC_WEB_APP_NAME} --resource-group ${RESOURCE_GROUP} --query properties.apiKey -o tsv"

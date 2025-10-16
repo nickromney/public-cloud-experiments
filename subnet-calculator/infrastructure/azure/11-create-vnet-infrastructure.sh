@@ -19,6 +19,10 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
+# Source selection utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/selection-utils.sh"
+
 # Check Azure CLI
 if ! az account show &>/dev/null; then
   log_error "Not logged in to Azure. Run 'az login'"
@@ -47,12 +51,8 @@ if [[ -z "${RESOURCE_GROUP:-}" ]]; then
     fi
   else
     log_warn "Multiple resource groups found:"
-    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
-    read -r -p "Enter resource group name: " RESOURCE_GROUP
-    if [[ -z "${RESOURCE_GROUP}" ]]; then
-      log_error "Resource group name is required"
-      exit 1
-    fi
+    RESOURCE_GROUP=$(select_resource_group) || exit 1
+    log_info "Selected: ${RESOURCE_GROUP}"
   fi
 fi
 
@@ -67,12 +67,13 @@ if [[ -z "${VNET_NAME:-}" ]]; then
     log_info "Found existing VNet: ${EXISTING_VNET_NAME}"
     log_info "  Address space: ${EXISTING_VNET_SPACE}"
     log_info ""
-    log_info "Multiple VNets are allowed in the same resource group."
-    log_info "This is useful for network isolation (dev/test, different apps, etc.)"
-    read -r -p "Create new VNet or use existing? (new/Existing): " choice
-    choice=${choice:-existing}
+    log_info "Note: Multiple VNets are allowed in the same resource group."
+    log_info "      Useful for network isolation (dev/test, different apps, etc.)"
+    log_info ""
+    read -r -p "Use existing VNet? (Y/n): " use_existing
+    use_existing=${use_existing:-y}
 
-    if [[ "${choice,,}" =~ ^e ]]; then
+    if [[ "${use_existing}" =~ ^[Yy]$ ]]; then
       VNET_NAME="${EXISTING_VNET_NAME}"
 
       log_info ""
