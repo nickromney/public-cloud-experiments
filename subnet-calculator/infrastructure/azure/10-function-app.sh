@@ -172,8 +172,12 @@ if az functionapp show \
   exit 0
 fi
 
-# Create Function App with Consumption Flex plan
-log_info "Creating Function App ${FUNCTION_APP_NAME}..."
+# Create Function App with Flex Consumption plan
+# Flex Consumption (replaces deprecated Y1 Linux Consumption)
+# - Same free tier: 1M requests/month, 400k GB-s execution
+# - Better performance: faster cold starts, advanced networking
+# - Default: 2048 MB memory per instance
+log_info "Creating Function App ${FUNCTION_APP_NAME} with Flex Consumption..."
 az functionapp create \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
@@ -181,8 +185,7 @@ az functionapp create \
   --runtime python \
   --runtime-version "${PYTHON_VERSION}" \
   --functions-version 4 \
-  --os-type Linux \
-  --consumption-plan-location "${LOCATION}" \
+  --flexconsumption-location "${LOCATION}" \
   --disable-app-insights \
   --output none
 
@@ -217,7 +220,8 @@ log_info "========================================="
 log_info "Name: ${FUNCTION_APP_NAME}"
 log_info "URL: https://${HOSTNAME}"
 log_info "Runtime: Python ${PYTHON_VERSION}"
-log_info "Plan: Consumption (Serverless)"
+log_info "Plan: Flex Consumption (Serverless)"
+log_info "Memory: 2048 MB per instance (default)"
 log_info ""
 log_info "CORS: Configured to allow all origins (*)"
 log_info "HTTPS Only: Enabled"

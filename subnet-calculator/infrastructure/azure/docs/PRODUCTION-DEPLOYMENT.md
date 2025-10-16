@@ -7,10 +7,10 @@ Complete guide for deploying the subnet calculator to a permanent Azure environm
 This guide covers deploying 6 complete stacks to Azure for long-term testing and production use:
 
 1. **Storage Static Website** - Classic static hosting (~$0.05/month)
-2. **Flask App Service** - Server-side rendering (~$13/month)
-3. **SWA TypeScript (No Auth)** - Public API access (~$0/month)
-4. **SWA TypeScript (JWT Auth)** - Custom authentication (~$0/month)
-5. **SWA TypeScript (Entra ID)** - Enterprise SSO (~$0/month)
+1. **Flask App Service** - Server-side rendering (~$13/month)
+1. **SWA TypeScript (No Auth)** - Public API access (~$0/month)
+1. **SWA TypeScript (JWT Auth)** - Custom authentication (~$0/month)
+1. **SWA TypeScript (Entra ID)** - Enterprise SSO (~$0/month)
 
 ## Prerequisites
 
@@ -84,13 +84,13 @@ The deployment scripts use these defaults:
 
 ```bash
 # Location
-LOCATION=uksouth  # UK South by default
+LOCATION=uksouth # UK South by default
 
 # Custom Domain
-CUSTOM_DOMAIN=publiccloudexperiments.net  # Change to your domain
+CUSTOM_DOMAIN=publiccloudexperiments.net # Change to your domain
 
 # Resource naming (auto-generated with random suffix)
-RESOURCE_GROUP=rg-subnet-calc-prod  # Or auto-detected
+RESOURCE_GROUP=rg-subnet-calc-prod # Or auto-detected
 ```
 
 ### Override Defaults
@@ -114,8 +114,8 @@ export RESOURCE_GROUP="rg-my-project"
 
 ```bash
 az group create \
-  --name rg-subnet-calc-prod \
-  --location uksouth
+ --name rg-subnet-calc-prod \
+ --location uksouth
 ```
 
 #### 2. Set Environment
@@ -270,11 +270,11 @@ See [DNS-CONFIGURATION.md](./DNS-CONFIGURATION.md) for detailed instructions.
 Add CNAME records in Cloudflare:
 
 ```text
-static.publiccloudexperiments.net    → <storage>.z33.web.core.windows.net
-noauth.publiccloudexperiments.net    → <swa-noauth>.<region>.azurestaticapps.net
-jwt.publiccloudexperiments.net       → <swa-jwt>.<region>.azurestaticapps.net
-entraid.publiccloudexperiments.net   → <swa-entraid>.<region>.azurestaticapps.net
-flask.publiccloudexperiments.net     → <appservice>.azurewebsites.net
+static.publiccloudexperiments.net → <storage>.z33.web.core.windows.net
+noauth.publiccloudexperiments.net → <swa-noauth>.<region>.azurestaticapps.net
+jwt.publiccloudexperiments.net → <swa-jwt>.<region>.azurestaticapps.net
+entraid.publiccloudexperiments.net → <swa-entraid>.<region>.azurestaticapps.net
+flask.publiccloudexperiments.net → <appservice>.azurewebsites.net
 ```
 
 **Cloudflare Settings:**
@@ -292,10 +292,10 @@ Required for Stack 5 (SWA TypeScript with Entra ID auth).
 ```bash
 # Via Azure Portal
 1. Navigate to: Azure Active Directory → App registrations
-2. Click "New registration"
-3. Name: subnet-calc-entraid
-4. Supported account types: Single tenant
-5. Click "Register"
+1. Click "New registration"
+1. Name: subnet-calc-entraid
+1. Supported account types: Single tenant
+1. Click "Register"
 ```
 
 ### 2. Configure Redirect URI
@@ -317,11 +317,11 @@ https://<swa-name>.<region>.azurestaticapps.net/.auth/login/aad/callback
 ```bash
 # In App Registration
 1. Go to "Certificates & secrets"
-2. Click "New client secret"
-3. Description: swa-auth-prod
-4. Expires: 24 months
-5. Click "Add"
-6. COPY THE VALUE IMMEDIATELY (shown only once)
+1. Click "New client secret"
+1. Description: swa-auth-prod
+1. Expires: 24 months
+1. Click "Add"
+1. COPY THE VALUE IMMEDIATELY (shown only once)
 ```
 
 ### 4. Configure SWA
@@ -329,11 +329,11 @@ https://<swa-name>.<region>.azurestaticapps.net/.auth/login/aad/callback
 ```bash
 # Set app settings
 az staticwebapp appsettings set \
-  --name swa-subnet-calc-entraid \
-  --resource-group rg-subnet-calc-prod \
-  --setting-names \
-    AZURE_CLIENT_ID="<application-client-id>" \
-    AZURE_CLIENT_SECRET="<client-secret-value>"
+ --name swa-subnet-calc-entraid \
+ --resource-group rg-subnet-calc-prod \
+ --setting-names \
+ AZURE_CLIENT_ID="<application-client-id>" \
+ AZURE_CLIENT_SECRET="<client-secret-value>"
 ```
 
 ## Custom Domain Configuration
@@ -345,9 +345,9 @@ az staticwebapp appsettings set \
 STORAGE_ACCOUNT_NAME="<your-storage-account>"
 
 az storage account update \
-  --name ${STORAGE_ACCOUNT_NAME} \
-  --resource-group ${RESOURCE_GROUP} \
-  --custom-domain static.${CUSTOM_DOMAIN}
+ --name ${STORAGE_ACCOUNT_NAME} \
+ --resource-group ${RESOURCE_GROUP} \
+ --custom-domain static.${CUSTOM_DOMAIN}
 ```
 
 ### Static Web Apps
@@ -358,9 +358,9 @@ STATIC_WEB_APP_NAME="swa-subnet-calc-noauth"
 CUSTOM_HOSTNAME="noauth.${CUSTOM_DOMAIN}"
 
 az staticwebapp hostname set \
-  --name ${STATIC_WEB_APP_NAME} \
-  --resource-group ${RESOURCE_GROUP} \
-  --hostname ${CUSTOM_HOSTNAME}
+ --name ${STATIC_WEB_APP_NAME} \
+ --resource-group ${RESOURCE_GROUP} \
+ --hostname ${CUSTOM_HOSTNAME}
 ```
 
 ### App Service (Flask)
@@ -370,9 +370,9 @@ APP_SERVICE_NAME="app-flask-subnet-calc"
 CUSTOM_HOSTNAME="flask.${CUSTOM_DOMAIN}"
 
 az webapp config hostname add \
-  --webapp-name ${APP_SERVICE_NAME} \
-  --resource-group ${RESOURCE_GROUP} \
-  --hostname ${CUSTOM_HOSTNAME}
+ --webapp-name ${APP_SERVICE_NAME} \
+ --resource-group ${RESOURCE_GROUP} \
+ --hostname ${CUSTOM_HOSTNAME}
 ```
 
 ## Cost Summary
@@ -463,13 +463,13 @@ curl https://flask.publiccloudexperiments.net
 ```bash
 # Function App logs
 az functionapp log tail \
-  --name func-subnet-calc \
-  --resource-group ${RESOURCE_GROUP}
+ --name func-subnet-calc \
+ --resource-group ${RESOURCE_GROUP}
 
 # App Service logs (Flask)
 az webapp log tail \
-  --name app-flask-subnet-calc \
-  --resource-group ${RESOURCE_GROUP}
+ --name app-flask-subnet-calc \
+ --resource-group ${RESOURCE_GROUP}
 ```
 
 ### Updates
@@ -496,9 +496,9 @@ cd infrastructure/azure
 ```bash
 # Export all resource configurations
 az group export \
-  --name ${RESOURCE_GROUP} \
-  --include-parameter-default-value \
-  > backup-$(date +%Y%m%d).json
+ --name ${RESOURCE_GROUP} \
+ --include-parameter-default-value \
+ > backup-$(date +%Y%m%d).json
 ```
 
 ### Code Backup
@@ -539,15 +539,15 @@ nslookup noauth.publiccloudexperiments.net 1.1.1.1
 
 ```bash
 az webapp config ssl create \
-  --resource-group ${RESOURCE_GROUP} \
-  --name app-flask-subnet-calc \
-  --hostname flask.publiccloudexperiments.net
+ --resource-group ${RESOURCE_GROUP} \
+ --name app-flask-subnet-calc \
+ --hostname flask.publiccloudexperiments.net
 
 az webapp config ssl bind \
-  --resource-group ${RESOURCE_GROUP} \
-  --name app-flask-subnet-calc \
-  --certificate-thumbprint <thumbprint> \
-  --ssl-type SNI
+ --resource-group ${RESOURCE_GROUP} \
+ --name app-flask-subnet-calc \
+ --certificate-thumbprint <thumbprint> \
+ --ssl-type SNI
 ```
 
 ### Deployment Failures
@@ -555,15 +555,15 @@ az webapp config ssl bind \
 ```bash
 # Check resource status
 az resource list \
-  --resource-group ${RESOURCE_GROUP} \
-  --query "[].{Name:name, Type:type, Status:provisioningState}" \
-  -o table
+ --resource-group ${RESOURCE_GROUP} \
+ --query "[].{Name:name, Type:type, Status:provisioningState}" \
+ -o table
 
 # View activity log
 az monitor activity-log list \
-  --resource-group ${RESOURCE_GROUP} \
-  --max-events 20 \
-  -o table
+ --resource-group ${RESOURCE_GROUP} \
+ --max-events 20 \
+ -o table
 ```
 
 ### Function App Cold Start
@@ -573,8 +573,8 @@ First request after idle period may be slow (Consumption plan).
 **Solutions**:
 
 1. Use App Service Plan instead (always warm)
-2. Implement health check pings (costs minimal)
-3. Upgrade to Premium plan (more expensive)
+1. Implement health check pings (costs minimal)
+1. Upgrade to Premium plan (more expensive)
 
 ## Security Best Practices
 
@@ -584,23 +584,23 @@ For production, configure IP restrictions:
 
 ```bash
 az functionapp config access-restriction add \
-  --resource-group ${RESOURCE_GROUP} \
-  --name func-subnet-calc \
-  --rule-name AllowOnlySWA \
-  --action Allow \
-  --ip-address <swa-outbound-ip>/32 \
-  --priority 100
+ --resource-group ${RESOURCE_GROUP} \
+ --name func-subnet-calc \
+ --rule-name AllowOnlySWA \
+ --action Allow \
+ --ip-address <swa-outbound-ip>/32 \
+ --priority 100
 ```
 
 ### 2. Enable Application Insights
 
 ```bash
 az functionapp config appsettings set \
-  --name func-subnet-calc \
-  --resource-group ${RESOURCE_GROUP} \
-  --settings \
-    APPINSIGHTS_INSTRUMENTATIONKEY="<key>" \
-    APPLICATIONINSIGHTS_CONNECTION_STRING="<connection-string>"
+ --name func-subnet-calc \
+ --resource-group ${RESOURCE_GROUP} \
+ --settings \
+ APPINSIGHTS_INSTRUMENTATIONKEY="<key>" \
+ APPLICATIONINSIGHTS_CONNECTION_STRING="<connection-string>"
 ```
 
 ### 3. Rotate Secrets Regularly
@@ -616,15 +616,15 @@ All scripts enable this by default, but verify:
 ```bash
 # Function App
 az functionapp show \
-  --name func-subnet-calc \
-  --resource-group ${RESOURCE_GROUP} \
-  --query httpsOnly
+ --name func-subnet-calc \
+ --resource-group ${RESOURCE_GROUP} \
+ --query httpsOnly
 
 # App Service
 az webapp show \
-  --name app-flask-subnet-calc \
-  --resource-group ${RESOURCE_GROUP} \
-  --query httpsOnly
+ --name app-flask-subnet-calc \
+ --resource-group ${RESOURCE_GROUP} \
+ --query httpsOnly
 ```
 
 ## Cleanup
@@ -634,9 +634,9 @@ az webapp show \
 ```bash
 # Complete cleanup
 az group delete \
-  --name ${RESOURCE_GROUP} \
-  --yes \
-  --no-wait
+ --name ${RESOURCE_GROUP} \
+ --yes \
+ --no-wait
 ```
 
 ### Delete Individual Stacks
@@ -644,25 +644,25 @@ az group delete \
 ```bash
 # Delete specific SWA
 az staticwebapp delete \
-  --name swa-subnet-calc-noauth \
-  --resource-group ${RESOURCE_GROUP} \
-  --yes
+ --name swa-subnet-calc-noauth \
+ --resource-group ${RESOURCE_GROUP} \
+ --yes
 
 # Delete Function App
 az functionapp delete \
-  --name func-subnet-calc \
-  --resource-group ${RESOURCE_GROUP}
+ --name func-subnet-calc \
+ --resource-group ${RESOURCE_GROUP}
 
 # Delete App Service
 az webapp delete \
-  --name app-flask-subnet-calc \
-  --resource-group ${RESOURCE_GROUP}
+ --name app-flask-subnet-calc \
+ --resource-group ${RESOURCE_GROUP}
 
 # Delete App Service Plan (if not shared)
 az appservice plan delete \
-  --name plan-subnet-calc \
-  --resource-group ${RESOURCE_GROUP} \
-  --yes
+ --name plan-subnet-calc \
+ --resource-group ${RESOURCE_GROUP} \
+ --yes
 ```
 
 ## References

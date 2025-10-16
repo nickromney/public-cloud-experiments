@@ -264,7 +264,8 @@ EOF
   fi
 fi
 
-# Create zip file
+# Create zip file (excluding development files for security)
+# NOTE: Review this exclusion list when adding new development files
 ZIP_FILE="${TEMP_DIR}/deploy.zip"
 cd "${TEMP_DIR}"
 zip -r "${ZIP_FILE}" . \
@@ -280,6 +281,9 @@ zip -r "${ZIP_FILE}" . \
   -x "test_*.py" \
   -x "conftest.py" \
   -x "Makefile" \
+  -x "*.md" \
+  -x "uv.lock" \
+  -x "pyproject.toml" \
   > /dev/null
 
 log_info "Deployment package created: ${ZIP_FILE}"

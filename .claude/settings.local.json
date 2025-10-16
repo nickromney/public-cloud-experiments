@@ -226,7 +226,8 @@
       "Bash(nu -c:*)",
       "Bash(kill:*)",
       "Bash(npx @usebruno/cli@latest:*)",
-      "Bash(az storage account:*)"
+      "Bash(az storage account:*)",
+      "Bash(./test-static-deployment.sh:*)"
     ],
     "deny": [],
     "ask": []

@@ -157,8 +157,40 @@ log_info "  Auth Mode: ${AUTH_MODE}"
 TEMP_DIR=$(mktemp -d)
 log_info "Creating deployment package in ${TEMP_DIR}..."
 
-# Copy all files to temp directory
-cp -r "${SOURCE_DIR}"/* "${TEMP_DIR}/"
+# Copy only production files (whitelist approach for security)
+# SECURITY: Do NOT use "cp -r ${SOURCE_DIR}/* ${TEMP_DIR}/" as it would expose:
+#   - Dockerfile, Makefile (infrastructure details)
+#   - test_frontend.py, conftest.py (test code)
+#   - pyproject.toml, uv.lock (build configuration)
+#   - compose.yml, nginx.conf (deployment configuration)
+#   - __pycache__, .venv, .pytest_cache (build artifacts)
+# Only deploy what users need: HTML, CSS, JS, and favicon
+log_info "Copying production files only (index.html, favicon.svg, css/, js/)..."
+
+# Verify required files exist before copying
+MISSING_FILES=()
+for required_file in index.html favicon.svg css js; do
+  if [[ ! -e "${SOURCE_DIR}/${required_file}" ]]; then
+    MISSING_FILES+=("${required_file}")
+  fi
+done
+
+if [[ ${#MISSING_FILES[@]} -gt 0 ]]; then
+  log_error "Required files/directories not found in ${SOURCE_DIR}:"
+  for missing in "${MISSING_FILES[@]}"; do
+    log_error "  - ${missing}"
+  done
+  rm -rf "${TEMP_DIR}"
+  exit 1
+fi
+
+# Copy only production files (whitelist)
+cp "${SOURCE_DIR}/index.html" "${TEMP_DIR}/"
+cp "${SOURCE_DIR}/favicon.svg" "${TEMP_DIR}/"
+cp -r "${SOURCE_DIR}/css" "${TEMP_DIR}/"
+cp -r "${SOURCE_DIR}/js" "${TEMP_DIR}/"
+
+log_info "Production files copied successfully"
 
 # Inject API URL into index.html
 if [[ -f "${TEMP_DIR}/index.html" ]]; then

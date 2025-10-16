@@ -1,9 +1,23 @@
+// Runtime configuration (injected by deployment scripts)
+// Deployment scripts can set window.RUNTIME_CONFIG before loading this module
+declare global {
+  interface Window {
+    API_BASE_URL?: string
+    AUTH_ENABLED?: string
+    JWT_USERNAME?: string
+    JWT_PASSWORD?: string
+  }
+}
+
 export const API_CONFIG = {
-  baseUrl: import.meta.env.VITE_API_URL ?? 'http://localhost:8090',
+  // Priority: Runtime config (window) > Build-time env (import.meta.env) > Default
+  baseUrl:
+    (typeof window !== 'undefined' && window.API_BASE_URL) || import.meta.env.VITE_API_URL || 'http://localhost:8090',
   auth: {
-    enabled: import.meta.env.VITE_AUTH_ENABLED === 'true',
-    username: import.meta.env.VITE_JWT_USERNAME || '',
-    password: import.meta.env.VITE_JWT_PASSWORD || '',
+    enabled:
+      (typeof window !== 'undefined' && window.AUTH_ENABLED === 'true') || import.meta.env.VITE_AUTH_ENABLED === 'true',
+    username: (typeof window !== 'undefined' && window.JWT_USERNAME) || import.meta.env.VITE_JWT_USERNAME || '',
+    password: (typeof window !== 'undefined' && window.JWT_PASSWORD) || import.meta.env.VITE_JWT_PASSWORD || '',
   },
   paths: {
     health: '/api/v1/health',

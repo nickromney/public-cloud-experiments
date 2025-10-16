@@ -31,9 +31,9 @@ STORAGE_ACCOUNT_NAME="<your-storage-account>"
 RESOURCE_GROUP="<your-resource-group>"
 
 az storage account show \
-  --name ${STORAGE_ACCOUNT_NAME} \
-  --resource-group ${RESOURCE_GROUP} \
-  --query "primaryEndpoints.web" -o tsv
+ --name ${STORAGE_ACCOUNT_NAME} \
+ --resource-group ${RESOURCE_GROUP} \
+ --query "primaryEndpoints.web" -o tsv
 ```
 
 **Example Output**: `https://stsubnetcalc123.z33.web.core.windows.net/`
@@ -43,13 +43,13 @@ az storage account show \
 ### Static Web Apps
 
 ```bash
-SWA_NAME="swa-subnet-calc-noauth"  # or jwt, entraid
+SWA_NAME="swa-subnet-calc-noauth" # or jwt, entraid
 RESOURCE_GROUP="<your-resource-group>"
 
 az staticwebapp show \
-  --name ${SWA_NAME} \
-  --resource-group ${RESOURCE_GROUP} \
-  --query defaultHostname -o tsv
+ --name ${SWA_NAME} \
+ --resource-group ${RESOURCE_GROUP} \
+ --query defaultHostname -o tsv
 ```
 
 **Example Output**: `happy-rock-0a1b2c3d4.uksouth.2.azurestaticapps.net`
@@ -63,9 +63,9 @@ APP_SERVICE_NAME="app-flask-subnet-calc"
 RESOURCE_GROUP="<your-resource-group>"
 
 az webapp show \
-  --name ${APP_SERVICE_NAME} \
-  --resource-group ${RESOURCE_GROUP} \
-  --query defaultHostName -o tsv
+ --name ${APP_SERVICE_NAME} \
+ --resource-group ${RESOURCE_GROUP} \
+ --query defaultHostName -o tsv
 ```
 
 **Example Output**: `app-flask-subnet-calc.azurewebsites.net`
@@ -79,8 +79,8 @@ az webapp show \
 #### 1. Login to Cloudflare
 
 1. Navigate to <https://dash.cloudflare.com>
-2. Select your domain (`publiccloudexperiments.net`)
-3. Go to **DNS** → **Records**
+1. Select your domain (`publiccloudexperiments.net`)
+1. Go to **DNS** → **Records**
 
 #### 2. Add CNAME Records
 
@@ -136,8 +136,8 @@ For each stack, add a CNAME record:
 **SSL/TLS Mode**:
 
 1. Go to **SSL/TLS** → **Overview**
-2. Set encryption mode to: **Full** (not Full Strict)
-3. Enable "Always Use HTTPS"
+1. Set encryption mode to: **Full** (not Full Strict)
+1. Enable "Always Use HTTPS"
 
 ### Method 2: Cloudflare API (Automated)
 
@@ -149,7 +149,7 @@ For each stack, add a CNAME record:
 # Use "Edit zone DNS" template
 
 export CF_API_TOKEN="your-token-here"
-export CF_ZONE_ID="your-zone-id"  # Found on domain overview page
+export CF_ZONE_ID="your-zone-id" # Found on domain overview page
 export CUSTOM_DOMAIN="publiccloudexperiments.net"
 ```
 
@@ -158,19 +158,19 @@ export CUSTOM_DOMAIN="publiccloudexperiments.net"
 ```bash
 # Function to add CNAME record
 add_cname() {
-  local subdomain=$1
-  local target=$2
+ local subdomain=$1
+ local target=$2
 
-  curl -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
-    -H "Authorization: Bearer ${CF_API_TOKEN}" \
-    -H "Content-Type: application/json" \
-    --data '{
-      "type": "CNAME",
-      "name": "'${subdomain}'",
-      "content": "'${target}'",
-      "ttl": 1,
-      "proxied": false
-    }'
+ curl -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records" \
+ -H "Authorization: Bearer ${CF_API_TOKEN}" \
+ -H "Content-Type: application/json" \
+ --data '{
+ "type": "CNAME",
+ "name": "'${subdomain}'",
+ "content": "'${target}'",
+ "ttl": 1,
+ "proxied": false
+ }'
 }
 
 # Add all records
@@ -194,9 +194,9 @@ CUSTOM_DOMAIN="publiccloudexperiments.net"
 
 # Add custom domain
 az storage account update \
-  --name ${STORAGE_ACCOUNT_NAME} \
-  --resource-group ${RESOURCE_GROUP} \
-  --custom-domain static.${CUSTOM_DOMAIN}
+ --name ${STORAGE_ACCOUNT_NAME} \
+ --resource-group ${RESOURCE_GROUP} \
+ --custom-domain static.${CUSTOM_DOMAIN}
 ```
 
 **Note**: Storage accounts don't support HTTPS on custom domains without CDN.
@@ -204,8 +204,8 @@ az storage account update \
 **Options**:
 
 1. Use HTTP only: `http://static.publiccloudexperiments.net`
-2. Add Azure CDN for HTTPS support (additional cost)
-3. Use Cloudflare proxy (orange cloud) for free SSL
+1. Add Azure CDN for HTTPS support (additional cost)
+1. Use Cloudflare proxy (orange cloud) for free SSL
 
 ### Static Web Apps
 
@@ -217,9 +217,9 @@ SUBDOMAIN="noauth"
 
 # Add custom hostname
 az staticwebapp hostname set \
-  --name ${STATIC_WEB_APP_NAME} \
-  --resource-group ${RESOURCE_GROUP} \
-  --hostname ${SUBDOMAIN}.${CUSTOM_DOMAIN}
+ --name ${STATIC_WEB_APP_NAME} \
+ --resource-group ${RESOURCE_GROUP} \
+ --hostname ${SUBDOMAIN}.${CUSTOM_DOMAIN}
 ```
 
 **Repeat for each SWA**:
@@ -227,15 +227,15 @@ az staticwebapp hostname set \
 ```bash
 # JWT
 az staticwebapp hostname set \
-  --name swa-subnet-calc-jwt \
-  --resource-group ${RESOURCE_GROUP} \
-  --hostname jwt.${CUSTOM_DOMAIN}
+ --name swa-subnet-calc-jwt \
+ --resource-group ${RESOURCE_GROUP} \
+ --hostname jwt.${CUSTOM_DOMAIN}
 
 # Entra ID
 az staticwebapp hostname set \
-  --name swa-subnet-calc-entraid \
-  --resource-group ${RESOURCE_GROUP} \
-  --hostname entraid.${CUSTOM_DOMAIN}
+ --name swa-subnet-calc-entraid \
+ --resource-group ${RESOURCE_GROUP} \
+ --hostname entraid.${CUSTOM_DOMAIN}
 ```
 
 **Automatic SSL**: Azure automatically provisions free SSL certificates (5-10 minutes).
@@ -250,23 +250,23 @@ SUBDOMAIN="flask"
 
 # Add custom hostname
 az webapp config hostname add \
-  --webapp-name ${APP_SERVICE_NAME} \
-  --resource-group ${RESOURCE_GROUP} \
-  --hostname ${SUBDOMAIN}.${CUSTOM_DOMAIN}
+ --webapp-name ${APP_SERVICE_NAME} \
+ --resource-group ${RESOURCE_GROUP} \
+ --hostname ${SUBDOMAIN}.${CUSTOM_DOMAIN}
 
 # Create and bind managed certificate
 az webapp config ssl create \
-  --resource-group ${RESOURCE_GROUP} \
-  --name ${APP_SERVICE_NAME} \
-  --hostname ${SUBDOMAIN}.${CUSTOM_DOMAIN}
+ --resource-group ${RESOURCE_GROUP} \
+ --name ${APP_SERVICE_NAME} \
+ --hostname ${SUBDOMAIN}.${CUSTOM_DOMAIN}
 
 az webapp config ssl bind \
-  --resource-group ${RESOURCE_GROUP} \
-  --name ${APP_SERVICE_NAME} \
-  --certificate-thumbprint $(az webapp config ssl list \
-    --resource-group ${RESOURCE_GROUP} \
-    --query "[0].thumbprint" -o tsv) \
-  --ssl-type SNI
+ --resource-group ${RESOURCE_GROUP} \
+ --name ${APP_SERVICE_NAME} \
+ --certificate-thumbprint $(az webapp config ssl list \
+ --resource-group ${RESOURCE_GROUP} \
+ --query "[0].thumbprint" -o tsv) \
+ --ssl-type SNI
 ```
 
 ## Verification
@@ -298,15 +298,15 @@ curl -vI https://noauth.publiccloudexperiments.net 2>&1 | grep -i "subject:"
 
 # Check certificate expiration
 echo | openssl s_client -servername noauth.publiccloudexperiments.net \
-  -connect noauth.publiccloudexperiments.net:443 2>/dev/null | \
-  openssl x509 -noout -dates
+ -connect noauth.publiccloudexperiments.net:443 2>/dev/null | \
+ openssl x509 -noout -dates
 ```
 
 ### HTTP Access Check
 
 ```bash
 # Test all endpoints
-curl -I https://static.publiccloudexperiments.net     # or http://
+curl -I https://static.publiccloudexperiments.net # or http://
 curl -I https://noauth.publiccloudexperiments.net
 curl -I https://jwt.publiccloudexperiments.net
 curl -I https://entraid.publiccloudexperiments.net
@@ -324,9 +324,9 @@ curl -I https://flask.publiccloudexperiments.net
 **Solutions**:
 
 1. Wait 5-10 minutes for propagation
-2. Verify record was created in Cloudflare
-3. Check Cloudflare nameservers are set on domain registrar
-4. Clear local DNS cache: `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder` (macOS)
+1. Verify record was created in Cloudflare
+1. Check Cloudflare nameservers are set on domain registrar
+1. Clear local DNS cache: `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder` (macOS)
 
 ### SSL Certificate Errors
 
@@ -351,8 +351,8 @@ curl -I https://flask.publiccloudexperiments.net
 **Causes**:
 
 1. DNS not propagated yet → Wait and retry
-2. CNAME record incorrect → Verify in Cloudflare
-3. Cloudflare proxy enabled → Disable proxy (grey cloud)
+1. CNAME record incorrect → Verify in Cloudflare
+1. Cloudflare proxy enabled → Disable proxy (grey cloud)
 
 **Verification**:
 
@@ -384,17 +384,17 @@ Use Cloudflare Workers for advanced routing:
 ```javascript
 // Route /api/* to Function App, everything else to SWA
 addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request))
+ event.respondWith(handleRequest(event.request))
 })
 
 async function handleRequest(request) {
-  const url = new URL(request.url)
+ const url = new URL(request.url)
 
-  if (url.pathname.startsWith('/api/')) {
-    return fetch('https://func-subnet-calc.azurewebsites.net' + url.pathname)
-  }
+ if (url.pathname.startsWith('/api/')) {
+ return fetch('https://func-subnet-calc.azurewebsites.net' + url.pathname)
+ }
 
-  return fetch('https://noauth-swa.azurestaticapps.net' + url.pathname)
+ return fetch('https://noauth-swa.azurestaticapps.net' + url.pathname)
 }
 ```
 
@@ -403,18 +403,19 @@ async function handleRequest(request) {
 Cloudflare Page Rules for redirects:
 
 1. Go to **Rules** → **Page Rules**
-2. Create rule:
-   - URL: `publiccloudexperiments.net/*`
-   - Setting: Forwarding URL (301)
-   - Destination: `https://noauth.publiccloudexperiments.net/$1`
+1. Create rule:
+
+- URL: `publiccloudexperiments.net/*`
+- Setting: Forwarding URL (301)
+- Destination: `https://noauth.publiccloudexperiments.net/$1`
 
 ### Health Check Monitoring
 
 Cloudflare Health Checks (Business plan required):
 
 1. Go to **Traffic** → **Health Checks**
-2. Create monitor for each endpoint
-3. Set up email/webhook notifications
+1. Create monitor for each endpoint
+1. Set up email/webhook notifications
 
 ## Cost Implications
 

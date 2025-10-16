@@ -14,18 +14,18 @@ Create three "stack" wrapper scripts that orchestrate complete end-to-end deploy
 
 ```text
 ┌─────────────────────────────────────┐
-│ Azure Static Web App (Free)         │
-│ - Static HTML + JavaScript          │
-│ - Client-side only                  │
+│ Azure Static Web App (Free) │
+│ - Static HTML + JavaScript │
+│ - Client-side only │
 │ - All API calls visible in browser │
 └──────────────┬──────────────────────┘
-               │ HTTPS (public)
+ │ HTTPS (public)
 ┌──────────────▼──────────────────────┐
-│ Azure Function App (Consumption)    │
-│ - Python 3.11 FastAPI               │
-│ - Public endpoint                   │
-│ - NO AUTHENTICATION                 │
-│ - Cold start possible               │
+│ Azure Function App (Consumption) │
+│ - Python 3.11 FastAPI │
+│ - Public endpoint │
+│ - NO AUTHENTICATION │
+│ - Cold start possible │
 └─────────────────────────────────────┘
 ```
 
@@ -40,9 +40,9 @@ Create three "stack" wrapper scripts that orchestrate complete end-to-end deploy
 **Scripts called** (in order):
 
 1. `./00-static-web-app.sh`
-2. `./10-function-app.sh`
-3. `DISABLE_AUTH=true ./22-deploy-function-zip.sh`
-4. `FRONTEND=static ./20-deploy-frontend.sh`
+1. `./10-function-app.sh`
+1. `DISABLE_AUTH=true ./22-deploy-function-zip.sh`
+1. `FRONTEND=static ./20-deploy-frontend.sh`
 
 **Features**:
 
@@ -70,30 +70,30 @@ open https://happy-rock-XXXXX.westus2-1.azurestaticapps.net
 
 ```text
 ┌─────────────────────────────────────┐
-│ Flask App (Azure App Service)       │
-│ - Python Flask                      │
-│ - Server-side rendering             │
-│ - Handles JWT auth flow             │
-│ - Backend calls hidden from user    │
-│ - Public ingress                    │
+│ Flask App (Azure App Service) │
+│ - Python Flask │
+│ - Server-side rendering │
+│ - Handles JWT auth flow │
+│ - Backend calls hidden from user │
+│ - Public ingress │
 └──────────────┬──────────────────────┘
-               │ HTTPS + JWT token
+ │ HTTPS + JWT token
 ┌──────────────▼──────────────────────┐
-│ Azure Function App (App Svc Plan)   │
-│ - Python 3.11 FastAPI               │
-│ - Public endpoint                   │
-│ - REQUIRES JWT TOKEN                │
-│ - Validates HS256 signature         │
-│ - Runs on App Service Plan B1       │
-│ - VNet integrated (outbound)        │
+│ Azure Function App (App Svc Plan) │
+│ - Python 3.11 FastAPI │
+│ - Public endpoint │
+│ - REQUIRES JWT TOKEN │
+│ - Validates HS256 signature │
+│ - Runs on App Service Plan B1 │
+│ - VNet integrated (outbound) │
 └──────────────┬──────────────────────┘
-               │ Outbound only
+ │ Outbound only
 ┌──────────────▼──────────────────────┐
-│ Azure Virtual Network                │
-│ - 10.0.0.0/16 address space         │
-│ - Function subnet (10.0.1.0/28)     │
+│ Azure Virtual Network │
+│ - 10.0.0.0/16 address space │
+│ - Function subnet (10.0.1.0/28) │
 │ - Microsoft.Web/serverFarms delegate│
-│ - NSG with outbound rules           │
+│ - NSG with outbound rules │
 └─────────────────────────────────────┘
 ```
 
@@ -115,11 +115,11 @@ open https://happy-rock-XXXXX.westus2-1.azurestaticapps.net
 **Scripts called** (in order):
 
 1. `./11-create-vnet-infrastructure.sh` (VNet + subnets + NSG)
-2. `PLAN_SKU=B1 ./12-create-app-service-plan.sh` (B1 Basic tier)
-3. `./13-create-function-app-on-app-service-plan.sh` (Function on plan)
-4. `./14-configure-function-vnet-integration.sh` (VNet integration)
-5. `AUTH_METHOD=jwt ./22-deploy-function-zip.sh` (API with JWT)
-6. `./50-deploy-flask-app-service.sh` (NEW - Flask to App Service)
+1. `PLAN_SKU=B1 ./12-create-app-service-plan.sh` (B1 Basic tier)
+1. `./13-create-function-app-on-app-service-plan.sh` (Function on plan)
+1. `./14-configure-function-vnet-integration.sh` (VNet integration)
+1. `AUTH_METHOD=jwt ./22-deploy-function-zip.sh` (API with JWT)
+1. `./50-deploy-flask-app-service.sh` (NEW - Flask to App Service)
 
 **NEW Script Required**: `50-deploy-flask-app-service.sh`
 
@@ -132,11 +132,11 @@ open https://happy-rock-XXXXX.westus2-1.azurestaticapps.net
 - Uses existing or creates new App Service Plan (can reuse plan from step 2)
 - Zip deployment from `../../frontend-python-flask`
 - Configures environment variables:
-  - `API_BASE_URL`: Function App URL
-  - `JWT_USERNAME`: Admin username for JWT login
-  - `JWT_PASSWORD`: Admin password (hashed with Argon2)
-  - `JWT_SECRET_KEY`: Shared secret with Function App
-  - `JWT_ALGORITHM`: HS256
+- `API_BASE_URL`: Function App URL
+- `JWT_USERNAME`: Admin username for JWT login
+- `JWT_PASSWORD`: Admin password (hashed with Argon2)
+- `JWT_SECRET_KEY`: Shared secret with Function App
+- `JWT_ALGORITHM`: HS256
 - Enables HTTPS only
 - Provides login URL and test credentials
 
@@ -170,36 +170,36 @@ open https://app-flask-XXXXX.azurewebsites.net
 
 ```text
 Internet
-    │
-    ▼
+ │
+ ▼
 ┌─────────────────────────────────────┐
-│ Application Gateway (WAF)            │
-│ - Public IP                         │
-│ - Private Link to SWA               │
-│ - WAF rules for protection          │
+│ Application Gateway (WAF) │
+│ - Public IP │
+│ - Private Link to SWA │
+│ - WAF rules for protection │
 └──────────────┬──────────────────────┘
-               │ Private Link
+ │ Private Link
 ┌──────────────▼──────────────────────┐
-│ Azure Static Web App (Standard)     │
-│ - TypeScript Vite SPA               │
-│ - Private Link mode                 │
-│ - NO public access                  │
+│ Azure Static Web App (Standard) │
+│ - TypeScript Vite SPA │
+│ - Private Link mode │
+│ - NO public access │
 └──────────────┬──────────────────────┘
-               │ Private traffic only
+ │ Private traffic only
 ┌──────────────▼──────────────────────┐
-│ Azure Function App (Private)        │
-│ - Private endpoint in VNet          │
-│ - NO public access                  │
-│ - All traffic via VNet              │
+│ Azure Function App (Private) │
+│ - Private endpoint in VNet │
+│ - NO public access │
+│ - All traffic via VNet │
 └──────────────┬──────────────────────┘
-               │
+ │
 ┌──────────────▼──────────────────────┐
-│ Azure Virtual Network                │
-│ - 10.0.0.0/16 address space         │
-│ - Function subnet (10.0.1.0/28)     │
-│ - Private Endpoints subnet          │
-│ - App Gateway subnet                │
-│ - NSG with strict rules             │
+│ Azure Virtual Network │
+│ - 10.0.0.0/16 address space │
+│ - Function subnet (10.0.1.0/28) │
+│ - Private Endpoints subnet │
+│ - App Gateway subnet │
+│ - NSG with strict rules │
 └─────────────────────────────────────┘
 ```
 
@@ -223,15 +223,15 @@ Internet
 **Scripts called** (future):
 
 1. `./00-static-web-app.sh` (with Standard SKU)
-2. `./11-create-vnet-infrastructure.sh` (with App Gateway subnet)
-3. `PLAN_SKU=B1 ./12-create-app-service-plan.sh`
-4. `./13-create-function-app-on-app-service-plan.sh`
-5. `./14-configure-function-vnet-integration.sh`
-6. `./60-create-app-gateway.sh` (NEW - to be created)
-7. `./61-configure-swa-private-link.sh` (NEW - to be created)
-8. `./62-configure-function-private-endpoint.sh` (NEW - to be created)
-9. `DISABLE_AUTH=true ./21-deploy-function.sh` (or with JWT)
-10. `FRONTEND=typescript ./20-deploy-frontend.sh`
+1. `./11-create-vnet-infrastructure.sh` (with App Gateway subnet)
+1. `PLAN_SKU=B1 ./12-create-app-service-plan.sh`
+1. `./13-create-function-app-on-app-service-plan.sh`
+1. `./14-configure-function-vnet-integration.sh`
+1. `./60-create-app-gateway.sh` (NEW - to be created)
+1. `./61-configure-swa-private-link.sh` (NEW - to be created)
+1. `./62-configure-function-private-endpoint.sh` (NEW - to be created)
+1. `DISABLE_AUTH=true ./21-deploy-function.sh` (or with JWT)
+1. `FRONTEND=typescript ./20-deploy-frontend.sh`
 
 ---
 
@@ -281,18 +281,18 @@ Focus on public deployments first as they inform the patterns for Stack 03.
 
 ```text
 infrastructure/azure/
-├── stack-01-public-simple.sh         # NEW: Public, no auth
-├── stack-02-flask-jwt.sh             # NEW: Flask + JWT + VNet
-├── stack-03-private-vnet.sh          # NEW (future): Private VNet
-├── 50-deploy-flask-app-service.sh    # NEW: Flask to App Service (zip)
-├── 60-create-app-gateway.sh          # NEW (future): App Gateway
-├── 61-configure-swa-private-link.sh  # NEW (future): SWA Private Link
-├── 62-configure-function-private-endpoint.sh  # NEW (future): Function Private Endpoint
+├── stack-01-public-simple.sh # NEW: Public, no auth
+├── stack-02-flask-jwt.sh # NEW: Flask + JWT + VNet
+├── stack-03-private-vnet.sh # NEW (future): Private VNet
+├── 50-deploy-flask-app-service.sh # NEW: Flask to App Service (zip)
+├── 60-create-app-gateway.sh # NEW (future): App Gateway
+├── 61-configure-swa-private-link.sh # NEW (future): SWA Private Link
+├── 62-configure-function-private-endpoint.sh # NEW (future): Function Private Endpoint
 ├── (existing 00-40 scripts unchanged)
 ├── docs/
-│   ├── STACK-DEPLOYMENT-PLAN.md      # NEW: This file
-│   └── (existing docs)
-└── README.md                          # UPDATE: Add stack documentation
+│ ├── STACK-DEPLOYMENT-PLAN.md # NEW: This file
+│ └── (existing docs)
+└── README.md # UPDATE: Add stack documentation
 ```
 
 ---
@@ -307,12 +307,12 @@ All stack scripts should follow this pattern:
 # stack-XX-name.sh - Deploy complete stack for [use case]
 #
 # Architecture:
-#   [ASCII diagram]
+# [ASCII diagram]
 #
 # Components:
-#   - Frontend: [type]
-#   - Backend: [type]
-#   - Authentication: [type]
+# - Frontend: [type]
+# - Backend: [type]
+# - Authentication: [type]
 #
 # Cost: [estimate]
 # Use case: [description]
@@ -358,8 +358,8 @@ log_info "Frontend: https://[url]"
 log_info "Backend API: https://[url]"
 log_info ""
 log_info "Test commands:"
-log_info "  curl https://[api-url]/api/v1/health"
-log_info "  open https://[frontend-url]"
+log_info " curl https://[api-url]/api/v1/health"
+log_info " open https://[frontend-url]"
 log_info ""
 ```
 
@@ -417,26 +417,26 @@ Quick deployment of complete stacks with different architectures:
 ### Stack 01
 
 1. Works end-to-end in Pluralsight sandbox
-2. Creates SWA + Function App + deploys both
-3. No authentication - fully public
-4. Idempotent - can re-run safely
-5. Clear output with URLs and test commands
+1. Creates SWA + Function App + deploys both
+1. No authentication - fully public
+1. Idempotent - can re-run safely
+1. Clear output with URLs and test commands
 
 ### Stack 02
 
 1. Works end-to-end in Pluralsight sandbox
-2. Creates VNet + App Service Plan + Function + Flask App Service
-3. JWT authentication works end-to-end
-4. Flask deployed via zip (no containers)
-5. Shows login flow and token usage
-6. Idempotent - can re-run safely
+1. Creates VNet + App Service Plan + Function + Flask App Service
+1. JWT authentication works end-to-end
+1. Flask deployed via zip (no containers)
+1. Shows login flow and token usage
+1. Idempotent - can re-run safely
 
 ### Stack 03
 
 1. Deferred until Stack 01 and 02 tested
-2. Requires research on Private Link + App Gateway
-3. Document cost implications clearly
-4. Provide fallback to cheaper alternatives
+1. Requires research on Private Link + App Gateway
+1. Document cost implications clearly
+1. Provide fallback to cheaper alternatives
 
 ---
 
@@ -447,22 +447,25 @@ Quick deployment of complete stacks with different architectures:
 Due to Azure Static Web Apps limitation (1 per resource group on Free tier):
 
 1. **Test Stack 01**:
-   - Deploy complete stack
-   - Verify all endpoints
-   - Test frontend → API calls
-   - Cleanup or note SWA name
 
-2. **Test Stack 02**:
-   - Reuse same SWA or create new (if cleaned up)
-   - Deploy Flask to separate App Service
-   - Verify JWT authentication
-   - Test Flask → Function API calls
-   - Verify VNet integration
+- Deploy complete stack
+- Verify all endpoints
+- Test frontend → API calls
+- Cleanup or note SWA name
 
-3. **Test Stack 03** (future):
-   - Requires SWA Standard SKU ($9/month minimum)
-   - May need separate subscription for cost reasons
-   - Test in personal subscription, not sandbox
+1. **Test Stack 02**:
+
+- Reuse same SWA or create new (if cleaned up)
+- Deploy Flask to separate App Service
+- Verify JWT authentication
+- Test Flask → Function API calls
+- Verify VNet integration
+
+1. **Test Stack 03** (future):
+
+- Requires SWA Standard SKU ($9/month minimum)
+- May need separate subscription for cost reasons
+- Test in personal subscription, not sandbox
 
 ### Cost Management
 
@@ -515,10 +518,10 @@ Due to Azure Static Web Apps limitation (1 per resource group on Free tier):
 ## Next Steps
 
 1. **Create documentation** (this file)
-2. **Implement stack-01-public-simple.sh**
-3. **Implement 50-deploy-flask-app-service.sh**
-4. **Implement stack-02-flask-jwt.sh**
-5. **Test Stack 01** in Pluralsight sandbox
-6. **Test Stack 02** in Pluralsight sandbox
-7. **Update README** with stack documentation
-8. **Plan Stack 03** (after Stack 01/02 validated)
+1. **Implement stack-01-public-simple.sh**
+1. **Implement 50-deploy-flask-app-service.sh**
+1. **Implement stack-02-flask-jwt.sh**
+1. **Test Stack 01** in Pluralsight sandbox
+1. **Test Stack 02** in Pluralsight sandbox
+1. **Update README** with stack documentation
+1. **Plan Stack 03** (after Stack 01/02 validated)
