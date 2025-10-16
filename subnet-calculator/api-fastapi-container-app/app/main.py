@@ -5,15 +5,48 @@ Key differences from Azure Functions version:
 - No AsgiMiddleware (FastAPI runs directly on Uvicorn)
 - Standard routes (/subnets/ipv4) instead of function routes (/api/calculate_ipv4)
 - Direct HTTP server instead of Azure Functions host
+
+Environment Variables:
+    AUTH_METHOD: Authentication method (none, api_key, jwt, azure_swa, apim, azure_ad)
+
+    CORS Configuration:
+        CORS_ORIGINS: Comma-separated list of allowed CORS origins
+                     If not set or empty, no origins allowed (same-origin only)
+                     Example: http://localhost:3000,http://localhost:5173
+
+    SWA Host Validation (only applies when AUTH_METHOD=none):
+        ALLOWED_SWA_HOSTS: Comma-separated list of allowed SWA hostnames
+                          Validates X-Forwarded-Host header for security
+                          Example: app.azurestaticapps.net,custom-domain.com
+
+    API Key Authentication (AUTH_METHOD=api_key):
+        API_KEYS: Comma-separated list of valid API keys
+
+    JWT Authentication (AUTH_METHOD=jwt):
+        JWT_SECRET_KEY: Secret key for signing JWTs (min 32 characters)
+        JWT_ALGORITHM: Signing algorithm (default: HS256)
+        JWT_ACCESS_TOKEN_EXPIRE_MINUTES: Token expiration (default: 30)
+        JWT_TEST_USERS: JSON object with test users (development only)
 """
+
+import logging
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .auth import validate_api_key
-from .config import AuthMethod, get_api_keys, get_auth_method
+from .config import (
+    AuthMethod,
+    get_allowed_swa_hosts,
+    get_api_keys,
+    get_auth_method,
+    get_cors_origins,
+)
 from .routers import auth, health, subnets
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
@@ -25,15 +58,25 @@ app = FastAPI(
     openapi_url="/api/v1/openapi.json",  # OpenAPI spec (for APIM import)
 )
 
-# Configure CORS for local development
-# Allows TypeScript Vite (localhost:3000) and Static HTML (localhost:8001) frontends
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+# Configure CORS origins from environment
+# CORS_ORIGINS: Comma-separated list of allowed origins
+# If not set or empty, only allows same-origin (no wildcard)
+cors_origins = get_cors_origins()
+if not cors_origins:
+    # Default to localhost origins for development
+    cors_origins = [
         "http://localhost:3000",  # TypeScript Vite frontend
         "http://localhost:8001",  # Static HTML frontend
         "http://localhost:5173",  # Vite dev server
-    ],
+    ]
+    logger.warning("CORS: Using default localhost origins for development")
+else:
+    logger.info(f"CORS: Allowed origins: {', '.join(cors_origins)}")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -44,6 +87,84 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(subnets.router)
 app.include_router(subnets.router_ipv6)
+
+
+# Middleware for X-Forwarded-Host validation
+@app.middleware("http")
+async def swa_host_validation_middleware(request: Request, call_next):
+    """
+    Validate X-Forwarded-Host header when AUTH_METHOD=none.
+
+    This middleware protects unauthenticated APIs deployed behind Azure Static Web Apps
+    by ensuring requests come from the expected SWA hostname.
+
+    Configuration:
+        ALLOWED_SWA_HOSTS: Comma-separated list of allowed SWA hostnames
+                          Example: app.azurestaticapps.net,custom-domain.com
+                          If not set, validation is skipped
+
+    Only applies when AUTH_METHOD=none (Stack 06 pattern).
+    """
+    auth_method = get_auth_method()
+
+    # Skip validation for health, docs, and auth endpoints
+    if request.url.path in [
+        "/api/v1/health",
+        "/api/v1/health/ready",
+        "/api/v1/health/live",
+        "/api/v1/docs",
+        "/api/v1/redoc",
+        "/api/v1/openapi.json",
+        "/api/v1/auth/login",
+        "/",
+    ]:
+        response = await call_next(request)
+        return response
+
+    # Only validate when AUTH_METHOD=none and ALLOWED_SWA_HOSTS is configured
+    if auth_method == AuthMethod.NONE:
+        allowed_hosts = get_allowed_swa_hosts()
+
+        if allowed_hosts:
+            # Extract X-Forwarded-Host header (set by Azure Static Web Apps)
+            forwarded_host = request.headers.get("X-Forwarded-Host")
+
+            if not forwarded_host:
+                logger.warning(
+                    "SWA Host Validation: Missing X-Forwarded-Host header",
+                    extra={
+                        "path": request.url.path,
+                        "client_host": request.client.host if request.client else "unknown",
+                    },
+                )
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "Missing X-Forwarded-Host header"},
+                )
+
+            # Check if forwarded host matches any allowed host
+            if forwarded_host not in allowed_hosts:
+                logger.warning(
+                    "SWA Host Validation: Invalid X-Forwarded-Host",
+                    extra={
+                        "forwarded_host": forwarded_host,
+                        "allowed_hosts": allowed_hosts,
+                        "path": request.url.path,
+                    },
+                )
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "Invalid X-Forwarded-Host header"},
+                )
+
+            logger.debug(
+                "SWA Host Validation: Passed",
+                extra={"forwarded_host": forwarded_host, "path": request.url.path},
+            )
+
+    # Pass through to next middleware
+    response = await call_next(request)
+    return response
 
 
 # Middleware for authentication

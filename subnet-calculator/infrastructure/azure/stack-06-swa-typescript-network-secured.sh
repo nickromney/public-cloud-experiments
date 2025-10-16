@@ -73,7 +73,7 @@ if [[ -z "${RESOURCE_GROUP:-}" ]]; then
 fi
 
 # Step 1: Create Function App
-log_step "Step 1/5: Creating Function App..."
+log_step "Step 1/6: Creating Function App..."
 export RESOURCE_GROUP LOCATION
 "${SCRIPT_DIR}/10-function-app.sh"
 
@@ -81,7 +81,7 @@ FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" \
   --query "sort_by(@, &createdTime)[-1].name" -o tsv)
 
 # Step 2: Configure IP restrictions
-log_step "Step 2/5: Configuring IP restrictions..."
+log_step "Step 2/6: Configuring IP restrictions..."
 
 log_info "Adding IP restriction for Azure SWA service tag..."
 az functionapp config access-restriction add \
@@ -105,20 +105,49 @@ az functionapp config access-restriction add \
 
 log_info "IP restrictions configured"
 
-# Step 3: Deploy Function code (with header validation)
-log_step "Step 3/5: Deploying Function code..."
-export FUNCTION_APP_NAME DISABLE_AUTH=true
-"${SCRIPT_DIR}/22-deploy-function-zip.sh"
-sleep 30
-
-# Step 4: Create SWA with Entra ID
-log_step "Step 4/5: Creating SWA with Entra ID..."
+# Step 3: Create SWA with Entra ID (before function deployment)
+log_step "Step 3/6: Creating SWA with Entra ID..."
 export STATIC_WEB_APP_NAME STATIC_WEB_APP_SKU="Standard"
 "${SCRIPT_DIR}/00-static-web-app.sh"
 
 SWA_URL=$(az staticwebapp show --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" --query defaultHostname -o tsv)
 
+log_info "SWA created at: https://${SWA_URL}"
+
+# Step 4: Deploy Function code with header validation
+log_step "Step 4/6: Deploying Function code with header validation..."
+
+log_info "Configuring header validation middleware..."
+log_info "  - AUTH_METHOD: none (using IP restrictions + headers instead)"
+log_info "  - ALLOWED_SWA_HOSTS: ${SWA_URL}"
+log_info "  - CORS_ORIGINS: https://${SWA_URL}"
+log_info ""
+log_info "Defense-in-depth security:"
+log_info "  1. IP restrictions validate traffic comes from Azure SWA service tag"
+log_info "  2. Header validation ensures requests are from the correct SWA domain"
+log_info "  3. Together they prevent unauthorized access even with valid Azure SWA IPs"
+log_info ""
+
+export FUNCTION_APP_NAME DISABLE_AUTH=true
+"${SCRIPT_DIR}/22-deploy-function-zip.sh"
+
+# Configure header validation environment variables
+log_info "Setting header validation environment variables..."
+az functionapp config appsettings set \
+  --name "${FUNCTION_APP_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" \
+  --settings \
+    AUTH_METHOD=none \
+    ALLOWED_SWA_HOSTS="${SWA_URL}" \
+    CORS_ORIGINS="https://${SWA_URL}" \
+  --output none
+
+log_info "Header validation configured"
+sleep 30
+
+# Step 5: Configure SWA Entra ID settings
+log_step "Step 5/6: Configuring SWA Entra ID settings..."
 az staticwebapp appsettings set \
   --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
@@ -127,8 +156,10 @@ az staticwebapp appsettings set \
     AZURE_CLIENT_SECRET="${AZURE_CLIENT_SECRET}" \
   --output none
 
-# Step 5: Deploy frontend
-log_step "Step 5/5: Deploying frontend..."
+log_info "Entra ID settings configured"
+
+# Step 6: Deploy frontend
+log_step "Step 6/6: Deploying frontend..."
 FRONTEND_DIR="${PROJECT_ROOT}/subnet-calculator/frontend-typescript-vite"
 cd "${FRONTEND_DIR}"
 
@@ -164,18 +195,32 @@ log_info "Frontend: https://${SWA_URL}"
 log_info "Backend:  ${FUNCTION_APP_URL}"
 log_info ""
 log_info "Security configuration:"
-log_info "  ✓ Entra ID (SWA authentication)"
+log_info "  ✓ Entra ID (SWA user authentication)"
 log_info "  ✓ IP restrictions (Azure SWA service tag only)"
-log_info "  ✓ Header validation (in function code)"
+log_info "  ✓ Header validation (CORS + SWA host check)"
+log_info ""
+log_info "Function App environment variables:"
+log_info "  - AUTH_METHOD=none"
+log_info "  - ALLOWED_SWA_HOSTS=${SWA_URL}"
+log_info "  - CORS_ORIGINS=https://${SWA_URL}"
+log_info ""
+log_info "Defense-in-depth layers:"
+log_info "  1. IP restrictions: Only Azure SWA service tag can reach function"
+log_info "  2. CORS validation: Browser enforces same-origin policy"
+log_info "  3. Host validation: Function validates requests from correct SWA domain"
+log_info ""
+log_info "Note: Header validation applies to direct API calls only."
+log_info "      When SWA is linked, it proxies requests without headers."
+log_info "      IP restrictions provide the primary protection layer."
 log_info ""
 log_info "Test frontend:"
 log_info "  open https://${SWA_URL}"
 log_info ""
-log_info "Test bypass (will be blocked):"
+log_info "Test direct access (will be blocked by IP restriction):"
 log_info "  curl ${FUNCTION_APP_URL}/api/v1/health"
-log_info "  Expected: 403 Forbidden (IP restriction)"
+log_info "  Expected: 403 Forbidden"
 log_info ""
-log_info "Defense-in-depth achieved at ~\$9/month!"
+log_info "Cost: ~\$9/month with enterprise-grade security!"
 log_info ""
 log_info "========================================="
 echo ""

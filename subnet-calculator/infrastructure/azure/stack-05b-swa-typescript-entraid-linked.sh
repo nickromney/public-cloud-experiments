@@ -13,17 +13,19 @@
 #   │ - Entra ID authentication           │
 #   │ - /api/* → SWA Proxy                │
 #   └──────────────┬──────────────────────┘
-#                  │ Private (linked)
+#                  │ Private (linked + IP restricted)
 #   ┌──────────────▼──────────────────────┐
 #   │ Azure Function App (Consumption)    │
 #   │ - Linked to SWA                     │
-#   │ - Public but proxied                │
+#   │ - IP restricted (SWA service tag)   │
+#   │ - Direct access blocked             │
 #   └─────────────────────────────────────┘
 #
 # Components:
 #   - Frontend: TypeScript Vite with Entra ID
-#   - Backend: Function App (linked to SWA)
+#   - Backend: Function App (linked to SWA + IP restricted)
 #   - Authentication: Entra ID on SWA (protects frontend + API via proxy)
+#   - Security: IP restrictions prevent direct backend access
 #   - Use case: Enterprise apps, internal tools, RECOMMENDED setup
 #   - Cost: ~$9/month (Standard tier SWA + Consumption)
 #
@@ -31,7 +33,8 @@
 #   - Same-origin API calls (no CORS issues)
 #   - HttpOnly cookies (secure, XSS protection)
 #   - API accessed via SWA proxy (Entra ID required)
-#   - Reasonable security for most use cases
+#   - Defense-in-depth: Auth + IP restrictions
+#   - Direct azurewebsites.net endpoint blocked
 #   - Simple setup, good balance
 #
 # Usage:
@@ -80,8 +83,9 @@ log_info "========================================="
 log_info ""
 log_info "Architecture:"
 log_info "  Frontend: TypeScript Vite SPA (Entra ID protected)"
-log_info "  Backend:  Function App (linked to SWA)"
+log_info "  Backend:  Function App (linked + IP restricted)"
 log_info "  Auth:     Entra ID on SWA (protects frontend + API)"
+log_info "  Security: IP restrictions (SWA service tag only)"
 log_info "  Cost:     ~\$9/month (Standard tier SWA + Consumption)"
 log_info "  Domain:   ${SUBDOMAIN}.${CUSTOM_DOMAIN}"
 log_info ""
@@ -89,7 +93,8 @@ log_info "Key benefits:"
 log_info "  ✓ Same-origin API calls (no CORS)"
 log_info "  ✓ HttpOnly cookies (secure)"
 log_info "  ✓ API via SWA proxy (auth required)"
-log_info "  ✓ Reasonable security"
+log_info "  ✓ Defense-in-depth (auth + IP restrictions)"
+log_info "  ✓ Direct backend access blocked"
 log_info "  ✓ Simple setup"
 log_info ""
 log_info "This will deploy a complete stack with:"
@@ -97,7 +102,8 @@ log_info "  1. Azure Static Web App (Standard tier)"
 log_info "  2. Entra ID authentication (SWA)"
 log_info "  3. Azure Function App (no auth, SWA handles it)"
 log_info "  4. Link function app to SWA"
-log_info "  5. TypeScript Vite frontend"
+log_info "  5. Configure IP restrictions (defense-in-depth)"
+log_info "  6. TypeScript Vite frontend"
 log_info ""
 log_info "========================================="
 echo ""
@@ -208,7 +214,7 @@ log_info "Static Web App created: https://${SWA_URL}"
 echo ""
 
 # Step 4: Link Function App to SWA
-log_step "Step 4/5: Linking Function App to SWA..."
+log_step "Step 4/6: Linking Function App to SWA..."
 echo ""
 
 FUNC_RESOURCE_ID=$(az functionapp show \
@@ -227,8 +233,28 @@ az staticwebapp backends link \
 log_info "Function App linked to SWA"
 echo ""
 
-# Step 5: Configure Entra ID and deploy frontend
-log_step "Step 5/5: Configuring Entra ID and deploying frontend..."
+# Step 5: Configure IP restrictions (defense-in-depth)
+log_step "Step 5/6: Configuring IP restrictions on Function App..."
+echo ""
+
+log_info "Securing Function App backend with IP restrictions..."
+log_info "This prevents direct access to azurewebsites.net endpoint"
+log_info "Only Azure Static Web Apps service tag will be allowed"
+echo ""
+
+export FUNCTION_APP_NAME
+export RESOURCE_GROUP
+
+# Call IP restrictions script - it will auto-detect the Function App
+"${SCRIPT_DIR}/45-configure-ip-restrictions.sh" <<EOF
+y
+EOF
+
+log_info "IP restrictions applied: Function App now accessible only from SWA"
+echo ""
+
+# Step 6: Configure Entra ID and deploy frontend
+log_step "Step 6/6: Configuring Entra ID and deploying frontend..."
 echo ""
 
 log_info "Setting SWA app settings for Entra ID..."
@@ -273,23 +299,33 @@ log_info "========================================="
 log_info ""
 log_info "Resources:"
 log_info "  Static Web App: ${STATIC_WEB_APP_NAME}"
-log_info "  Function App:   ${FUNCTION_APP_NAME} (linked)"
+log_info "  Function App:   ${FUNCTION_APP_NAME} (linked + IP restricted)"
 log_info ""
 log_info "URLs:"
 log_info "  Frontend: https://${SWA_URL}"
 log_info "  API:      https://${SWA_URL}/api/v1/health (via SWA proxy)"
 log_info ""
-log_info "Authentication:"
-log_info "  ✓ Entra ID on SWA (protects frontend + API)"
+log_info "Security Configuration:"
+log_info "  ✓ Entra ID authentication (protects frontend + API)"
 log_info "  ✓ Same-origin requests (/api route)"
-log_info "  ✓ HttpOnly cookies"
+log_info "  ✓ HttpOnly cookies (XSS protection)"
+log_info "  ✓ IP restrictions configured (only Azure SWA service tag)"
+log_info "  ✓ Direct backend access blocked (azurewebsites.net)"
 log_info ""
-log_info "Test:"
+log_info "Defense-in-depth:"
+log_info "  - Layer 1: Entra ID authentication on SWA"
+log_info "  - Layer 2: IP restrictions on Function App"
+log_info "  - Backend only accessible from SWA, not directly"
+log_info ""
+log_info "Test frontend:"
 log_info "  open https://${SWA_URL}"
 log_info ""
-log_info "Note: Direct function URL still accessible"
-log_info "      ${FUNCTION_APP_URL}/api/v1/health"
-log_info "      For maximum security, use Stack 06 (network secured)"
+log_info "Test IP restrictions (should fail with 403):"
+log_info "  curl ${FUNCTION_APP_URL}/api/v1/health"
+log_info "  Expected: 403 Forbidden - direct access denied"
+log_info ""
+log_info "Access via SWA (should work after login):"
+log_info "  curl https://${SWA_URL}/api/v1/health"
 log_info ""
 log_info "========================================="
 echo ""

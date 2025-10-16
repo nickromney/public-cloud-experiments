@@ -227,7 +227,8 @@
       "Bash(kill:*)",
       "Bash(npx @usebruno/cli@latest:*)",
       "Bash(az storage account:*)",
-      "Bash(./test-static-deployment.sh:*)"
+      "Bash(./test-static-deployment.sh:*)",
+      "Bash(git diff:*)"
     ],
     "deny": [],
     "ask": []
