@@ -126,10 +126,21 @@ if [[ -z "${API_URL}" ]]; then
 
   if [[ "${FUNC_COUNT}" -eq 1 ]]; then
     FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
-    API_URL="https://$(az functionapp show \
+
+    # Try to get hostname from function app
+    FUNC_HOSTNAME=$(az functionapp show \
       --name "${FUNCTION_APP_NAME}" \
       --resource-group "${RESOURCE_GROUP}" \
-      --query defaultHostName -o tsv)"
+      --query defaultHostName -o tsv 2>/dev/null || echo "")
+
+    # If defaultHostName is empty (observed with Flex Consumption - property returns null),
+    # construct the URL from the function app name (standard Azure Functions hostname pattern)
+    if [[ -z "${FUNC_HOSTNAME}" ]]; then
+      FUNC_HOSTNAME="${FUNCTION_APP_NAME}.azurewebsites.net"
+      log_warn "defaultHostName empty, using constructed URL: ${FUNC_HOSTNAME}"
+    fi
+
+    API_URL="https://${FUNC_HOSTNAME}"
     log_info "Auto-detected Function App API: ${API_URL}"
   elif [[ "${FUNC_COUNT}" -gt 1 ]]; then
     log_warn "Multiple Function Apps found:"
