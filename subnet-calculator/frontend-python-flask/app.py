@@ -2,7 +2,7 @@ import os
 from datetime import datetime, timedelta
 
 import requests
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_from_directory
 
 app = Flask(__name__)
 
@@ -158,6 +158,19 @@ def perform_lookup(address: str, mode: str = "Standard") -> dict:
             raise ValueError(f"Invalid input: {error_detail}") from e
         # 5xx errors are server errors - treat as API down
         raise
+
+
+@app.route("/favicon.svg")
+def favicon_svg():
+    """Serve favicon from static directory at root path"""
+    return send_from_directory("static", "favicon.svg", mimetype="image/svg+xml")
+
+
+@app.route("/favicon.ico")
+def favicon_ico():
+    """Fallback for browsers looking for .ico format"""
+    # Redirect to .svg since we only have SVG
+    return send_from_directory("static", "favicon.svg", mimetype="image/svg+xml")
 
 
 @app.route("/", methods=["GET", "POST"])

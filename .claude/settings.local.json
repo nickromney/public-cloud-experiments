@@ -225,7 +225,8 @@
       "Bash(npx swa:*)",
       "Bash(nu -c:*)",
       "Bash(kill:*)",
-      "Bash(npx @usebruno/cli@latest:*)"
+      "Bash(npx @usebruno/cli@latest:*)",
+      "Bash(az storage account:*)"
     ],
     "deny": [],
     "ask": []

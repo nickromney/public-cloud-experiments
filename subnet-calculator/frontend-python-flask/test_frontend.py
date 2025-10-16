@@ -12,6 +12,20 @@ from playwright.sync_api import Page, expect
 class TestFrontend:
     """Frontend tests using Playwright - all 32 canonical tests"""
 
+    # Group 0: Essential Resources (1 test)
+
+    def test_00_favicon_exists(self, page: Page, base_url: str):
+        """Test 00: Verify favicon is present (either .ico or .svg)"""
+        # Check for either /favicon.svg or /favicon.ico
+        svg_response = page.goto(f"{base_url}/favicon.svg")
+        svg_exists = svg_response.status == 200 if svg_response else False
+
+        ico_response = page.goto(f"{base_url}/favicon.ico")
+        ico_exists = ico_response.status == 200 if ico_response else False
+
+        # At least one should exist
+        assert svg_exists or ico_exists, "Neither /favicon.svg nor /favicon.ico found"
+
     # Group 1: Basic Page & Elements (5 tests)
 
     def test_01_page_loads(self, page: Page, base_url: str):

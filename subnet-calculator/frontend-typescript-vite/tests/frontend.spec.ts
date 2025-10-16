@@ -32,6 +32,20 @@ async function mockJwtLogin(page: Page) {
 }
 
 test.describe('Frontend Tests', () => {
+  // Group 0: Essential Resources (1 test)
+
+  test('00 - favicon is present', async ({ page }) => {
+    // Check for either /favicon.svg or /favicon.ico
+    const faviconSvgResponse = await page.goto('/favicon.svg')
+    const faviconIcoResponse = await page.goto('/favicon.ico')
+
+    // At least one should return 200
+    const svgExists = faviconSvgResponse?.status() === 200
+    const icoExists = faviconIcoResponse?.status() === 200
+
+    expect(svgExists || icoExists).toBeTruthy()
+  })
+
   // Group 1: Basic Page & Elements (5 tests)
 
   test('01 - page loads successfully', async ({ page }) => {
