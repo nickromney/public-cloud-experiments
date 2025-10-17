@@ -3,26 +3,26 @@
 help:
 	@echo "Subnet Calculator - Development Commands"
 	@echo ""
-	@echo "Quick Start (One Stack at a Time):"
-	@echo "  make start-stack4         Start Stack 4 (TypeScript + Azure Function - No Auth)"
-	@echo "  make start-stack5         Start Stack 5 (TypeScript + Azure Function - JWT Auth)"
-	@echo "  make start-stack6         Start Stack 6 (TypeScript + Azure Function - Entra ID Auth)"
+	@echo "Quick Start (SWA CLI - One Stack at a Time):"
+	@echo "  make start-stack4         Start local-stack-04 emulation via SWA CLI (port 4280, no auth)"
+	@echo "  make start-stack5         Start local-stack-05 emulation via SWA CLI (port 4281, JWT auth)"
+	@echo "  make start-stack6         Start local-stack-06 emulation via SWA CLI (port 4282, Entra ID auth)"
 	@echo ""
-	@echo "API Testing:"
+	@echo "Testing:"
 	@echo "  make test                 Show all test options"
-	@echo "  make test-stack4          Test Stack 4 with curl (no auth, port 4280)"
-	@echo "  make test-stack5          Test Stack 5 with curl (JWT auth, port 4281)"
-	@echo "  make test-bruno-stack4    Test Stack 4 with Bruno CLI"
-	@echo "  make test-bruno-stack5    Test Stack 5 with Bruno CLI"
-	@echo "  make test-bruno-stack6    Test Stack 6 with Bruno CLI (requires browser login)"
+	@echo "  make test-stack4          Test via curl (no auth, port 4280)"
+	@echo "  make test-stack5          Test via curl (JWT auth, port 4281)"
+	@echo "  make test-bruno-stack4    Test with Bruno CLI"
+	@echo "  make test-bruno-stack5    Test with Bruno CLI (JWT auth)"
+	@echo "  make test-bruno-stack6    Test with Bruno CLI (Entra ID - requires browser login)"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean-stacks         Kill all running stack processes (ports 3000, 7071, 4280-4282)"
 	@echo ""
-	@echo "Note: Only run ONE stack at a time (port conflicts otherwise)"
+	@echo "Note: Only run ONE SWA CLI stack at a time (port conflicts otherwise)"
 	@echo ""
-	@echo "Alternative (All stacks):"
-	@echo "  make dev                  Start everything (podman-compose)"
+	@echo "Alternative (All podman-compose stacks):"
+	@echo "  make dev                  Start everything (local-stack-01 through 05)"
 	@echo ""
 	@echo "Individual Services:"
 	@echo "  make start-func-api       Start Azure Function API only (port 7071)"
@@ -52,17 +52,18 @@ start-func-api:
 
 # Start everything with podman-compose
 dev:
-	@echo "Starting all stacks with podman-compose..."
-	@echo "Stack 1 (Flask + Azure Function):     http://localhost:8000"
-	@echo "Stack 2 (Static HTML + Container App): http://localhost:8001"
-	@echo "Stack 3 (Flask + Container App):       http://localhost:8002"
-	@echo "Stack 4 (TypeScript + Container App):  http://localhost:3000"
+	@echo "Starting all podman-compose stacks..."
+	@echo "local-stack-01 (Static HTML + Container App): http://localhost:8001"
+	@echo "local-stack-02 (Flask + Container App):       http://localhost:8002"
+	@echo "local-stack-03 (Flask + Azure Function):      http://localhost:8000"
+	@echo "local-stack-04 (TypeScript + Container App):  http://localhost:3000"
+	@echo "local-stack-05 (TypeScript + Azure Function): http://localhost:3001"
 	@echo ""
 	podman-compose up
 
-# Start SWA CLI for stack 4 (no auth) - SWA manages everything
+# Start SWA CLI for local-stack-04 emulation (no auth) - SWA manages everything
 start-stack4:
-	@echo "Starting Stack 4 (TypeScript + Azure Function - No Auth)..."
+	@echo "Starting local-stack-04 emulation via SWA CLI (TypeScript + Azure Function - No Auth)..."
 	@echo "SWA CLI will manage both Vite and Azure Function"
 	@echo "Access at: http://localhost:4280"
 	@echo ""
@@ -73,9 +74,9 @@ start-stack4:
 		cd .. && \
 		swa start --config-name stack4-no-auth
 
-# Start SWA CLI for stack 5 (JWT auth) - SWA manages everything
+# Start SWA CLI for local-stack-05 emulation (JWT auth) - SWA manages everything
 start-stack5:
-	@echo "Starting Stack 5 (TypeScript + Azure Function - JWT Auth)..."
+	@echo "Starting local-stack-05 emulation via SWA CLI (TypeScript + Azure Function - JWT Auth)..."
 	@echo "SWA CLI will manage both Vite and Azure Function"
 	@echo "Access at: http://localhost:4281"
 	@echo ""
@@ -89,9 +90,9 @@ start-stack5:
 		cd .. && \
 		swa start --config-name stack5-jwt
 
-# Start SWA CLI for stack 6 (Entra ID auth) - SWA manages everything
+# Start SWA CLI for local-stack-06 emulation (Entra ID auth) - SWA manages everything
 start-stack6:
-	@echo "Starting Stack 6 (TypeScript + Azure Function - Entra ID Auth)..."
+	@echo "Starting local-stack-06 emulation via SWA CLI (TypeScript + Azure Function - Entra ID Auth)..."
 	@echo "SWA CLI will manage both Vite and Azure Function"
 	@echo "SWA platform emulates Entra ID authentication"
 	@echo "Access at: http://localhost:4282"
@@ -105,30 +106,30 @@ start-stack6:
 
 # Test help and overview
 test:
-	@echo "API Testing Options"
+	@echo "SWA CLI Testing Options"
 	@echo ""
 	@echo "Prerequisites:"
-	@echo "  - Stack must be running (e.g., 'make start-stack4')"
+	@echo "  - SWA CLI stack must be running (e.g., 'make start-stack4')"
 	@echo "  - curl installed (standard on most systems)"
 	@echo "  - jq installed for JSON parsing: brew install jq"
 	@echo ""
 	@echo "curl Tests (lightweight):"
-	@echo "  make test-stack4          Test Stack 4 (no auth, port 4280)"
-	@echo "  make test-stack5          Test Stack 5 (JWT auth, port 4281)"
+	@echo "  make test-stack4          Test local-stack-04 emulation (no auth, port 4280)"
+	@echo "  make test-stack5          Test local-stack-05 emulation (JWT auth, port 4281)"
 	@echo ""
 	@echo "Bruno CLI Tests (comprehensive):"
-	@echo "  make test-bruno-stack4    Test Stack 4 only"
-	@echo "  make test-bruno-stack5    Test Stack 5 only"
-	@echo "  make test-bruno-stack6    Test Stack 6 only (login via browser first)"
+	@echo "  make test-bruno-stack4    Test local-stack-04 via Bruno CLI"
+	@echo "  make test-bruno-stack5    Test local-stack-05 via Bruno CLI"
+	@echo "  make test-bruno-stack6    Test local-stack-06 via Bruno CLI (login via browser first)"
 	@echo ""
-	@echo "Note: Only ONE stack can run at a time (port conflicts)"
+	@echo "Note: Only ONE SWA CLI stack can run at a time (port conflicts)"
 	@echo "      Run the matching test for whichever stack is running"
 	@echo ""
 	@echo "Security Inspection (use Bruno GUI):"
 	@echo "  1. Open Bruno GUI and load bruno-collections/"
 	@echo "  2. Select 'local' environment (top-right)"
 	@echo "  3. Run requests and inspect Headers/Cookies tabs"
-	@echo "  4. See SECURITY-INSPECTION.md for what to look for"
+	@echo "  4. See docs/SECURITY-INSPECTION.md for what to look for"
 	@echo ""
 	@echo "Manual Testing:"
 	@echo "  See README.md 'API Testing and Debugging' section for:"
@@ -136,9 +137,9 @@ test:
 	@echo "  - xh (modern curl alternative)"
 	@echo "  - Bruno GUI application"
 
-# Test Stack 4 (no auth)
+# Test local-stack-04 emulation (no auth)
 test-stack4:
-	@echo "Testing Stack 4 (No Auth) on http://localhost:4280"
+	@echo "Testing local-stack-04 emulation (No Auth) on http://localhost:4280"
 	@echo ""
 	@echo "=== Test 1: Health Check ==="
 	@curl -s -f http://localhost:4280/api/v1/health | jq '.' || \
@@ -172,9 +173,9 @@ test-stack4:
 	@echo ""
 	@echo "All Stack 4 tests passed!"
 
-# Test Stack 5 (JWT auth)
+# Test local-stack-05 emulation (JWT auth)
 test-stack5:
-	@echo "Testing Stack 5 (JWT Auth) on http://localhost:4281"
+	@echo "Testing local-stack-05 emulation (JWT Auth) on http://localhost:4281"
 	@echo ""
 	@echo "=== Test 1: Health Check (no auth - should fail) ==="
 	@curl -s -w "\nHTTP Status: %{http_code}\n" http://localhost:4281/api/v1/health || true
@@ -213,41 +214,41 @@ test-stack5:
 	echo ""; \
 	echo "All Stack 5 tests passed!"
 
-# Test Stack 4 with Bruno CLI
+# Test Local Stack 04 with Bruno CLI
 test-bruno-stack4:
-	@echo "Running Bruno CLI Tests for Stack 4 (No Auth)"
+	@echo "Running Bruno CLI Tests for Local Stack 04 (Vite No Auth)"
 	@echo ""
 	@if [ ! -d "bruno-collections" ]; then \
 		echo "[FAIL] Bruno collections directory not found"; \
 		echo "Expected: ./bruno-collections/"; \
 		exit 1; \
 	fi
-	@echo "=== Testing Stack 4 ==="
+	@echo "=== Testing Local Stack 04 ==="
 	@cd bruno-collections && \
-		npx @usebruno/cli@latest run "Stack 4 - No Auth" --env local --output ../results-stack4.json --format json
+		npx @usebruno/cli@latest run "Local Stack 04 - Vite No Auth" --env local --output ../results-stack4.json --format json
 	@echo ""
-	@echo "Stack 4 tests completed - see results-stack4.json"
+	@echo "Local Stack 04 tests completed - see results-stack4.json"
 
-# Test Stack 5 with Bruno CLI
+# Test Local Stack 05 with Bruno CLI
 test-bruno-stack5:
-	@echo "Running Bruno CLI Tests for Stack 5 (JWT Auth)"
+	@echo "Running Bruno CLI Tests for Local Stack 05 (Vite JWT Auth)"
 	@echo ""
 	@if [ ! -d "bruno-collections" ]; then \
 		echo "[FAIL] Bruno collections directory not found"; \
 		echo "Expected: ./bruno-collections/"; \
 		exit 1; \
 	fi
-	@echo "=== Testing Stack 5 ==="
+	@echo "=== Testing Local Stack 05 ==="
 	@cd bruno-collections && \
-		npx @usebruno/cli@latest run "Stack 5 - JWT Auth" --env local --output ../results-stack5.json --format json
+		npx @usebruno/cli@latest run "Local Stack 05 - Vite JWT Auth" --env local --output ../results-stack5.json --format json
 	@echo ""
-	@echo "Stack 5 tests completed - see results-stack5.json"
+	@echo "Local Stack 05 tests completed - see results-stack5.json"
 
-# Test Stack 6 with Bruno CLI
+# Test Local Stack 06 with Bruno CLI
 test-bruno-stack6:
-	@echo "Running Bruno CLI Tests for Stack 6 (Entra ID Auth)"
+	@echo "Running Bruno CLI Tests for Local Stack 06 (Entra ID Auth emulation)"
 	@echo ""
-	@echo "NOTE: Stack 6 requires browser-based login"
+	@echo "NOTE: Local Stack 06 requires browser-based login for full testing"
 	@echo "      The CLI tests will check unauthenticated access"
 	@echo "      For authenticated tests, use Bruno GUI after logging in"
 	@echo ""
@@ -256,8 +257,8 @@ test-bruno-stack6:
 		echo "Expected: ./bruno-collections/"; \
 		exit 1; \
 	fi
-	@echo "=== Testing Stack 6 ==="
+	@echo "=== Testing Local Stack 06 ==="
 	@cd bruno-collections && \
-		npx @usebruno/cli@latest run "Stack 6 - Entra ID Auth" --env local --output ../results-stack6.json --format json
+		npx @usebruno/cli@latest run "Local Stack 06 - Entra ID Auth" --env local --output ../results-stack6.json --format json
 	@echo ""
-	@echo "Stack 6 tests completed - see results-stack6.json"
+	@echo "Local Stack 06 tests completed - see results-stack6.json"

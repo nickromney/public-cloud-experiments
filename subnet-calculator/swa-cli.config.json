@@ -2,6 +2,7 @@
   "$schema": "https://aka.ms/azure/static-web-apps-cli/schema",
   "configurations": {
     "stack4-no-auth": {
+      "_comment": "local-stack-04 emulation: TypeScript Vite + Azure Function (No Auth)",
       "appLocation": "frontend-typescript-vite",
       "apiLocation": "api-fastapi-azure-function",
       "outputLocation": "dist",
@@ -12,6 +13,7 @@
       "port": 4280
     },
     "stack5-jwt": {
+      "_comment": "local-stack-05 emulation: TypeScript Vite + Azure Function (JWT Auth)",
       "appLocation": "frontend-typescript-vite",
       "apiLocation": "api-fastapi-azure-function",
       "outputLocation": "dist",
@@ -22,6 +24,7 @@
       "port": 4281
     },
     "stack6-entra": {
+      "_comment": "local-stack-06 emulation: TypeScript Vite + Azure Function (Entra ID Auth)",
       "appLocation": "frontend-typescript-vite",
       "apiLocation": "api-fastapi-azure-function",
       "outputLocation": "dist",
