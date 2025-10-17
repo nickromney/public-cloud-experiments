@@ -10,6 +10,23 @@ This document describes how to run all tests for the Subnet Calculator project.
 
 ## Quick Test All Services
 
+### Integrated Bruno CLI Tests (Recommended)
+
+**Complete test chains that start services, run tests, and clean up:**
+
+```bash
+# Test direct launches (7000s ports)
+make test-bruno-direct-full
+
+# Test compose stacks (8000s ports)
+make test-bruno-compose-full
+
+# Test SWA stacks (4000s ports)
+make test-bruno-swa-full
+```
+
+### Manual Service Testing
+
 ```bash
 # Start all services
 podman-compose up -d
@@ -280,6 +297,60 @@ Some tests may timeout if the API is slow to respond. Increase timeout:
 uv run pytest test_frontend.py --base-url=http://localhost:8001 -v --timeout=60
 ```
 
+## Bruno CLI Integration Tests
+
+Bruno CLI provides comprehensive API testing across all deployment stacks. Tests are organized by stack type and automatically validate authentication, health checks, and core functionality.
+
+### Test Categories
+
+**Direct Launches (7000s ports):**
+
+- Azure Function API (port 7071) with JWT authentication
+- Container App API (port 7080) without authentication
+- Status: ✓ All tests passing (6 requests)
+
+**Compose Stacks (8000s ports):**
+
+- compose-01: Flask + Azure Function (JWT) - port 8000
+- compose-02: Static HTML + Container App (no auth) - port 8001
+- compose-03: Flask + Container App (no auth) - port 8002
+- compose-04: TypeScript Vite + Container App (no auth) - port 8003
+- Status: ✓ All tests passing (13 requests)
+
+**SWA Stacks (4000s ports):**
+
+- swa-04: TypeScript Vite + Container App (no auth) - port 4280
+- swa-05: TypeScript Vite + Azure Function (JWT auth) - port 4281
+- swa-06: TypeScript Vite + Container App (Entra ID at SWA layer) - port 4282
+- Status: ✓ All tests passing (9 requests)
+
+### Running Bruno Tests
+
+```bash
+# Run all direct launch tests
+make test-bruno-direct
+
+# Run all compose stack tests
+make test-bruno-compose
+
+# Run all SWA stack tests
+make test-bruno-swa
+
+# Full test chains (start services + test + cleanup)
+make test-bruno-direct-full
+make test-bruno-compose-full
+make test-bruno-swa-full
+```
+
+### Current Test Status Summary
+
+| Stack Type | Tests | Requests | Status |
+| --- | --- | --- | --- |
+| Direct Launches | 2 | 6 | ✓ PASS |
+| Compose Stacks | 4 | 13 | ✓ PASS |
+| SWA Stacks | 3 | 9 | ✓ PASS |
+| **Total Bruno Tests** | **9** | **28** | **✓ ALL PASS** |
+
 ## Best Practices
 
 1. **Always run unit tests before endpoint tests** - Unit tests are faster and catch issues early
@@ -287,3 +358,5 @@ uv run pytest test_frontend.py --base-url=http://localhost:8001 -v --timeout=60
 3. **Run Playwright tests in headless mode for CI** - Default behavior, faster
 4. **Use headed mode for debugging** - Add `--headed` flag to see browser
 5. **Test one stack at a time during development** - Use `podman-compose up api-fastapi-azure-function frontend-python-flask`
+6. **Use Bruno CLI for integration testing** - Full stack testing with proper authentication flows
+7. **Run `make test-bruno-*-full` for complete validation** - Includes setup, testing, and cleanup

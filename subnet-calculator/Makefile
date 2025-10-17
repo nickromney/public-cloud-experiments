@@ -328,11 +328,26 @@ test-bruno-swa:
 test-bruno-swa-all: clean-ports start-swa-backends
 	@echo "Building frontend for all SWA stacks..."
 	cd frontend-typescript-vite && VITE_API_URL= npm run build && cd ..
+	@echo "Starting SWA emulators in background..."
+	@mkdir -p /tmp/subnet-calc-logs
+	@(swa start --config-name swa-04) > /tmp/subnet-calc-logs/swa-04.log 2>&1 &
+	@echo "$$!" > /tmp/swa-04.pid
+	@(swa start --config-name swa-05) > /tmp/subnet-calc-logs/swa-05.log 2>&1 &
+	@echo "$$!" > /tmp/swa-05.pid
+	@(swa start --config-name swa-06) > /tmp/subnet-calc-logs/swa-06.log 2>&1 &
+	@echo "$$!" > /tmp/swa-06.pid
+	@echo "Waiting for SWA services to be ready..."
+	@sleep 10
 	@echo "Running Bruno tests on all SWA stacks..."
 	cd bruno-collections && \
 		npx @usebruno/cli@latest run swa-04 --env local && \
 		npx @usebruno/cli@latest run swa-05 --env local && \
 		npx @usebruno/cli@latest run swa-06 --env local
+	@echo "Stopping SWA emulators..."
+	@kill $$(cat /tmp/swa-04.pid 2>/dev/null) 2>/dev/null || true
+	@kill $$(cat /tmp/swa-05.pid 2>/dev/null) 2>/dev/null || true
+	@kill $$(cat /tmp/swa-06.pid 2>/dev/null) 2>/dev/null || true
+	@sleep 1
 	@echo "✓ All SWA tests complete"
 
 ##@ Full Test Chains (Start + Test + Cleanup)
@@ -356,22 +371,18 @@ test-bruno-compose-full: check-prerequisites
 	podman-compose down
 	@echo "✓ Compose testing complete"
 
-test-bruno-swa-full: clean-ports
-	@echo "Starting SWA backend dependencies..."
+test-bruno-swa-full: clean-ports check-prerequisites
+	@echo "Starting SWA backend dependencies (via compose)..."
 	@mkdir -p /tmp/subnet-calc-logs
-	@echo "  Starting Container App for swa-04 (port 8090)..."
-	@(cd api-fastapi-container-app && uv run uvicorn app.main:app --reload --port 8090) > /tmp/subnet-calc-logs/container-app-8090.log 2>&1 &
-	@echo "$$!" > /tmp/container-app-8090.pid
-	@echo "  Starting Azure Function for swa-05/swa-06 (port 7071)..."
-	@(cd api-fastapi-azure-function && export AUTH_METHOD=jwt && uv run func start) > /tmp/subnet-calc-logs/azure-func-7071.log 2>&1 &
-	@echo "$$!" > /tmp/azure-func-7071.pid
+	@echo "  Starting both backends..."
+	@podman-compose up -d api-fastapi-container-app api-fastapi-azure-function > /tmp/subnet-calc-logs/compose-up.log 2>&1
 	@echo "Waiting for backends to be ready..."
 	@for i in 1 2 3 4 5; do \
-		if curl -s http://localhost:8090/api/v1/health > /dev/null && curl -s http://localhost:7071/api/v1/health > /dev/null; then \
+		if curl -s http://localhost:8090/api/v1/health > /dev/null && curl -s http://localhost:8080/api/v1/health > /dev/null; then \
 			echo "✓ Backends ready"; \
 			break; \
 		fi; \
-		if [ $$i -lt 5 ]; then echo "  Attempt $$i/5, waiting..."; sleep 2; fi; \
+		if [ $$i -lt 5 ]; then echo "  Attempt $$i/5, waiting..."; sleep 3; fi; \
 	done
 	@echo "Building frontends for SWA (using SWA proxy pattern)..."
 	@(cd frontend-typescript-vite && VITE_API_URL= npm run build) > /tmp/subnet-calc-logs/build-swa.log 2>&1
@@ -394,6 +405,6 @@ test-bruno-swa-full: clean-ports
 	@kill $$(cat /tmp/swa-05.pid 2>/dev/null) 2>/dev/null || true
 	@kill $$(cat /tmp/swa-06.pid 2>/dev/null) 2>/dev/null || true
 	@sleep 2
-	@echo "Note: Backend services still running on 8090 and 7071"
-	@echo "Use 'make clean-ports' to stop all services"
+	@echo "Stopping compose backend services..."
+	@podman-compose down
 	@echo "✓ SWA testing complete"
