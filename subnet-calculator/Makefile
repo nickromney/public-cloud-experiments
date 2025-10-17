@@ -186,65 +186,85 @@ start-compose-04: check-prerequisites
 
 ##@ SWA CLI
 
-start-swa-04:
-	@echo "Checking backend services for SWA 04..."
+start-swa-04: check-prerequisites
+	@echo "Checking if compose backend is running for SWA 04..."
 	@if ! curl -s http://localhost:8090/api/v1/health > /dev/null 2>&1; then \
-		echo "✗ Container App API (port 8090) is not running"; \
-		echo "Start it with one of:"; \
-		echo "  make start-compose-04"; \
-		echo "  cd api-fastapi-container-app && uv run uvicorn app.main:app --reload --port 8090"; \
-		exit 1; \
+		echo "✗ Container App API (port 8090 - from compose) is not running"; \
+		echo "Starting compose stack..."; \
+		podman-compose up -d api-fastapi-container-app; \
+		echo "Waiting for Container App to be ready..."; \
+		for i in 1 2 3 4 5; do \
+			if curl -s http://localhost:8090/api/v1/health > /dev/null 2>&1; then \
+				echo "✓ Container App is ready"; \
+				break; \
+			fi; \
+			if [ $$i -lt 5 ]; then echo "  Attempt $$i/5, waiting..."; sleep 2; fi; \
+		done; \
 	fi
-	@echo "✓ Container App (port 8090) is ready"
-	@echo "Building frontend (SWA will proxy /api requests to port 8090)..."
+	@echo "✓ Container App (port 8090 - compose) is ready"
+	@echo "Building frontend..."
 	cd frontend-typescript-vite && VITE_API_URL= npm run build && cd ..
 	@if [ ! -d "frontend-typescript-vite/dist" ]; then \
 		echo "✗ Frontend build failed - dist folder not found"; \
 		exit 1; \
 	fi
 	@echo "✓ Frontend built successfully"
-	@echo "Starting SWA 04: TypeScript Vite + Container App - No Auth (port 4280)..."
+	@echo "Starting SWA 04: TypeScript Vite + Container App (No Auth) on port 4280..."
+	@echo "Backend: http://localhost:8090 (compose)"
 	swa start --config-name swa-04
 
-start-swa-05:
-	@echo "Checking backend services for SWA 05..."
-	@if ! curl -s http://localhost:7071/api/v1/health > /dev/null 2>&1; then \
-		echo "✗ Azure Function API (port 7071) is not running"; \
-		echo "Start it with:"; \
-		echo "  cd api-fastapi-azure-function && export AUTH_METHOD=jwt && uv run func start"; \
-		exit 1; \
+start-swa-05: check-prerequisites
+	@echo "Checking if compose backend is running for SWA 05..."
+	@if ! curl -s http://localhost:8080/api/v1/health > /dev/null 2>&1; then \
+		echo "✗ Azure Function API (port 8080 - from compose) is not running"; \
+		echo "Starting compose stack..."; \
+		podman-compose up -d api-fastapi-azure-function; \
+		echo "Waiting for Azure Function to be ready..."; \
+		for i in 1 2 3 4 5; do \
+			if curl -s http://localhost:8080/api/v1/health > /dev/null 2>&1; then \
+				echo "✓ Azure Function is ready"; \
+				break; \
+			fi; \
+			if [ $$i -lt 5 ]; then echo "  Attempt $$i/5, waiting..."; sleep 2; fi; \
+		done; \
 	fi
-	@echo "✓ Azure Function (port 7071) is ready"
-	@echo "Building frontend with VITE_AUTH_ENABLED=true (SWA will proxy /api requests to port 7071)..."
+	@echo "✓ Azure Function (port 8080 - compose) is ready"
+	@echo "Building frontend with JWT auth enabled..."
 	cd frontend-typescript-vite && VITE_API_URL= VITE_AUTH_ENABLED=true npm run build && cd ..
 	@if [ ! -d "frontend-typescript-vite/dist" ]; then \
 		echo "✗ Frontend build failed - dist folder not found"; \
 		exit 1; \
 	fi
 	@echo "✓ Frontend built successfully"
-	@echo "Starting SWA 05: TypeScript Vite + Azure Function - JWT Auth (port 4281)..."
-	export AUTH_METHOD=jwt && \
-	export VITE_AUTH_ENABLED=true && \
+	@echo "Starting SWA 05: TypeScript Vite + Azure Function (JWT Auth) on port 4281..."
+	@echo "Backend: http://localhost:8080 (compose)"
 	swa start --config-name swa-05
 
-start-swa-06:
-	@echo "Checking backend services for SWA 06..."
-	@if ! curl -s http://localhost:7071/api/v1/health > /dev/null 2>&1; then \
-		echo "✗ Azure Function API (port 7071) is not running"; \
-		echo "Start it with:"; \
-		echo "  cd api-fastapi-azure-function && export AUTH_METHOD=jwt && uv run func start"; \
-		exit 1; \
+start-swa-06: check-prerequisites
+	@echo "Checking if compose backend is running for SWA 06..."
+	@if ! curl -s http://localhost:8080/api/v1/health > /dev/null 2>&1; then \
+		echo "✗ Azure Function API (port 8080 - from compose) is not running"; \
+		echo "Starting compose stack..."; \
+		podman-compose up -d api-fastapi-azure-function; \
+		echo "Waiting for Azure Function to be ready..."; \
+		for i in 1 2 3 4 5; do \
+			if curl -s http://localhost:8080/api/v1/health > /dev/null 2>&1; then \
+				echo "✓ Azure Function is ready"; \
+				break; \
+			fi; \
+			if [ $$i -lt 5 ]; then echo "  Attempt $$i/5, waiting..."; sleep 2; fi; \
+		done; \
 	fi
-	@echo "✓ Azure Function (port 7071) is ready"
-	@echo "Building frontend (SWA will proxy /api requests to port 7071)..."
+	@echo "✓ Azure Function (port 8080 - compose) is ready"
+	@echo "Building frontend (no auth - Entra ID handled by SWA)..."
 	cd frontend-typescript-vite && VITE_API_URL= npm run build && cd ..
 	@if [ ! -d "frontend-typescript-vite/dist" ]; then \
 		echo "✗ Frontend build failed - dist folder not found"; \
 		exit 1; \
 	fi
 	@echo "✓ Frontend built successfully"
-	@echo "Starting SWA 06: TypeScript Vite + Azure Function - Entra ID (port 4282)..."
-	export AUTH_METHOD=none && \
+	@echo "Starting SWA 06: TypeScript Vite + Azure Function (Entra ID) on port 4282..."
+	@echo "Backend: http://localhost:8080 (compose)"
 	swa start --config-name swa-06
 
 ##@ Testing
