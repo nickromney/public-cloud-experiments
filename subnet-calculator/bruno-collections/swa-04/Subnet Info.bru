@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{stack1ApiUrl}}/api/v1/ipv4/subnet-info
+  url: {{swa04BaseUrl}}/api/v1/ipv4/subnet-info
   body: json
   auth: none
 }
@@ -19,17 +19,15 @@ body:json {
 
 assert {
   res.status: eq 200
-  res.body.network: eq 10.0.0.0/24
-  res.body.prefix_length: eq 24
 }
 
 tests {
-  test("should calculate subnet information", function() {
+  test("should calculate Azure subnet info", function() {
     const data = res.getBody();
     expect(res.getStatus()).to.equal(200);
-    expect(data.network).to.equal("10.0.0.0/24");
+    expect(data.network_address).to.equal("10.0.0.0");
     expect(data.prefix_length).to.equal(24);
-    expect(data.netmask).to.equal("255.255.255.0");
+    expect(data.mode).to.equal("Azure");
     expect(data.total_addresses).to.equal(256);
     expect(data.usable_addresses).to.equal(251);
   });

@@ -1,8 +1,25 @@
 vars {
-  stack1BaseUrl: http://localhost:8001
-  stack1ApiUrl: http://localhost:8090
-  stack4BaseUrl: http://localhost:4280
-  stack5BaseUrl: http://localhost:4281
-  stack6BaseUrl: http://localhost:4282
+  // Direct launches (7000s)
+  directAzureFunctionUrl: http://localhost:7071
+  directContainerAppUrl: http://localhost:7080
+  directFlaskUrl: http://localhost:7000
+  directViteUrl: http://localhost:7010
+
+  // Podman-compose stacks (8000s)
+  compose01FrontendUrl: http://localhost:8000
+  compose01ApiUrl: http://localhost:8080
+  compose02FrontendUrl: http://localhost:8001
+  compose02ApiUrl: http://localhost:8090
+  compose03FrontendUrl: http://localhost:8002
+  compose03ApiUrl: http://localhost:8090
+  compose04FrontendUrl: http://localhost:8003
+  compose04ApiUrl: http://localhost:8090
+
+  // SWA CLI stacks (4000s)
+  swa04BaseUrl: http://localhost:4280
+  swa05BaseUrl: http://localhost:4281
+  swa06BaseUrl: http://localhost:4282
+
+  // JWT token (populated by login)
   token:
 }

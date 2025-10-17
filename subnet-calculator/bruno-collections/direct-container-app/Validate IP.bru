@@ -5,26 +5,29 @@ meta {
 }
 
 post {
-  url: {{stack4BaseUrl}}/api/v1/ipv4/validate
+  url: {{directContainerAppUrl}}/api/v1/ipv4/validate
   body: json
   auth: none
 }
 
 body:json {
   {
-    "address": "10.0.0.1"
+    "address": "192.168.1.0/24"
   }
 }
 
 assert {
   res.status: eq 200
+  res.body.valid: eq true
+  res.body.type: eq network
 }
 
 tests {
-  test("should validate IPv4 address", function() {
+  test("should validate network address", function() {
     const data = res.getBody();
     expect(res.getStatus()).to.equal(200);
     expect(data.valid).to.equal(true);
-    expect(data.address).to.equal("10.0.0.1");
+    expect(data.type).to.equal("network");
+    expect(data.address).to.exist;
   });
 }
