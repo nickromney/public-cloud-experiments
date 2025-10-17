@@ -1,8 +1,10 @@
 .PHONY: help clean-ports \
   start-direct-azure-function start-direct-container-app start-direct-flask start-direct-vite \
+  start-direct-all-bg wait-direct-services \
   start-compose-all start-compose-01 start-compose-02 start-compose-03 start-compose-04 \
   start-swa-04 start-swa-05 start-swa-06 \
-  test-bruno-direct test-bruno-compose test-bruno-swa
+  test-bruno-direct test-bruno-compose test-bruno-swa \
+  test-bruno-direct-full test-bruno-compose-full test-bruno-swa-full
 
 help:
 	@echo "Subnet Calculator - Development Commands"
@@ -27,8 +29,11 @@ help:
 	@echo ""
 	@echo "=== Testing ==="
 	@echo "  make test-bruno-direct              Test direct launches with Bruno CLI"
+	@echo "  make test-bruno-direct-full         Start direct services + test + cleanup"
 	@echo "  make test-bruno-compose             Test compose stacks with Bruno CLI"
+	@echo "  make test-bruno-compose-full        Start compose services + test + cleanup"
 	@echo "  make test-bruno-swa                 Test SWA stacks with Bruno CLI"
+	@echo "  make test-bruno-swa-full            Start SWA services + test + cleanup"
 	@echo ""
 	@echo "=== Cleanup ==="
 	@echo "  make clean-ports                    Kill all processes on used ports"
@@ -69,6 +74,42 @@ start-direct-vite:
 	@echo "Starting TypeScript Vite frontend (port 7010)..."
 	cd frontend-typescript-vite && \
 		VITE_API_URL=http://localhost:7080 npm run dev -- --port 7010
+
+# Background service startup helpers
+start-direct-all-bg:
+	@echo "Starting all direct services in background..."
+	@mkdir -p /tmp/subnet-calc-logs
+	@(cd api-fastapi-azure-function && export AUTH_METHOD=jwt && uv run func start) > /tmp/subnet-calc-logs/azure-func.log 2>&1 &
+	@(cd api-fastapi-container-app && uv run uvicorn app.main:app --reload --port 7080) > /tmp/subnet-calc-logs/container-app.log 2>&1 &
+	@(cd frontend-python-flask && export API_URL=http://localhost:7071 && uv run flask run --port 7000) > /tmp/subnet-calc-logs/flask.log 2>&1 &
+	@(cd frontend-typescript-vite && VITE_API_URL=http://localhost:7080 npm run dev -- --port 7010) > /tmp/subnet-calc-logs/vite.log 2>&1 &
+	@echo "✓ Services started in background"
+	@echo "  Logs available in /tmp/subnet-calc-logs/"
+
+wait-direct-services:
+	@echo "Waiting for direct services to be ready..."
+	@for service in "Azure Function:7071" "Container App:7080"; do \
+		name=$${service%:*}; \
+		port=$${service#*:}; \
+		echo "Checking $$name (port $$port)..."; \
+		success=false; \
+		for i in 1 2 3 4 5; do \
+			if curl -s http://localhost:$$port/api/v1/health > /dev/null 2>&1; then \
+				echo "✓ $$name is ready"; \
+				success=true; \
+				break; \
+			fi; \
+			if [ $$i -lt 5 ]; then \
+				echo "  Attempt $$i/5, waiting..."; \
+				sleep 2; \
+			fi; \
+		done; \
+		if [ "$$success" = "false" ]; then \
+			echo "✗ $$name failed to become ready"; \
+			exit 1; \
+		fi; \
+	done
+	@echo "✓ All direct services are ready!"
 
 ##@ Podman-Compose
 
@@ -135,3 +176,32 @@ test-bruno-swa:
 		npx @usebruno/cli@latest run swa-04 --env local && \
 		npx @usebruno/cli@latest run swa-05 --env local && \
 		npx @usebruno/cli@latest run swa-06 --env local
+
+##@ Full Test Chains (Start + Test + Cleanup)
+
+test-bruno-direct-full: clean-ports start-direct-all-bg wait-direct-services test-bruno-direct clean-ports
+	@echo ""
+	@echo "✓ Direct testing complete (services cleaned up)"
+
+test-bruno-compose-full: clean-ports
+	@echo "Starting compose services..."
+	podman-compose up -d
+	@echo "Waiting for compose services to be ready..."
+	@sleep 10
+	@echo "Running compose tests..."
+	cd bruno-collections && \
+		npx @usebruno/cli@latest run compose-01 --env local && \
+		npx @usebruno/cli@latest run compose-02 --env local && \
+		npx @usebruno/cli@latest run compose-03 --env local && \
+		npx @usebruno/cli@latest run compose-04 --env local
+	@echo "Stopping compose services..."
+	podman-compose down
+	@echo "✓ Compose testing complete"
+
+test-bruno-swa-full: clean-ports
+	@echo "Testing SWA stacks..."
+	cd bruno-collections && \
+		npx @usebruno/cli@latest run swa-04 --env local && \
+		npx @usebruno/cli@latest run swa-05 --env local && \
+		npx @usebruno/cli@latest run swa-06 --env local
+	@echo "✓ SWA testing complete"
