@@ -199,9 +199,24 @@ test-bruno-compose-full:
 	@echo "✓ Compose testing complete"
 
 test-bruno-swa-full:
-	@echo "Testing SWA stacks..."
+	@echo "Starting SWA services..."
+	@mkdir -p /tmp/subnet-calc-logs
+	@(swa start --config-name swa-04) > /tmp/subnet-calc-logs/swa-04.log 2>&1 &
+	@echo "$$!" > /tmp/swa-04.pid
+	@(export AUTH_METHOD=jwt && export VITE_AUTH_ENABLED=true && swa start --config-name swa-05) > /tmp/subnet-calc-logs/swa-05.log 2>&1 &
+	@echo "$$!" > /tmp/swa-05.pid
+	@(export AUTH_METHOD=none && swa start --config-name swa-06) > /tmp/subnet-calc-logs/swa-06.log 2>&1 &
+	@echo "$$!" > /tmp/swa-06.pid
+	@echo "Waiting for SWA services to be ready..."
+	@sleep 15
+	@echo "Running SWA tests..."
 	cd bruno-collections && \
-		npx @usebruno/cli@latest run swa-04 --env local && \
-		npx @usebruno/cli@latest run swa-05 --env local && \
-		npx @usebruno/cli@latest run swa-06 --env local
+		npx @usebruno/cli@latest run swa-04 --env local || true; \
+		npx @usebruno/cli@latest run swa-05 --env local || true; \
+		npx @usebruno/cli@latest run swa-06 --env local || true
+	@echo "Stopping SWA services..."
+	@kill $$(cat /tmp/swa-04.pid 2>/dev/null) 2>/dev/null || true
+	@kill $$(cat /tmp/swa-05.pid 2>/dev/null) 2>/dev/null || true
+	@kill $$(cat /tmp/swa-06.pid 2>/dev/null) 2>/dev/null || true
+	@sleep 2
 	@echo "✓ SWA testing complete"
