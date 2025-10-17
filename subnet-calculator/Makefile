@@ -267,6 +267,41 @@ start-swa-06: check-prerequisites
 	@echo "Backend: http://localhost:8080 (compose)"
 	swa start --config-name swa-06
 
+##@ SWA Comparison (all stacks)
+
+start-swa-backends: check-prerequisites
+	@echo "Starting SWA backends (compose)..."
+	@echo "  Starting Container App (port 8090) for swa-04..."
+	@podman-compose up -d api-fastapi-container-app
+	@echo "  Starting Azure Function (port 8080) for swa-05/06..."
+	@podman-compose up -d api-fastapi-azure-function
+	@echo "Waiting for backends to be ready..."
+	@for i in 1 2 3 4 5; do \
+		if curl -s http://localhost:8090/api/v1/health > /dev/null && curl -s http://localhost:8080/api/v1/health > /dev/null; then \
+			echo "✓ All backends ready"; \
+			break; \
+		fi; \
+		if [ $$i -lt 5 ]; then echo "  Attempt $$i/5, waiting..."; sleep 2; fi; \
+	done
+
+start-swa-all: start-swa-backends
+	@echo ""
+	@echo "Building frontend for all SWA stacks..."
+	cd frontend-typescript-vite && VITE_API_URL= npm run build && cd ..
+	@echo ""
+	@echo "╔════════════════════════════════════════════════════════════════╗"
+	@echo "║ Starting all three SWA stacks for comparison                   ║"
+	@echo "╠════════════════════════════════════════════════════════════════╣"
+	@echo "║ SWA 04 (port 4280): Container App + No Auth                   ║"
+	@echo "║ SWA 05 (port 4281): Azure Function + JWT Auth                 ║"
+	@echo "║ SWA 06 (port 4282): Azure Function + Entra ID                 ║"
+	@echo "╠════════════════════════════════════════════════════════════════╣"
+	@echo "║ NOTE: These will run in foreground. Use separate terminals:    ║"
+	@echo "║   make start-swa-04                                            ║"
+	@echo "║   make start-swa-05                                            ║"
+	@echo "║   make start-swa-06                                            ║"
+	@echo "╚════════════════════════════════════════════════════════════════╝"
+
 ##@ Testing
 
 test-bruno-direct:
@@ -289,6 +324,16 @@ test-bruno-swa:
 		npx @usebruno/cli@latest run swa-04 --env local && \
 		npx @usebruno/cli@latest run swa-05 --env local && \
 		npx @usebruno/cli@latest run swa-06 --env local
+
+test-bruno-swa-all: clean-ports start-swa-backends
+	@echo "Building frontend for all SWA stacks..."
+	cd frontend-typescript-vite && VITE_API_URL= npm run build && cd ..
+	@echo "Running Bruno tests on all SWA stacks..."
+	cd bruno-collections && \
+		npx @usebruno/cli@latest run swa-04 --env local && \
+		npx @usebruno/cli@latest run swa-05 --env local && \
+		npx @usebruno/cli@latest run swa-06 --env local
+	@echo "✓ All SWA tests complete"
 
 ##@ Full Test Chains (Start + Test + Cleanup)
 
