@@ -242,38 +242,38 @@ start-swa-05: check-prerequisites
 
 start-swa-06: check-prerequisites
 	@echo "Checking if compose backend is running for SWA 06..."
-	@if ! curl -s http://localhost:8080/api/v1/health > /dev/null 2>&1; then \
-		echo "✗ Azure Function API (port 8080 - from compose) is not running"; \
+	@if ! curl -s http://localhost:8090/api/v1/health > /dev/null 2>&1; then \
+		echo "✗ Container App API (port 8090 - from compose) is not running"; \
 		echo "Starting compose stack..."; \
-		podman-compose up -d api-fastapi-azure-function; \
-		echo "Waiting for Azure Function to be ready..."; \
+		podman-compose up -d api-fastapi-container-app; \
+		echo "Waiting for Container App to be ready..."; \
 		for i in 1 2 3 4 5; do \
-			if curl -s http://localhost:8080/api/v1/health > /dev/null 2>&1; then \
-				echo "✓ Azure Function is ready"; \
+			if curl -s http://localhost:8090/api/v1/health > /dev/null 2>&1; then \
+				echo "✓ Container App is ready"; \
 				break; \
 			fi; \
 			if [ $$i -lt 5 ]; then echo "  Attempt $$i/5, waiting..."; sleep 2; fi; \
 		done; \
 	fi
-	@echo "✓ Azure Function (port 8080 - compose) is ready"
-	@echo "Building frontend (no auth - Entra ID handled by SWA)..."
+	@echo "✓ Container App (port 8090 - compose) is ready"
+	@echo "Building frontend (Entra ID auth handled by SWA layer)..."
 	cd frontend-typescript-vite && VITE_API_URL= npm run build && cd ..
 	@if [ ! -d "frontend-typescript-vite/dist" ]; then \
 		echo "✗ Frontend build failed - dist folder not found"; \
 		exit 1; \
 	fi
 	@echo "✓ Frontend built successfully"
-	@echo "Starting SWA 06: TypeScript Vite + Azure Function (Entra ID) on port 4282..."
-	@echo "Backend: http://localhost:8080 (compose)"
+	@echo "Starting SWA 06: TypeScript Vite + Container App (Entra ID at SWA layer) on port 4282..."
+	@echo "Backend: http://localhost:8090 (compose) - no app-level auth"
 	swa start --config-name swa-06
 
 ##@ SWA Comparison (all stacks)
 
 start-swa-backends: check-prerequisites
 	@echo "Starting SWA backends (compose)..."
-	@echo "  Starting Container App (port 8090) for swa-04..."
+	@echo "  Starting Container App (port 8090) for swa-04, swa-06..."
 	@podman-compose up -d api-fastapi-container-app
-	@echo "  Starting Azure Function (port 8080) for swa-05/06..."
+	@echo "  Starting Azure Function (port 8080) for swa-05..."
 	@podman-compose up -d api-fastapi-azure-function
 	@echo "Waiting for backends to be ready..."
 	@for i in 1 2 3 4 5; do \

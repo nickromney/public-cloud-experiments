@@ -18,11 +18,11 @@
       "port": 4281
     },
     "swa-06": {
-      "_comment": "SWA CLI Stack 06: TypeScript Vite + Azure Function (Entra ID Auth) - static build, compose backend on 8080",
+      "_comment": "SWA CLI Stack 06: TypeScript Vite + Container App (Entra ID Auth at SWA layer) - static build, compose backend on 8090",
       "appLocation": "frontend-typescript-vite",
       "outputLocation": "dist",
       "appBuildCommand": "npm run build",
-      "apiDevserverUrl": "http://localhost:8080",
+      "apiDevserverUrl": "http://localhost:8090",
       "port": 4282
     }
   }
