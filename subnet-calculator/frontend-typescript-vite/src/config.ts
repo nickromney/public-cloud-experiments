@@ -10,9 +10,8 @@ declare global {
 }
 
 export const API_CONFIG = {
-  // Priority: Runtime config (window) > Build-time env (import.meta.env) > Default
-  baseUrl:
-    (typeof window !== 'undefined' && window.API_BASE_URL) || import.meta.env.VITE_API_URL || 'http://localhost:8090',
+  // Priority: Runtime config (window) > Build-time env (import.meta.env) > Default (empty for SWA proxy)
+  baseUrl: (typeof window !== 'undefined' && window.API_BASE_URL) || import.meta.env.VITE_API_URL || '',
   auth: {
     enabled:
       (typeof window !== 'undefined' && window.AUTH_ENABLED === 'true') || import.meta.env.VITE_AUTH_ENABLED === 'true',

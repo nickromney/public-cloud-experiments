@@ -5,6 +5,7 @@
       "_comment": "SWA CLI Stack 04: TypeScript Vite + Container App (No Auth)",
       "appLocation": "frontend-typescript-vite",
       "outputLocation": "dist",
+      "appBuildCommand": "npm run build",
       "apiDevserverUrl": "http://localhost:8090",
       "port": 4280
     },
