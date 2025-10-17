@@ -229,11 +229,11 @@ test-bruno-swa-full: clean-ports
 		npx @usebruno/cli@latest run swa-04 --env local || true; \
 		npx @usebruno/cli@latest run swa-05 --env local || true; \
 		npx @usebruno/cli@latest run swa-06 --env local || true
-	@echo "Stopping services..."
+	@echo "Stopping SWA services (4xxx ports)..."
 	@kill $$(cat /tmp/swa-04.pid 2>/dev/null) 2>/dev/null || true
 	@kill $$(cat /tmp/swa-05.pid 2>/dev/null) 2>/dev/null || true
 	@kill $$(cat /tmp/swa-06.pid 2>/dev/null) 2>/dev/null || true
-	@kill $$(cat /tmp/container-app-8090.pid 2>/dev/null) 2>/dev/null || true
-	@kill $$(cat /tmp/azure-func-7071.pid 2>/dev/null) 2>/dev/null || true
 	@sleep 2
+	@echo "Note: Backend services still running on 8090 and 7071"
+	@echo "Use 'make clean-ports' to stop all services"
 	@echo "✓ SWA testing complete"
