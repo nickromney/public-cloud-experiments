@@ -1,6 +1,13 @@
 {
   "$schema": "https://aka.ms/azure/static-web-apps-cli/schema",
   "configurations": {
+    "stack4-container-app": {
+      "_comment": "Stack 4: TypeScript Vite (built) + Container App API (No Auth)",
+      "appLocation": "frontend-typescript-vite",
+      "outputLocation": "dist",
+      "apiDevserverUrl": "http://localhost:8090",
+      "port": 4280
+    },
     "stack4-no-auth": {
       "_comment": "local-stack-04 emulation: TypeScript Vite + Azure Function (No Auth)",
       "appLocation": "frontend-typescript-vite",

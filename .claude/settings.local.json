@@ -228,7 +228,8 @@
       "Bash(npx @usebruno/cli@latest:*)",
       "Bash(az storage account:*)",
       "Bash(./test-static-deployment.sh:*)",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Bash(npx @azure/static-web-apps-cli:*)"
     ],
     "deny": [],
     "ask": []
