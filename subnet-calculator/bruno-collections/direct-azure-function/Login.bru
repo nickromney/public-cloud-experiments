@@ -6,15 +6,13 @@ meta {
 
 post {
   url: {{directAzureFunctionUrl}}/api/v1/auth/login
-  body: json
+  body: form-urlencoded
   auth: none
 }
 
-body:json {
-  {
-    "username": "demo",
-    "password": "password123"
-  }
+body:form-urlencoded {
+  username: demo
+  password: password123
 }
 
 assert {
