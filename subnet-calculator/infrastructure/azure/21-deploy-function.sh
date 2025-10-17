@@ -100,7 +100,7 @@ log_info "  Authentication: $(if [[ "${DISABLE_AUTH}" == "true" ]]; then echo "D
 FUNCTION_URL=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query defaultHostName -o tsv)
+  --query "properties.defaultHostName" -o tsv)
 
 # Configure app settings
 log_info "Configuring application settings..."

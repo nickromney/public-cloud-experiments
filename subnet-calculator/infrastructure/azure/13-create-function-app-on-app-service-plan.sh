@@ -195,7 +195,7 @@ if az functionapp show \
   HOSTNAME=$(az functionapp show \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
-    --query defaultHostName -o tsv)
+    --query "properties.defaultHostName" -o tsv)
 
   log_info ""
   log_info "Existing Function App details:"
@@ -251,7 +251,7 @@ az functionapp config appsettings set \
 HOSTNAME=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query defaultHostName -o tsv)
+  --query "properties.defaultHostName" -o tsv)
 
 FUNCTION_APP_ID=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \

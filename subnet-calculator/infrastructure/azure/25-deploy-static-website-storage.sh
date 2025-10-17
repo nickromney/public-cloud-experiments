@@ -131,7 +131,7 @@ if [[ -z "${API_URL}" ]]; then
     FUNC_HOSTNAME=$(az functionapp show \
       --name "${FUNCTION_APP_NAME}" \
       --resource-group "${RESOURCE_GROUP}" \
-      --query defaultHostName -o tsv 2>/dev/null || echo "")
+      --query "properties.defaultHostName" -o tsv 2>/dev/null || echo "")
 
     # If defaultHostName is empty (observed with Flex Consumption - property returns null),
     # construct the URL from the function app name (standard Azure Functions hostname pattern)

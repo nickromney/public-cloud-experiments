@@ -164,7 +164,7 @@ if az functionapp show \
   HOSTNAME=$(az functionapp show \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
-    --query defaultHostName -o tsv)
+    --query "properties.defaultHostName" -o tsv)
 
   log_info "Existing Function App details:"
   log_info "  URL: https://${HOSTNAME}"
@@ -211,7 +211,7 @@ az functionapp update \
 HOSTNAME=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query defaultHostName -o tsv)
+  --query "properties.defaultHostName" -o tsv)
 
 log_info ""
 log_info "========================================="
@@ -232,4 +232,4 @@ log_info "1. Use 21-deploy-function.sh to deploy the API"
 log_info "2. Access API docs at: https://${HOSTNAME}/api/v1/docs"
 log_info ""
 log_info "To get the Function App URL again, run:"
-log_info "  az functionapp show --name ${FUNCTION_APP_NAME} --resource-group ${RESOURCE_GROUP} --query defaultHostName -o tsv"
+log_info "  az functionapp show --name ${FUNCTION_APP_NAME} --resource-group ${RESOURCE_GROUP} --query \"properties.defaultHostName\" -o tsv"

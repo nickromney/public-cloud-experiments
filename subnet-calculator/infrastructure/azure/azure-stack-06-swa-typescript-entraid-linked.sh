@@ -178,7 +178,7 @@ fi
 FUNCTION_APP_URL="https://$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query defaultHostName -o tsv)"
+  --query "properties.defaultHostName" -o tsv)"
 
 log_info "Function App created: ${FUNCTION_APP_URL}"
 echo ""
