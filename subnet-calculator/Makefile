@@ -183,7 +183,7 @@ test-bruno-direct-full: clean-ports start-direct-all-bg wait-direct-services tes
 	@echo ""
 	@echo "✓ Direct testing complete (services cleaned up)"
 
-test-bruno-compose-full: clean-ports
+test-bruno-compose-full:
 	@echo "Starting compose services..."
 	podman-compose up -d
 	@echo "Waiting for compose services to be ready..."
@@ -198,7 +198,7 @@ test-bruno-compose-full: clean-ports
 	podman-compose down
 	@echo "✓ Compose testing complete"
 
-test-bruno-swa-full: clean-ports
+test-bruno-swa-full:
 	@echo "Testing SWA stacks..."
 	cd bruno-collections && \
 		npx @usebruno/cli@latest run swa-04 --env local && \
