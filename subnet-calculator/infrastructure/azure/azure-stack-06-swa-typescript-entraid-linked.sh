@@ -171,7 +171,7 @@ if [[ -z "${FUNCTION_APP_NAME:-}" ]]; then
   FUNC_COUNT=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "length(@)" -o tsv)
   if [[ "${FUNC_COUNT}" -ge 1 ]]; then
     FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" \
-      --query "sort_by(@, &createdTime)[-1].name" -o tsv)
+      --query "sort_by(@, &lastModifiedTimeUtc)[-1].name" -o tsv)
   fi
 fi
 

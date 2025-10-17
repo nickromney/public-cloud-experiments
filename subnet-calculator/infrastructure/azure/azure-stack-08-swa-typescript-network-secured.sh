@@ -78,7 +78,7 @@ export RESOURCE_GROUP LOCATION
 "${SCRIPT_DIR}/10-function-app.sh"
 
 FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" \
-  --query "sort_by(@, &createdTime)[-1].name" -o tsv)
+  --query "sort_by(@, &lastModifiedTimeUtc)[-1].name" -o tsv)
 
 # Step 2: Configure IP restrictions
 log_step "Step 2/6: Configuring IP restrictions..."

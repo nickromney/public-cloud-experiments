@@ -221,7 +221,7 @@ if [[ -z "${FUNCTION_APP_NAME:-}" ]]; then
     FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
   elif [[ "${FUNC_COUNT}" -gt 1 ]]; then
     FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" \
-      --query "sort_by(@, &createdTime)[-1].name" -o tsv)
+      --query "sort_by(@, &lastModifiedTimeUtc)[-1].name" -o tsv)
   else
     log_error "No Function App found after creation"
     exit 1

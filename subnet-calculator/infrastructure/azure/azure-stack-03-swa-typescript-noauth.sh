@@ -162,7 +162,7 @@ if [[ -z "${FUNCTION_APP_NAME:-}" ]]; then
   elif [[ "${FUNC_COUNT}" -gt 1 ]]; then
     # Get the most recently created Function App
     FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" \
-      --query "sort_by(@, &createdTime)[-1].name" -o tsv)
+      --query "sort_by(@, &lastModifiedTimeUtc)[-1].name" -o tsv)
   else
     log_error "No Function App found after creation"
     exit 1
