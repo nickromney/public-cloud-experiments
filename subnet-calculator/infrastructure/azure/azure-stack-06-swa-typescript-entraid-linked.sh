@@ -68,11 +68,18 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
+# Source utility functions
+source "${SCRIPT_DIR}/lib/map-swa-region.sh"
+
 # Configuration
 readonly CUSTOM_DOMAIN="${CUSTOM_DOMAIN:-publiccloudexperiments.net}"
 readonly SUBDOMAIN="${SUBDOMAIN:-entraid-linked}"
 readonly STATIC_WEB_APP_NAME="${STATIC_WEB_APP_NAME:-swa-subnet-calc-entraid-linked}"
-readonly LOCATION="${LOCATION:-uksouth}"
+
+# Map region to SWA-compatible region (SWA only available in specific regions)
+REQUESTED_LOCATION="${LOCATION:-uksouth}"
+SWA_LOCATION=$(map_swa_region "${REQUESTED_LOCATION}")
+readonly LOCATION="${SWA_LOCATION}"
 
 # Banner
 echo ""
@@ -88,6 +95,7 @@ log_info "  Auth:     Entra ID on SWA (protects frontend + API)"
 log_info "  Security: IP restrictions (SWA service tag only)"
 log_info "  Cost:     ~\$9/month (Standard tier SWA + Consumption)"
 log_info "  Domain:   ${SUBDOMAIN}.${CUSTOM_DOMAIN}"
+log_info "  Region:   ${LOCATION} (SWA mapped from ${REQUESTED_LOCATION})"
 log_info ""
 log_info "Key benefits:"
 log_info "  ✓ Same-origin API calls (no CORS)"
