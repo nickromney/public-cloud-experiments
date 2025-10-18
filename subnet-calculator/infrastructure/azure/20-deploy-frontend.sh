@@ -144,8 +144,19 @@ log_info "  Resource Group: ${RESOURCE_GROUP}"
 log_info "  Static Web App: ${STATIC_WEB_APP_NAME}"
 log_info "  Frontend: ${FRONTEND}"
 log_info "  Target URL: https://${SWA_URL}"
-[[ "${USE_APIM}" == "true" ]] && log_info "  Using APIM: ${APIM_NAME}"
-[[ -n "${API_URL}" ]] && log_info "  API URL: ${API_URL}"
+if [[ "${USE_APIM}" == "true" ]]; then
+  log_info "  Using APIM: ${APIM_NAME}"
+fi
+if [[ -n "${API_URL}" ]]; then
+  log_info "  API URL: ${API_URL}"
+else
+  log_info "  API URL: (SWA proxy pattern - relative URLs)"
+fi
+if [[ -n "${VITE_API_URL:-}" ]]; then
+  log_info "  VITE_API_URL: ${VITE_API_URL}"
+else
+  log_info "  VITE_API_URL: (empty - SWA proxy pattern)"
+fi
 
 # Deploy based on frontend type
 case "${FRONTEND}" in
@@ -165,7 +176,13 @@ case "${FRONTEND}" in
     if [[ -n "${API_URL}" ]]; then
       log_info "Configuring API URL: ${API_URL}"
       export VITE_API_URL="${API_URL}"
+    else
+      log_info "Using SWA proxy pattern (empty API_URL)"
+      export VITE_API_URL=""
     fi
+
+    # Clean previous build
+    rm -rf dist
 
     # Build the app
     log_info "Building production bundle..."
