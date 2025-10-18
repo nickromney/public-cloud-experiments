@@ -477,6 +477,58 @@ source terraform/terragrunt/setup-env.sh
 make check-env                       # Verify all variables set
 ```
 
+## Environment Variables
+
+### Shell-Specific Setup
+
+The project uses environment variables for configuration. Syntax differs between shells.
+
+**Bash:**
+
+```bash
+# Azure CLI / Deployment scripts
+export AZURE_CLIENT_ID="your-app-id"
+export AZURE_CLIENT_SECRET="your-app-secret"
+export RESOURCE_GROUP="rg-subnet-calc"
+export LOCATION="uksouth"
+
+# Terraform
+export ARM_SUBSCRIPTION_ID="subscription-id"
+export ARM_TENANT_ID="tenant-id"
+export ARM_CLIENT_ID="client-id"
+export ARM_CLIENT_SECRET="client-secret"
+```
+
+**Nushell:**
+
+```nushell
+# Azure CLI / Deployment scripts
+$env.AZURE_CLIENT_ID = "your-app-id"
+$env.AZURE_CLIENT_SECRET = "your-app-secret"
+$env.RESOURCE_GROUP = "rg-subnet-calc"
+$env.LOCATION = "uksouth"
+
+# Terraform
+$env.ARM_SUBSCRIPTION_ID = "subscription-id"
+$env.ARM_TENANT_ID = "tenant-id"
+$env.ARM_CLIENT_ID = "client-id"
+$env.ARM_CLIENT_SECRET = "client-secret"
+```
+
+**Run scripts with environment variables:**
+
+Bash:
+
+```bash
+AZURE_CLIENT_ID="xxx" AZURE_CLIENT_SECRET="yyy" ./azure-stack-06-swa-typescript-entraid-linked.sh
+```
+
+Nushell:
+
+```nushell
+$env.AZURE_CLIENT_ID = "xxx"; $env.AZURE_CLIENT_SECRET = "yyy"; ./azure-stack-06-swa-typescript-entraid-linked.sh
+```
+
 ## Git Workflow
 
 This repository uses:
