@@ -157,6 +157,11 @@ if [[ -n "${VITE_API_URL:-}" ]]; then
 else
   log_info "  VITE_API_URL: (empty - SWA proxy pattern)"
 fi
+if [[ "${VITE_AUTH_ENABLED:-false}" == "true" ]]; then
+  log_info "  Authentication: Entra ID enabled (VITE_AUTH_ENABLED=true)"
+else
+  log_info "  Authentication: disabled (VITE_AUTH_ENABLED=false or unset)"
+fi
 
 # Deploy based on frontend type
 case "${FRONTEND}" in
