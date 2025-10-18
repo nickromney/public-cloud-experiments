@@ -181,3 +181,95 @@ teardown() {
   run grep 'Config file missing after copy' 20-deploy-frontend.sh
   assert_success
 }
+
+# Entra ID AZURE_TENANT_ID tests
+
+@test "20-deploy-frontend.sh processes Entra ID config when VITE_AUTH_ENABLED=true" {
+  run grep -E "VITE_AUTH_ENABLED.*true|Processing Entra" 20-deploy-frontend.sh
+  assert_success
+}
+
+@test "20-deploy-frontend.sh detects AZURE_TENANT_ID from Azure CLI" {
+  run grep "az account show.*tenantId" 20-deploy-frontend.sh
+  assert_success
+}
+
+@test "20-deploy-frontend.sh stores detected AZURE_TENANT_ID in variable" {
+  run grep "AZURE_TENANT_ID=.*az account show" 20-deploy-frontend.sh
+  assert_success
+}
+
+@test "20-deploy-frontend.sh checks if AZURE_TENANT_ID is empty" {
+  run bash -c "grep -A 2 'AZURE_TENANT_ID.*az account' 20-deploy-frontend.sh | grep -E 'if.*-z.*AZURE_TENANT_ID|z.*AZURE_TENANT_ID'"
+  assert_success
+}
+
+@test "20-deploy-frontend.sh exits if AZURE_TENANT_ID detection fails" {
+  run bash -c "grep -A 5 'AZURE_TENANT_ID.*az account' 20-deploy-frontend.sh | grep 'exit 1'"
+  assert_success
+}
+
+@test "20-deploy-frontend.sh substitutes AZURE_TENANT_ID placeholder" {
+  run grep "sed.*AZURE_TENANT_ID" 20-deploy-frontend.sh
+  assert_success
+}
+
+@test "20-deploy-frontend.sh uses sed for substitution" {
+  run grep "sed.*s/AZURE_TENANT_ID" 20-deploy-frontend.sh
+  assert_success
+}
+
+@test "20-deploy-frontend.sh validates AZURE_TENANT_ID placeholder was replaced" {
+  run bash -c "grep 'grep.*AZURE_TENANT_ID' 20-deploy-frontend.sh"
+  assert_success
+}
+
+@test "20-deploy-frontend.sh creates backup before sed substitution" {
+  run grep "sed.*-i.bak" 20-deploy-frontend.sh
+  assert_success
+}
+
+@test "20-deploy-frontend.sh cleans up backup file after substitution" {
+  run grep "rm.*bak" 20-deploy-frontend.sh
+  assert_success
+}
+
+@test "20-deploy-frontend.sh logs when substituting AZURE_TENANT_ID" {
+  run grep "log_info.*Substituting.*AZURE_TENANT_ID\|log_step.*Processing.*Entra" 20-deploy-frontend.sh
+  assert_success
+}
+
+@test "20-deploy-frontend.sh logs error if AZURE_TENANT_ID substitution fails" {
+  run bash -c "grep -A 3 'sed.*AZURE_TENANT_ID' 20-deploy-frontend.sh | grep -E 'log_error|exit 1'"
+  assert_success
+}
+
+@test "20-deploy-frontend.sh logs success after Entra ID config processed" {
+  run grep "Entra ID configuration processed successfully" 20-deploy-frontend.sh
+  assert_success
+}
+
+@test "staticwebapp-entraid.config.json has AZURE_TENANT_ID placeholder" {
+  run grep "AZURE_TENANT_ID" staticwebapp-entraid.config.json
+  assert_success
+}
+
+@test "staticwebapp-entraid.config.json uses tenant-specific endpoint" {
+  run grep "login.microsoftonline.com/AZURE_TENANT_ID" staticwebapp-entraid.config.json
+  assert_success
+}
+
+@test "staticwebapp-entraid.config.json uses secure code flow" {
+  run grep 'response_type=code' staticwebapp-entraid.config.json
+  assert_success
+}
+
+@test "staticwebapp-entraid.config.json does not use id_token response type" {
+  run bash -c "grep 'response_type' staticwebapp-entraid.config.json | grep -v 'response_type=code'"
+  [ "$status" -ne 0 ]  # Should NOT find id_token in response_type
+}
+
+@test "staticwebapp-entraid.config.json requests correct scopes" {
+  run grep 'scope=openid profile email' staticwebapp-entraid.config.json
+  assert_success
+}

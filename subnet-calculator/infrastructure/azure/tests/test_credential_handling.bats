@@ -284,3 +284,30 @@ teardown() {
   run grep 'select_static_web_app' 42-configure-entraid-swa.sh
   assert_success
 }
+
+# AZURE_TENANT_ID tests
+
+@test "42-configure-entraid-swa.sh detects AZURE_TENANT_ID from Azure" {
+  run grep "az account show.*tenantId" 42-configure-entraid-swa.sh
+  assert_success
+}
+
+@test "42-configure-entraid-swa.sh stores AZURE_TENANT_ID in variable" {
+  run grep "AZURE_TENANT_ID.*az account show" 42-configure-entraid-swa.sh
+  assert_success
+}
+
+@test "42-configure-entraid-swa.sh checks if AZURE_TENANT_ID is empty" {
+  run bash -c "grep -B 1 'Detecting Entra ID tenant' 42-configure-entraid-swa.sh | grep -E 'if.*-z.*AZURE_TENANT_ID|z.*AZURE_TENANT_ID'"
+  assert_success
+}
+
+@test "42-configure-entraid-swa.sh displays AZURE_TENANT_ID in configuration" {
+  run grep "log_info.*Tenant ID" 42-configure-entraid-swa.sh
+  assert_success
+}
+
+@test "42-configure-entraid-swa.sh includes AZURE_TENANT_ID in Phase 2 instructions" {
+  run bash -c "grep 'AZURE_TENANT_ID' 42-configure-entraid-swa.sh | grep -E 'Phase|20-deploy'"
+  assert_success
+}

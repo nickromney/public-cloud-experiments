@@ -30,7 +30,7 @@
         },
         "login": {
           "loginParameters": [
-            "response_type=code id_token",
+            "response_type=code",
             "scope=openid profile email"
           ]
         }
