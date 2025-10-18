@@ -197,10 +197,18 @@ case "${FRONTEND}" in
     log_step "Configuring Static Web App rules..."
     if [[ "${VITE_AUTH_ENABLED:-false}" == "true" ]]; then
       log_info "Using Entra ID authentication config"
-      cp "${SCRIPT_DIR}/staticwebapp-entraid.config.json" dist/staticwebapp.config.json
+      if ! cp "${SCRIPT_DIR}/staticwebapp-entraid.config.json" dist/staticwebapp.config.json; then
+        log_error "Failed to copy Entra ID config from ${SCRIPT_DIR}/staticwebapp-entraid.config.json"
+        exit 1
+      fi
+      log_info "Config copied to dist/staticwebapp.config.json"
     else
       log_info "Using no-auth config"
-      cp "${SCRIPT_DIR}/staticwebapp-noauth.config.json" dist/staticwebapp.config.json
+      if ! cp "${SCRIPT_DIR}/staticwebapp-noauth.config.json" dist/staticwebapp.config.json; then
+        log_error "Failed to copy no-auth config from ${SCRIPT_DIR}/staticwebapp-noauth.config.json"
+        exit 1
+      fi
+      log_info "Config copied to dist/staticwebapp.config.json"
     fi
 
     # Check if SWA CLI is installed
