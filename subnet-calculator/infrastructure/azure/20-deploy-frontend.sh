@@ -239,6 +239,38 @@ case "${FRONTEND}" in
       log_error "Config file missing after copy!"
     fi
 
+    # If using Entra ID config, substitute TENANT_ID placeholder
+    if [[ "${VITE_AUTH_ENABLED:-false}" == "true" ]]; then
+      log_step "Processing Entra ID configuration..."
+
+      # Get tenant ID from Azure CLI
+      if [[ -z "${AZURE_TENANT_ID:-}" ]]; then
+        log_info "AZURE_TENANT_ID not set. Detecting from Azure account..."
+        AZURE_TENANT_ID=$(az account show --query tenantId -o tsv)
+        if [[ -z "${AZURE_TENANT_ID}" ]]; then
+          log_error "Failed to detect AZURE_TENANT_ID. Please set it explicitly."
+          exit 1
+        fi
+        log_info "Detected AZURE_TENANT_ID: ${AZURE_TENANT_ID}"
+      fi
+
+      # Substitute TENANT_ID placeholder in config file
+      log_info "DEBUG: Substituting TENANT_ID placeholder with ${AZURE_TENANT_ID}"
+      if ! sed -i.bak "s/TENANT_ID/${AZURE_TENANT_ID}/g" dist/staticwebapp.config.json; then
+        log_error "Failed to substitute TENANT_ID in config"
+        exit 1
+      fi
+
+      # Verify substitution
+      if grep -q "TENANT_ID" dist/staticwebapp.config.json; then
+        log_error "TENANT_ID placeholder still present after substitution!"
+        exit 1
+      fi
+
+      log_info "Entra ID configuration processed successfully"
+      rm -f dist/staticwebapp.config.json.bak
+    fi
+
     # Check if SWA CLI is installed
     if ! command -v swa &>/dev/null; then
       log_warn "Azure Static Web Apps CLI not found. Installing globally..."

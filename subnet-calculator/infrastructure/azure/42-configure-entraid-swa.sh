@@ -140,8 +140,16 @@ log_info ""
 log_info "========================================="
 log_info "Entra ID Configuration"
 log_info "========================================="
+
+# Detect tenant ID if not set
+if [[ -z "${AZURE_TENANT_ID:-}" ]]; then
+  log_info "Detecting Entra ID tenant..."
+  AZURE_TENANT_ID=$(az account show --query tenantId -o tsv)
+fi
+
 log_info "  Static Web App: ${STATIC_WEB_APP_NAME}"
 log_info "  Resource Group: ${RESOURCE_GROUP}"
+log_info "  Tenant ID: ${AZURE_TENANT_ID}"
 log_info "  Client ID: ${AZURE_CLIENT_ID:0:20}..."
 log_info ""
 
@@ -186,6 +194,9 @@ log_info "This script (Phase 1) configures the SWA authentication."
 log_info "You MUST now run Phase 2 to rebuild the frontend:"
 log_info ""
 log_info "Phase 2: Rebuild frontend with Entra ID enabled"
+log_info "   VITE_AUTH_ENABLED=true AZURE_TENANT_ID=${AZURE_TENANT_ID} ./20-deploy-frontend.sh"
+log_info ""
+log_info "Or, if your tenant ID is in your Azure CLI context, just:"
 log_info "   VITE_AUTH_ENABLED=true ./20-deploy-frontend.sh"
 log_info ""
 log_info "After frontend rebuild, test in browser:"
