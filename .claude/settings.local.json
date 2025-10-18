@@ -233,7 +233,9 @@
       "Bash(! -path \"*/environments/*\" )",
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nfix: Change login endpoint requests from JSON to form-urlencoded\n\nThe OAuth2PasswordRequestForm endpoint expects form-encoded credentials,\nnot JSON. FastAPI returns 422 for JSON body with form-expecting endpoint.\n\nFixes:\n- direct-azure-function/Login.bru\n- swa-05/Login.bru\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(npm run test:swa:stack4:*)"
+      "Bash(npm run test:swa:stack4:*)",
+      "Bash(sed:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
