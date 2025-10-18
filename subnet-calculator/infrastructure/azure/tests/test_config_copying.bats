@@ -104,7 +104,7 @@ teardown() {
 }
 
 @test "20-deploy-frontend.sh has else clause for noauth config" {
-  run grep -B 2 -A 2 'else' 20-deploy-frontend.sh | grep -i 'no-auth'
+  run bash -c "grep -B 2 -A 2 'else' 20-deploy-frontend.sh | grep -i 'no-auth'"
   assert_success
 }
 

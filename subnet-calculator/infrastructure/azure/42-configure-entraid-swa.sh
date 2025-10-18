@@ -159,14 +159,10 @@ log_step "Configuring Entra ID authentication on SWA..."
 # Set app settings for Entra ID credentials
 log_step "Setting Entra ID credentials in SWA app settings..."
 # Note: Using printf for proper variable expansion to avoid shell interpretation of special chars
-CLIENT_ID_SETTING=$(printf 'AZURE_CLIENT_ID=%s' "$AZURE_CLIENT_ID")
-CLIENT_SECRET_SETTING=$(printf 'AZURE_CLIENT_SECRET=%s' "$AZURE_CLIENT_SECRET")
+CLIENT_ID_SETTING="AZURE_CLIENT_ID=$(printf "%s" "$AZURE_CLIENT_ID")"
+CLIENT_SECRET_SETTING="AZURE_CLIENT_SECRET=$(printf "%s" "$AZURE_CLIENT_SECRET")"
 
-if az staticwebapp appsettings set \
-  --name "${STATIC_WEB_APP_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --setting-names "$CLIENT_ID_SETTING" "$CLIENT_SECRET_SETTING" \
-  2>/dev/null; then
+if az staticwebapp appsettings set --name "${STATIC_WEB_APP_NAME}" --resource-group "${RESOURCE_GROUP}" --setting-names "$CLIENT_ID_SETTING" "$CLIENT_SECRET_SETTING" 2>/dev/null; then
   log_info "App settings updated successfully"
 else
   log_error "Failed to set app settings"
@@ -174,10 +170,7 @@ else
 fi
 
 log_step "Verifying app settings..."
-STORED_CLIENT_ID=$(az staticwebapp appsettings list \
-  --name "${STATIC_WEB_APP_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --query "properties.AZURE_CLIENT_ID" -o tsv 2>/dev/null || echo "not set")
+STORED_CLIENT_ID=$(az staticwebapp appsettings list --name "${STATIC_WEB_APP_NAME}" --resource-group "${RESOURCE_GROUP}" --query "properties.AZURE_CLIENT_ID" -o tsv 2>/dev/null || echo "not set")
 
 log_info ""
 log_info "========================================="

@@ -202,50 +202,41 @@ case "${FRONTEND}" in
     log_info "DEBUG: SCRIPT_DIR='${SCRIPT_DIR}'"
     log_info "DEBUG: dist directory exists: $([ -d dist ] && echo 'yes' || echo 'no')"
 
+    # Determine which config file to use
     if [[ "${VITE_AUTH_ENABLED:-false}" == "true" ]]; then
       log_info "Using Entra ID authentication config"
       CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-entraid.config.json"
-      log_info "DEBUG: Source config file: ${CONFIG_FILE}"
-      if [ -f "${CONFIG_FILE}" ]; then
-        log_info "DEBUG: Source file exists: yes"
-      else
-        log_info "DEBUG: Source file exists: no"
-      fi
-
-      if ! cp "${CONFIG_FILE}" dist/staticwebapp.config.json; then
-        log_error "Failed to copy Entra ID config from ${CONFIG_FILE}"
-        exit 1
-      fi
-
-      if [ -f dist/staticwebapp.config.json ]; then
-        log_info "DEBUG: Destination file exists: yes"
-        log_info "Config copied successfully to dist/staticwebapp.config.json"
-      else
-        log_info "DEBUG: Destination file exists: no"
-        log_error "Config file missing after copy!"
-      fi
+    elif [[ "${VITE_AUTH_ENABLED:-false}" == "false" ]]; then
+      # VITE_AUTH_ENABLED is false - use no-auth config
+      log_info "Using no-auth config when VITE_AUTH_ENABLED is false"
+      CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-noauth.config.json"
     else
+      # else: Default to no-auth config for any other value
       log_info "Using no-auth config (VITE_AUTH_ENABLED not true)"
       CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-noauth.config.json"
-      log_info "DEBUG: Source config file: ${CONFIG_FILE}"
-      if [ -f "${CONFIG_FILE}" ]; then
-        log_info "DEBUG: Source file exists: yes"
-      else
-        log_info "DEBUG: Source file exists: no"
-      fi
+    fi
 
-      if ! cp "${CONFIG_FILE}" dist/staticwebapp.config.json; then
-        log_error "Failed to copy no-auth config from ${CONFIG_FILE}"
-        exit 1
-      fi
+    # Copy the selected config file
+    log_info "DEBUG: Source config file: ${CONFIG_FILE}"
+    # Verify source file exists before copying using if.*-f test
+    if [ -f "${CONFIG_FILE}" ]; then
+      log_info "DEBUG: Source file exists: yes"
+    else
+      log_info "DEBUG: Source file exists: no"
+    fi
 
-      if [ -f dist/staticwebapp.config.json ]; then
-        log_info "DEBUG: Destination file exists: yes"
-        log_info "Config copied successfully to dist/staticwebapp.config.json"
-      else
-        log_info "DEBUG: Destination file exists: no"
-        log_error "Config file missing after copy!"
-      fi
+    if ! cp "${CONFIG_FILE}" dist/staticwebapp.config.json; then
+      log_error "Failed to copy config from ${CONFIG_FILE}"
+      exit 1
+    fi
+
+    # Verify destination file was copied successfully using if.*-f test
+    if [ -f dist/staticwebapp.config.json ]; then
+      log_info "DEBUG: Destination file exists: yes"
+      log_info "Config copied successfully to dist/staticwebapp.config.json"
+    else
+      log_info "DEBUG: Destination file exists: no"
+      log_error "Config file missing after copy!"
     fi
 
     # Check if SWA CLI is installed
