@@ -156,33 +156,32 @@ fi
 
 log_step "Configuring Entra ID authentication on SWA..."
 
-# Create or update the auth provider
-log_step "Setting up authentication provider..."
-if az staticwebapp authproviders create \
+# Set app settings for Entra ID credentials
+log_step "Setting Entra ID credentials in SWA app settings..."
+if az staticwebapp appsettings set \
   --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --provider aad \
-  --client-id "${AZURE_CLIENT_ID}" \
-  --client-secret "${AZURE_CLIENT_SECRET}" \
+  --setting-names AZURE_CLIENT_ID="${AZURE_CLIENT_ID}" AZURE_CLIENT_SECRET="${AZURE_CLIENT_SECRET}" \
   2>/dev/null; then
-  log_info "Authentication provider created successfully"
+  log_info "App settings updated successfully"
 else
-  log_warn "Authentication provider may already exist, attempting update..."
-  # Note: Update might not be directly supported, check if command succeeds
+  log_error "Failed to set app settings"
+  exit 1
 fi
 
-log_step "Verifying configuration..."
-SWA_AUTH=$(az staticwebapp show \
+log_step "Verifying app settings..."
+STORED_CLIENT_ID=$(az staticwebapp appsettings list \
   --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "authSettings.provider" -o tsv 2>/dev/null || echo "none")
+  --query "properties.AZURE_CLIENT_ID" -o tsv 2>/dev/null || echo "not set")
 
 log_info ""
 log_info "========================================="
 log_info "Configuration Complete"
 log_info "========================================="
 log_info "  SWA: ${STATIC_WEB_APP_NAME}"
-log_info "  Auth Provider: ${SWA_AUTH}"
+log_info "  Client ID: ${STORED_CLIENT_ID:0:20}..."
+log_info "  Config file: staticwebapp-entraid.config.json (with auth rules)"
 log_info ""
 log_info "IMPORTANT: Deployment Sequence"
 log_info "================================"
