@@ -158,10 +158,14 @@ log_step "Configuring Entra ID authentication on SWA..."
 
 # Set app settings for Entra ID credentials
 log_step "Setting Entra ID credentials in SWA app settings..."
+# Note: Using printf for proper variable expansion to avoid shell interpretation of special chars
+CLIENT_ID_SETTING=$(printf 'AZURE_CLIENT_ID=%s' "$AZURE_CLIENT_ID")
+CLIENT_SECRET_SETTING=$(printf 'AZURE_CLIENT_SECRET=%s' "$AZURE_CLIENT_SECRET")
+
 if az staticwebapp appsettings set \
   --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --setting-names AZURE_CLIENT_ID="${AZURE_CLIENT_ID}" AZURE_CLIENT_SECRET="${AZURE_CLIENT_SECRET}" \
+  --setting-names "$CLIENT_ID_SETTING" "$CLIENT_SECRET_SETTING" \
   2>/dev/null; then
   log_info "App settings updated successfully"
 else
