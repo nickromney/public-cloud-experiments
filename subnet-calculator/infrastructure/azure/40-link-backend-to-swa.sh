@@ -52,6 +52,7 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 # Get script directory and source utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/selection-utils.sh"
+source "${SCRIPT_DIR}/lib/map-swa-region.sh"
 
 # Check Azure CLI
 if ! az account show &>/dev/null; then
@@ -115,10 +116,12 @@ if [[ -z "${FUNCTION_APP_NAME:-}" ]]; then
   fi
 fi
 
-# Detect location from resource group if REGION not set
+# Detect location from resource group and map to SWA-compatible region if REGION not set
 if [[ -z "${REGION:-}" ]]; then
-  REGION=$(az group show --name "${RESOURCE_GROUP}" --query location -o tsv)
-  log_info "Detected region from resource group: ${REGION}"
+  RG_LOCATION=$(az group show --name "${RESOURCE_GROUP}" --query location -o tsv)
+  log_info "Detected resource group location: ${RG_LOCATION}"
+  REGION=$(map_swa_region "${RG_LOCATION}")
+  log_info "Mapped region for SWA: ${REGION}"
 fi
 
 log_info ""
@@ -189,7 +192,6 @@ if az staticwebapp backends link \
   --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --backend-resource-id "${FUNCTION_APP_ID}" \
-  --region "${REGION}" \
   --output none; then
   log_info "Backend linked successfully"
 else
