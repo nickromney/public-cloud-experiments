@@ -15,7 +15,7 @@ help: ## Show this help message
 	@echo "$(GREEN)Subnet Calculator - Azure Deployment$(NC)"
 	@echo ""
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$|^##@.*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; /^##@/ {printf "\n$(YELLOW)%s$(NC)\n", substr($$0, 5)} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-25s$(NC) %s\\n", $$1, $$2}'
+		awk 'BEGIN {FS = ":.*?## "}; /^##@/ {printf "\n$(YELLOW)%s$(NC)\n", substr($$0, 5)} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-25s$(NC) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Environment variables:"
 	@echo "  RESOURCE_GROUP            - Azure resource group name (default: rg-subnet-calc)"
