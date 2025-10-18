@@ -126,10 +126,21 @@ if [[ -z "${API_URL}" ]]; then
 
   if [[ "${FUNC_COUNT}" -eq 1 ]]; then
     FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
-    API_URL="https://$(az functionapp show \
+
+    # Try to get hostname from function app
+    FUNC_HOSTNAME=$(az functionapp show \
       --name "${FUNCTION_APP_NAME}" \
       --resource-group "${RESOURCE_GROUP}" \
-      --query defaultHostName -o tsv)"
+      --query "properties.defaultHostName" -o tsv 2>/dev/null || echo "")
+
+    # If defaultHostName is empty (observed with Flex Consumption - property returns null),
+    # construct the URL from the function app name (standard Azure Functions hostname pattern)
+    if [[ -z "${FUNC_HOSTNAME}" ]]; then
+      FUNC_HOSTNAME="${FUNCTION_APP_NAME}.azurewebsites.net"
+      log_warn "defaultHostName empty, using constructed URL: ${FUNC_HOSTNAME}"
+    fi
+
+    API_URL="https://${FUNC_HOSTNAME}"
     log_info "Auto-detected Function App API: ${API_URL}"
   elif [[ "${FUNC_COUNT}" -gt 1 ]]; then
     log_warn "Multiple Function Apps found:"
@@ -157,8 +168,40 @@ log_info "  Auth Mode: ${AUTH_MODE}"
 TEMP_DIR=$(mktemp -d)
 log_info "Creating deployment package in ${TEMP_DIR}..."
 
-# Copy all files to temp directory
-cp -r "${SOURCE_DIR}"/* "${TEMP_DIR}/"
+# Copy only production files (whitelist approach for security)
+# SECURITY: Do NOT use "cp -r ${SOURCE_DIR}/* ${TEMP_DIR}/" as it would expose:
+#   - Dockerfile, Makefile (infrastructure details)
+#   - test_frontend.py, conftest.py (test code)
+#   - pyproject.toml, uv.lock (build configuration)
+#   - compose.yml, nginx.conf (deployment configuration)
+#   - __pycache__, .venv, .pytest_cache (build artifacts)
+# Only deploy what users need: HTML, CSS, JS, and favicon
+log_info "Copying production files only (index.html, favicon.svg, css/, js/)..."
+
+# Verify required files exist before copying
+MISSING_FILES=()
+for required_file in index.html favicon.svg css js; do
+  if [[ ! -e "${SOURCE_DIR}/${required_file}" ]]; then
+    MISSING_FILES+=("${required_file}")
+  fi
+done
+
+if [[ ${#MISSING_FILES[@]} -gt 0 ]]; then
+  log_error "Required files/directories not found in ${SOURCE_DIR}:"
+  for missing in "${MISSING_FILES[@]}"; do
+    log_error "  - ${missing}"
+  done
+  rm -rf "${TEMP_DIR}"
+  exit 1
+fi
+
+# Copy only production files (whitelist)
+cp "${SOURCE_DIR}/index.html" "${TEMP_DIR}/"
+cp "${SOURCE_DIR}/favicon.svg" "${TEMP_DIR}/"
+cp -r "${SOURCE_DIR}/css" "${TEMP_DIR}/"
+cp -r "${SOURCE_DIR}/js" "${TEMP_DIR}/"
+
+log_info "Production files copied successfully"
 
 # Inject API URL into index.html
 if [[ -f "${TEMP_DIR}/index.html" ]]; then

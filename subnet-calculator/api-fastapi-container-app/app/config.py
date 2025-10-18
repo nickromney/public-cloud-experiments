@@ -171,6 +171,56 @@ def get_api_keys() -> list[str]:
     return keys
 
 
+def get_cors_origins() -> list[str]:
+    """
+    Get allowed CORS origins from environment.
+
+    Returns:
+        List[str]: List of allowed origins (empty list means same-origin only)
+
+    Environment variable:
+        CORS_ORIGINS: Comma-separated list of allowed origins
+                     If not set or empty, returns empty list (no wildcard)
+    """
+    cors_origins_str = os.getenv("CORS_ORIGINS", "").strip()
+
+    if not cors_origins_str:
+        return []
+
+    # Split by comma and strip whitespace from each origin
+    origins = [origin.strip() for origin in cors_origins_str.split(",")]
+
+    # Filter out empty strings after stripping
+    origins = [origin for origin in origins if origin]
+
+    return origins
+
+
+def get_allowed_swa_hosts() -> list[str]:
+    """
+    Get allowed Azure Static Web Apps hostnames from environment.
+
+    Returns:
+        List[str]: List of allowed SWA hostnames (empty list means no validation)
+
+    Environment variable:
+        ALLOWED_SWA_HOSTS: Comma-separated list of SWA hostnames
+                          Example: app.azurestaticapps.net,custom-domain.com
+    """
+    swa_hosts_str = os.getenv("ALLOWED_SWA_HOSTS", "").strip()
+
+    if not swa_hosts_str:
+        return []
+
+    # Split by comma and strip whitespace from each hostname
+    hosts = [host.strip() for host in swa_hosts_str.split(",")]
+
+    # Filter out empty strings after stripping
+    hosts = [host for host in hosts if host]
+
+    return hosts
+
+
 def validate_configuration():
     """
     Validate authentication configuration at startup.

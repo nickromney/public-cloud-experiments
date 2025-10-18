@@ -16,6 +16,7 @@ EMOJI_PATTERN = re.compile(
     "\U0001F300-\U0001FAF6"  # Emoticons & symbols
     "\U00002600-\U000026FF"  # Misc symbols
     "\U00002700-\U000027BF"  # Dingbats
+    "\U00002B00-\U00002BFF"  # Misc symbols and pictographs (includes stars)
     "\U0000231A-\U000023FF"  # Misc technical
     "\U0000FE00-\U0000FE0F"  # Variation selectors
     "]+",

@@ -63,9 +63,10 @@ show-projects: ## Show all auto-detected projects
 ##@ Pre-commit and Security
 
 .PHONY: precommit
-precommit: python-fmt python-lint python-test typescript-check typescript-lint ## Run formatting, linting, testing, and pre-commit hooks
+precommit: python-fmt python-lint typescript-check typescript-lint ## Run formatting, linting, and pre-commit hooks (excludes tests)
 	@echo "$(YELLOW)Running all pre-commit hooks...$(NC)"
 	@echo "$(YELLOW)Note: This runs on ALL files. Git commit hook runs on staged files only.$(NC)"
+	@echo "$(YELLOW)Note: Tests are not run (use 'make test' to run all tests)$(NC)"
 	@pre-commit run --all-files
 	@echo "$(YELLOW)Checking untracked markdown files for emojis...$(NC)"
 	@git ls-files --others --exclude-standard '*.md' '*.markdown' | xargs -r .git-hooks/check-emojis.sh || true

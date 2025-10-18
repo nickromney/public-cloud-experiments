@@ -78,7 +78,7 @@ if [[ -z "${API_BASE_URL:-}" ]]; then
       API_BASE_URL="https://$(az functionapp show \
         --name "${FUNCTION_APP_NAME}" \
         --resource-group "${RESOURCE_GROUP}" \
-        --query defaultHostName -o tsv)"
+        --query "properties.defaultHostName" -o tsv)"
       log_info "Auto-detected Function App: ${FUNCTION_APP_NAME}"
       log_info "API URL: ${API_BASE_URL}"
     elif [[ "${FUNC_COUNT}" -gt 1 ]]; then
@@ -88,7 +88,7 @@ if [[ -z "${API_BASE_URL:-}" ]]; then
       API_BASE_URL="https://$(az functionapp show \
         --name "${FUNCTION_APP_NAME}" \
         --resource-group "${RESOURCE_GROUP}" \
-        --query defaultHostName -o tsv)"
+        --query "properties.defaultHostName" -o tsv)"
     else
       log_error "No Function App found and API_BASE_URL not set"
       log_error "Either set API_BASE_URL or create a Function App first"
@@ -98,7 +98,7 @@ if [[ -z "${API_BASE_URL:-}" ]]; then
     API_BASE_URL="https://$(az functionapp show \
       --name "${FUNCTION_APP_NAME}" \
       --resource-group "${RESOURCE_GROUP}" \
-      --query defaultHostName -o tsv)"
+      --query "properties.defaultHostName" -o tsv)"
   fi
 fi
 
@@ -264,7 +264,8 @@ EOF
   fi
 fi
 
-# Create zip file
+# Create zip file (excluding development files for security)
+# NOTE: Review this exclusion list when adding new development files
 ZIP_FILE="${TEMP_DIR}/deploy.zip"
 cd "${TEMP_DIR}"
 zip -r "${ZIP_FILE}" . \
@@ -280,6 +281,9 @@ zip -r "${ZIP_FILE}" . \
   -x "test_*.py" \
   -x "conftest.py" \
   -x "Makefile" \
+  -x "*.md" \
+  -x "uv.lock" \
+  -x "pyproject.toml" \
   > /dev/null
 
 log_info "Deployment package created: ${ZIP_FILE}"
@@ -299,7 +303,7 @@ rm -rf "${TEMP_DIR}"
 APP_SERVICE_URL="https://$(az webapp show \
   --name "${APP_SERVICE_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query defaultHostName -o tsv)"
+  --query "properties.defaultHostName" -o tsv)"
 
 log_info ""
 log_info "========================================="

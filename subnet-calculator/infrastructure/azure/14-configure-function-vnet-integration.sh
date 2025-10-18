@@ -570,7 +570,7 @@ log_step "Testing Function still responds..."
 HOSTNAME=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query defaultHostName -o tsv)
+  --query "properties.defaultHostName" -o tsv)
 
 FUNCTION_URL="https://${HOSTNAME}/api/v1/health"
 

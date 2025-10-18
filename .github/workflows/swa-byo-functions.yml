@@ -1,0 +1,100 @@
+name: Azure Static Web Apps CI/CD - BYO Functions
+
+# Deploy frontend to Azure Static Web Apps with Bring Your Own Functions
+# Suitable for Stack 03, 05a, 05b, 05c, 06, 07, 08 (all BYO stacks)
+# Function app is deployed separately (not included in this workflow)
+# api_location is empty to indicate no managed functions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'subnet-calculator/frontend-typescript-vite/**'
+      - '.github/workflows/swa-byo-functions.yml'
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+    paths:
+      - 'subnet-calculator/frontend-typescript-vite/**'
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  build_and_deploy_job:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Build and Deploy Job
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Build frontend
+        run: |
+          cd subnet-calculator/frontend-typescript-vite
+          npm ci
+          # For BYO functions:
+          # - If calling function app directly: VITE_API_URL=https://func-name.azurewebsites.net
+          # - If using linked backend (/api route): VITE_API_URL=""
+          # Using linked backend approach (recommended for Stack 05b)
+          VITE_API_URL="" npm run build
+
+      - name: Copy SWA config to dist
+        run: |
+          cd subnet-calculator/frontend-typescript-vite
+          # Choose appropriate config based on stack:
+          # For no auth (Stack 03):
+          # cp ../infrastructure/azure/staticwebapp-noauth.config.json dist/staticwebapp.config.json
+          # For Entra ID auth (Stack 05a, 05b, 05c, 06, 07):
+          cp ../infrastructure/azure/staticwebapp-entraid.config.json dist/staticwebapp.config.json
+
+      - name: Deploy to Azure Static Web Apps
+        id: builddeploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          # App location is the built frontend
+          app_location: "subnet-calculator/frontend-typescript-vite/dist"
+          # IMPORTANT: Empty api_location means no managed functions (BYO)
+          api_location: ""
+          # No output location needed when app_location points to dist
+          output_location: ""
+
+      # Optional: Link backend function app to SWA
+      # This step is only needed if you want SWA to proxy API calls via /api route
+      # Requires: AZURE_CREDENTIALS secret with service principal
+      - name: Link function app backend (optional)
+        if: false  # Set to true to enable backend linking
+        run: |
+          # Login to Azure
+          echo '${{ secrets.AZURE_CREDENTIALS }}' | az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p /dev/stdin --tenant ${{ secrets.AZURE_TENANT_ID }}
+
+          # Link function app to SWA
+          az staticwebapp backends link \
+            --name ${{ secrets.SWA_NAME }} \
+            --resource-group ${{ secrets.RESOURCE_GROUP }} \
+            --backend-resource-id ${{ secrets.FUNCTION_APP_RESOURCE_ID }} \
+            --backend-region ${{ secrets.FUNCTION_APP_REGION }}
+
+  close_pull_request_job:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close Pull Request Job
+    steps:
+      - name: Close Pull Request
+        id: closepullrequest
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: "close"

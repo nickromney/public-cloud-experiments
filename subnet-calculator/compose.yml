@@ -12,27 +12,27 @@
 #
 # Usage:
 #   podman-compose up                           # Start all services
-#   podman-compose up api-fastapi-azure-function frontend-python-flask                # Stack 1
-#   podman-compose up api-fastapi-container-app frontend-html-static                  # Stack 2
-#   podman-compose up api-fastapi-container-app frontend-python-flask-container-app   # Stack 3
-#   podman-compose up api-fastapi-container-app frontend-typescript-vite              # Stack 4
-#   podman-compose up api-fastapi-azure-function frontend-typescript-vite-jwt         # Stack 5
+#   podman-compose up api-fastapi-container-app frontend-html-static                  # local-stack-01
+#   podman-compose up api-fastapi-container-app frontend-python-flask-container-app   # local-stack-02
+#   podman-compose up api-fastapi-azure-function frontend-python-flask                # local-stack-03
+#   podman-compose up api-fastapi-container-app frontend-typescript-vite              # local-stack-04
+#   podman-compose up api-fastapi-azure-function frontend-typescript-vite-jwt         # local-stack-05
 #
 # Access:
-#   Stack 1 - Flask + Azure Function (JWT):
+#   local-stack-01 - Static HTML + Container App (no auth):
+#     - Static Frontend: http://localhost:8001
+#     - API docs: http://localhost:8090/api/v1/docs
+#   local-stack-02 - Flask + Container App (no auth):
+#     - Flask Frontend: http://localhost:8002
+#     - API docs: http://localhost:8090/api/v1/docs
+#   local-stack-03 - Flask + Azure Function (JWT):
 #     - Flask Frontend: http://localhost:8000
 #     - API docs: http://localhost:8080/api/v1/docs
 #     - Login: demo / password123
-#   Stack 2 - Static HTML + Container App (no auth):
-#     - Static Frontend: http://localhost:8001
+#   local-stack-04 - TypeScript Vite + Container App (no auth):
+#     - Vite SPA: http://localhost:8003
 #     - API docs: http://localhost:8090/api/v1/docs
-#   Stack 3 - Flask + Container App (no auth):
-#     - Flask Frontend: http://localhost:8002
-#     - API docs: http://localhost:8090/api/v1/docs
-#   Stack 4 - TypeScript Vite + Container App (no auth):
-#     - Vite SPA: http://localhost:3000
-#     - API docs: http://localhost:8090/api/v1/docs
-#   Stack 5 - TypeScript Vite + Azure Function (JWT):
+#   local-stack-05 - TypeScript Vite + Azure Function (JWT):
 #     - Vite SPA: http://localhost:3001
 #     - API docs: http://localhost:8080/api/v1/docs
 #     - JWT: Automatic authentication (demo / password123)
@@ -131,7 +131,7 @@ services:
     platform: linux/amd64
     image: subnet-calculator-frontend-typescript-vite:latest
     ports:
-      - "3000:80"
+      - "8003:80"
     environment:
       # No authentication (default)
       - VITE_AUTH_ENABLED=false

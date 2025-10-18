@@ -305,7 +305,9 @@ function clearResults() {
  */
 function tryExample(address) {
     document.getElementById('ip-address').value = address;
-    document.getElementById('lookup-form').dispatchEvent(new Event('submit'));
+    // Use requestSubmit() to trigger a trusted submit event
+    // This properly validates the form and triggers the submit handler
+    document.getElementById('lookup-form').requestSubmit();
 }
 
 /**

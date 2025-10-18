@@ -150,11 +150,11 @@ setup
 
 ```nushell
 with-env {
-  RESOURCE_GROUP: "rg-subnet-calc"
-  LOCATION: "uksouth"
-  CUSTOM_DOMAIN: "publiccloudexperiments.net"
+ RESOURCE_GROUP: "rg-subnet-calc"
+ LOCATION: "uksouth"
+ CUSTOM_DOMAIN: "publiccloudexperiments.net"
 } {
-  ./stack-03-swa-typescript-noauth.sh
+ ./stack-03-swa-typescript-noauth.sh
 }
 ```
 
@@ -207,11 +207,12 @@ All scripts now include intelligent auto-detection to work seamlessly in sandbox
 **How it works:**
 
 1. **0 resources found** - Error with helpful guidance on which script to run first
-2. **1 resource found** - Auto-detect and prompt "Use this? (Y/n)" (defaults to yes)
-3. **2+ resources found** - Behavior depends on resource type:
-   - **Expensive resources** (APIM, App Service Plans): REFUSE with cost warnings
-   - **Cheap resources** (Function Apps, VNets): LIST and prompt to select
-   - **Configuration scripts**: LIST and prompt to select
+1. **1 resource found** - Auto-detect and prompt "Use this? (Y/n)" (defaults to yes)
+1. **2+ resources found** - Behavior depends on resource type:
+
+- **Expensive resources** (APIM, App Service Plans): REFUSE with cost warnings
+- **Cheap resources** (Function Apps, VNets): LIST and prompt to select
+- **Configuration scripts**: LIST and prompt to select
 
 **Examples:**
 
@@ -530,13 +531,13 @@ All stack scripts use these defaults (override via environment variables):
 
 ```bash
 # Default location
-export LOCATION="uksouth"  # UK South region
+export LOCATION="uksouth" # UK South region
 
 # Custom domain (configure your own)
-export CUSTOM_DOMAIN="publiccloudexperiments.net"  # Change to your domain
+export CUSTOM_DOMAIN="publiccloudexperiments.net" # Change to your domain
 
 # Resource naming
-export RESOURCE_GROUP="rg-subnet-calc-prod"  # Or auto-detected
+export RESOURCE_GROUP="rg-subnet-calc-prod" # Or auto-detected
 ```
 
 ### Stack 0: Storage Static Website
@@ -690,7 +691,7 @@ export CUSTOM_DOMAIN="publiccloudexperiments.net"
 # Deploy all stacks
 ./stack-03-swa-typescript-noauth.sh
 ./stack-04-swa-typescript-jwt.sh
-./stack-05-swa-typescript-entraid.sh  # Requires Entra ID setup
+./stack-05-swa-typescript-entraid.sh # Requires Entra ID setup
 ./stack-06-flask-appservice.sh
 
 # Also deploy storage static website
@@ -710,14 +711,14 @@ This is a **complete, tested, working example** from a real Pluralsight sandbox 
 
 ### Timing Breakdown
 
-| Step                  | Duration    | Notes                            |
+| Step | Duration | Notes |
 | --------------------- | ----------- | -------------------------------- |
-| Environment setup     | 1 min       | Auto-detects sandbox             |
-| Function App creation | 2 min       | Consumption plan                 |
-| Function deployment   | 3 min       | Python FastAPI                   |
-| **APIM provisioning** | **37 min**  | Developer SKU (eastus)           |
-| APIM configuration    | 2 min       | API import + policies            |
-| **Total**             | **~44 min** | Well within 4-hour sandbox limit |
+| Environment setup | 1 min | Auto-detects sandbox |
+| Function App creation | 2 min | Consumption plan |
+| Function deployment | 3 min | Python FastAPI |
+| **APIM provisioning** | **37 min** | Developer SKU (eastus) |
+| APIM configuration | 2 min | API import + policies |
+| **Total** | **~44 min** | Well within 4-hour sandbox limit |
 
 ### Step 1: Environment Setup (1 minute)
 
@@ -942,12 +943,12 @@ FULL_API_URL='https://apim-subnet-calc-47022.azure-api.net/subnet-calc'
 
 ### Cost Summary for 4-Hour Sandbox
 
-| Resource        | SKU          | 4-Hour Cost                  |
+| Resource | SKU | 4-Hour Cost |
 | --------------- | ------------ | ---------------------------- |
-| Function App    | Consumption  | $0.00 (free tier)            |
-| Storage Account | Standard LRS | $0.00 (minimal)              |
-| APIM            | Developer    | $0.00 (prorated: ~$0.12/day) |
-| **Total**       |              | **~$0.02**                   |
+| Function App | Consumption | $0.00 (free tier) |
+| Storage Account | Standard LRS | $0.00 (minimal) |
+| APIM | Developer | $0.00 (prorated: ~$0.12/day) |
+| **Total** | | **~$0.02** |
 
 **Note**: Developer SKU is approximately $60/month, which is $0.50/hour or $0.02 for 4 hours. Actual charges may vary.
 
