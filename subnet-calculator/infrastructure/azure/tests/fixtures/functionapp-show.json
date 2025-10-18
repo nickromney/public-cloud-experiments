@@ -1,0 +1,36 @@
+{
+  "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-subnet-calc/providers/Microsoft.Web/sites/func-subnet-calc-test",
+  "location": "uksouth",
+  "name": "func-subnet-calc-test",
+  "type": "Microsoft.Web/sites",
+  "kind": "functionapp,linux",
+  "properties": {
+    "state": "Running",
+    "hostNames": [
+      "func-subnet-calc-test.azurewebsites.net"
+    ],
+    "repositorySiteName": "func-subnet-calc-test",
+    "usageState": "Normal",
+    "enabled": true,
+    "enabledHostNames": [
+      "func-subnet-calc-test.azurewebsites.net"
+    ],
+    "availabilityState": "Normal",
+    "defaultHostName": "func-subnet-calc-test.azurewebsites.net",
+    "httpsOnly": true,
+    "reserved": true,
+    "siteConfig": {
+      "numberOfWorkers": 1,
+      "linuxFxVersion": "Python|3.11",
+      "requestTracingEnabled": false,
+      "remoteDebuggingEnabled": false,
+      "httpLoggingEnabled": false,
+      "logsDirectorySizeLimit": 35,
+      "detailedErrorLoggingEnabled": false,
+      "alwaysOn": false,
+      "use32BitWorkerProcess": false,
+      "ftpsState": "FtpsOnly",
+      "minTlsVersion": "1.2"
+    }
+  }
+}

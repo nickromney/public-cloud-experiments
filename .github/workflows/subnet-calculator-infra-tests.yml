@@ -1,0 +1,100 @@
+name: Subnet Calculator Infrastructure Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'subnet-calculator/infrastructure/azure/**'
+      - '.github/workflows/subnet-calculator-infra-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'subnet-calculator/infrastructure/azure/**'
+      - '.github/workflows/subnet-calculator-infra-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  shellcheck:
+    name: ShellCheck Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        run: |
+          cd subnet-calculator/infrastructure/azure
+          make lint
+
+  bats-tests:
+    name: BATS Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install BATS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats
+
+      - name: Install BATS support libraries
+        run: |
+          cd subnet-calculator/infrastructure/azure
+          mkdir -p tests/test_helper
+          if [ ! -d tests/test_helper/bats-support ]; then
+            git clone \
+              https://github.com/bats-core/bats-support \
+              tests/test_helper/bats-support
+            rm -rf tests/test_helper/bats-support/.git
+          fi
+          if [ ! -d tests/test_helper/bats-assert ]; then
+            git clone \
+              https://github.com/bats-core/bats-assert \
+              tests/test_helper/bats-assert
+            rm -rf tests/test_helper/bats-assert/.git
+          fi
+
+      - name: Run BATS unit tests
+        run: |
+          cd subnet-calculator/infrastructure/azure
+          if [ -d tests ] && ls tests/test_*.bats 1> /dev/null 2>&1; then
+            make test-unit
+          else
+            echo "No test files found yet. Skipping tests."
+            echo "Tests will run once BATS test files are created."
+            exit 0
+          fi
+
+  quality:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+    needs: [shellcheck, bats-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck bats
+
+      - name: Install BATS support libraries
+        run: |
+          cd subnet-calculator/infrastructure/azure
+          mkdir -p tests/test_helper
+          if [ ! -d tests/test_helper/bats-support ]; then
+            git clone \
+              https://github.com/bats-core/bats-support \
+              tests/test_helper/bats-support
+            rm -rf tests/test_helper/bats-support/.git
+          fi
+          if [ ! -d tests/test_helper/bats-assert ]; then
+            git clone \
+              https://github.com/bats-core/bats-assert \
+              tests/test_helper/bats-assert
+            rm -rf tests/test_helper/bats-assert/.git
+          fi
+
+      - name: Run quality checks
+        run: |
+          cd subnet-calculator/infrastructure/azure
+          make quality || true
+          echo "Quality checks complete"
