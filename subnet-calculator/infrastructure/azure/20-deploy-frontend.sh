@@ -193,6 +193,16 @@ case "${FRONTEND}" in
     log_info "Building production bundle..."
     npm run build
 
+    # Copy appropriate staticwebapp.config.json based on authentication mode
+    log_step "Configuring Static Web App rules..."
+    if [[ "${VITE_AUTH_ENABLED:-false}" == "true" ]]; then
+      log_info "Using Entra ID authentication config"
+      cp "${SCRIPT_DIR}/staticwebapp-entraid.config.json" dist/staticwebapp.config.json
+    else
+      log_info "Using no-auth config"
+      cp "${SCRIPT_DIR}/staticwebapp-noauth.config.json" dist/staticwebapp.config.json
+    fi
+
     # Check if SWA CLI is installed
     if ! command -v swa &>/dev/null; then
       log_warn "Azure Static Web Apps CLI not found. Installing globally..."
