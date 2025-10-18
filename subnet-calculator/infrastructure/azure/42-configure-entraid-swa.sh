@@ -74,7 +74,16 @@ if [[ -z "${RESOURCE_GROUP:-}" ]]; then
     log_info "Auto-detected single resource group: ${RESOURCE_GROUP}"
   else
     log_warn "Multiple resource groups found:"
-    RESOURCE_GROUP=$(select_resource_group) || exit 1
+    # Try non-interactive selection (list names and pick first)
+    RG_OPTIONS=$(az group list --query "[].name" -o tsv)
+    if [[ -t 0 ]]; then
+      # Terminal available - use interactive selection
+      RESOURCE_GROUP=$(select_resource_group) || exit 1
+    else
+      # Non-interactive - pick first one
+      RESOURCE_GROUP=$(echo "${RG_OPTIONS}" | head -1)
+      log_warn "Non-interactive mode: selected first RG: ${RESOURCE_GROUP}"
+    fi
     log_info "Selected: ${RESOURCE_GROUP}"
   fi
 fi
@@ -92,7 +101,16 @@ if [[ -z "${STATIC_WEB_APP_NAME:-}" ]]; then
     log_info "Auto-detected Static Web App: ${STATIC_WEB_APP_NAME}"
   else
     log_warn "Multiple Static Web Apps found:"
-    STATIC_WEB_APP_NAME=$(select_static_web_app "${RESOURCE_GROUP}") || exit 1
+    # Try non-interactive selection (list names and pick first)
+    SWA_OPTIONS=$(az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "[].name" -o tsv)
+    if [[ -t 0 ]]; then
+      # Terminal available - use interactive selection
+      STATIC_WEB_APP_NAME=$(select_static_web_app "${RESOURCE_GROUP}") || exit 1
+    else
+      # Non-interactive - pick first one
+      STATIC_WEB_APP_NAME=$(echo "${SWA_OPTIONS}" | head -1)
+      log_warn "Non-interactive mode: selected first SWA: ${STATIC_WEB_APP_NAME}"
+    fi
     log_info "Selected: ${STATIC_WEB_APP_NAME}"
   fi
 fi
@@ -127,9 +145,10 @@ log_info "  Resource Group: ${RESOURCE_GROUP}"
 log_info "  Client ID: ${AZURE_CLIENT_ID:0:20}..."
 log_info ""
 
-# Confirm before applying
-read -rp "Apply Entra ID configuration? [y/N] " -n 1 CONFIRM
+# Confirm before applying (default to Y)
+read -rp "Apply Entra ID configuration? [Y/n] " -n 1 CONFIRM
 echo ""
+CONFIRM="${CONFIRM:-y}"
 if [[ "${CONFIRM,,}" != "y" ]]; then
   log_info "Cancelled"
   exit 0
