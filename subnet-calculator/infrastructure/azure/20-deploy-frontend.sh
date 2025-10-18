@@ -239,7 +239,7 @@ case "${FRONTEND}" in
       log_error "Config file missing after copy!"
     fi
 
-    # If using Entra ID config, substitute TENANT_ID placeholder
+    # If using Entra ID config, substitute AZURE_TENANT_ID placeholder
     if [[ "${VITE_AUTH_ENABLED:-false}" == "true" ]]; then
       log_step "Processing Entra ID configuration..."
 
@@ -254,16 +254,16 @@ case "${FRONTEND}" in
         log_info "Detected AZURE_TENANT_ID: ${AZURE_TENANT_ID}"
       fi
 
-      # Substitute TENANT_ID placeholder in config file
-      log_info "DEBUG: Substituting TENANT_ID placeholder with ${AZURE_TENANT_ID}"
-      if ! sed -i.bak "s/TENANT_ID/${AZURE_TENANT_ID}/g" dist/staticwebapp.config.json; then
-        log_error "Failed to substitute TENANT_ID in config"
+      # Substitute AZURE_TENANT_ID placeholder in config file
+      log_info "DEBUG: Substituting AZURE_TENANT_ID placeholder with ${AZURE_TENANT_ID}"
+      if ! sed -i.bak "s/AZURE_TENANT_ID/${AZURE_TENANT_ID}/g" dist/staticwebapp.config.json; then
+        log_error "Failed to substitute AZURE_TENANT_ID in config"
         exit 1
       fi
 
       # Verify substitution
-      if grep -q "TENANT_ID" dist/staticwebapp.config.json; then
-        log_error "TENANT_ID placeholder still present after substitution!"
+      if grep -q "AZURE_TENANT_ID" dist/staticwebapp.config.json; then
+        log_error "AZURE_TENANT_ID placeholder still present after substitution!"
         exit 1
       fi
 
