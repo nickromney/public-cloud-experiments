@@ -154,13 +154,20 @@ if ! az functionapp show \
 fi
 log_info "Function App found"
 
-# Get Function App resource ID
+# Get Function App resource ID and actual location
 FUNCTION_APP_ID=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query id -o tsv)
 
+# Get the actual Function App location (not mapped region)
+FUNCTION_APP_LOCATION=$(az functionapp show \
+  --name "${FUNCTION_APP_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" \
+  --query location -o tsv)
+
 log_info "Function App Resource ID: ${FUNCTION_APP_ID}"
+log_info "Function App Location: ${FUNCTION_APP_LOCATION}"
 
 # Check if backend is already linked
 log_step "Checking for existing backend links..."
@@ -174,7 +181,7 @@ if [[ "${EXISTING_BACKENDS}" -gt 0 ]]; then
   az staticwebapp backends list \
     --name "${STATIC_WEB_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
-    --query "[].[backendResourceId,region]" -o tsv | \
+    --query "[].[backendResourceId,region]" -o tsv |
     awk '{printf "  - %s (%s)\n", $1, $2}'
 
   echo ""
@@ -186,12 +193,13 @@ if [[ "${EXISTING_BACKENDS}" -gt 0 ]]; then
   fi
 fi
 
-# Link Function App to Static Web App
+# Link Function App to Static Web App using its actual location
 log_step "Linking Function App to Static Web App..."
 if az staticwebapp backends link \
   --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --backend-resource-id "${FUNCTION_APP_ID}" \
+  --backend-region "${FUNCTION_APP_LOCATION}" \
   --output none; then
   log_info "Backend linked successfully"
 else
