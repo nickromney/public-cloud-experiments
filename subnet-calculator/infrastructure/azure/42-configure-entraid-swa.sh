@@ -179,9 +179,12 @@ log_step "Setting Entra ID credentials in SWA app settings..."
 # Note: Using printf for proper variable expansion to avoid shell interpretation of special chars
 CLIENT_ID_SETTING="AZURE_CLIENT_ID=$(printf "%s" "$AZURE_CLIENT_ID")"
 CLIENT_SECRET_SETTING="AZURE_CLIENT_SECRET=$(printf "%s" "$AZURE_CLIENT_SECRET")"
+TENANT_ID_SETTING="AZURE_TENANT_ID=$(printf "%s" "$AZURE_TENANT_ID")"
 
-if az staticwebapp appsettings set --name "${STATIC_WEB_APP_NAME}" --resource-group "${RESOURCE_GROUP}" --setting-names "$CLIENT_ID_SETTING" "$CLIENT_SECRET_SETTING" 2>/dev/null; then
+if az staticwebapp appsettings set --name "${STATIC_WEB_APP_NAME}" --resource-group "${RESOURCE_GROUP}" --setting-names "$CLIENT_ID_SETTING" "$CLIENT_SECRET_SETTING" "$TENANT_ID_SETTING" 2>/dev/null; then
   log_info "App settings updated successfully"
+  log_info "  AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}"
+  log_info "  AZURE_TENANT_ID: ${AZURE_TENANT_ID}"
 else
   log_error "Failed to set app settings"
   exit 1
@@ -190,20 +193,22 @@ fi
 log_step "Verifying app settings..."
 STORED_CLIENT_ID=$(az staticwebapp appsettings list --name "${STATIC_WEB_APP_NAME}" --resource-group "${RESOURCE_GROUP}" --query "properties.AZURE_CLIENT_ID" -o tsv 2>/dev/null || echo "not set")
 
-log_step "Ensuring SPA redirect URI is configured..."
+log_step "Ensuring Web redirect URI and logout URL are configured..."
 REDIRECT_URI="https://${SWA_HOSTNAME}/.auth/login/aad/callback"
+LOGOUT_URL="https://${SWA_HOSTNAME}/.auth/logout"
 APP_OBJECT_ID=$(az ad app show --id "${AZURE_CLIENT_ID}" --query id -o tsv)
-CURRENT_SPA_URIS=$(az ad app show --id "${AZURE_CLIENT_ID}" --query "spa.redirectUris" -o tsv | tr '\n' ' ')
+CURRENT_WEB_URIS=$(az ad app show --id "${AZURE_CLIENT_ID}" --query "web.redirectUris" -o tsv | tr '\n' ' ')
 
-if [[ "${CURRENT_SPA_URIS}" != *"${REDIRECT_URI}"* ]]; then
+if [[ "${CURRENT_WEB_URIS}" != *"${REDIRECT_URI}"* ]]; then
   az rest --method PATCH \
     --url "https://graph.microsoft.com/v1.0/applications/${APP_OBJECT_ID}" \
     --headers 'Content-Type=application/json' \
-    --body "{\"spa\":{\"redirectUris\":[\"${REDIRECT_URI}\"]}}" \
+    --body "{\"web\":{\"redirectUris\":[\"${REDIRECT_URI}\"],\"logoutUrl\":\"${LOGOUT_URL}\",\"implicitGrantSettings\":{\"enableAccessTokenIssuance\":true,\"enableIdTokenIssuance\":true}},\"spa\":{\"redirectUris\":[]}}" \
     --output none
-  log_info "SPA redirect URI set to ${REDIRECT_URI}"
+  log_info "Web redirect URI set to ${REDIRECT_URI}"
+  log_info "Front-channel logout URL set to ${LOGOUT_URL}"
 else
-  log_info "SPA redirect URI already configured"
+  log_info "Web redirect URI already configured"
 fi
 
 log_step "Persisting captured configuration for diagnostics..."

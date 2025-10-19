@@ -1,3 +1,5 @@
+.factory/
+subnet-calculator/infrastructure/azure/generated/
 # Local .terraform directories
 .terraform/
 

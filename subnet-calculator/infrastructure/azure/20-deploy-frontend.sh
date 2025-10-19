@@ -207,8 +207,8 @@ case "${FRONTEND}" in
 
     # Determine which config file to use
     if [[ "${VITE_AUTH_ENABLED:-false}" == "true" ]]; then
-      log_info "Using Entra ID authentication config"
-      CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-entraid.config.json"
+      log_info "Using Entra ID authentication config (built-in provider)"
+      CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-entraid-builtin.config.json"
     elif [[ "${VITE_AUTH_ENABLED:-false}" == "false" ]]; then
       # VITE_AUTH_ENABLED is false - use no-auth config
       log_info "Using no-auth config when VITE_AUTH_ENABLED is false"
@@ -289,6 +289,8 @@ case "${FRONTEND}" in
     log_info "Deploying to Azure Static Web App..."
     swa deploy \
       --app-location dist \
+      --output-location . \
+      --swa-config-location dist \
       --deployment-token "${DEPLOYMENT_TOKEN}" \
       --env production \
       --api-language node \
