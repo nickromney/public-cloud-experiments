@@ -101,6 +101,8 @@ SWA_HOSTNAME=""
 SWA_URL=""
 SPA_URIS=""
 CLIENT_ID_SET="false"
+FUNCTION_APP_NAME=""
+FUNCTION_APP_RG=""
 
 # Auto-detect RESOURCE_GROUP if not set
 if [[ -z "${RESOURCE_GROUP}" ]]; then
@@ -109,8 +111,17 @@ if [[ -z "${RESOURCE_GROUP}" ]]; then
     RESOURCE_GROUP=$(az group list --query "[0].name" -o tsv)
     [[ "${VERBOSE}" == "true" ]] && log_info "Auto-detected resource group: ${RESOURCE_GROUP}"
   elif [[ "${RG_COUNT}" -gt 1 ]]; then
-    RESOURCE_GROUP=$(az group list --query "[0].name" -o tsv)
-    [[ "${VERBOSE}" == "true" ]] && log_info "Selected first resource group: ${RESOURCE_GROUP}"
+    # Try to find a resource group that contains Static Web Apps with "entraid" in the name
+    ENTRAID_RG=$(az staticwebapp list --query "[?contains(name, 'entraid')].resourceGroup | [0]" -o tsv 2>/dev/null || echo "")
+
+    if [[ -n "${ENTRAID_RG}" ]]; then
+      RESOURCE_GROUP="${ENTRAID_RG}"
+      [[ "${VERBOSE}" == "true" ]] && log_info "Auto-detected resource group with Entra ID SWA: ${RESOURCE_GROUP}"
+    else
+      # Fall back to first resource group
+      RESOURCE_GROUP=$(az group list --query "[0].name" -o tsv)
+      [[ "${VERBOSE}" == "true" ]] && log_info "Selected first resource group: ${RESOURCE_GROUP}"
+    fi
   fi
 fi
 
@@ -122,8 +133,19 @@ if [[ -z "${SWA_NAME}" ]]; then
       SWA_NAME=$(az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
       [[ "${VERBOSE}" == "true" ]] && log_info "Auto-detected SWA: ${SWA_NAME}"
     elif [[ "${SWA_COUNT}" -gt 1 ]]; then
-      SWA_NAME=$(az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
-      [[ "${VERBOSE}" == "true" ]] && log_warn "Multiple SWAs found, using first: ${SWA_NAME}"
+      # Prefer SWA with "entraid" in the name for verification
+      SWA_NAME=$(az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "[?contains(name, 'entraid')].name | [0]" -o tsv 2>/dev/null || echo "")
+
+      if [[ -z "${SWA_NAME}" ]]; then
+        # If no "entraid" SWA found, try to select interactively
+        log_warn "Multiple SWAs found. Use --swa <name> to specify which one to verify."
+        SWA_NAME=$(select_static_web_app "${RESOURCE_GROUP}") || {
+          log_warn "No SWA selected, verification will be limited"
+          SWA_NAME=""
+        }
+      else
+        [[ "${VERBOSE}" == "true" ]] && log_info "Auto-selected Entra ID SWA: ${SWA_NAME}"
+      fi
     fi
   fi
 fi
@@ -348,6 +370,21 @@ if [[ -n "${SWA_HOSTNAME}" ]] && [[ -n "${SPA_URIS}" ]]; then
   fi
 fi
 
+# Only check Function App if both name and resource group are provided
+if [[ -n "${FUNCTION_APP_NAME}" ]] && [[ -n "${FUNCTION_APP_RG}" ]]; then
+  FUNCTION_APP_AUTH=$(az functionapp config appsettings list --name "${FUNCTION_APP_NAME}" --resource-group "${FUNCTION_APP_RG}" --query "[?name=='AUTH_METHOD'].value" -o tsv 2>/dev/null || echo "")
+  if [[ -n "${FUNCTION_APP_AUTH}" ]]; then
+    if [[ "${FUNCTION_APP_AUTH}" == "azure_swa" ]]; then
+      CHECKS_PASSED+=("Function App AUTH_METHOD is azure_swa")
+    else
+      CHECKS_FAILED+=("Function App AUTH_METHOD is ${FUNCTION_APP_AUTH} (expected azure_swa)")
+      FIXES_AVAILABLE+=("Set Function App AUTH_METHOD=azure_swa to trust SWA headers")
+    fi
+  else
+    CHECKS_WARNING+=("Unable to determine Function App AUTH_METHOD")
+  fi
+fi
+
 if [[ -n "${APP_ID}" ]] && [[ -n "${CLIENT_ID_SET}" ]]; then
   SWA_APP_ID=$(echo "${APP_SETTINGS}" | jq -r '.AZURE_CLIENT_ID // empty')
   if [[ "${SWA_APP_ID}" == "${APP_ID}" ]]; then
@@ -364,11 +401,18 @@ fi
 log_check "Checking SWA Configuration File..."
 
 CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-entraid.config.json"
-if [[ -f "${CONFIG_FILE}" ]]; then
-  CHECKS_PASSED+=("SWA config file exists: staticwebapp-entraid.config.json")
+GENERATED_CONFIG="${SCRIPT_DIR}/generated/staticwebapp-entraid.${SWA_NAME}.staticwebapp.config.json"
+CONFIG_SOURCE="${CONFIG_FILE}"
+
+if [[ -f "${GENERATED_CONFIG}" ]]; then
+  CONFIG_SOURCE="${GENERATED_CONFIG}"
+fi
+
+if [[ -f "${CONFIG_SOURCE}" ]]; then
+  CHECKS_PASSED+=("SWA config file exists: $(basename "${CONFIG_SOURCE}")")
 
   # Check if routes are properly configured
-  HAS_AUTH_ROUTE=$(jq -e '.routes[] | select(.route == "/.auth/*")' "${CONFIG_FILE}" 2>/dev/null || echo "")
+  HAS_AUTH_ROUTE=$(jq -e '.routes[] | select(.route == "/.auth/*")' "${CONFIG_SOURCE}" 2>/dev/null || echo "")
   if [[ -n "${HAS_AUTH_ROUTE}" ]]; then
     CHECKS_PASSED+=("SWA config: /.auth/* route is accessible (prevents redirect loop)")
   else
@@ -377,10 +421,15 @@ if [[ -f "${CONFIG_FILE}" ]]; then
   fi
 
   # Check if tenant ID is replaced
-  ISSUER=$(jq -r '.auth.identityProviders.azureActiveDirectory.registration.openIdIssuer // ""' "${CONFIG_FILE}")
+  ISSUER=$(jq -r '.auth.identityProviders.azureActiveDirectory.registration.openIdIssuer // ""' "${CONFIG_SOURCE}")
   if [[ "${ISSUER}" == *"AZURE_TENANT_ID"* ]]; then
-    CHECKS_FAILED+=("SWA config: openIdIssuer contains placeholder AZURE_TENANT_ID (not replaced)")
-    FIXES_AVAILABLE+=("Replace AZURE_TENANT_ID in staticwebapp-entraid.config.json with actual tenant ID: ${TENANT_ID}")
+    if [[ "${CONFIG_SOURCE}" == "${GENERATED_CONFIG}" ]]; then
+      CHECKS_FAILED+=("Generated SWA config still contains AZURE_TENANT_ID placeholder")
+      FIXES_AVAILABLE+=("Redeploy frontend with VITE_AUTH_ENABLED=true to refresh generated config")
+    else
+      CHECKS_WARNING+=("Template SWA config contains AZURE_TENANT_ID placeholder (expected when generated snapshot missing)")
+      FIXES_AVAILABLE+=("Run 20-deploy-frontend.sh with VITE_AUTH_ENABLED=true to capture generated config")
+    fi
   elif [[ -n "${ISSUER}" ]]; then
     CHECKS_PASSED+=("SWA config: openIdIssuer is configured with tenant ID")
     [[ "${VERBOSE}" == "true" ]] && log_info "  Issuer: ${ISSUER}"

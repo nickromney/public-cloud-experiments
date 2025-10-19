@@ -27,6 +27,9 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 # Get script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+GENERATED_DIR="${SCRIPT_DIR}/generated"
+
+mkdir -p "${GENERATED_DIR}"
 
 # Source selection utilities
 source "${SCRIPT_DIR}/lib/selection-utils.sh"
@@ -269,6 +272,11 @@ case "${FRONTEND}" in
 
       log_info "Entra ID configuration processed successfully"
       rm -f dist/staticwebapp.config.json.bak
+
+      # Persist generated config for diagnostics and verification
+      GENERATED_CONFIG="${GENERATED_DIR}/staticwebapp-entraid.${STATIC_WEB_APP_NAME}.staticwebapp.config.json"
+      log_info "Saving generated config snapshot to ${GENERATED_CONFIG}"
+      cp dist/staticwebapp.config.json "${GENERATED_CONFIG}"
     fi
 
     # Check if SWA CLI is installed

@@ -54,6 +54,9 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 # Get script directory and source utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/selection-utils.sh"
+GENERATED_DIR="${SCRIPT_DIR}/generated"
+
+mkdir -p "${GENERATED_DIR}"
 
 # Check Azure CLI
 if ! az account show &>/dev/null; then
@@ -114,6 +117,13 @@ if [[ -z "${STATIC_WEB_APP_NAME:-}" ]]; then
     log_info "Selected: ${STATIC_WEB_APP_NAME}"
   fi
 fi
+
+SWA_INFO=$(az staticwebapp show \
+  --name "${STATIC_WEB_APP_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" -o json)
+
+SWA_HOSTNAME=$(echo "${SWA_INFO}" | jq -r '.defaultHostname')
+LINKED_BACKEND_ID=$(echo "${SWA_INFO}" | jq -r '.linkedBackends[0].backendResourceId // empty')
 
 # Prompt for AZURE_CLIENT_ID if not set
 if [[ -z "${AZURE_CLIENT_ID:-}" ]]; then
@@ -179,6 +189,52 @@ fi
 
 log_step "Verifying app settings..."
 STORED_CLIENT_ID=$(az staticwebapp appsettings list --name "${STATIC_WEB_APP_NAME}" --resource-group "${RESOURCE_GROUP}" --query "properties.AZURE_CLIENT_ID" -o tsv 2>/dev/null || echo "not set")
+
+log_step "Ensuring SPA redirect URI is configured..."
+REDIRECT_URI="https://${SWA_HOSTNAME}/.auth/login/aad/callback"
+APP_OBJECT_ID=$(az ad app show --id "${AZURE_CLIENT_ID}" --query id -o tsv)
+CURRENT_SPA_URIS=$(az ad app show --id "${AZURE_CLIENT_ID}" --query "spa.redirectUris" -o tsv | tr '\n' ' ')
+
+if [[ "${CURRENT_SPA_URIS}" != *"${REDIRECT_URI}"* ]]; then
+  az rest --method PATCH \
+    --url "https://graph.microsoft.com/v1.0/applications/${APP_OBJECT_ID}" \
+    --headers 'Content-Type=application/json' \
+    --body "{\"spa\":{\"redirectUris\":[\"${REDIRECT_URI}\"]}}" \
+    --output none
+  log_info "SPA redirect URI set to ${REDIRECT_URI}"
+else
+  log_info "SPA redirect URI already configured"
+fi
+
+log_step "Persisting captured configuration for diagnostics..."
+GENERATED_CONFIG="${GENERATED_DIR}/staticwebapp-entraid.${STATIC_WEB_APP_NAME}.metadata.json"
+cat > "${GENERATED_CONFIG}" <<EOF
+{
+  "tenantId": "${AZURE_TENANT_ID}",
+  "clientId": "${AZURE_CLIENT_ID}",
+  "redirectUri": "${REDIRECT_URI}",
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+
+if [[ -n "${LINKED_BACKEND_ID}" ]]; then
+  log_step "Configuring linked Function App authentication..."
+  FUNCTION_APP_RG=$(echo "${LINKED_BACKEND_ID}" | awk -F/ '{for(i=1;i<=NF;i++){if($i=="resourceGroups"){print $(i+1); exit}}}')
+  FUNCTION_APP_NAME=$(echo "${LINKED_BACKEND_ID}" | awk -F/ '{print $NF}')
+
+  if [[ -n "${FUNCTION_APP_RG}" && -n "${FUNCTION_APP_NAME}" ]]; then
+    az functionapp config appsettings set \
+      --name "${FUNCTION_APP_NAME}" \
+      --resource-group "${FUNCTION_APP_RG}" \
+      --settings AUTH_METHOD=azure_swa \
+      --output none
+    log_info "Set AUTH_METHOD=azure_swa on ${FUNCTION_APP_NAME}"
+  else
+    log_warn "Unable to parse Function App details from linked backend id"
+  fi
+else
+  log_warn "No linked backend detected on Static Web App"
+fi
 
 log_info ""
 log_info "========================================="
