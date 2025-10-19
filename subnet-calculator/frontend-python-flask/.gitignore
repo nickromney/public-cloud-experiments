@@ -26,3 +26,9 @@ test-results/
 
 # OS
 .DS_Store
+
+# Environment configuration
+.env
+.env.local
+.envrc
+.flask_session/

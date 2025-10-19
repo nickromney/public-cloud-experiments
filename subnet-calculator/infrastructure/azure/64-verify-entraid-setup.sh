@@ -259,21 +259,21 @@ else
       log_info "  Access Token Implicit Grant: ${ACCESS_TOKEN_IMPLICIT}"
     fi
 
-    # Check token accepted version
-    TOKEN_VERSION=$(echo "${APP_INFO}" | jq -r '.web.tokenAcceptedVersion // "null"')
-    if [[ "${TOKEN_VERSION}" == "2" ]] || [[ "${TOKEN_VERSION}" == "2.0" ]]; then
-      CHECKS_PASSED+=("App Registration: Token accepted version is 2.0")
+    # Check requested access token version (api.requestedAccessTokenVersion)
+    TOKEN_VERSION=$(echo "${APP_INFO}" | jq -r '.api.requestedAccessTokenVersion // "null"')
+    if [[ "${TOKEN_VERSION}" == "2" ]]; then
+      CHECKS_PASSED+=("App Registration: Requested access token version is 2")
     else
-      CHECKS_WARNING+=("App Registration: Token accepted version is ${TOKEN_VERSION} (should be 2.0)")
+      CHECKS_WARNING+=("App Registration: Requested access token version is ${TOKEN_VERSION} (should be 2)")
       # Get object ID for Graph API update
       APP_OBJECT_ID=$(echo "${APP_INFO}" | jq -r '.id // empty')
       if [[ -n "${APP_OBJECT_ID}" ]]; then
-        FIXES_AVAILABLE+=("Set token accepted version: az rest --method PATCH --url 'https://graph.microsoft.com/v1.0/applications/${APP_OBJECT_ID}' --headers 'Content-Type=application/json' --body '{\"web\":{\"tokenAcceptedVersion\":2}}'")
+        FIXES_AVAILABLE+=("Set token version: az rest --method PATCH --url 'https://graph.microsoft.com/v1.0/applications/${APP_OBJECT_ID}' --headers 'Content-Type=application/json' --body '{\"api\":{\"requestedAccessTokenVersion\":2}}'")
       else
-        FIXES_AVAILABLE+=("Set token accepted version to 2.0 (consult Azure documentation for current az ad commands)")
+        FIXES_AVAILABLE+=("Set requested access token version to 2 (consult Azure documentation for current az ad commands)")
       fi
     fi
-    [[ "${VERBOSE}" == "true" ]] && log_info "  Token Accepted Version: ${TOKEN_VERSION}"
+    [[ "${VERBOSE}" == "true" ]] && log_info "  Requested Access Token Version: ${TOKEN_VERSION}"
 
     # Check sign-in audience
     SIGN_IN_AUDIENCE=$(echo "${APP_INFO}" | jq -r '.signInAudience')
@@ -359,7 +359,41 @@ if [[ -n "${APP_ID}" ]] && [[ -n "${CLIENT_ID_SET}" ]]; then
 fi
 
 # ============================================================================
-# CHECK 5: ADDITIONAL VERIFICATION NOTES
+# CHECK 5: SWA CONFIGURATION FILE
+# ============================================================================
+log_check "Checking SWA Configuration File..."
+
+CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-entraid.config.json"
+if [[ -f "${CONFIG_FILE}" ]]; then
+  CHECKS_PASSED+=("SWA config file exists: staticwebapp-entraid.config.json")
+
+  # Check if routes are properly configured
+  HAS_AUTH_ROUTE=$(jq -e '.routes[] | select(.route == "/.auth/*")' "${CONFIG_FILE}" 2>/dev/null || echo "")
+  if [[ -n "${HAS_AUTH_ROUTE}" ]]; then
+    CHECKS_PASSED+=("SWA config: /.auth/* route is accessible (prevents redirect loop)")
+  else
+    CHECKS_FAILED+=("SWA config: /.auth/* route not found (may cause redirect loop)")
+    FIXES_AVAILABLE+=("Add /.auth/* route to staticwebapp-entraid.config.json")
+  fi
+
+  # Check if tenant ID is replaced
+  ISSUER=$(jq -r '.auth.identityProviders.azureActiveDirectory.registration.openIdIssuer // ""' "${CONFIG_FILE}")
+  if [[ "${ISSUER}" == *"AZURE_TENANT_ID"* ]]; then
+    CHECKS_FAILED+=("SWA config: openIdIssuer contains placeholder AZURE_TENANT_ID (not replaced)")
+    FIXES_AVAILABLE+=("Replace AZURE_TENANT_ID in staticwebapp-entraid.config.json with actual tenant ID: ${TENANT_ID}")
+  elif [[ -n "${ISSUER}" ]]; then
+    CHECKS_PASSED+=("SWA config: openIdIssuer is configured with tenant ID")
+    [[ "${VERBOSE}" == "true" ]] && log_info "  Issuer: ${ISSUER}"
+  else
+    CHECKS_FAILED+=("SWA config: openIdIssuer not configured")
+    FIXES_AVAILABLE+=("Configure openIdIssuer in staticwebapp-entraid.config.json")
+  fi
+else
+  CHECKS_WARNING+=("SWA config file not found: ${CONFIG_FILE}")
+fi
+
+# ============================================================================
+# CHECK 6: ADDITIONAL VERIFICATION NOTES
 # ============================================================================
 log_check "Additional Configuration Notes..."
 
