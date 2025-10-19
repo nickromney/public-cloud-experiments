@@ -31,7 +31,7 @@ swa deploy --app-location dist --api-location "" --deployment-token "${TOKEN}"
 
 ### 2. staticwebapp-entraid.config.json
 
-**Purpose:** Microsoft Entra ID (Azure AD) authentication
+**Purpose:** Microsoft Entra ID (Azure AD) authentication with secure OAuth2 code flow
 
 **Use Cases:**
 
@@ -48,6 +48,12 @@ swa deploy --app-location dist --api-location "" --deployment-token "${TOKEN}"
 
 - All routes require authentication
 - Auto-redirect to Entra ID login on 401
+- Secure OAuth2 Authorization Code Flow (not exposed in URL)
+- Tenant-specific endpoints (not /common/)
+- PKCE protocol support for SPAs
+
+**Setup Guide:** See `ENTRAID-SETUP-GUIDE.md` for complete step-by-step instructions
+
 - Uses clientIdSettingName and clientSecretSettingName (secure pattern)
 - HttpOnly cookies for security
 - Enhanced security headers (HSTS, etc.)
