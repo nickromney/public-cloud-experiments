@@ -81,6 +81,8 @@ BASE_URL=http://localhost:4280 npm run test:auth
 - Final URL contains `/logged-out.html`
 - Logout message is displayed
 
+**Note:** This test automatically skips when running against local dev server (localhost:3000/5173) because `staticwebapp.config.json` routing only works in Azure SWA or the SWA CLI emulator (localhost:4280/4281).
+
 ### Test 04: Configuration validation
 
 **Verifies:** `staticwebapp.config.json` has correct settings
@@ -129,6 +131,10 @@ Tests 01-04, 06-07 test static functionality and configuration that doesn't requ
 ### Tests that Require Authentication
 
 Tests 05 and 08 require an authenticated session. If running against a deployment where you're not logged in, these tests will automatically skip.
+
+### Tests that Require Azure SWA or SWA Emulator
+
+Test 03 requires Azure SWA or the SWA CLI emulator to be running. It automatically skips when running against local dev server (localhost:3000/5173) because the local Vite dev server doesn't process `staticwebapp.config.json` routing rules.
 
 To test these:
 
