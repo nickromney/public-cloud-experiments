@@ -152,11 +152,11 @@ log_info "Generating Argon2 password hash..."
 PYTHON_CMD="from pwdlib import PasswordHash; ph = PasswordHash.recommended(); print(ph.hash('${JWT_PASSWORD}'))"
 
 # Try with uv first (preferred), fall back to system python
-JWT_PASSWORD_HASH=$(uv run --with pwdlib python -c "${PYTHON_CMD}" 2>/dev/null || python3 -c "${PYTHON_CMD}" 2>/dev/null || echo "")
+JWT_PASSWORD_HASH=$(uv run --with 'pwdlib[argon2]' python -c "${PYTHON_CMD}" 2>/dev/null || python3 -c "${PYTHON_CMD}" 2>/dev/null || echo "")
 
 if [[ -z "${JWT_PASSWORD_HASH}" ]]; then
   log_error "Failed to generate password hash"
-  log_error "Ensure pwdlib is available via uv or system python"
+  log_error "Ensure pwdlib[argon2] is available via uv or system python"
   exit 1
 fi
 
