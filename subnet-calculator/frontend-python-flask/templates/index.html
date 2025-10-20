@@ -20,10 +20,25 @@
     </noscript>
 </head>
 <body>
-    <!-- Theme Switcher (JavaScript only) -->
-    <button id="theme-switcher" class="hidden" onclick="toggleTheme()">
-        <span id="theme-icon">☀️</span> Toggle Theme
-    </button>
+    <!-- Theme Switcher & User Menu (JavaScript only) -->
+    <nav>
+        <ul>
+            <li><button id="theme-switcher" class="hidden" onclick="toggleTheme()">
+                <span id="theme-icon">☀️</span> Theme
+            </button></li>
+        </ul>
+        <ul>
+            {% if user_info %}
+            <li>
+                <small>
+                    👤 {{ user_info.get('name', user_info.get('preferred_username', 'User')) }}
+                    {% if user_info.get('email') %}<br/>({{ user_info.get('email') }}){% endif %}
+                </small>
+            </li>
+            <li><a href="{{ url_for('logout') }}" role="button" class="outline">Logout</a></li>
+            {% endif %}
+        </ul>
+    </nav>
 
     <main class="container">
         <!-- Header -->

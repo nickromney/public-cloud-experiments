@@ -29,16 +29,45 @@ export const API_CONFIG = {
 }
 
 /**
+ * Check if we're running in Azure Static Web Apps
+ */
+export function isRunningInSWA(): boolean {
+  return typeof window !== 'undefined' && window.location.hostname.endsWith('.azurestaticapps.net')
+}
+
+/**
+ * Determine which auth method is active
+ */
+export function getAuthMethod(): 'none' | 'jwt' | 'entraid' {
+  if (!API_CONFIG.auth.enabled) {
+    return 'none'
+  }
+
+  // In SWA context, use Entra ID
+  if (isRunningInSWA()) {
+    return 'entraid'
+  }
+
+  // Otherwise use JWT (for local development with Azure Function)
+  return 'jwt'
+}
+
+/**
  * Get stack description based on API URL and auth configuration
  */
 export function getStackDescription(): string {
-  const isAuthEnabled = API_CONFIG.auth.enabled
+  const authMethod = getAuthMethod()
   const apiUrl = API_CONFIG.baseUrl
 
   // Check for Azure Function indicators (relative paths or specific ports)
   const isAzureFunction = apiUrl === '' || apiUrl === '/' || apiUrl.includes(':7071') || apiUrl.includes(':8080')
 
-  if (isAzureFunction && isAuthEnabled) {
+  // When running in SWA with Entra ID
+  if (authMethod === 'entraid') {
+    return 'TypeScript + Vite + SWA (Entra ID)'
+  }
+
+  if (isAzureFunction && authMethod === 'jwt') {
     return 'TypeScript + Vite + Azure Function (JWT)'
   }
 

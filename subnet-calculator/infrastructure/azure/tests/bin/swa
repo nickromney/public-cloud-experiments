@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+#
+# Mock swa CLI for testing
+# Tracks commands and simulates deployment
+
+# Track command to file
+SWA_CALLS_FILE="${SWA_CALLS_FILE:-/tmp/swa_calls_$$}"
+echo "$*" >> "$SWA_CALLS_FILE"
+
+# Handle specific commands
+case "$1" in
+  deploy)
+    if [[ "${SWA_MOCK_DEPLOYMENT_FAILED:-}" == "true" ]]; then
+      echo "ERROR: Deployment failed" >&2
+      exit 1
+    fi
+    echo "Deploying to production environment..."
+    echo "Upload successful"
+    echo "Deployment complete"
+    exit 0
+    ;;
+  *)
+    echo "Mock swa: $*"
+    exit 0
+    ;;
+esac

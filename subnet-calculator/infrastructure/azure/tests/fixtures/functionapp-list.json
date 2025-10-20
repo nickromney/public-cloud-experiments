@@ -1,0 +1,48 @@
+[
+  {
+    "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-subnet-calc/providers/Microsoft.Web/sites/func-subnet-calc-test",
+    "location": "uksouth",
+    "name": "func-subnet-calc-test",
+    "type": "Microsoft.Web/sites",
+    "kind": "functionapp,linux",
+    "properties": {
+      "state": "Running",
+      "hostNames": [
+        "func-subnet-calc-test.azurewebsites.net"
+      ],
+      "repositorySiteName": "func-subnet-calc-test",
+      "usageState": "Normal",
+      "enabled": true,
+      "enabledHostNames": [
+        "func-subnet-calc-test.azurewebsites.net"
+      ],
+      "availabilityState": "Normal",
+      "defaultHostName": "func-subnet-calc-test.azurewebsites.net",
+      "httpsOnly": true,
+      "reserved": true
+    }
+  },
+  {
+    "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-subnet-calc/providers/Microsoft.Web/sites/func-subnet-calc-prod",
+    "location": "uksouth",
+    "name": "func-subnet-calc-prod",
+    "type": "Microsoft.Web/sites",
+    "kind": "functionapp,linux",
+    "properties": {
+      "state": "Running",
+      "hostNames": [
+        "func-subnet-calc-prod.azurewebsites.net"
+      ],
+      "repositorySiteName": "func-subnet-calc-prod",
+      "usageState": "Normal",
+      "enabled": true,
+      "enabledHostNames": [
+        "func-subnet-calc-prod.azurewebsites.net"
+      ],
+      "availabilityState": "Normal",
+      "defaultHostName": "func-subnet-calc-prod.azurewebsites.net",
+      "httpsOnly": true,
+      "reserved": true
+    }
+  }
+]

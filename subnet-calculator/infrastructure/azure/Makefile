@@ -15,7 +15,7 @@ help: ## Show this help message
 	@echo "$(GREEN)Subnet Calculator - Azure Deployment$(NC)"
 	@echo ""
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$|^##@.*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; /^##@/ {printf "\n$(YELLOW)%s$(NC)\n", substr($$0, 5)} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-25s$(NC) %s\\n", $$1, $$2}'
+		awk 'BEGIN {FS = ":.*?## "}; /^##@/ {printf "\n$(YELLOW)%s$(NC)\n", substr($$0, 5)} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-25s$(NC) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Environment variables:"
 	@echo "  RESOURCE_GROUP            - Azure resource group name (default: rg-subnet-calc)"
@@ -152,6 +152,84 @@ deploy-production-all: ## Deploy all production stacks (3, 4, 5, 6)
 
 ##@ Testing
 
+.PHONY: test
+test: test-unit ## Run all unit tests (mocked Azure CLI)
+
+.PHONY: test-unit
+test-unit: ## Run unit tests with mocked Azure CLI (no Azure required)
+	@echo "$(YELLOW)Running unit tests (mocked Azure CLI)...$(NC)"
+	@if ! command -v bats &> /dev/null; then \
+		echo "ERROR: BATS is not installed. Run 'make install-bats' first."; \
+		exit 1; \
+	fi
+	@if [ ! -d tests ]; then \
+		echo "ERROR: tests/ directory not found."; \
+		echo "Create test files in tests/ directory first."; \
+		exit 1; \
+	fi
+	cd tests && bats test_*.bats
+
+.PHONY: test-integration
+test-integration: check-env ## Run integration tests (requires Azure login)
+	@echo "$(YELLOW)Running integration tests (requires Azure login)...$(NC)"
+	@if ! az account show &> /dev/null; then \
+		echo "ERROR: Not logged in to Azure. Run 'az login' first."; \
+		exit 1; \
+	fi
+	@echo "WARNING: Integration tests will create real Azure resources."
+	@echo "Make sure you are using a sandbox or test subscription."
+	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
+	cd tests && BATS_INTEGRATION=true bats test_*.bats
+
+.PHONY: test-verbose
+test-verbose: ## Run tests with verbose output
+	@echo "$(YELLOW)Running tests with verbose output...$(NC)"
+	@if ! command -v bats &> /dev/null; then \
+		echo "ERROR: BATS is not installed. Run 'make install-bats' first."; \
+		exit 1; \
+	fi
+	cd tests && bats --verbose-run --print-output-on-failure test_*.bats
+
+.PHONY: test-watch
+test-watch: ## Watch for changes and re-run tests (requires entr)
+	@if ! command -v entr &> /dev/null; then \
+		echo "ERROR: entr is not installed."; \
+		echo "Install with: brew install entr"; \
+		exit 1; \
+	fi
+	@echo "Watching for changes... (Ctrl+C to stop)"
+	@find . -name "*.sh" -o -name "*.bats" -o -name "*.bash" | entr -c make test-unit
+
+.PHONY: install-bats
+install-bats: ## Install BATS and required dependencies
+	@echo "$(YELLOW)Installing BATS and dependencies...$(NC)"
+	@if ! command -v brew &> /dev/null; then \
+		echo "ERROR: Homebrew is not installed."; \
+		echo "Install from: https://brew.sh"; \
+		exit 1; \
+	fi
+	brew install bats-core
+	@echo ""
+	@echo "$(YELLOW)Installing BATS support libraries...$(NC)"
+	@mkdir -p tests/test_helper
+	@if [ ! -d tests/test_helper/bats-support ]; then \
+		git clone https://github.com/bats-core/bats-support tests/test_helper/bats-support; \
+		rm -rf tests/test_helper/bats-support/.git; \
+		echo "bats-support installed (without .git)"; \
+	else \
+		echo "bats-support already installed"; \
+	fi
+	@if [ ! -d tests/test_helper/bats-assert ]; then \
+		git clone https://github.com/bats-core/bats-assert tests/test_helper/bats-assert; \
+		rm -rf tests/test_helper/bats-assert/.git; \
+		echo "bats-assert installed (without .git)"; \
+	else \
+		echo "bats-assert already installed"; \
+	fi
+	@echo ""
+	@echo "$(GREEN)BATS installation complete!$(NC)"
+	@echo "Run 'make test' to run unit tests"
+
 .PHONY: test-api
 test-api: check-env ## Test Function API health endpoint
 	@echo "$(YELLOW)Testing Function API...$(NC)"
@@ -216,11 +294,30 @@ logs: check-env ## Stream Function App logs
 	echo "Press Ctrl+C to stop"; \
 	az functionapp log tail --name $$FUNC_NAME --resource-group $(RESOURCE_GROUP)
 
+.PHONY: clean
+clean: ## Clean test artifacts and temporary files
+	@echo "$(YELLOW)Cleaning test artifacts...$(NC)"
+	@rm -rf tests/test_helper/bats-support/.git
+	@rm -rf tests/test_helper/bats-assert/.git
+	@find tests -name "*.tmp" -delete 2>/dev/null || true
+	@find tests -name "*.bak" -delete 2>/dev/null || true
+	@echo "$(GREEN)Clean complete$(NC)"
+
 .PHONY: lint
 lint: ## Run shellcheck on all scripts
 	@echo "$(YELLOW)Running shellcheck...$(NC)"
 	@shellcheck *.sh || true
-	@echo "$(GREEN)✓ Shellcheck complete$(NC)"
+	@echo "$(GREEN)Shellcheck complete$(NC)"
+
+.PHONY: quality
+quality: lint ## Run all quality checks (lint + test)
+	@if command -v bats &> /dev/null && [ -d tests ]; then \
+		make test-unit; \
+	else \
+		echo "$(YELLOW)BATS not installed or tests/ not found. Skipping tests.$(NC)"; \
+		echo "Run 'make install-bats' to enable testing."; \
+	fi
+	@echo "$(GREEN)All quality checks complete!$(NC)"
 
 .PHONY: list-resources
 list-resources: check-env ## List all Azure resources in resource group

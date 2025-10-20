@@ -4,8 +4,9 @@
 
 import './style.css'
 import { apiClient } from './api'
-import { getStackDescription } from './config'
-import { renderResults, showApiStatus, showError, showLoading } from './ui'
+import { getAuthMethod, getStackDescription } from './config'
+import { getCurrentUser } from './entraid-auth'
+import { renderResults, showApiStatus, showError, showLoading, showUserInfo } from './ui'
 
 // Theme management
 function initTheme(): void {
@@ -78,7 +79,7 @@ function handleExampleClick(event: Event): void {
 }
 
 // Initialize app
-function init(): void {
+async function init(): Promise<void> {
   // Set stack description based on config
   const stackDesc = document.getElementById('stack-description')
   if (stackDesc) {
@@ -87,6 +88,17 @@ function init(): void {
 
   // Initialize theme
   initTheme()
+
+  // Check authentication and show user info
+  const authMethod = getAuthMethod()
+  if (authMethod === 'entraid') {
+    // Fetch and display Entra ID user
+    const user = await getCurrentUser()
+    showUserInfo(user, authMethod)
+  } else {
+    // For JWT or no auth, just update UI accordingly
+    showUserInfo(null, authMethod)
+  }
 
   // Theme switcher
   const themeSwitcher = document.getElementById('theme-switcher')

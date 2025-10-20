@@ -2,6 +2,7 @@
  * UI utilities and rendering
  */
 
+import type { ClientPrincipal } from './entraid-auth'
 import type { ApiResults } from './types'
 
 export function showElement(id: string): void {
@@ -136,4 +137,62 @@ export function renderResults(results: ApiResults): void {
   showElement('results')
   hideLoading()
   hideElement('error')
+}
+
+/**
+ * Show user authentication status
+ */
+export function showUserInfo(user: ClientPrincipal | null, authMethod: 'none' | 'jwt' | 'entraid'): void {
+  const userInfoDiv = document.getElementById('user-info')
+  if (!userInfoDiv) return
+
+  if (authMethod === 'none') {
+    // No authentication configured
+    hideElement('user-info')
+    return
+  }
+
+  if (authMethod === 'jwt') {
+    // JWT auth doesn't have user info in the frontend (handled by API)
+    hideElement('user-info')
+    return
+  }
+
+  if (authMethod === 'entraid' && user) {
+    // Show Entra ID user info
+    const displayName = user.userDetails || user.userId
+    userInfoDiv.innerHTML = `
+      <div class="user-display">
+        <span class="user-icon">👤</span>
+        <span class="user-name">${displayName}</span>
+        <button id="logout-btn" class="logout-btn">Logout</button>
+      </div>
+    `
+    showElement('user-info')
+
+    // Attach logout handler
+    const logoutBtn = document.getElementById('logout-btn')
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        // Azure SWA logout - redirect route defined in staticwebapp.config.json
+        window.location.href = '/logout'
+      })
+    }
+  } else if (authMethod === 'entraid') {
+    // Entra ID configured but user not logged in (shouldn't happen with required auth)
+    userInfoDiv.innerHTML = `
+      <div class="user-display">
+        <button id="login-btn" class="login-btn">Login with Entra ID</button>
+      </div>
+    `
+    showElement('user-info')
+
+    // Attach login handler
+    const loginBtn = document.getElementById('login-btn')
+    if (loginBtn) {
+      loginBtn.addEventListener('click', () => {
+        window.location.href = '/.auth/login/aad'
+      })
+    }
+  }
 }

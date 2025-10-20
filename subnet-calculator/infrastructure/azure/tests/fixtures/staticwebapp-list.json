@@ -1,0 +1,52 @@
+[
+  {
+    "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-subnet-calc/providers/Microsoft.Web/staticSites/swa-subnet-calc-test",
+    "location": "westeurope",
+    "name": "swa-subnet-calc-test",
+    "properties": {
+      "buildProperties": {
+        "appLocation": "dist",
+        "apiLocation": "",
+        "appArtifactLocation": ""
+      },
+      "customDomains": [],
+      "defaultHostname": "swa-subnet-calc-test.azurestaticapps.net",
+      "repositoryUrl": "https://github.com/example/subnet-calculator",
+      "branch": "main",
+      "stagingEnvironmentPolicy": "Enabled",
+      "allowConfigFileUpdates": true,
+      "contentDistributionEndpoint": "https://swa-subnet-calc-test.azurestaticapps.net",
+      "keyVaultReferenceIdentity": "SystemAssigned"
+    },
+    "sku": {
+      "name": "Free",
+      "tier": "Free"
+    },
+    "type": "Microsoft.Web/staticSites"
+  },
+  {
+    "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-subnet-calc/providers/Microsoft.Web/staticSites/swa-subnet-calc-prod",
+    "location": "westeurope",
+    "name": "swa-subnet-calc-prod",
+    "properties": {
+      "buildProperties": {
+        "appLocation": "dist",
+        "apiLocation": "",
+        "appArtifactLocation": ""
+      },
+      "customDomains": [],
+      "defaultHostname": "swa-subnet-calc-prod.azurestaticapps.net",
+      "repositoryUrl": "https://github.com/example/subnet-calculator",
+      "branch": "main",
+      "stagingEnvironmentPolicy": "Enabled",
+      "allowConfigFileUpdates": true,
+      "contentDistributionEndpoint": "https://swa-subnet-calc-prod.azurestaticapps.net",
+      "keyVaultReferenceIdentity": "SystemAssigned"
+    },
+    "sku": {
+      "name": "Standard",
+      "tier": "Standard"
+    },
+    "type": "Microsoft.Web/staticSites"
+  }
+]

@@ -1,15 +1,58 @@
 /* Minimal custom styles for subnet calculator */
 
-/* Theme switcher button */
-#theme-switcher {
+/* Top bar for theme switcher and user info */
+.top-bar {
   position: fixed;
   top: 1rem;
   right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-end;
+  z-index: 1000;
+}
+
+/* Theme switcher button */
+#theme-switcher {
   padding: 0.5rem 1rem;
   border-radius: 4px;
   font-size: 0.875rem;
   cursor: pointer;
-  z-index: 1000;
+}
+
+/* User info display */
+#user-info {
+  background: var(--pico-card-background-color);
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+}
+
+.user-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-icon {
+  font-size: 1.2rem;
+}
+
+.user-name {
+  font-weight: 500;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout-btn,
+.login-btn {
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  margin-left: 0.5rem;
 }
 
 /* Layout */

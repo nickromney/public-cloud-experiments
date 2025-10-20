@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+#
+# Mock npm CLI for testing
+# Simulates npm commands without actually running them
+
+# Handle specific commands
+case "$1" in
+  install)
+    echo "Mock npm install: dependencies already installed"
+    exit 0
+    ;;
+  run)
+    # Simulate build creating dist directory
+    if [[ "$2" == "build" ]]; then
+      mkdir -p dist
+      echo "Mock npm run build: created dist directory"
+      exit 0
+    fi
+    echo "Mock npm run $2"
+    exit 0
+    ;;
+  *)
+    echo "Mock npm: $*"
+    exit 0
+    ;;
+esac

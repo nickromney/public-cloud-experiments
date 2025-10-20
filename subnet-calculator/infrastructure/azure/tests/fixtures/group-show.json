@@ -1,0 +1,14 @@
+{
+  "id": "/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/rg-subnet-calc",
+  "location": "uksouth",
+  "managedBy": null,
+  "name": "rg-subnet-calc",
+  "properties": {
+    "provisioningState": "Succeeded"
+  },
+  "tags": {
+    "environment": "test",
+    "project": "subnet-calculator"
+  },
+  "type": "Microsoft.Resources/resourceGroups"
+}

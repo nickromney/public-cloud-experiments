@@ -235,7 +235,16 @@
       "Bash(git commit -m \"$(cat <<''EOF''\nfix: Change login endpoint requests from JSON to form-urlencoded\n\nThe OAuth2PasswordRequestForm endpoint expects form-encoded credentials,\nnot JSON. FastAPI returns 422 for JSON body with form-expecting endpoint.\n\nFixes:\n- direct-azure-function/Login.bru\n- swa-05/Login.bru\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(npm run test:swa:stack4:*)",
       "Bash(sed:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(az ad app show --id 370b8618-a252-442e-9941-c47a9f7da89e --query \"{displayName: displayName, appId: appId, signInAudience: signInAudience, redirectUris: web.redirectUris, implicitGrantSettings: web.implicitGrantSettings, tokenAcceptedVersion: web.tokenAcceptedVersion}\")",
+      "Bash(az ad app show --id 370b8618-a252-442e-9941-c47a9f7da89e --query \"{displayName: displayName, appId: appId, web: web}\")",
+      "Bash(az ad app show --id 370b8618-a252-442e-9941-c47a9f7da89e --query \"web\")",
+      "Bash(az ad app show --id 370b8618-a252-442e-9941-c47a9f7da89e)",
+      "Bash(APP_ID=370b8618-a252-442e-9941-c47a9f7da89e )",
+      "Bash(SWA_NAME=swa-subnet-calc-entraid-linked )",
+      "Bash(RESOURCE_GROUP=rg-subnet-calc )",
+      "Bash(./64-verify-entraid-setup.sh)",
+      "Bash(az ad user show --id fa242336-854e-45f9-9337-6ccba6a6500d --query \"{id: id, displayName: displayName, userPrincipalName: userPrincipalName, accountEnabled: accountEnabled}\")"
     ],
     "deny": [],
     "ask": []

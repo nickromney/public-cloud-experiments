@@ -3,8 +3,24 @@ from datetime import datetime, timedelta
 
 import requests
 from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask_session import Session
+
+from auth import init_auth
 
 app = Flask(__name__)
+
+# Configure session
+app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "dev-key-change-in-production")
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_COOKIE_SECURE"] = os.getenv("FLASK_ENV", "development") == "production"
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+Session(app)
+
+# Initialize Entra ID authentication (optional - only if env vars are set)
+auth = init_auth(app)
 
 # API base URL - configurable via environment variable
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:7071/api/v1")
@@ -176,8 +192,14 @@ def favicon_ico():
 @app.route("/", methods=["GET", "POST"])
 def index():
     """Main page - handles both GET and traditional form POST (no-JS fallback)"""
+    # Apply authentication if configured
+    if auth and auth.is_authenticated() is False:
+        return auth.login()
+
     # Get API health status for display
     api_health = get_api_health()
+    # Get user info if authenticated
+    user_info = auth.get_user() if auth else None
 
     if request.method == "POST":
         # Traditional form submission (no JavaScript)
@@ -185,18 +207,32 @@ def index():
         mode = request.form.get("mode", "Standard")
 
         if not address:
-            return render_template("index.html", error="Address is required", stack_name=STACK_NAME)
+            return render_template(
+                "index.html", error="Address is required", stack_name=STACK_NAME, user_info=user_info
+            )
 
         # Call lookup and render results on same page
         try:
             results = perform_lookup(address, mode)
             return render_template(
-                "index.html", results=results, address=address, mode=mode, api_health=api_health, stack_name=STACK_NAME
+                "index.html",
+                results=results,
+                address=address,
+                mode=mode,
+                api_health=api_health,
+                stack_name=STACK_NAME,
+                user_info=user_info,
             )
         except ValueError as e:
             # Bad input (4xx error) - show validation error
             return render_template(
-                "index.html", error=str(e), address=address, mode=mode, api_health=api_health, stack_name=STACK_NAME
+                "index.html",
+                error=str(e),
+                address=address,
+                mode=mode,
+                api_health=api_health,
+                stack_name=STACK_NAME,
+                user_info=user_info,
             )
         except requests.exceptions.RequestException as e:
             # API is down (connection error, timeout, 5xx) - suggest cidr.xyz
@@ -209,9 +245,10 @@ def index():
                 error=f"Backend API unavailable: {str(e)}",
                 api_health=api_health,
                 stack_name=STACK_NAME,
+                user_info=user_info,
             )
 
-    return render_template("index.html", api_health=api_health, stack_name=STACK_NAME)
+    return render_template("index.html", api_health=api_health, stack_name=STACK_NAME, user_info=user_info)
 
 
 @app.route("/lookup", methods=["POST"])

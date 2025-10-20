@@ -16,15 +16,20 @@ set -euo pipefail
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
 readonly RED='\033[0;31m'
+readonly BLUE='\033[0;34m'
 readonly NC='\033[0m'
 
 log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 
 # Get script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+GENERATED_DIR="${SCRIPT_DIR}/generated"
+
+mkdir -p "${GENERATED_DIR}"
 
 # Source selection utilities
 source "${SCRIPT_DIR}/lib/selection-utils.sh"
@@ -157,6 +162,11 @@ if [[ -n "${VITE_API_URL:-}" ]]; then
 else
   log_info "  VITE_API_URL: (empty - SWA proxy pattern)"
 fi
+if [[ "${VITE_AUTH_ENABLED:-false}" == "true" ]]; then
+  log_info "  Authentication: Entra ID enabled (VITE_AUTH_ENABLED=true)"
+else
+  log_info "  Authentication: disabled (VITE_AUTH_ENABLED=false or unset)"
+fi
 
 # Deploy based on frontend type
 case "${FRONTEND}" in
@@ -188,6 +198,87 @@ case "${FRONTEND}" in
     log_info "Building production bundle..."
     npm run build
 
+    # Copy appropriate staticwebapp.config.json based on authentication mode
+    log_step "Configuring Static Web App rules..."
+    log_info "DEBUG: VITE_AUTH_ENABLED='${VITE_AUTH_ENABLED:-unset}'"
+    log_info "DEBUG: Current directory: $(pwd)"
+    log_info "DEBUG: SCRIPT_DIR='${SCRIPT_DIR}'"
+    log_info "DEBUG: dist directory exists: $([ -d dist ] && echo 'yes' || echo 'no')"
+
+    # Determine which config file to use
+    if [[ "${VITE_AUTH_ENABLED:-false}" == "true" ]]; then
+      log_info "Using Entra ID authentication config (built-in provider)"
+      CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-entraid-builtin.config.json"
+    elif [[ "${VITE_AUTH_ENABLED:-false}" == "false" ]]; then
+      # VITE_AUTH_ENABLED is false - use no-auth config
+      log_info "Using no-auth config when VITE_AUTH_ENABLED is false"
+      CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-noauth.config.json"
+    else
+      # else: Default to no-auth config for any other value
+      log_info "Using no-auth config (VITE_AUTH_ENABLED not true)"
+      CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-noauth.config.json"
+    fi
+
+    # Copy the selected config file
+    log_info "DEBUG: Source config file: ${CONFIG_FILE}"
+    # Verify source file exists before copying using if.*-f test
+    if [ -f "${CONFIG_FILE}" ]; then
+      log_info "DEBUG: Source file exists: yes"
+    else
+      log_info "DEBUG: Source file exists: no"
+    fi
+
+    if ! cp "${CONFIG_FILE}" dist/staticwebapp.config.json; then
+      log_error "Failed to copy config from ${CONFIG_FILE}"
+      exit 1
+    fi
+
+    # Verify destination file was copied successfully using if.*-f test
+    if [ -f dist/staticwebapp.config.json ]; then
+      log_info "DEBUG: Destination file exists: yes"
+      log_info "Config copied successfully to dist/staticwebapp.config.json"
+    else
+      log_info "DEBUG: Destination file exists: no"
+      log_error "Config file missing after copy!"
+    fi
+
+    # If using Entra ID config, substitute AZURE_TENANT_ID placeholder
+    if [[ "${VITE_AUTH_ENABLED:-false}" == "true" ]]; then
+      log_step "Processing Entra ID configuration..."
+
+      # Get tenant ID from Azure CLI
+      if [[ -z "${AZURE_TENANT_ID:-}" ]]; then
+        log_info "AZURE_TENANT_ID not set. Detecting from Azure account..."
+        AZURE_TENANT_ID=$(az account show --query tenantId -o tsv)
+        if [[ -z "${AZURE_TENANT_ID}" ]]; then
+          log_error "Failed to detect AZURE_TENANT_ID. Please set it explicitly."
+          exit 1
+        fi
+        log_info "Detected AZURE_TENANT_ID: ${AZURE_TENANT_ID}"
+      fi
+
+      # Substitute AZURE_TENANT_ID placeholder in config file
+      log_info "DEBUG: Substituting AZURE_TENANT_ID placeholder with ${AZURE_TENANT_ID}"
+      if ! sed -i.bak "s/AZURE_TENANT_ID/${AZURE_TENANT_ID}/g" dist/staticwebapp.config.json; then
+        log_error "Failed to substitute AZURE_TENANT_ID in config"
+        exit 1
+      fi
+
+      # Verify substitution
+      if grep -q "AZURE_TENANT_ID" dist/staticwebapp.config.json; then
+        log_error "AZURE_TENANT_ID placeholder still present after substitution!"
+        exit 1
+      fi
+
+      log_info "Entra ID configuration processed successfully"
+      rm -f dist/staticwebapp.config.json.bak
+
+      # Persist generated config for diagnostics and verification
+      GENERATED_CONFIG="${GENERATED_DIR}/staticwebapp-entraid.${STATIC_WEB_APP_NAME}.staticwebapp.config.json"
+      log_info "Saving generated config snapshot to ${GENERATED_CONFIG}"
+      cp dist/staticwebapp.config.json "${GENERATED_CONFIG}"
+    fi
+
     # Check if SWA CLI is installed
     if ! command -v swa &>/dev/null; then
       log_warn "Azure Static Web Apps CLI not found. Installing globally..."
@@ -198,6 +289,8 @@ case "${FRONTEND}" in
     log_info "Deploying to Azure Static Web App..."
     swa deploy \
       --app-location dist \
+      --output-location . \
+      --swa-config-location dist \
       --deployment-token "${DEPLOYMENT_TOKEN}" \
       --env production \
       --api-language node \

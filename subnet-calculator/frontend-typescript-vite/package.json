@@ -17,6 +17,8 @@
     "test:swa:stack4": "BASE_URL=http://localhost:4280 playwright test --config=playwright.swa.config.ts",
     "test:swa:stack5": "BASE_URL=http://localhost:4281 playwright test --config=playwright.swa.config.ts",
     "test:swa:headed": "BASE_URL=http://localhost:4280 playwright test --config=playwright.swa.config.ts --headed",
+    "test:auth": "playwright test tests/auth-logout.spec.ts",
+    "test:auth:headed": "playwright test tests/auth-logout.spec.ts --headed",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",

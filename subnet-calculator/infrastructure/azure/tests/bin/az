@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+#
+# Mock az CLI for testing
+# Tracks commands and returns fixtures
+
+# Track command to file
+AZ_CALLS_FILE="${AZ_CALLS_FILE:-/tmp/az_calls_$$}"
+echo "$*" >> "$AZ_CALLS_FILE"
+
+# Handle specific commands
+case "$1 $2 $3" in
+  "account show "*)
+    if [[ "${AZ_MOCK_NOT_LOGGED_IN:-}" == "true" ]]; then
+      echo "ERROR: Please run 'az login' to setup account." >&2
+      exit 1
+    fi
+    echo '{"id":"mock-subscription","name":"mock-sub","tenantId":"mock-tenant"}'
+    ;;
+  "group list "*)
+    echo '[{"name":"rg-subnet-calc","location":"uksouth"}]'
+    ;;
+  "staticwebapp list "*)
+    echo '[{"name":"swa-subnet-calc","defaultHostname":"swa-subnet-calc.azurestaticapps.net"}]'
+    ;;
+  "staticwebapp show "*)
+    if [[ "${AZ_MOCK_RESOURCE_NOT_FOUND:-}" == "true" ]]; then
+      echo "ERROR: Resource not found" >&2
+      exit 1
+    fi
+    echo '{"name":"swa-subnet-calc","defaultHostname":"swa-subnet-calc.azurestaticapps.net"}'
+    ;;
+  "staticwebapp secrets list "*)
+    echo '{"properties":{"apiKey":"mock-deployment-token-1234"}}'
+    ;;
+  "staticwebapp appsettings set "*)
+    # Capture and return success
+    exit 0
+    ;;
+  "staticwebapp appsettings list "*)
+    # Check if AZURE_CLIENT_ID was set in args
+    if grep -q "AZURE_CLIENT_ID" "$AZ_CALLS_FILE"; then
+      echo '{"properties":{"AZURE_CLIENT_ID":"00000000-0000-0000-0000-000000000000","AZURE_CLIENT_SECRET":"mock-secret"}}'
+    else
+      echo '{"properties":{}}'
+    fi
+    ;;
+  *)
+    # Default: return empty success
+    echo '{}'
+    exit 0
+    ;;
+esac
