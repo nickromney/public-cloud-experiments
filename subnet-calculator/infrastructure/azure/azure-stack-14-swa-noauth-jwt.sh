@@ -78,7 +78,7 @@ readonly SWA_CUSTOM_DOMAIN="${SWA_CUSTOM_DOMAIN:-static-swa-no-auth.publiccloude
 readonly FUNC_CUSTOM_DOMAIN="${FUNC_CUSTOM_DOMAIN:-subnet-calc-fa-jwt-auth.publiccloudexperiments.net}"
 readonly STATIC_WEB_APP_NAME="${STATIC_WEB_APP_NAME:-swa-subnet-calc-noauth}"
 readonly FUNCTION_APP_NAME="${FUNCTION_APP_NAME:-func-subnet-calc-jwt}"
-readonly STATIC_WEB_APP_SKU="${STATIC_WEB_APP_SKU:-Free}"
+readonly STATIC_WEB_APP_SKU="${STATIC_WEB_APP_SKU:-Standard}"  # Standard required for custom domains
 
 # JWT Configuration
 readonly JWT_SECRET_KEY="${JWT_SECRET_KEY:-$(openssl rand -base64 32)}"
@@ -102,7 +102,7 @@ log_info "  Frontend: TypeScript Vite SPA (no SWA auth)"
 log_info "  Backend:  Function App (public, JWT auth)"
 log_info "  Auth:     Frontend enforces JWT credentials"
 log_info "  Security: JWT validation on backend"
-log_info "  Cost:     ~\$0-9/month (Consumption + SWA Free/Standard)"
+log_info "  Cost:     ~\$9/month (Consumption + SWA Standard)"
 log_info "  SWA Domain:  ${SWA_CUSTOM_DOMAIN}"
 log_info "  Func Domain: ${FUNC_CUSTOM_DOMAIN}"
 log_info "  Function Region: ${LOCATION}"

@@ -34,7 +34,7 @@ Stack 1 demonstrates a public Azure Static Web App calling a public Azure Functi
 | **Backend** | Azure Function App (Consumption plan) |
 | **Authentication** | JWT (credentials embedded in frontend) |
 | **Security** | JWT validation on backend |
-| **Cost** | ~$0-9/month |
+| **Cost** | ~$9/month (SWA Standard required for custom domains) |
 
 ## Custom Domains
 
@@ -296,17 +296,11 @@ az functionapp config appsettings set \
 
 | Resource | SKU | Monthly Cost |
 |----------|-----|--------------|
-| Static Web App | Free | $0 |
+| Static Web App | Standard | $9 (required for custom domains) |
 | Function App | Consumption | ~$0 (free tier: 1M requests, 400K GB-s) |
-| **Total** | | **~$0** |
-
-**OR** with Standard SWA:
-
-| Resource | SKU | Monthly Cost |
-|----------|-----|--------------|
-| Static Web App | Standard | $9 |
-| Function App | Consumption | ~$0 |
 | **Total** | | **~$9/month** |
+
+**Note**: Standard tier SWA is required for custom domains. Free tier only supports *.azurestaticapps.net domains.
 
 ## Cleanup
 
