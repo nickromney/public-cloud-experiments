@@ -99,7 +99,8 @@ readonly AZURE_CLIENT_SECRET
 # Map region to SWA-compatible region
 REQUESTED_LOCATION="${LOCATION:-uksouth}"
 SWA_LOCATION=$(map_swa_region "${REQUESTED_LOCATION}")
-readonly LOCATION="${SWA_LOCATION}"
+readonly LOCATION="${REQUESTED_LOCATION}"  # Function App uses requested region
+readonly SWA_LOCATION  # SWA uses mapped region
 
 # Banner
 echo ""
@@ -116,7 +117,8 @@ log_info "  Security: Platform-level, HttpOnly cookies"
 log_info "  Cost:     ~\$9/month (Standard tier SWA + Consumption)"
 log_info "  SWA Domain:  ${SWA_CUSTOM_DOMAIN}"
 log_info "  Func Domain: ${FUNC_CUSTOM_DOMAIN}"
-log_info "  Region:      ${LOCATION}"
+log_info "  Function Region: ${LOCATION}"
+log_info "  SWA Region:      ${SWA_LOCATION}"
 log_info ""
 log_info "Key benefits:"
 log_info "  ✓ Enterprise-grade authentication"
@@ -197,8 +199,12 @@ echo ""
 
 export STATIC_WEB_APP_NAME
 export STATIC_WEB_APP_SKU
+export LOCATION="${SWA_LOCATION}"  # Override with SWA-compatible region
 
 "${SCRIPT_DIR}/00-static-web-app.sh"
+
+# Restore original location for subsequent steps
+export LOCATION="${REQUESTED_LOCATION}"
 
 SWA_URL=$(az staticwebapp show \
   --name "${STATIC_WEB_APP_NAME}" \

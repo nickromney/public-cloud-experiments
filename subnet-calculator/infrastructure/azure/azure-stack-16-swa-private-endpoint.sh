@@ -109,7 +109,8 @@ readonly AZURE_CLIENT_SECRET
 # Map region to SWA-compatible region
 REQUESTED_LOCATION="${LOCATION:-uksouth}"
 SWA_LOCATION=$(map_swa_region "${REQUESTED_LOCATION}")
-readonly LOCATION="${SWA_LOCATION}"
+readonly LOCATION="${REQUESTED_LOCATION}"  # Function/VNet use requested region
+readonly SWA_LOCATION  # SWA uses mapped region
 
 # Calculate cost based on SKU
 MONTHLY_COST=""
@@ -134,7 +135,8 @@ log_info "  Network:  VNet, private endpoints, NO public backend access"
 log_info "  Security: Network-level isolation"
 log_info "  Cost:     ~${MONTHLY_COST}/month (SWA Standard + ${APP_SERVICE_PLAN_SKU} plan)"
 log_info "  Domain:   ${CUSTOM_DOMAIN} (PRIMARY)"
-log_info "  Region:   ${LOCATION}"
+log_info "  Function Region: ${LOCATION}"
+log_info "  SWA Region:      ${SWA_LOCATION}"
 log_info ""
 log_info "Key security features:"
 log_info "  ✓ Custom domain is PRIMARY"
@@ -266,8 +268,12 @@ echo ""
 
 export STATIC_WEB_APP_NAME
 export STATIC_WEB_APP_SKU
+export LOCATION="${SWA_LOCATION}"  # Override with SWA-compatible region
 
 "${SCRIPT_DIR}/00-static-web-app.sh"
+
+# Restore original location for subsequent steps
+export LOCATION="${REQUESTED_LOCATION}"
 
 SWA_URL=$(az staticwebapp show \
   --name "${STATIC_WEB_APP_NAME}" \

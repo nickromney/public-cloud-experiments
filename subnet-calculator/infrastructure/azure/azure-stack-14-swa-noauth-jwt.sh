@@ -88,7 +88,8 @@ readonly JWT_PASSWORD="${JWT_PASSWORD:-password123}"
 # Map region to SWA-compatible region
 REQUESTED_LOCATION="${LOCATION:-uksouth}"
 SWA_LOCATION=$(map_swa_region "${REQUESTED_LOCATION}")
-readonly LOCATION="${SWA_LOCATION}"
+readonly LOCATION="${REQUESTED_LOCATION}"  # Function App uses requested region
+readonly SWA_LOCATION  # SWA uses mapped region
 
 # Banner
 echo ""
@@ -104,7 +105,8 @@ log_info "  Security: JWT validation on backend"
 log_info "  Cost:     ~\$0-9/month (Consumption + SWA Free/Standard)"
 log_info "  SWA Domain:  ${SWA_CUSTOM_DOMAIN}"
 log_info "  Func Domain: ${FUNC_CUSTOM_DOMAIN}"
-log_info "  Region:      ${LOCATION}"
+log_info "  Function Region: ${LOCATION}"
+log_info "  SWA Region:      ${SWA_LOCATION}"
 log_info ""
 log_info "Key characteristics:"
 log_info "  ✓ Both endpoints publicly accessible"
@@ -207,8 +209,12 @@ echo ""
 
 export STATIC_WEB_APP_NAME
 export STATIC_WEB_APP_SKU
+export LOCATION="${SWA_LOCATION}"  # Override with SWA-compatible region
 
 "${SCRIPT_DIR}/00-static-web-app.sh"
+
+# Restore original location for subsequent steps
+export LOCATION="${REQUESTED_LOCATION}"
 
 SWA_URL=$(az staticwebapp show \
   --name "${STATIC_WEB_APP_NAME}" \
