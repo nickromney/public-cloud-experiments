@@ -152,6 +152,7 @@ if az staticwebapp hostname show \
       --name "${STATIC_WEB_APP_NAME}" \
       --resource-group "${RESOURCE_GROUP}" \
       --hostname "${CUSTOM_DOMAIN}" \
+      --validation-method dns-txt-token \
       --output none
 
     log_info "✓ ${CUSTOM_DOMAIN} set as default domain"
@@ -169,11 +170,12 @@ log_info "========================================="
 log_info ""
 log_info "Adding custom domain ${CUSTOM_DOMAIN}..."
 
-# Add the custom domain - this will provide the validation token
+# Add the custom domain with TXT validation (required for Enterprise Grade Edge)
 az staticwebapp hostname set \
   --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --hostname "${CUSTOM_DOMAIN}" \
+  --validation-method dns-txt-token \
   --output none || {
     log_error "Failed to add custom domain"
     log_error "This may be because:"
@@ -300,6 +302,7 @@ if [[ "${SET_AS_DEFAULT}" == "true" ]]; then
     --name "${STATIC_WEB_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
     --hostname "${CUSTOM_DOMAIN}" \
+    --validation-method dns-txt-token \
     --output none
 
   log_info "✓ ${CUSTOM_DOMAIN} set as default domain"
