@@ -18,6 +18,23 @@ import { expect, test } from '@playwright/test'
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000'
 
+// Type definitions for staticwebapp.config.json
+interface RouteConfig {
+  route: string
+  allowedRoles?: string[]
+  redirect?: string
+}
+
+interface NavigationFallback {
+  rewrite: string
+  exclude: string[]
+}
+
+interface StaticWebAppConfig {
+  routes: RouteConfig[]
+  navigationFallback: NavigationFallback
+}
+
 test.describe('Entra ID Logout Flow', () => {
   test.describe.configure({ mode: 'serial' })
 
@@ -72,18 +89,18 @@ test.describe('Entra ID Logout Flow', () => {
     const response = await request.get(`${BASE_URL}/staticwebapp.config.json`)
     expect(response.status()).toBe(200)
 
-    const config = await response.json()
+    const config = (await response.json()) as StaticWebAppConfig
 
     // Should have logged-out.html route with anonymous access
-    const loggedOutRoute = config.routes.find((r: any) => r.route === '/logged-out.html')
+    const loggedOutRoute = config.routes.find((r) => r.route === '/logged-out.html')
     expect(loggedOutRoute).toBeDefined()
-    expect(loggedOutRoute.allowedRoles).toContain('anonymous')
+    expect(loggedOutRoute?.allowedRoles).toContain('anonymous')
 
     // Should have /logout route with redirect
-    const logoutRoute = config.routes.find((r: any) => r.route === '/logout')
+    const logoutRoute = config.routes.find((r) => r.route === '/logout')
     expect(logoutRoute).toBeDefined()
-    expect(logoutRoute.redirect).toContain('/.auth/logout')
-    expect(logoutRoute.redirect).toContain('post_logout_redirect_uri=/logged-out.html')
+    expect(logoutRoute?.redirect).toContain('/.auth/logout')
+    expect(logoutRoute?.redirect).toContain('post_logout_redirect_uri=/logged-out.html')
 
     // Should exclude logged-out.html from navigationFallback
     expect(config.navigationFallback.exclude).toContain('/logged-out.html')
