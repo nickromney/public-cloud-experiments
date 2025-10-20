@@ -99,7 +99,7 @@ readonly AZURE_CLIENT_SECRET
 # Map region to SWA-compatible region
 REQUESTED_LOCATION="${LOCATION:-uksouth}"
 SWA_LOCATION=$(map_swa_region "${REQUESTED_LOCATION}")
-readonly LOCATION="${REQUESTED_LOCATION}"  # Function App uses requested region
+LOCATION="${REQUESTED_LOCATION}"  # Function App uses requested region (not readonly - will be temporarily overridden for SWA)
 readonly SWA_LOCATION  # SWA uses mapped region
 
 # Banner
