@@ -119,6 +119,7 @@ command -v az &>/dev/null || { log_error "Azure CLI not found"; exit 1; }
 command -v jq &>/dev/null || { log_error "jq not found"; exit 1; }
 command -v npm &>/dev/null || { log_error "npm not found"; exit 1; }
 command -v openssl &>/dev/null || { log_error "openssl not found"; exit 1; }
+command -v uv &>/dev/null || { log_error "uv not found - install with: brew install uv"; exit 1; }
 
 az account show &>/dev/null || { log_error "Not logged in to Azure"; exit 1; }
 log_info "Prerequisites OK"
@@ -149,12 +150,14 @@ echo ""
 # Generate Argon2 hash for password
 log_info "Generating Argon2 password hash..."
 PYTHON_CMD="from pwdlib import PasswordHash; ph = PasswordHash.recommended(); print(ph.hash('${JWT_PASSWORD}'))"
-JWT_PASSWORD_HASH=$(python3 -c "${PYTHON_CMD}" 2>/dev/null || echo "")
+
+# Try with uv first (preferred), fall back to system python
+JWT_PASSWORD_HASH=$(uv run --with pwdlib python -c "${PYTHON_CMD}" 2>/dev/null || python3 -c "${PYTHON_CMD}" 2>/dev/null || echo "")
 
 if [[ -z "${JWT_PASSWORD_HASH}" ]]; then
-  log_warn "pwdlib not available, installing..."
-  pip3 install -q pwdlib || { log_error "Failed to install pwdlib"; exit 1; }
-  JWT_PASSWORD_HASH=$(python3 -c "${PYTHON_CMD}")
+  log_error "Failed to generate password hash"
+  log_error "Ensure pwdlib is available via uv or system python"
+  exit 1
 fi
 
 readonly JWT_TEST_USERS="{\"${JWT_USERNAME}\": \"${JWT_PASSWORD_HASH}\"}"

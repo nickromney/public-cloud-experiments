@@ -130,6 +130,7 @@ log_step "Checking prerequisites..."
 command -v az &>/dev/null || { log_error "Azure CLI not found"; exit 1; }
 command -v jq &>/dev/null || { log_error "jq not found"; exit 1; }
 command -v npm &>/dev/null || { log_error "npm not found"; exit 1; }
+command -v uv &>/dev/null || { log_error "uv not found - install with: brew install uv"; exit 1; }
 
 az account show &>/dev/null || { log_error "Not logged in to Azure"; exit 1; }
 log_info "Prerequisites OK"
