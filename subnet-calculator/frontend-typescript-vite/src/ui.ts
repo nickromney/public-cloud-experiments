@@ -174,7 +174,8 @@ export function showUserInfo(user: ClientPrincipal | null, authMethod: 'none' | 
     const logoutBtn = document.getElementById('logout-btn')
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
-        window.location.href = '/.auth/logout'
+        // Azure SWA logout - redirect route defined in staticwebapp.config.json
+        window.location.href = '/logout'
       })
     }
   } else if (authMethod === 'entraid') {

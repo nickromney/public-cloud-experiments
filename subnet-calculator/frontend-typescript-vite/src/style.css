@@ -6,8 +6,9 @@
   top: 1rem;
   right: 1rem;
   display: flex;
-  gap: 1rem;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-end;
   z-index: 1000;
 }
 
