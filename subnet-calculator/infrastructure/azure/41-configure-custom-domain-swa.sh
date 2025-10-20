@@ -179,9 +179,9 @@ az staticwebapp hostname set \
   --output none || {
     log_error "Failed to add custom domain"
     log_error "This may be because:"
-    log_error "  1. CNAME record not configured yet"
-    log_error "  2. Domain is already in use by another resource"
-    log_error "  3. Static Web App SKU doesn't support custom domains"
+    log_error "  1. Domain is already in use by another resource"
+    log_error "  2. Static Web App SKU doesn't support custom domains (requires Standard)"
+    log_error "  3. DNS records not propagated (though not required for initial setup)"
     exit 1
   }
 
