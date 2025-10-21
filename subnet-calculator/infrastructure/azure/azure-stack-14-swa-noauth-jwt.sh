@@ -332,19 +332,33 @@ log_info "Adding custom domain to Function App..."
 az functionapp config hostname add \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --hostname "${FUNC_CUSTOM_DOMAIN}"
+  --hostname "${FUNC_CUSTOM_DOMAIN}" \
+  --output none
 
-log_info "Enabling HTTPS..."
-az functionapp config ssl bind \
+log_info "Creating App Service Managed Certificate (free)..."
+az functionapp config ssl create \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --certificate-thumbprint \
-    "$(az functionapp config ssl upload \
-      --name "${FUNCTION_APP_NAME}" \
-      --resource-group "${RESOURCE_GROUP}" \
-      --certificate-name "${FUNC_CUSTOM_DOMAIN}" \
-      --query thumbprint -o tsv)" \
-  --ssl-type SNI
+  --hostname "${FUNC_CUSTOM_DOMAIN}" \
+  --output none
+
+log_info "Binding SSL certificate..."
+THUMBPRINT=$(az functionapp config ssl list \
+  --resource-group "${RESOURCE_GROUP}" \
+  --query "[?subjectName=='${FUNC_CUSTOM_DOMAIN}'].thumbprint | [0]" -o tsv)
+
+if [[ -z "${THUMBPRINT}" ]]; then
+  log_error "Failed to retrieve SSL certificate thumbprint"
+  log_error "You may need to manually enable HTTPS in Azure Portal"
+else
+  az functionapp config ssl bind \
+    --name "${FUNCTION_APP_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --certificate-thumbprint "${THUMBPRINT}" \
+    --ssl-type SNI \
+    --output none
+  log_info "✓ HTTPS enabled with managed certificate"
+fi
 
 log_info "Function App custom domain configured"
 echo ""
