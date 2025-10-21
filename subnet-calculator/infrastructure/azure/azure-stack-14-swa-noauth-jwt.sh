@@ -308,7 +308,7 @@ fi
 VERIFICATION_ID=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "customDomainVerificationId" -o tsv)
+  --query "properties.customDomainVerificationId" -o tsv)
 
 log_info "Custom domain: ${FUNC_CUSTOM_DOMAIN}"
 log_info "Target hostname: ${FUNC_DEFAULT_HOSTNAME}"

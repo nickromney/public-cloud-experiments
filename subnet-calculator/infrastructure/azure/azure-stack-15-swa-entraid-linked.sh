@@ -349,7 +349,7 @@ FUNC_DEFAULT_HOSTNAME=$(az functionapp show \
 VERIFICATION_ID=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "customDomainVerificationId" -o tsv)
+  --query "properties.customDomainVerificationId" -o tsv)
 
 log_info "Function App Custom domain: ${FUNC_CUSTOM_DOMAIN}"
 log_info ""
