@@ -83,6 +83,7 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 # Get script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+export PROJECT_ROOT
 
 # Source utility functions
 source "${SCRIPT_DIR}/lib/map-swa-region.sh"
@@ -379,42 +380,18 @@ log_info "Entra ID configured on SWA"
 echo ""
 
 # Deploy Frontend
-FRONTEND_DIR="${PROJECT_ROOT}/subnet-calculator/frontend-typescript-vite"
-cd "${FRONTEND_DIR}"
+log_info "Building and deploying frontend with Entra ID auth..."
+log_info "  API URL: (empty - use /api route via SWA proxy)"
 
-[[ ! -d "node_modules" ]] && npm install
+export FRONTEND=typescript
+export VITE_AUTH_ENABLED=true  # Entra ID via SWA built-in provider
+export VITE_API_URL=""  # Use SWA proxy to linked backend
+export STATIC_WEB_APP_NAME
+export RESOURCE_GROUP
 
-log_info "Building frontend with Entra ID auth..."
-VITE_AUTH_ENABLED=true \
-VITE_API_URL="" \
-npm run build
+"${SCRIPT_DIR}/20-deploy-frontend.sh"
 
-# Copy Entra ID builtin config
-CONFIG_SOURCE="${SCRIPT_DIR}/staticwebapp-entraid-builtin.config.json"
-if [[ -f "${CONFIG_SOURCE}" ]]; then
-  log_info "Copying Entra ID builtin SWA config..."
-  cp "${CONFIG_SOURCE}" dist/staticwebapp.config.json
-else
-  log_error "staticwebapp-entraid-builtin.config.json not found"
-  exit 1
-fi
-
-DEPLOYMENT_TOKEN=$(az staticwebapp secrets list \
-  --name "${STATIC_WEB_APP_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --query properties.apiKey -o tsv)
-
-command -v swa &>/dev/null || npm install -g @azure/static-web-apps-cli
-
-log_info "Deploying frontend to SWA (production environment)..."
-npx @azure/static-web-apps-cli deploy \
-  --app-location dist \
-  --api-location "" \
-  --deployment-token "${DEPLOYMENT_TOKEN}" \
-  --env production \
-  --no-use-keychain
-
-log_info "Frontend deployed to production"
+log_info "Frontend deployed"
 echo ""
 
 # Summary

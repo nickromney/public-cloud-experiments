@@ -69,6 +69,7 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 # Get script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+export PROJECT_ROOT
 
 # Source utility functions
 source "${SCRIPT_DIR}/lib/map-swa-region.sh"
@@ -250,47 +251,22 @@ echo ""
 log_step "Step 4/6: Deploying frontend with JWT auth..."
 echo ""
 
-FRONTEND_DIR="${PROJECT_ROOT}/subnet-calculator/frontend-typescript-vite"
-cd "${FRONTEND_DIR}"
-
-[[ ! -d "node_modules" ]] && npm install
-
-log_info "Building frontend with JWT auth enabled..."
+log_info "Building and deploying frontend with JWT auth enabled..."
 log_info "  API URL: https://${FUNC_CUSTOM_DOMAIN}"
 log_info "  Username: ${JWT_USERNAME}"
 log_info "  Password: ${JWT_PASSWORD}"
 
-VITE_AUTH_ENABLED=true \
-VITE_API_URL="https://${FUNC_CUSTOM_DOMAIN}" \
-VITE_JWT_USERNAME="${JWT_USERNAME}" \
-VITE_JWT_PASSWORD="${JWT_PASSWORD}" \
-npm run build
+export FRONTEND=typescript
+export VITE_AUTH_ENABLED=false  # SWA has no auth, JWT is only on Function
+export VITE_API_URL="https://${FUNC_CUSTOM_DOMAIN}"
+export VITE_JWT_USERNAME="${JWT_USERNAME}"
+export VITE_JWT_PASSWORD="${JWT_PASSWORD}"
+export STATIC_WEB_APP_NAME
+export RESOURCE_GROUP
 
-# Copy noauth config (SWA doesn't require auth, only Function does)
-CONFIG_SOURCE="${SCRIPT_DIR}/staticwebapp-noauth.config.json"
-if [[ -f "${CONFIG_SOURCE}" ]]; then
-  log_info "Copying noauth SWA config..."
-  cp "${CONFIG_SOURCE}" dist/staticwebapp.config.json
-else
-  log_warn "staticwebapp-noauth.config.json not found, using default"
-fi
+"${SCRIPT_DIR}/20-deploy-frontend.sh"
 
-DEPLOYMENT_TOKEN=$(az staticwebapp secrets list \
-  --name "${STATIC_WEB_APP_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --query properties.apiKey -o tsv)
-
-command -v swa &>/dev/null || npm install -g @azure/static-web-apps-cli
-
-log_info "Deploying frontend to SWA (production environment)..."
-npx @azure/static-web-apps-cli deploy \
-  --app-location dist \
-  --api-location "" \
-  --deployment-token "${DEPLOYMENT_TOKEN}" \
-  --env production \
-  --no-use-keychain
-
-log_info "Frontend deployed to production"
+log_info "Frontend deployed"
 echo ""
 
 # Step 5: Configure SWA Custom Domain
