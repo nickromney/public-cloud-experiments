@@ -343,15 +343,30 @@ echo ""
 FUNC_DEFAULT_HOSTNAME=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query defaultHostName -o tsv)
+  --query "properties.defaultHostName" -o tsv)
+
+# Get custom domain verification ID for TXT record
+VERIFICATION_ID=$(az functionapp show \
+  --name "${FUNCTION_APP_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" \
+  --query "customDomainVerificationId" -o tsv)
 
 log_info "Function App Custom domain: ${FUNC_CUSTOM_DOMAIN}"
 log_info ""
 log_warn "MANUAL STEP REQUIRED:"
-log_warn "Create DNS CNAME record:"
-log_warn "  ${FUNC_CUSTOM_DOMAIN} → ${FUNC_DEFAULT_HOSTNAME}"
+log_warn "Create TWO DNS records:"
 log_warn ""
-read -r -p "Press Enter after DNS record is created..."
+log_warn "1. CNAME record (for routing traffic):"
+log_warn "   Name:  ${FUNC_CUSTOM_DOMAIN}"
+log_warn "   Type:  CNAME"
+log_warn "   Value: ${FUNC_DEFAULT_HOSTNAME}"
+log_warn ""
+log_warn "2. TXT record (for domain ownership verification):"
+log_warn "   Name:  asuid.${FUNC_CUSTOM_DOMAIN}"
+log_warn "   Type:  TXT"
+log_warn "   Value: ${VERIFICATION_ID}"
+log_warn ""
+read -r -p "Press Enter after BOTH DNS records are created..."
 
 log_info "Adding custom domain to Function App..."
 az functionapp config hostname add \
