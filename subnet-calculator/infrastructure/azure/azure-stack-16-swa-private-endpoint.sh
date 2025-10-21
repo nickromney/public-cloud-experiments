@@ -434,5 +434,6 @@ log_info "  - https://${CUSTOM_DOMAIN}/.auth/login/aad/callback"
 log_info ""
 log_info "Monthly Cost: ~${MONTHLY_COST}"
 log_info "  - SWA Standard: \$9"
-log_info "  - ${APP_SERVICE_PLAN_SKU} Plan: \$$(echo "${MONTHLY_COST}" | sed 's/[^0-9]//g' | sed 's/^9//' )"
+PLAN_COST_NUM="${MONTHLY_COST//[^0-9]/}"  # Remove non-digits
+log_info "  - ${APP_SERVICE_PLAN_SKU} Plan: \$$(( PLAN_COST_NUM - 9 ))"
 log_info ""

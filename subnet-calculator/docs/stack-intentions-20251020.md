@@ -30,4 +30,4 @@ swa 3: private endpoint, @subnet-calculator/frontend-typescript-vite/ as fronten
 - swa should set azurestaticapps.net domain as disabled (may need a REST API call to disable this)
 - private endpoints throughout
 - create a vnet if you need to
-- ensure login, logout, redirect uris support publiccloudexperiements.net URI
+- ensure login, logout, redirect uris support publiccloudexperiments.net URI
