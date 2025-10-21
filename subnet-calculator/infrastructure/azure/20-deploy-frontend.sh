@@ -144,6 +144,12 @@ SWA_URL=$(az staticwebapp show \
   --resource-group "${RESOURCE_GROUP}" \
   --query defaultHostname -o tsv)
 
+# Check if production environment already has a deployment
+PRODUCTION_STATUS=$(az staticwebapp environment list \
+  --name "${STATIC_WEB_APP_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" \
+  --query "[?name=='default'].status" -o tsv 2>/dev/null || echo "WaitingForDeployment")
+
 log_info "Configuration:"
 log_info "  Resource Group: ${RESOURCE_GROUP}"
 log_info "  Static Web App: ${STATIC_WEB_APP_NAME}"
@@ -166,6 +172,20 @@ if [[ "${VITE_AUTH_ENABLED:-false}" == "true" ]]; then
   log_info "  Authentication: Entra ID enabled (VITE_AUTH_ENABLED=true)"
 else
   log_info "  Authentication: disabled (VITE_AUTH_ENABLED=false or unset)"
+fi
+
+# If production environment already has a deployment, ask if user wants to redeploy
+if [[ "${PRODUCTION_STATUS}" == "Ready" ]]; then
+  log_info ""
+  log_info "Production environment already has a deployment (status: Ready)."
+  read -p "Redeploy frontend? (Y/n) " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Nn]$ ]]; then
+    log_info "Skipping deployment - using existing frontend"
+    log_info ""
+    log_info "Frontend URL: https://${SWA_URL}"
+    exit 0
+  fi
 fi
 
 # Deploy based on frontend type
