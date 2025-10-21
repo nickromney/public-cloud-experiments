@@ -295,9 +295,18 @@ echo ""
 FUNC_DEFAULT_HOSTNAME=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query defaultHostName -o tsv)
+  --query "properties.defaultHostName" -o tsv)
+
+# Validate hostname was retrieved
+if [[ -z "${FUNC_DEFAULT_HOSTNAME}" ]]; then
+  log_error "Failed to retrieve Function App hostname"
+  log_error "Function App: ${FUNCTION_APP_NAME}"
+  log_error "Resource Group: ${RESOURCE_GROUP}"
+  exit 1
+fi
 
 log_info "Custom domain: ${FUNC_CUSTOM_DOMAIN}"
+log_info "Target hostname: ${FUNC_DEFAULT_HOSTNAME}"
 log_info ""
 log_warn "MANUAL STEP REQUIRED:"
 log_warn "Create DNS CNAME record:"
