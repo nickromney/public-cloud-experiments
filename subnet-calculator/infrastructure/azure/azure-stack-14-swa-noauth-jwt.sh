@@ -338,7 +338,7 @@ read -r -p "Press Enter after DNS record is created..."
 
 log_info "Adding custom domain to Function App..."
 az functionapp config hostname add \
-  --webapp-name "${FUNCTION_APP_NAME}" \
+  --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --hostname "${FUNC_CUSTOM_DOMAIN}"
 
