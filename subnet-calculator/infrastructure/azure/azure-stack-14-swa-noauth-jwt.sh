@@ -257,7 +257,8 @@ log_info "  Username: ${JWT_USERNAME}"
 log_info "  Password: ${JWT_PASSWORD}"
 
 export FRONTEND=typescript
-export VITE_AUTH_ENABLED=false  # SWA has no auth, JWT is only on Function
+export SWA_AUTH_ENABLED=false  # No SWA platform auth (Entra ID)
+export VITE_AUTH_ENABLED=true  # Enable JWT auth in frontend code
 export VITE_API_URL="https://${FUNC_CUSTOM_DOMAIN}"
 export VITE_JWT_USERNAME="${JWT_USERNAME}"
 export VITE_JWT_PASSWORD="${JWT_PASSWORD}"
