@@ -119,20 +119,24 @@ log_info "========================================="
 log_info ""
 log_info "Before continuing, you MUST configure these DNS records:"
 log_info ""
-log_info "1. TXT record for domain validation:"
-log_info "   Name:  _dnsauth.${CUSTOM_DOMAIN}"
-log_info "   Type:  TXT"
-log_info "   Value: <validation-token-from-azure>"
-log_info ""
-log_info "2. CNAME record to point to Static Web App:"
+log_info "1. CNAME record to point to Static Web App:"
 log_info "   Name:  ${CUSTOM_DOMAIN}"
 log_info "   Type:  CNAME"
 log_info "   Value: ${SWA_HOSTNAME}"
 log_info ""
+log_info "2. TXT record for domain validation (required for Enterprise Grade Edge):"
+log_info "   Name:  _dnsauth.${CUSTOM_DOMAIN}"
+log_info "   Type:  TXT"
+log_info "   Value: <validation-token-from-azure>"
+log_info ""
+log_info "Note: TXT validation via _dnsauth prefix is now the standard method."
+log_info "      Enterprise Grade Edge SWAs require TXT - CNAME validation deprecated."
+log_info "      The _dnsauth prefix allows zero-downtime migration."
+log_info ""
 log_info "To get the validation token, we'll add the custom domain first."
 log_info "Azure will provide the token, then you configure DNS, then we validate."
 log_info ""
-read -p "Press Enter to continue once you understand these requirements..." -r
+read -r -p "Press Enter to continue once you understand these requirements..."
 
 # Check if custom domain already exists
 if az staticwebapp hostname show \
@@ -148,6 +152,7 @@ if az staticwebapp hostname show \
       --name "${STATIC_WEB_APP_NAME}" \
       --resource-group "${RESOURCE_GROUP}" \
       --hostname "${CUSTOM_DOMAIN}" \
+      --validation-method dns-txt-token \
       --output none
 
     log_info "✓ ${CUSTOM_DOMAIN} set as default domain"
@@ -165,17 +170,18 @@ log_info "========================================="
 log_info ""
 log_info "Adding custom domain ${CUSTOM_DOMAIN}..."
 
-# Add the custom domain - this will provide the validation token
+# Add the custom domain with TXT validation (required for Enterprise Grade Edge)
 az staticwebapp hostname set \
   --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --hostname "${CUSTOM_DOMAIN}" \
+  --validation-method dns-txt-token \
   --output none || {
     log_error "Failed to add custom domain"
     log_error "This may be because:"
-    log_error "  1. CNAME record not configured yet"
-    log_error "  2. Domain is already in use by another resource"
-    log_error "  3. Static Web App SKU doesn't support custom domains"
+    log_error "  1. Domain is already in use by another resource"
+    log_error "  2. Static Web App SKU doesn't support custom domains (requires Standard)"
+    log_error "  3. DNS records not propagated (though not required for initial setup)"
     exit 1
   }
 
@@ -200,19 +206,25 @@ log_info "========================================="
 log_info "STEP 3: Configure DNS Records"
 log_info "========================================="
 log_info ""
-log_info "1. Add TXT record for validation:"
+log_info "Follow these steps in order:"
+log_info ""
+log_info "1. Add TXT record for domain ownership validation:"
 log_info "   Name:  _dnsauth.${CUSTOM_DOMAIN}"
 log_info "   Type:  TXT"
 log_info "   Value: ${VALIDATION_TOKEN}"
 log_info ""
-log_info "2. Add CNAME record (if not already done):"
+log_info "   Note: The _dnsauth prefix is Azure's standard validation method."
+log_info "         It allows zero-downtime migration if you have existing traffic."
+log_info ""
+log_info "2. Wait for TXT validation to complete (check status below or in Portal)"
+log_info "   Current validation status: ${VALIDATION_STATUS}"
+log_info ""
+log_info "3. After validation succeeds (status: Ready), add CNAME to route traffic:"
 log_info "   Name:  ${CUSTOM_DOMAIN}"
 log_info "   Type:  CNAME"
 log_info "   Value: ${SWA_HOSTNAME}"
 log_info ""
-log_info "3. Wait for DNS propagation (1-48 hours, typically 5-15 minutes)"
-log_info ""
-log_info "Current validation status: ${VALIDATION_STATUS}"
+log_info "DNS propagation typically takes 5-15 minutes (up to 48 hours max)"
 log_info ""
 
 # Offer to wait and validate
@@ -220,9 +232,9 @@ log_info "========================================="
 log_info "STEP 4: Domain Validation"
 log_info "========================================="
 log_info ""
-read -p "Have you configured the DNS records? (y/n) " -n 1 -r
+read -p "Have you configured the DNS records? (Y/n) " -n 1 -r
 echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+if [[ $REPLY =~ ^[Nn]$ ]]; then
   log_info ""
   log_info "Configuration paused. Once DNS is configured, you can:"
   log_info "  1. Re-run this script, or"
@@ -296,6 +308,7 @@ if [[ "${SET_AS_DEFAULT}" == "true" ]]; then
     --name "${STATIC_WEB_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
     --hostname "${CUSTOM_DOMAIN}" \
+    --validation-method dns-txt-token \
     --output none
 
   log_info "✓ ${CUSTOM_DOMAIN} set as default domain"
@@ -319,8 +332,25 @@ fi
 log_info ""
 log_info "SSL/TLS Certificate: Automatically provisioned by Azure (free)"
 log_info ""
-log_info "Note: The original *.azurestaticapps.net domain cannot be disabled,"
-log_info "but traffic can be redirected to your custom domain."
+log_info "========================================="
+log_info "Optional: Manage Default Domain"
+log_info "========================================="
+log_info ""
+if [[ "${SET_AS_DEFAULT}" == "true" ]]; then
+  log_info "Your custom domain is already set as the default."
+  log_info ""
+else
+  log_info "To make ${CUSTOM_DOMAIN} the primary domain:"
+  log_info "  1. Go to: Azure Portal → Static Web Apps → ${STATIC_WEB_APP_NAME}"
+  log_info "  2. Navigate to: Custom domains"
+  log_info "  3. Find your custom domain and click 'Set as default'"
+  log_info "  4. This redirects *.azurestaticapps.net traffic to your custom domain"
+  log_info ""
+fi
+log_info "Note: The *.azurestaticapps.net domain cannot be fully disabled via CLI,"
+log_info "      but setting your custom domain as default makes it the primary URL."
+log_info ""
+log_info "========================================="
 log_info ""
 log_info "To remove this custom domain:"
 log_info "  az staticwebapp hostname delete \\"

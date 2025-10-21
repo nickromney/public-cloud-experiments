@@ -144,6 +144,12 @@ SWA_URL=$(az staticwebapp show \
   --resource-group "${RESOURCE_GROUP}" \
   --query defaultHostname -o tsv)
 
+# Check if production environment already has a deployment
+PRODUCTION_STATUS=$(az staticwebapp environment list \
+  --name "${STATIC_WEB_APP_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" \
+  --query "[?name=='default'].status" -o tsv 2>/dev/null || echo "WaitingForDeployment")
+
 log_info "Configuration:"
 log_info "  Resource Group: ${RESOURCE_GROUP}"
 log_info "  Static Web App: ${STATIC_WEB_APP_NAME}"
@@ -168,6 +174,20 @@ else
   log_info "  Authentication: disabled (VITE_AUTH_ENABLED=false or unset)"
 fi
 
+# If production environment already has a deployment, ask if user wants to redeploy
+if [[ "${PRODUCTION_STATUS}" == "Ready" ]]; then
+  log_info ""
+  log_info "Production environment already has a deployment (status: Ready)."
+  read -p "Redeploy frontend? (Y/n) " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Nn]$ ]]; then
+    log_info "Skipping deployment - using existing frontend"
+    log_info ""
+    log_info "Frontend URL: https://${SWA_URL}"
+    exit 0
+  fi
+fi
+
 # Deploy based on frontend type
 case "${FRONTEND}" in
   typescript)
@@ -183,12 +203,17 @@ case "${FRONTEND}" in
     fi
 
     # Set API URL via environment variable for Vite
-    if [[ -n "${API_URL}" ]]; then
-      log_info "Configuring API URL: ${API_URL}"
-      export VITE_API_URL="${API_URL}"
+    # Preserve VITE_API_URL if already set, otherwise use API_URL
+    if [[ -z "${VITE_API_URL:-}" ]]; then
+      if [[ -n "${API_URL}" ]]; then
+        log_info "Configuring API URL: ${API_URL}"
+        export VITE_API_URL="${API_URL}"
+      else
+        log_info "Using SWA proxy pattern (empty API_URL)"
+        export VITE_API_URL=""
+      fi
     else
-      log_info "Using SWA proxy pattern (empty API_URL)"
-      export VITE_API_URL=""
+      log_info "Using pre-configured VITE_API_URL: ${VITE_API_URL}"
     fi
 
     # Clean previous build
@@ -201,21 +226,20 @@ case "${FRONTEND}" in
     # Copy appropriate staticwebapp.config.json based on authentication mode
     log_step "Configuring Static Web App rules..."
     log_info "DEBUG: VITE_AUTH_ENABLED='${VITE_AUTH_ENABLED:-unset}'"
+    log_info "DEBUG: SWA_AUTH_ENABLED='${SWA_AUTH_ENABLED:-unset}'"
     log_info "DEBUG: Current directory: $(pwd)"
     log_info "DEBUG: SCRIPT_DIR='${SCRIPT_DIR}'"
     log_info "DEBUG: dist directory exists: $([ -d dist ] && echo 'yes' || echo 'no')"
 
     # Determine which config file to use
-    if [[ "${VITE_AUTH_ENABLED:-false}" == "true" ]]; then
-      log_info "Using Entra ID authentication config (built-in provider)"
+    # SWA_AUTH_ENABLED controls SWA platform auth (Entra ID)
+    # VITE_AUTH_ENABLED controls frontend JWT auth (separate from SWA)
+    if [[ "${SWA_AUTH_ENABLED:-false}" == "true" ]]; then
+      log_info "Using Entra ID authentication config (SWA built-in provider)"
       CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-entraid-builtin.config.json"
-    elif [[ "${VITE_AUTH_ENABLED:-false}" == "false" ]]; then
-      # VITE_AUTH_ENABLED is false - use no-auth config
-      log_info "Using no-auth config when VITE_AUTH_ENABLED is false"
-      CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-noauth.config.json"
     else
-      # else: Default to no-auth config for any other value
-      log_info "Using no-auth config (VITE_AUTH_ENABLED not true)"
+      # No SWA platform authentication (may still have frontend JWT auth)
+      log_info "Using no-auth config (no SWA platform authentication)"
       CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-noauth.config.json"
     fi
 
@@ -243,7 +267,7 @@ case "${FRONTEND}" in
     fi
 
     # If using Entra ID config, substitute AZURE_TENANT_ID placeholder
-    if [[ "${VITE_AUTH_ENABLED:-false}" == "true" ]]; then
+    if [[ "${SWA_AUTH_ENABLED:-false}" == "true" ]]; then
       log_step "Processing Entra ID configuration..."
 
       # Get tenant ID from Azure CLI

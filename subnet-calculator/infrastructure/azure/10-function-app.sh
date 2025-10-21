@@ -134,6 +134,24 @@ else
   log_info "Resource group ${RESOURCE_GROUP} already exists"
 fi
 
+# Check if Function App already exists FIRST (before creating storage account)
+if az functionapp show \
+  --name "${FUNCTION_APP_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
+  log_warn "Function App ${FUNCTION_APP_NAME} already exists"
+
+  # Get hostname
+  HOSTNAME=$(az functionapp show \
+    --name "${FUNCTION_APP_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --query "properties.defaultHostName" -o tsv)
+
+  log_info "Existing Function App details:"
+  log_info "  URL: https://${HOSTNAME}"
+
+  exit 0
+fi
+
 # Check if storage account already exists
 if az storage account show \
   --name "${STORAGE_ACCOUNT_NAME}" \
@@ -152,24 +170,6 @@ else
     --output none
 
   log_info "Storage account created successfully"
-fi
-
-# Check if Function App already exists
-if az functionapp show \
-  --name "${FUNCTION_APP_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
-  log_warn "Function App ${FUNCTION_APP_NAME} already exists"
-
-  # Get hostname
-  HOSTNAME=$(az functionapp show \
-    --name "${FUNCTION_APP_NAME}" \
-    --resource-group "${RESOURCE_GROUP}" \
-    --query "properties.defaultHostName" -o tsv)
-
-  log_info "Existing Function App details:"
-  log_info "  URL: https://${HOSTNAME}"
-
-  exit 0
 fi
 
 # Create Function App with Flex Consumption plan
