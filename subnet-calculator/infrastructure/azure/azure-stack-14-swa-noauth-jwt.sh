@@ -346,15 +346,39 @@ az functionapp config ssl create \
   --hostname "${FUNC_CUSTOM_DOMAIN}" \
   --output none
 
-log_info "Binding SSL certificate..."
-THUMBPRINT=$(az functionapp config ssl list \
-  --resource-group "${RESOURCE_GROUP}" \
-  --query "[?subjectName=='${FUNC_CUSTOM_DOMAIN}'].thumbprint | [0]" -o tsv)
+log_info "Waiting for certificate to be issued (this may take 30-60 seconds)..."
+THUMBPRINT=""
+MAX_ATTEMPTS=12
+ATTEMPT=0
+
+while [[ $ATTEMPT -lt $MAX_ATTEMPTS ]]; do
+  ATTEMPT=$((ATTEMPT + 1))
+
+  # Use az webapp (not functionapp) to check certificate status
+  THUMBPRINT=$(az webapp config ssl show \
+    --resource-group "${RESOURCE_GROUP}" \
+    --certificate-name "${FUNC_CUSTOM_DOMAIN}" \
+    --query thumbprint -o tsv 2>/dev/null || echo "")
+
+  if [[ -n "${THUMBPRINT}" ]]; then
+    log_info "✓ Certificate issued (thumbprint: ${THUMBPRINT})"
+    break
+  fi
+
+  log_info "  Attempt ${ATTEMPT}/${MAX_ATTEMPTS}: Certificate not ready yet, waiting 5 seconds..."
+  sleep 5
+done
 
 if [[ -z "${THUMBPRINT}" ]]; then
-  log_error "Failed to retrieve SSL certificate thumbprint"
-  log_error "You may need to manually enable HTTPS in Azure Portal"
+  log_error "Certificate creation timed out after ${MAX_ATTEMPTS} attempts"
+  log_error "The certificate may still be processing. Check Azure Portal or run:"
+  log_error "  az webapp config ssl show -g ${RESOURCE_GROUP} --certificate-name ${FUNC_CUSTOM_DOMAIN}"
+  log_error ""
+  log_error "Once ready, bind it manually with:"
+  log_error "  az functionapp config ssl bind --name ${FUNCTION_APP_NAME} -g ${RESOURCE_GROUP} \\"
+  log_error "    --certificate-thumbprint <thumbprint> --ssl-type SNI"
 else
+  log_info "Binding SSL certificate..."
   az functionapp config ssl bind \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
