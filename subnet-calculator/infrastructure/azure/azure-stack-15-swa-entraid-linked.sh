@@ -336,11 +336,12 @@ DEPLOYMENT_TOKEN=$(az staticwebapp secrets list \
 
 command -v swa &>/dev/null || npm install -g @azure/static-web-apps-cli
 
-log_info "Deploying frontend to SWA..."
+log_info "Deploying frontend to SWA (production environment)..."
 npx @azure/static-web-apps-cli deploy \
   --app-location dist \
   --api-location "" \
   --deployment-token "${DEPLOYMENT_TOKEN}" \
+  --env production \
   --no-use-keychain
 
 log_info "Frontend deployed"
