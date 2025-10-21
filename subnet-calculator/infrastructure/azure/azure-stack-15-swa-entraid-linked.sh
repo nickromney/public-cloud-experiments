@@ -167,6 +167,14 @@ echo ""
 export FUNCTION_APP_NAME
 export LOCATION
 
+# Check if Function App was newly created or already existed
+FUNCTION_APP_EXISTED=false
+if az functionapp show \
+  --name "${FUNCTION_APP_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
+  FUNCTION_APP_EXISTED=true
+fi
+
 "${SCRIPT_DIR}/10-function-app.sh"
 
 log_info "Configuring Function App settings (no auth - SWA handles it)..."
@@ -185,12 +193,26 @@ echo ""
 log_step "Step 2/7: Deploying Function API..."
 echo ""
 
-export DISABLE_AUTH=true  # No auth on Function (SWA handles it)
+# If Function App already existed, ask if user wants to redeploy
+SKIP_DEPLOYMENT=false
+if [[ "${FUNCTION_APP_EXISTED}" == "true" ]]; then
+  log_info "Function App ${FUNCTION_APP_NAME} already exists."
+  read -p "Redeploy Function App code? (Y/n) " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Nn]$ ]]; then
+    SKIP_DEPLOYMENT=true
+    log_info "Skipping deployment - using existing Function App code"
+  fi
+fi
 
-"${SCRIPT_DIR}/22-deploy-function-zip.sh"
+if [[ "${SKIP_DEPLOYMENT}" == "false" ]]; then
+  export DISABLE_AUTH=true  # No auth on Function (SWA handles it)
 
-log_info "Function App deployed"
-sleep 30
+  "${SCRIPT_DIR}/22-deploy-function-zip.sh"
+
+  log_info "Function App deployed"
+  sleep 30
+fi
 echo ""
 
 # Step 3: Create Static Web App
