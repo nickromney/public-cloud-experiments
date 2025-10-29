@@ -242,6 +242,14 @@ echo ""
 log_step "Step 3/10: Creating Function App on App Service Plan..."
 echo ""
 
+# Check if Function App was newly created or already existed
+FUNCTION_APP_EXISTED=false
+if az functionapp show \
+  --name "${FUNCTION_APP_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
+  FUNCTION_APP_EXISTED=true
+fi
+
 # Find or create storage account by tag (avoids collisions, enables idempotency)
 STORAGE_TAG="purpose=func-subnet-calc-private-endpoint"
 log_info "Checking for existing storage account with tag: ${STORAGE_TAG}..."
@@ -297,12 +305,26 @@ echo ""
 log_step "Step 5/10: Deploying Function API..."
 echo ""
 
-export DISABLE_AUTH=true  # No auth on Function (SWA handles it)
+# If Function App already existed, ask if user wants to redeploy
+SKIP_DEPLOYMENT=false
+if [[ "${FUNCTION_APP_EXISTED}" == "true" ]]; then
+  log_info "Function App ${FUNCTION_APP_NAME} already exists."
+  read -p "Redeploy Function App code? (Y/n) " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Nn]$ ]]; then
+    SKIP_DEPLOYMENT=true
+    log_info "Skipping deployment - using existing Function App code"
+  fi
+fi
 
-"${SCRIPT_DIR}/22-deploy-function-zip.sh"
+if [[ "${SKIP_DEPLOYMENT}" == "false" ]]; then
+  export DISABLE_AUTH=true  # No auth on Function (SWA handles it)
 
-log_info "Function App deployed"
-sleep 30
+  "${SCRIPT_DIR}/22-deploy-function-zip.sh"
+
+  log_info "Function App deployed"
+  sleep 30
+fi
 echo ""
 
 # Step 6: Create Private Endpoint for Function App

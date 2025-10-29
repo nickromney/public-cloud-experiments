@@ -515,10 +515,11 @@ if [[ "${SKIP_INTEGRATION}" != "true" ]]; then
   log_info "Connecting to ${VNET_NAME}/${SUBNET_NAME}..."
   log_info "Using subnet resource ID: ${SUBNET_ID}"
 
+  # When using subnet resource ID, Azure CLI ignores --vnet parameter
+  # We only need --subnet with the full resource ID
   az functionapp vnet-integration add \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
-    --vnet "${VNET_NAME}" \
     --subnet "${SUBNET_ID}" \
     --output none
 
