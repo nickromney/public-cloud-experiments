@@ -248,7 +248,7 @@ log_info "Direct access blocked:"
 FUNCTION_URL=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "properties.defaultHostName" -o tsv)
+  --query "defaultHostName" -o tsv)
 log_info "  https://${FUNCTION_URL}/api/v1/health (will return 403 Forbidden)"
 log_info ""
 log_info "Next Steps:"

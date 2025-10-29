@@ -3,9 +3,9 @@ from datetime import datetime, timedelta
 
 import requests
 from flask import Flask, jsonify, render_template, request, send_from_directory
-from flask_session import Session
 
 from auth import init_auth
+from flask_session import Session
 
 app = Flask(__name__)
 

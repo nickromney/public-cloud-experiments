@@ -145,7 +145,7 @@ sleep 30
 FUNCTION_APP_URL="https://$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "properties.defaultHostName" -o tsv)"
+  --query "defaultHostName" -o tsv)"
 
 log_info ""
 log_info "========================================="
