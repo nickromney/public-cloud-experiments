@@ -40,18 +40,18 @@ jobs:
         run: |
           cd subnet-calculator/infrastructure/azure
           mkdir -p tests/test_helper
-          if [ ! -d tests/test_helper/bats-support ]; then
-            git clone \
-              https://github.com/bats-core/bats-support \
-              tests/test_helper/bats-support
-            rm -rf tests/test_helper/bats-support/.git
-          fi
-          if [ ! -d tests/test_helper/bats-assert ]; then
-            git clone \
-              https://github.com/bats-core/bats-assert \
-              tests/test_helper/bats-assert
-            rm -rf tests/test_helper/bats-assert/.git
-          fi
+          # Remove any existing files/directories and clone fresh
+          rm -rf tests/test_helper/bats-support
+          git clone \
+            https://github.com/bats-core/bats-support \
+            tests/test_helper/bats-support
+          rm -rf tests/test_helper/bats-support/.git
+
+          rm -rf tests/test_helper/bats-assert
+          git clone \
+            https://github.com/bats-core/bats-assert \
+            tests/test_helper/bats-assert
+          rm -rf tests/test_helper/bats-assert/.git
 
       - name: Run BATS unit tests
         run: |
@@ -80,18 +80,18 @@ jobs:
         run: |
           cd subnet-calculator/infrastructure/azure
           mkdir -p tests/test_helper
-          if [ ! -d tests/test_helper/bats-support ]; then
-            git clone \
-              https://github.com/bats-core/bats-support \
-              tests/test_helper/bats-support
-            rm -rf tests/test_helper/bats-support/.git
-          fi
-          if [ ! -d tests/test_helper/bats-assert ]; then
-            git clone \
-              https://github.com/bats-core/bats-assert \
-              tests/test_helper/bats-assert
-            rm -rf tests/test_helper/bats-assert/.git
-          fi
+          # Remove any existing files/directories and clone fresh
+          rm -rf tests/test_helper/bats-support
+          git clone \
+            https://github.com/bats-core/bats-support \
+            tests/test_helper/bats-support
+          rm -rf tests/test_helper/bats-support/.git
+
+          rm -rf tests/test_helper/bats-assert
+          git clone \
+            https://github.com/bats-core/bats-assert \
+            tests/test_helper/bats-assert
+          rm -rf tests/test_helper/bats-assert/.git
 
       - name: Run quality checks
         run: |
