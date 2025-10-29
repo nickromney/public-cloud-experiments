@@ -188,7 +188,8 @@
     checkAuthAndRender();
 
     // Auto-redirect if explicitly requested (for backwards compatibility)
-    if (window.location.search.includes('auto_login=true')) {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auto_login') === 'true') {
       login();
     }
   </script>

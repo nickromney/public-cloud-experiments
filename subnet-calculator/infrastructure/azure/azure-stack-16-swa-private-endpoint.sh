@@ -362,19 +362,29 @@ if [ ${#URI_ARRAY[@]} -eq 0 ]; then
   exit 1
 fi
 
-# Update redirect URIs
-log_info "Updating ${#URI_ARRAY[@]} redirect URI(s)..."
+# Update redirect URIs using Graph API (more reliable than az ad app update)
+log_info "Updating ${#URI_ARRAY[@]} redirect URI(s) via Microsoft Graph API..."
 
-# Call az directly with array expansion
-az ad app update \
-  --id "${AZURE_CLIENT_ID}" \
-  --web-redirect-uris "${URI_ARRAY[@]}" \
-  --output none
+# Get the app's object ID (needed for Graph API)
+APP_OBJECT_ID=$(az ad app show --id "${AZURE_CLIENT_ID}" --query id -o tsv)
 
-# Set logout URI
-az ad app update \
-  --id "${AZURE_CLIENT_ID}" \
-  --set web.logoutUrl="https://${CUSTOM_DOMAIN}/logged-out.html" \
+# Build JSON array from URI_ARRAY
+URI_JSON=$(printf '"%s",' "${URI_ARRAY[@]}" | sed 's/,$//')
+
+# Update using Graph API
+az rest --method PATCH \
+  --uri "https://graph.microsoft.com/v1.0/applications/${APP_OBJECT_ID}" \
+  --headers 'Content-Type=application/json' \
+  --body "{
+    \"web\": {
+      \"redirectUris\": [${URI_JSON}],
+      \"logoutUrl\": \"https://${CUSTOM_DOMAIN}/logged-out.html\",
+      \"implicitGrantSettings\": {
+        \"enableAccessTokenIssuance\": true,
+        \"enableIdTokenIssuance\": true
+      }
+    }
+  }" \
   --output none
 
 log_info "Entra ID app updated"
