@@ -184,7 +184,7 @@ if [[ "${CHECK_MODE}" == "true" ]]; then
 
   if [[ "${INTEGRATION_COUNT}" -gt 0 ]]; then
     VNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].vnetResourceId')
-    SUBNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].id')
+    SUBNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].properties.subnetResourceId // .[0].id')
     CURRENT_VNET=$(extract_resource_name "${VNET_ID}" "virtualNetworks")
     CURRENT_SUBNET=$(extract_resource_name "${SUBNET_ID}" "subnets")
     INTEGRATION_STATUS=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].properties.status // "Unknown"')
@@ -473,7 +473,7 @@ INTEGRATION_COUNT=$(echo "${INTEGRATION_LIST}" | jq -r 'length')
 if [[ "${INTEGRATION_COUNT}" -gt 0 ]]; then
   # Extract VNet and Subnet from resource IDs
   CURRENT_VNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].vnetResourceId')
-  CURRENT_SUBNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].id')
+  CURRENT_SUBNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].properties.subnetResourceId // .[0].id')
   CURRENT_VNET=$(extract_resource_name "${CURRENT_VNET_ID}" "virtualNetworks")
   CURRENT_SUBNET=$(extract_resource_name "${CURRENT_SUBNET_ID}" "subnets")
   INTEGRATION_STATUS=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].properties.status // "Unknown"')
@@ -518,6 +518,7 @@ if [[ "${SKIP_INTEGRATION}" != "true" ]]; then
   az functionapp vnet-integration add \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
+    --vnet "${VNET_NAME}" \
     --subnet "${SUBNET_ID}" \
     --output none
 
