@@ -46,17 +46,33 @@
 #   - https://static-swa-entraid-linked.publiccloudexperiments.net/.auth/login/aad/callback
 #
 # Usage:
+#   # Run without credentials - script will offer to create app registration
+#   ./azure-stack-15-swa-entraid-linked.sh
+#
+#   # Or run with existing credentials
 #   AZURE_CLIENT_ID="xxx" AZURE_CLIENT_SECRET="xxx" ./azure-stack-15-swa-entraid-linked.sh
 #
-# Environment variables (required):
-#   AZURE_CLIENT_ID      - Entra ID app registration client ID (existing: 370b8618-a252-442e-9941-c47a9f7da89e)
-#   AZURE_CLIENT_SECRET  - Entra ID app registration secret
-#
 # Environment variables (optional):
+#   AZURE_CLIENT_ID      - Entra ID app registration client ID (will prompt to create if not provided)
+#   AZURE_CLIENT_SECRET  - Entra ID app registration secret (will prompt to create if not provided)
 #   RESOURCE_GROUP       - Azure resource group (auto-detected if not set)
 #   LOCATION             - Azure region (default: uksouth)
 #   SWA_CUSTOM_DOMAIN    - SWA custom domain (default: static-swa-entraid-linked.publiccloudexperiments.net)
 #   FUNC_CUSTOM_DOMAIN   - Function custom domain (default: subnet-calc-fa-entraid-linked.publiccloudexperiments.net)
+#
+# Note: If AZURE_CLIENT_ID/SECRET are not provided, the script will:
+#   1. Check if an app registration exists
+#   2. Offer to create one automatically using 60-entraid-user-setup.sh
+#   3. Display the credentials for you to save and re-run the script
+#
+# Environment Variable Priority:
+#   The script accepts credentials from multiple sources:
+#   - Command-line: AZURE_CLIENT_ID=xxx ./script.sh (highest priority)
+#   - .env file: Auto-loaded by direnv (if you've run 'direnv allow')
+#   - Interactive: Script will offer to create if not found
+#
+#   To see what's set: The script will display credential sources at startup
+#   To troubleshoot: Check if direnv is active with: echo $AZURE_CLIENT_ID
 
 set -euo pipefail
 
@@ -85,23 +101,18 @@ readonly SWA_CUSTOM_DOMAIN="${SWA_CUSTOM_DOMAIN:-static-swa-entraid-linked.publi
 readonly FUNC_CUSTOM_DOMAIN="${FUNC_CUSTOM_DOMAIN:-subnet-calc-fa-entraid-linked.publiccloudexperiments.net}"
 readonly STATIC_WEB_APP_NAME="${STATIC_WEB_APP_NAME:-swa-subnet-calc-entraid-linked}"
 readonly FUNCTION_APP_NAME="${FUNCTION_APP_NAME:-func-subnet-calc-entraid-linked}"
-readonly STATIC_WEB_APP_SKU="Standard"  # Required for Entra ID
+readonly STATIC_WEB_APP_SKU="Standard" # Required for Entra ID
 
-# Validate required environment variables
-if [[ -z "${AZURE_CLIENT_ID:-}" ]] || [[ -z "${AZURE_CLIENT_SECRET:-}" ]]; then
-  log_error "AZURE_CLIENT_ID and AZURE_CLIENT_SECRET are required"
-  log_error "Usage: AZURE_CLIENT_ID=xxx AZURE_CLIENT_SECRET=xxx $0"
-  exit 1
-fi
-
-readonly AZURE_CLIENT_ID
-readonly AZURE_CLIENT_SECRET
+# Check if environment variables are provided, but don't require them yet
+# (we'll offer to create the app registration if they're missing)
+AZURE_CLIENT_ID="${AZURE_CLIENT_ID:-}"
+AZURE_CLIENT_SECRET="${AZURE_CLIENT_SECRET:-}"
 
 # Map region to SWA-compatible region
 REQUESTED_LOCATION="${LOCATION:-uksouth}"
 SWA_LOCATION=$(map_swa_region "${REQUESTED_LOCATION}")
-LOCATION="${REQUESTED_LOCATION}"  # Function App uses requested region (not readonly - will be temporarily overridden for SWA)
-readonly SWA_LOCATION  # SWA uses mapped region
+LOCATION="${REQUESTED_LOCATION}" # Function App uses requested region (not readonly - will be temporarily overridden for SWA)
+readonly SWA_LOCATION            # SWA uses mapped region
 
 # Banner
 echo ""
@@ -130,12 +141,27 @@ log_info ""
 
 # Check prerequisites
 log_step "Checking prerequisites..."
-command -v az &>/dev/null || { log_error "Azure CLI not found"; exit 1; }
-command -v jq &>/dev/null || { log_error "jq not found"; exit 1; }
-command -v npm &>/dev/null || { log_error "npm not found"; exit 1; }
-command -v uv &>/dev/null || { log_error "uv not found - install with: brew install uv"; exit 1; }
+command -v az &>/dev/null || {
+  log_error "Azure CLI not found"
+  exit 1
+}
+command -v jq &>/dev/null || {
+  log_error "jq not found"
+  exit 1
+}
+command -v npm &>/dev/null || {
+  log_error "npm not found"
+  exit 1
+}
+command -v uv &>/dev/null || {
+  log_error "uv not found - install with: brew install uv"
+  exit 1
+}
 
-az account show &>/dev/null || { log_error "Not logged in to Azure"; exit 1; }
+az account show &>/dev/null || {
+  log_error "Not logged in to Azure"
+  exit 1
+}
 log_info "Prerequisites OK"
 echo ""
 
@@ -161,8 +187,123 @@ export RESOURCE_GROUP
 log_info "Using resource group: ${RESOURCE_GROUP}"
 echo ""
 
+# Check/Create Entra ID App Registration
+log_step "Checking Entra ID app registration..."
+echo ""
+
+# Show where credentials are coming from (helps debug .env vs command-line)
+if [[ -n "${AZURE_CLIENT_ID}" ]]; then
+  log_info "AZURE_CLIENT_ID is set: ${AZURE_CLIENT_ID:0:8}... (source: .env or command-line)"
+else
+  log_info "AZURE_CLIENT_ID is not set"
+fi
+
+if [[ -n "${AZURE_CLIENT_SECRET}" ]]; then
+  log_info "AZURE_CLIENT_SECRET is set: ****** (source: .env or command-line)"
+else
+  log_info "AZURE_CLIENT_SECRET is not set"
+fi
+echo ""
+
+# Function to check if app registration exists and is valid
+check_app_registration() {
+  local app_id="$1"
+
+  if [[ -z "${app_id}" ]]; then
+    return 1
+  fi
+
+  if az ad app show --id "${app_id}" &>/dev/null; then
+    log_info "Found existing app registration: ${app_id}"
+    return 0
+  else
+    log_warn "App ID provided but app registration not found: ${app_id}"
+    return 1
+  fi
+}
+
+# Check if we have valid credentials
+APP_EXISTS=false
+if [[ -n "${AZURE_CLIENT_ID}" ]]; then
+  if check_app_registration "${AZURE_CLIENT_ID}"; then
+    APP_EXISTS=true
+    log_info "App registration verified: ${AZURE_CLIENT_ID}"
+  fi
+fi
+
+# If app doesn't exist or credentials not provided, offer to create
+if [[ "${APP_EXISTS}" == "false" ]]; then
+  echo ""
+  log_warn "No valid Entra ID app registration found"
+  log_info "This script can create one for you using 60-entraid-user-setup.sh"
+  echo ""
+  read -p "Create new Entra ID app registration? (Y/n) " -n 1 -r
+  echo
+
+  if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+    log_info "Creating Entra ID app registration..."
+    echo ""
+
+    # Get SWA hostname (we'll create it first if needed, or use existing)
+    SWA_HOSTNAME=""
+    if az staticwebapp show --name "${STATIC_WEB_APP_NAME}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
+      SWA_HOSTNAME=$(az staticwebapp show --name "${STATIC_WEB_APP_NAME}" --resource-group "${RESOURCE_GROUP}" --query defaultHostname -o tsv)
+      log_info "Found existing SWA: ${SWA_HOSTNAME}"
+    else
+      # We'll need to create SWA first to get the hostname
+      log_info "SWA doesn't exist yet. Creating it first to get hostname..."
+
+      export STATIC_WEB_APP_NAME
+      export STATIC_WEB_APP_SKU
+      export LOCATION="${SWA_LOCATION}" # Override with SWA-compatible region
+
+      "${SCRIPT_DIR}/00-static-web-app.sh"
+
+      SWA_HOSTNAME=$(az staticwebapp show --name "${STATIC_WEB_APP_NAME}" --resource-group "${RESOURCE_GROUP}" --query defaultHostname -o tsv)
+      log_info "SWA created: ${SWA_HOSTNAME}"
+
+      # Restore original location
+      export LOCATION="${REQUESTED_LOCATION}"
+    fi
+
+    # Call the setup script to create app registration
+    log_info "Calling 60-entraid-user-setup.sh..."
+    "${SCRIPT_DIR}/60-entraid-user-setup.sh" \
+      --create \
+      --app-name "Subnet Calculator - ${STATIC_WEB_APP_NAME}" \
+      --swa-hostname "${SWA_HOSTNAME}"
+
+    echo ""
+    log_warn "IMPORTANT: The script has created the app registration and displayed the credentials."
+    log_warn "Please set these environment variables and re-run this script:"
+    log_warn "  export AZURE_CLIENT_ID=<client-id>"
+    log_warn "  export AZURE_CLIENT_SECRET=<client-secret>"
+    log_warn ""
+    log_warn "Or run with:"
+    log_warn "  AZURE_CLIENT_ID=xxx AZURE_CLIENT_SECRET=yyy $0"
+    exit 0
+  else
+    log_error "Entra ID app registration required. Please either:"
+    log_error "  1. Run this script again and choose 'Y' to create one"
+    log_error "  2. Create one manually with: ${SCRIPT_DIR}/60-entraid-user-setup.sh"
+    log_error "  3. Provide existing credentials: AZURE_CLIENT_ID=xxx AZURE_CLIENT_SECRET=yyy $0"
+    exit 1
+  fi
+fi
+
+# Validate we have credentials now
+if [[ -z "${AZURE_CLIENT_ID}" ]] || [[ -z "${AZURE_CLIENT_SECRET}" ]]; then
+  log_error "AZURE_CLIENT_ID and AZURE_CLIENT_SECRET are required"
+  log_error "Usage: AZURE_CLIENT_ID=xxx AZURE_CLIENT_SECRET=yyy $0"
+  exit 1
+fi
+
+readonly AZURE_CLIENT_ID
+readonly AZURE_CLIENT_SECRET
+echo ""
+
 # Step 1: Create Function App
-log_step "Step 1/7: Creating Function App..."
+log_step "Step 1/8: Creating Function App..."
 echo ""
 
 export FUNCTION_APP_NAME
@@ -183,15 +324,15 @@ az functionapp config appsettings set \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --settings \
-    AUTH_METHOD=none \
-    CORS_ORIGINS="https://${SWA_CUSTOM_DOMAIN}" \
+  AUTH_METHOD=none \
+  CORS_ORIGINS="https://${SWA_CUSTOM_DOMAIN}" \
   --output none
 
 log_info "Function App configured"
 echo ""
 
 # Step 2: Deploy Function API
-log_step "Step 2/7: Deploying Function API..."
+log_step "Step 2/8: Deploying Function API..."
 echo ""
 
 # If Function App already existed, ask if user wants to redeploy
@@ -207,7 +348,7 @@ if [[ "${FUNCTION_APP_EXISTED}" == "true" ]]; then
 fi
 
 if [[ "${SKIP_DEPLOYMENT}" == "false" ]]; then
-  export DISABLE_AUTH=true  # No auth on Function (SWA handles it)
+  export DISABLE_AUTH=true # No auth on Function (SWA handles it)
 
   "${SCRIPT_DIR}/22-deploy-function-zip.sh"
 
@@ -216,29 +357,36 @@ if [[ "${SKIP_DEPLOYMENT}" == "false" ]]; then
 fi
 echo ""
 
-# Step 3: Create Static Web App
-log_step "Step 3/7: Creating Azure Static Web App..."
+# Step 3: Create Static Web App (if not already created)
+log_step "Step 3/8: Creating Azure Static Web App..."
 echo ""
 
-export STATIC_WEB_APP_NAME
-export STATIC_WEB_APP_SKU
-export LOCATION="${SWA_LOCATION}"  # Override with SWA-compatible region
+# Check if SWA already exists (might have been created during app registration)
+if az staticwebapp show --name "${STATIC_WEB_APP_NAME}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
+  log_info "Static Web App already exists: ${STATIC_WEB_APP_NAME}"
+else
+  export STATIC_WEB_APP_NAME
+  export STATIC_WEB_APP_SKU
+  export LOCATION="${SWA_LOCATION}" # Override with SWA-compatible region
 
-"${SCRIPT_DIR}/00-static-web-app.sh"
+  "${SCRIPT_DIR}/00-static-web-app.sh"
 
-# Restore original location for subsequent steps
-export LOCATION="${REQUESTED_LOCATION}"
+  # Restore original location for subsequent steps
+  export LOCATION="${REQUESTED_LOCATION}"
+
+  log_info "Static Web App created"
+fi
 
 SWA_URL=$(az staticwebapp show \
   --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query defaultHostname -o tsv)
 
-log_info "Static Web App created: https://${SWA_URL}"
+log_info "Static Web App URL: https://${SWA_URL}"
 echo ""
 
 # Step 4: Link Function App to SWA
-log_step "Step 4/7: Linking Function App to SWA..."
+log_step "Step 4/8: Linking Function App to SWA..."
 echo ""
 
 FUNC_RESOURCE_ID=$(az functionapp show \
@@ -258,7 +406,7 @@ log_info "Function App linked to SWA"
 echo ""
 
 # Step 5: Update Entra ID App Registration
-log_step "Step 5/7: Updating Entra ID app registration with redirect URIs..."
+log_step "Step 5/8: Updating Entra ID app registration with redirect URIs..."
 echo ""
 
 log_info "Adding redirect URIs for both domains..."
@@ -266,33 +414,47 @@ log_info "  1. https://${SWA_URL}/.auth/login/aad/callback"
 log_info "  2. https://${SWA_CUSTOM_DOMAIN}/.auth/login/aad/callback"
 echo ""
 
-# Get current redirect URIs
-CURRENT_REDIRECT_URIS=$(az ad app show \
-  --id "${AZURE_CLIENT_ID}" \
-  --query "web.redirectUris" -o json)
+# Build redirect URIs list
+NEW_URI_1="https://${SWA_URL}/.auth/login/aad/callback"
+NEW_URI_2="https://${SWA_CUSTOM_DOMAIN}/.auth/login/aad/callback"
 
-# Add new URIs
-NEW_REDIRECT_URIS=$(echo "${CURRENT_REDIRECT_URIS}" | jq \
-  --arg uri1 "https://${SWA_URL}/.auth/login/aad/callback" \
-  --arg uri2 "https://${SWA_CUSTOM_DOMAIN}/.auth/login/aad/callback" \
-  '. + [$uri1, $uri2] | unique')
+# Get the app's object ID (needed for Graph API)
+APP_OBJECT_ID=$(az ad app show --id "${AZURE_CLIENT_ID}" --query id -o tsv)
 
-az ad app update \
-  --id "${AZURE_CLIENT_ID}" \
-  --web-redirect-uris "${NEW_REDIRECT_URIS}" \
+# Update redirect URIs using Graph API (same pattern as 60-entraid-user-setup.sh)
+log_info "Configuring redirect URIs and logout URL via Microsoft Graph API..."
+log_info "  Redirect URIs: Both .azurestaticapps.net and custom domain"
+log_info "  Logout URL: ${SWA_CUSTOM_DOMAIN} (custom domain)"
+
+# Note: implicitGrantSettings must be enabled for SWA built-in auth
+# Azure Portal will show a warning about this, but it's expected and correct.
+# SWA uses response_mode=form_post which requires implicit grant.
+# See: 60-ENTRAID-README.md for detailed explanation
+#
+# Note: Entra ID only allows ONE logoutUrl. We use the custom domain as primary.
+# The SWA config uses relative paths (/logged-out.html) so logout works correctly
+# on both the custom domain and .azurestaticapps.net domain.
+az rest --method PATCH \
+  --uri "https://graph.microsoft.com/v1.0/applications/${APP_OBJECT_ID}" \
+  --headers 'Content-Type=application/json' \
+  --body "{
+    \"web\": {
+      \"redirectUris\": [\"${NEW_URI_1}\", \"${NEW_URI_2}\"],
+      \"logoutUrl\": \"https://${SWA_CUSTOM_DOMAIN}/logged-out.html\",
+      \"implicitGrantSettings\": {
+        \"enableAccessTokenIssuance\": true,
+        \"enableIdTokenIssuance\": true
+      }
+    }
+  }" \
   --output none
 
-# Add logout URI
-az ad app update \
-  --id "${AZURE_CLIENT_ID}" \
-  --set web.logoutUrl="https://${SWA_CUSTOM_DOMAIN}/logged-out.html" \
-  --output none
-
-log_info "Entra ID app updated with redirect URIs"
+log_info "Redirect URIs and logout URL updated"
+log_info "Entra ID app configuration verified"
 echo ""
 
 # Step 6: Configure Entra ID on SWA
-log_step "Step 6/7: Configuring Entra ID authentication on SWA..."
+log_step "Step 6/8: Configuring Entra ID authentication on SWA..."
 echo ""
 
 export STATIC_WEB_APP_NAME
@@ -305,16 +467,17 @@ log_info "Entra ID configured on SWA"
 echo ""
 
 # Step 7: Deploy Frontend
-log_step "Step 7/7: Deploying frontend..."
+log_step "Step 7/8: Deploying frontend..."
 echo ""
 
 log_info "Building and deploying frontend with Entra ID auth..."
 log_info "  API URL: (empty - use /api route via SWA proxy)"
 
 export FRONTEND=typescript
-export SWA_AUTH_ENABLED=true  # Enable SWA platform auth (Entra ID)
-export VITE_AUTH_ENABLED=true  # Entra ID via SWA built-in provider (for getAuthMethod)
-export VITE_API_URL=""  # Use SWA proxy to linked backend
+export SWA_AUTH_ENABLED=true   # Use SWA built-in Entra ID authentication (for staticwebapp.config.json)
+export VITE_AUTH_ENABLED=true  # Enable auth in frontend
+export VITE_AUTH_METHOD=entraid # Explicitly set auth method (works on custom domains)
+export VITE_API_URL=""         # Use SWA proxy to linked backend
 export STATIC_WEB_APP_NAME
 export RESOURCE_GROUP
 
@@ -324,7 +487,7 @@ log_info "Frontend deployed"
 echo ""
 
 # Step 8: Configure Custom Domains
-log_step "Step 8/7: Configuring custom domains..."
+log_step "Step 8/8: Configuring custom domains..."
 echo ""
 
 log_info "SWA Custom domain: ${SWA_CUSTOM_DOMAIN}"

@@ -2,6 +2,10 @@
   "$schema": "https://json.schemastore.org/staticwebapp.config.json",
   "routes": [
     {
+      "route": "/login.html",
+      "allowedRoles": ["anonymous", "authenticated"]
+    },
+    {
       "route": "/logged-out.html",
       "allowedRoles": ["anonymous", "authenticated"]
     },
@@ -24,12 +28,12 @@
   ],
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/api/*", "/logged-out.html", "/*.{css,scss,js,png,gif,ico,jpg,svg}"]
+    "exclude": ["/api/*", "/login.html", "/logged-out.html", "/*.{css,scss,js,png,gif,ico,jpg,svg}"]
   },
   "responseOverrides": {
     "401": {
       "statusCode": 302,
-      "redirect": "/.auth/login/aad"
+      "redirect": "/login.html"
     }
   },
   "globalHeaders": {

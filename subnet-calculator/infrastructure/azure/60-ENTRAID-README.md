@@ -210,7 +210,27 @@ App Registration
 SWA App Settings
 ├─ AZURE_CLIENT_ID: <your app id>
 └─ AZURE_CLIENT_SECRET: <generated secret>
-```bash
+```
+
+### About the Implicit Grant Warning
+
+**You will see a warning in Azure Portal about implicit grant being enabled.** This is expected and correct.
+
+Azure Portal Warning:
+> "This app has implicit grant settings enabled. If you are using any of these URIs in a SPA with MSAL.js 2.0, you should migrate URIs."
+
+**Why this warning doesn't apply to you:**
+
+- Azure Static Web Apps uses **built-in platform authentication**, not MSAL.js
+- SWA's auth uses `response_mode=form_post`, which **requires implicit grant** to be enabled
+- Your URIs are registered as **Web platform** (not SPA platform), which is correct
+- This is Microsoft's recommended configuration for SWA with Entra ID
+
+**Action required:** None. The warning is for developers using MSAL.js directly in SPAs. You're using SWA's platform-level auth, which is the recommended approach.
+
+**References:**
+- [Azure Static Web Apps authentication](https://learn.microsoft.com/en-us/azure/static-web-apps/authentication-authorization)
+- [SWA Entra ID configuration](https://learn.microsoft.com/en-us/azure/static-web-apps/authentication-custom?tabs=aad)
 
 ## Troubleshooting
 

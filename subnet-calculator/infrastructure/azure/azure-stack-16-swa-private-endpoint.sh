@@ -345,25 +345,46 @@ log_info "Adding redirect URI (custom domain ONLY)..."
 log_info "  https://${CUSTOM_DOMAIN}/.auth/login/aad/callback"
 echo ""
 
-# Get current redirect URIs
-CURRENT_REDIRECT_URIS=$(az ad app show \
-  --id "${AZURE_CLIENT_ID}" \
-  --query "web.redirectUris" -o json)
+# Build redirect URIs list - custom domain only
+NEW_URI="https://${CUSTOM_DOMAIN}/.auth/login/aad/callback"
 
-# Add custom domain URI only
-NEW_REDIRECT_URIS=$(echo "${CURRENT_REDIRECT_URIS}" | jq \
-  --arg uri "https://${CUSTOM_DOMAIN}/.auth/login/aad/callback" \
-  '. + [$uri] | unique')
-
-az ad app update \
+# Get current URIs and combine with new one, ensuring uniqueness
+REDIRECT_URIS=$(az ad app show \
   --id "${AZURE_CLIENT_ID}" \
-  --web-redirect-uris "${NEW_REDIRECT_URIS}" \
-  --output none
+  --query "web.redirectUris[]" -o tsv 2>/dev/null | cat)
 
-# Set logout URI
-az ad app update \
-  --id "${AZURE_CLIENT_ID}" \
-  --set web.logoutUrl="https://${CUSTOM_DOMAIN}/logged-out.html" \
+# Add new URI to list - use process substitution to avoid trailing newline issues
+mapfile -t URI_ARRAY < <(printf '%s\n%s\n' "${REDIRECT_URIS}" "${NEW_URI}" | grep -v '^$' | sort -u)
+
+# Ensure we have at least one URI
+if [ ${#URI_ARRAY[@]} -eq 0 ]; then
+  log_error "No redirect URIs to configure"
+  exit 1
+fi
+
+# Update redirect URIs using Graph API (more reliable than az ad app update)
+log_info "Updating ${#URI_ARRAY[@]} redirect URI(s) via Microsoft Graph API..."
+
+# Get the app's object ID (needed for Graph API)
+APP_OBJECT_ID=$(az ad app show --id "${AZURE_CLIENT_ID}" --query id -o tsv)
+
+# Build JSON array from URI_ARRAY
+URI_JSON=$(printf '"%s",' "${URI_ARRAY[@]}" | sed 's/,$//')
+
+# Update using Graph API
+az rest --method PATCH \
+  --uri "https://graph.microsoft.com/v1.0/applications/${APP_OBJECT_ID}" \
+  --headers 'Content-Type=application/json' \
+  --body "{
+    \"web\": {
+      \"redirectUris\": [${URI_JSON}],
+      \"logoutUrl\": \"https://${CUSTOM_DOMAIN}/logged-out.html\",
+      \"implicitGrantSettings\": {
+        \"enableAccessTokenIssuance\": true,
+        \"enableIdTokenIssuance\": true
+      }
+    }
+  }" \
   --output none
 
 log_info "Entra ID app updated"
@@ -384,8 +405,10 @@ log_info "Building and deploying frontend with Entra ID auth..."
 log_info "  API URL: (empty - use /api route via SWA proxy)"
 
 export FRONTEND=typescript
-export VITE_AUTH_ENABLED=true  # Entra ID via SWA built-in provider
-export VITE_API_URL=""  # Use SWA proxy to linked backend
+export SWA_AUTH_ENABLED=true   # Use SWA built-in Entra ID authentication (for staticwebapp.config.json)
+export VITE_AUTH_ENABLED=true  # Enable auth in frontend
+export VITE_AUTH_METHOD=entraid # Explicitly set auth method (works on custom domains)
+export VITE_API_URL=""         # Use SWA proxy to linked backend
 export STATIC_WEB_APP_NAME
 export RESOURCE_GROUP
 
