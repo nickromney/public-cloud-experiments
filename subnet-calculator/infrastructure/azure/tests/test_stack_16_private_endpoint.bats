@@ -182,7 +182,7 @@ teardown() {
 }
 
 @test "Stack 16: Generates random suffix for new storage" {
-  run bash -c "grep 'STORAGE_SUFFIX.*date' azure-stack-16-swa-private-endpoint.sh"
+  run bash -c "grep 'STORAGE_SUFFIX.*openssl rand' azure-stack-16-swa-private-endpoint.sh"
   assert_success
 }
 
@@ -665,7 +665,7 @@ teardown() {
 }
 
 @test "Stack 16: Checks reply pattern for Y/n" {
-  run grep -E 'REPLY.*\^\\[Nn\\]\$' azure-stack-16-swa-private-endpoint.sh
+  run grep -E 'REPLY.*\^\[Nn\]\$' azure-stack-16-swa-private-endpoint.sh
   assert_success
 }
 
