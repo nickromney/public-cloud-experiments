@@ -266,30 +266,32 @@ log_info "  1. https://${SWA_URL}/.auth/login/aad/callback"
 log_info "  2. https://${SWA_CUSTOM_DOMAIN}/.auth/login/aad/callback"
 echo ""
 
-# Get current redirect URIs as array
-mapfile -t CURRENT_URIS < <(az ad app show \
-  --id "${AZURE_CLIENT_ID}" \
-  --query "web.redirectUris[]" -o tsv 2>/dev/null || true)
-
-# Add new URIs
+# Build redirect URIs list
 NEW_URI_1="https://${SWA_URL}/.auth/login/aad/callback"
 NEW_URI_2="https://${SWA_CUSTOM_DOMAIN}/.auth/login/aad/callback"
 
-# Combine and deduplicate
-ALL_URIS=("${CURRENT_URIS[@]}" "${NEW_URI_1}" "${NEW_URI_2}")
-# shellcheck disable=SC2207
-UNIQUE_URIS=($(printf '%s\n' "${ALL_URIS[@]}" | grep -v '^$' | sort -u))
+# Get current URIs and combine with new ones, ensuring uniqueness
+REDIRECT_URIS=$(az ad app show \
+  --id "${AZURE_CLIENT_ID}" \
+  --query "web.redirectUris[]" -o tsv 2>/dev/null | cat)
+
+# Add new URIs to list
+ALL_URIS=$(printf '%s\n%s\n%s\n' "${REDIRECT_URIS}" "${NEW_URI_1}" "${NEW_URI_2}" | grep -v '^$' | sort -u)
+
+# Convert to array for az command
+mapfile -t URI_ARRAY <<< "${ALL_URIS}"
 
 # Ensure we have at least one URI
-if [ ${#UNIQUE_URIS[@]} -eq 0 ]; then
+if [ ${#URI_ARRAY[@]} -eq 0 ]; then
   log_error "No redirect URIs to configure"
   exit 1
 fi
 
-# Update using proper array expansion with set -x for debugging
+# Update with explicit array expansion
+log_info "Updating ${#URI_ARRAY[@]} redirect URI(s)..."
 az ad app update \
   --id "${AZURE_CLIENT_ID}" \
-  --web-redirect-uris "${UNIQUE_URIS[@]}" \
+  --web-redirect-uris "${URI_ARRAY[@]}" \
   --output none
 
 # Add logout URI

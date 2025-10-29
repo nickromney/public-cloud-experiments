@@ -345,28 +345,31 @@ log_info "Adding redirect URI (custom domain ONLY)..."
 log_info "  https://${CUSTOM_DOMAIN}/.auth/login/aad/callback"
 echo ""
 
-# Get current redirect URIs as array
-mapfile -t CURRENT_URIS < <(az ad app show \
-  --id "${AZURE_CLIENT_ID}" \
-  --query "web.redirectUris[]" -o tsv 2>/dev/null || true)
-
-# Add custom domain URI only
+# Build redirect URIs list - custom domain only
 NEW_URI="https://${CUSTOM_DOMAIN}/.auth/login/aad/callback"
 
-# Combine and deduplicate
-ALL_URIS=("${CURRENT_URIS[@]}" "${NEW_URI}")
-# shellcheck disable=SC2207
-UNIQUE_URIS=($(printf '%s\n' "${ALL_URIS[@]}" | grep -v '^$' | sort -u))
+# Get current URIs and combine with new one, ensuring uniqueness
+REDIRECT_URIS=$(az ad app show \
+  --id "${AZURE_CLIENT_ID}" \
+  --query "web.redirectUris[]" -o tsv 2>/dev/null | cat)
+
+# Add new URI to list
+ALL_URIS=$(printf '%s\n%s\n' "${REDIRECT_URIS}" "${NEW_URI}" | grep -v '^$' | sort -u)
+
+# Convert to array for az command
+mapfile -t URI_ARRAY <<< "${ALL_URIS}"
 
 # Ensure we have at least one URI
-if [ ${#UNIQUE_URIS[@]} -eq 0 ]; then
+if [ ${#URI_ARRAY[@]} -eq 0 ]; then
   log_error "No redirect URIs to configure"
   exit 1
 fi
 
+# Update with explicit array expansion
+log_info "Updating ${#URI_ARRAY[@]} redirect URI(s)..."
 az ad app update \
   --id "${AZURE_CLIENT_ID}" \
-  --web-redirect-uris "${UNIQUE_URIS[@]}" \
+  --web-redirect-uris "${URI_ARRAY[@]}" \
   --output none
 
 # Set logout URI
