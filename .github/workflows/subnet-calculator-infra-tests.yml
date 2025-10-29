@@ -53,15 +53,22 @@ jobs:
             tests/test_helper/bats-assert
           rm -rf tests/test_helper/bats-assert/.git
 
-      - name: Run BATS unit tests
+      - name: Run BATS unit tests in parallel batches
         run: |
-          cd subnet-calculator/infrastructure/azure
-          if [ -d tests ] && ls tests/test_*.bats 1> /dev/null 2>&1; then
-            echo "Running BATS tests..."
-            cd tests && bats test_*.bats
+          cd subnet-calculator/infrastructure/azure/tests
+          if ls test_*.bats 1> /dev/null 2>&1; then
+            echo "Running BATS tests in parallel batches of 100..."
+
+            # Get total test count
+            TOTAL_TESTS=$(bats --count test_*.bats | awk '{sum+=$1} END {print sum}')
+            echo "Total tests: $TOTAL_TESTS"
+
+            # Run BATS with parallel execution using --jobs
+            # BATS --jobs runs test files in parallel, and each file's tests run sequentially
+            # With multiple test files of ~100 tests each, this gives us batch-like behavior
+            bats --jobs 4 --tap test_*.bats
           else
             echo "No test files found yet. Skipping tests."
-            echo "Tests will run once BATS test files are created."
             exit 0
           fi
 
