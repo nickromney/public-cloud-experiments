@@ -57,7 +57,8 @@ jobs:
         run: |
           cd subnet-calculator/infrastructure/azure
           if [ -d tests ] && ls tests/test_*.bats 1> /dev/null 2>&1; then
-            make test-unit
+            echo "Running BATS tests..."
+            cd tests && bats test_*.bats
           else
             echo "No test files found yet. Skipping tests."
             echo "Tests will run once BATS test files are created."
