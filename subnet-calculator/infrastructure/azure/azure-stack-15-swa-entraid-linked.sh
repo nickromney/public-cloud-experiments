@@ -491,12 +491,14 @@ log_step "Step 8/8: Configuring custom domains..."
 echo ""
 
 log_info "SWA Custom domain: ${SWA_CUSTOM_DOMAIN}"
+log_info "SWA hostname: ${SWA_URL}"
 log_info ""
-log_warn "MANUAL STEP REQUIRED:"
-log_warn "Create DNS CNAME record:"
-log_warn "  ${SWA_CUSTOM_DOMAIN} → ${SWA_URL}"
-log_warn ""
-read -r -p "Press Enter after DNS record is created..."
+log_info "The script will now:"
+log_info "  1. Add the custom domain to Azure (generates validation token)"
+log_info "  2. Display the TXT record for domain validation"
+log_info "  3. Display the CNAME record for traffic routing"
+log_info "  4. Wait for you to configure DNS"
+log_info ""
 
 export CUSTOM_DOMAIN="${SWA_CUSTOM_DOMAIN}"
 "${SCRIPT_DIR}/41-configure-custom-domain-swa.sh"
@@ -507,13 +509,13 @@ echo ""
 FUNC_DEFAULT_HOSTNAME=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "properties.defaultHostName" -o tsv)
+  --query "defaultHostName" -o tsv)
 
 # Get custom domain verification ID for TXT record
 VERIFICATION_ID=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "properties.customDomainVerificationId" -o tsv)
+  --query "customDomainVerificationId" -o tsv)
 
 log_info "Function App Custom domain: ${FUNC_CUSTOM_DOMAIN}"
 log_info ""

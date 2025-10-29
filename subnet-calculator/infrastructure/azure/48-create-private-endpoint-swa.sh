@@ -1,47 +1,46 @@
 #!/usr/bin/env bash
 #
-# Create private endpoint for Function App with private DNS zone
+# Create private endpoint for Static Web App with private DNS zone
 #
-# This script creates a private endpoint for a Function App, enabling
-# private connectivity through a VNet without exposing the Function App
-# to the public internet. This is the highest security option for
-# Azure Functions, suitable for regulated workloads and data sovereignty.
+# This script creates a private endpoint for an Azure Static Web App, enabling
+# private connectivity through a VNet. When configured, the SWA will only be
+# accessible from the VNet (or via Application Gateway if configured).
 #
 # Usage:
 #   # Interactive mode (prompts for values)
-#   ./46-create-private-endpoint.sh
+#   ./48-create-private-endpoint-swa.sh
 #
 #   # Specify all parameters
-#   FUNCTION_APP_NAME="func-subnet-calc-123456" \
+#   STATIC_WEB_APP_NAME="swa-subnet-calc-private" \
 #   RESOURCE_GROUP="rg-subnet-calc" \
 #   VNET_NAME="vnet-platform" \
 #   SUBNET_NAME="snet-private-endpoints" \
-#   ./46-create-private-endpoint.sh
+#   ./48-create-private-endpoint-swa.sh
 #
 # Parameters:
-#   FUNCTION_APP_NAME - Name of the Function App
-#   RESOURCE_GROUP    - Resource group containing the Function App
-#   VNET_NAME         - Name of the VNet for private endpoint
-#   SUBNET_NAME       - Name of the subnet for private endpoint
-#   LOCATION          - Azure region (auto-detected from resource group if not set)
+#   STATIC_WEB_APP_NAME - Name of the Static Web App
+#   RESOURCE_GROUP      - Resource group containing the Static Web App
+#   VNET_NAME           - Name of the VNet for private endpoint
+#   SUBNET_NAME         - Name of the subnet for private endpoint
+#   LOCATION            - Azure region (auto-detected from resource group if not set)
 #
 # Requirements:
 #   - Azure CLI logged in (az login)
-#   - Function App must exist
+#   - Static Web App must exist and be Standard tier or higher
 #   - VNet and subnet must exist
 #   - Subnet must have privateEndpointNetworkPolicies disabled
 #   - User must have permissions to create network resources
 #
 # Created Resources:
-#   - Private endpoint (connects Function App to VNet)
-#   - Private DNS zone (privatelink.azurewebsites.net)
+#   - Private endpoint (connects Static Web App to VNet)
+#   - Private DNS zone (privatelink.<number>.azurestaticapps.net)
 #   - Private DNS zone group (automatic DNS record management)
 #   - VNet link (links DNS zone to VNet)
 #
 # Security Benefits:
-#   - Function App not accessible from public internet
+#   - Static Web App not accessible from public internet
 #   - Traffic stays within Azure backbone network
-#   - Suitable for data sovereignty requirements
+#   - Can be exposed via Application Gateway for controlled public access
 #   - Compatible with ExpressRoute and VPN connections
 #
 # Costs:
@@ -50,10 +49,13 @@
 #   - Private DNS zone: ~$0.50/month
 #
 # Notes:
-#   - Static Web Apps do not support private endpoints
-#   - For SWA + Function App, use IP restrictions instead (45-configure-ip-restrictions.sh)
-#   - Private endpoints require Function App Premium or higher (not supported on Consumption)
-#   - For data sovereignty, also verify region with lib/verify-regions.sh
+#   - Requires Standard or Enterprise tier SWA
+#   - DNS zone format is region-specific: privatelink.<number>.azurestaticapps.net
+#   - After creation, SWA will only be accessible from VNet
+#   - Use Application Gateway to provide public access if needed
+#
+# Reference:
+#   https://learn.microsoft.com/en-us/azure/static-web-apps/private-endpoint
 
 set -euo pipefail
 
@@ -97,21 +99,28 @@ if [[ -z "${RESOURCE_GROUP:-}" ]]; then
   fi
 fi
 
-# Auto-detect or prompt for FUNCTION_APP_NAME
-if [[ -z "${FUNCTION_APP_NAME:-}" ]]; then
-  log_info "FUNCTION_APP_NAME not set. Looking for Function Apps..."
-  FUNC_COUNT=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "length(@)" -o tsv 2>/dev/null || echo "0")
+# Auto-detect or prompt for STATIC_WEB_APP_NAME
+if [[ -z "${STATIC_WEB_APP_NAME:-}" ]]; then
+  log_info "STATIC_WEB_APP_NAME not set. Looking for Static Web Apps..."
+  SWA_COUNT=$(az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "length(@)" -o tsv 2>/dev/null || echo "0")
 
-  if [[ "${FUNC_COUNT}" -eq 0 ]]; then
-    log_error "No Function Apps found in resource group ${RESOURCE_GROUP}"
+  if [[ "${SWA_COUNT}" -eq 0 ]]; then
+    log_error "No Static Web Apps found in resource group ${RESOURCE_GROUP}"
     exit 1
-  elif [[ "${FUNC_COUNT}" -eq 1 ]]; then
-    FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
-    log_info "Auto-detected Function App: ${FUNCTION_APP_NAME}"
+  elif [[ "${SWA_COUNT}" -eq 1 ]]; then
+    STATIC_WEB_APP_NAME=$(az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
+    log_info "Auto-detected Static Web App: ${STATIC_WEB_APP_NAME}"
   else
-    log_warn "Multiple Function Apps found:"
-    FUNCTION_APP_NAME=$(select_function_app "${RESOURCE_GROUP}") || exit 1
-    log_info "Selected: ${FUNCTION_APP_NAME}"
+    log_warn "Multiple Static Web Apps found:"
+    # Use select_function_app utility as template (we can reuse the pattern)
+    mapfile -t SWA_NAMES < <(az staticwebapp list --resource-group "${RESOURCE_GROUP}" --query "[].name" -o tsv)
+    PS3="Select a Static Web App: "
+    select STATIC_WEB_APP_NAME in "${SWA_NAMES[@]}"; do
+      if [[ -n "${STATIC_WEB_APP_NAME}" ]]; then
+        break
+      fi
+    done
+    log_info "Selected: ${STATIC_WEB_APP_NAME}"
   fi
 fi
 
@@ -127,7 +136,7 @@ if [[ -z "${VNET_NAME:-}" ]]; then
   log_error "Please specify the VNet name for the private endpoint"
   log_error ""
   log_error "Example:"
-  log_error "  VNET_NAME=\"vnet-platform\" ./46-create-private-endpoint.sh"
+  log_error "  VNET_NAME=\"vnet-platform\" ./48-create-private-endpoint-swa.sh"
   exit 1
 fi
 
@@ -137,65 +146,81 @@ if [[ -z "${SUBNET_NAME:-}" ]]; then
   log_error "Please specify the subnet name for the private endpoint"
   log_error ""
   log_error "Example:"
-  log_error "  SUBNET_NAME=\"snet-private-endpoints\" ./46-create-private-endpoint.sh"
+  log_error "  SUBNET_NAME=\"snet-private-endpoints\" ./48-create-private-endpoint-swa.sh"
   exit 1
 fi
 
 # Generate names
-PE_NAME="pe-${FUNCTION_APP_NAME}"
-DNS_ZONE_NAME="privatelink.azurewebsites.net"
-VNET_LINK_NAME="vnet-link-${VNET_NAME}"
+PE_NAME="pe-${STATIC_WEB_APP_NAME}"
 
 log_info ""
 log_info "========================================="
-log_info "Private Endpoint Configuration"
+log_info "SWA Private Endpoint Configuration"
 log_info "========================================="
 log_info "Resource Group:     ${RESOURCE_GROUP}"
-log_info "Function App:       ${FUNCTION_APP_NAME}"
+log_info "Static Web App:     ${STATIC_WEB_APP_NAME}"
 log_info "Location:           ${LOCATION}"
 log_info "VNet:               ${VNET_NAME}"
 log_info "Subnet:             ${SUBNET_NAME}"
 log_info "Private Endpoint:   ${PE_NAME}"
-log_info "DNS Zone:           ${DNS_ZONE_NAME}"
 log_info ""
 
-# Verify Function App exists and get resource ID
-log_step "Verifying Function App exists..."
-if ! FUNCTION_APP_ID=$(az functionapp show \
-  --name "${FUNCTION_APP_NAME}" \
+# Verify Static Web App exists and get resource ID
+log_step "Verifying Static Web App exists..."
+if ! SWA_ID=$(az staticwebapp show \
+  --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query id -o tsv 2>/dev/null); then
-  log_error "Function App ${FUNCTION_APP_NAME} not found in ${RESOURCE_GROUP}"
+  log_error "Static Web App ${STATIC_WEB_APP_NAME} not found in ${RESOURCE_GROUP}"
   exit 1
 fi
-log_info "Function App found: ${FUNCTION_APP_ID}"
+log_info "Static Web App found: ${SWA_ID}"
 
-# Check Function App SKU (private endpoints require App Service Plan)
-log_step "Checking Function App SKU..."
-FUNC_SKU=$(az functionapp show \
-  --name "${FUNCTION_APP_NAME}" \
+# Check Static Web App SKU (private endpoints require Standard or Enterprise)
+log_step "Checking Static Web App SKU..."
+SWA_SKU=$(az staticwebapp show \
+  --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "sku" -o tsv 2>/dev/null || echo "Unknown")
+  --query "sku.name" -o tsv 2>/dev/null || echo "Unknown")
 
-log_info "Function App SKU: ${FUNC_SKU}"
+log_info "Static Web App SKU: ${SWA_SKU}"
 
-if [[ "${FUNC_SKU}" =~ (Dynamic|FlexConsumption) ]]; then
-  log_error "Private endpoints are not supported on Consumption/Flex Consumption plans"
-  log_error "Current SKU: ${FUNC_SKU}"
+if [[ "${SWA_SKU}" == "Free" ]]; then
+  log_error "Private endpoints are not supported on Free tier Static Web Apps"
+  log_error "Current SKU: ${SWA_SKU}"
   log_error ""
-  log_error "Supported plans for private endpoints:"
-  log_error "  - Basic (B1, B2, B3)"
-  log_error "  - Standard (S1, S2, S3)"
-  log_error "  - Premium v2 (P1v2, P2v2, P3v2)"
-  log_error "  - Premium v3 (P0v3, P1v3, P2v3, P3v3)"
-  log_error "  - Premium v4 (P0v4, P1v4, P2v4, P3v4)"
-  log_error "  - Isolated v2 (I1v2, I2v2, I3v2)"
-  log_error "  - Functions Premium (EP1, EP2, EP3 - Elastic Premium)"
+  log_error "To use private endpoints, upgrade to Standard or Enterprise tier"
   log_error ""
-  log_error "For Consumption/Flex plans, use IP restrictions instead:"
-  log_error "  ./45-configure-ip-restrictions.sh"
+  log_error "Upgrade command:"
+  log_error "  az staticwebapp update \\"
+  log_error "    --name ${STATIC_WEB_APP_NAME} \\"
+  log_error "    --resource-group ${RESOURCE_GROUP} \\"
+  log_error "    --sku Standard"
   exit 1
 fi
+
+# Get the SWA default hostname to determine DNS zone
+SWA_HOSTNAME=$(az staticwebapp show \
+  --name "${STATIC_WEB_APP_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" \
+  --query "defaultHostname" -o tsv)
+
+# Extract the region-specific number from hostname (e.g., "nice-island-12345.3.azurestaticapps.net" -> "3")
+# The format is: <name>.<number>.azurestaticapps.net
+if [[ "${SWA_HOSTNAME}" =~ \.([0-9]+)\.azurestaticapps\.net$ ]]; then
+  SWA_REGION_NUMBER="${BASH_REMATCH[1]}"
+  DNS_ZONE_NAME="privatelink.${SWA_REGION_NUMBER}.azurestaticapps.net"
+  log_info "Detected SWA region number: ${SWA_REGION_NUMBER}"
+else
+  log_error "Could not determine SWA region number from hostname: ${SWA_HOSTNAME}"
+  log_error "Expected format: <name>.<number>.azurestaticapps.net"
+  exit 1
+fi
+
+VNET_LINK_NAME="vnet-link-${VNET_NAME}"
+
+log_info "DNS Zone:           ${DNS_ZONE_NAME}"
+log_info ""
 
 # Verify VNet exists and get resource ID
 log_step "Verifying VNet exists..."
@@ -253,15 +278,15 @@ if az network private-endpoint show \
 fi
 
 # Create private endpoint
-log_step "Creating private endpoint..."
+log_step "Creating private endpoint for Static Web App..."
 az network private-endpoint create \
   --name "${PE_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --location "${LOCATION}" \
   --vnet-name "${VNET_NAME}" \
   --subnet "${SUBNET_NAME}" \
-  --private-connection-resource-id "${FUNCTION_APP_ID}" \
-  --group-id sites \
+  --private-connection-resource-id "${SWA_ID}" \
+  --group-id staticSites \
   --connection-name "${PE_NAME}-connection" \
   --output none
 
@@ -307,7 +332,7 @@ az network private-endpoint dns-zone-group create \
   --endpoint-name "${PE_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --private-dns-zone "${DNS_ZONE_NAME}" \
-  --zone-name "sites" \
+  --zone-name "staticSites" \
   --output none
 
 log_info "Private DNS zone group created"
@@ -326,9 +351,9 @@ PE_FQDN=$(az network private-endpoint show \
 
 log_info ""
 log_info "========================================="
-log_info "Private Endpoint Created Successfully!"
+log_info "SWA Private Endpoint Created!"
 log_info "========================================="
-log_info "Function App:       ${FUNCTION_APP_NAME}"
+log_info "Static Web App:     ${STATIC_WEB_APP_NAME}"
 log_info "Private Endpoint:   ${PE_NAME}"
 log_info "Private IP:         ${PE_IP}"
 log_info "Private FQDN:       ${PE_FQDN}"
@@ -339,23 +364,23 @@ log_info "  VNet Link:    ${VNET_LINK_NAME}"
 log_info "  Auto-managed: Yes (via DNS zone group)"
 log_info ""
 log_info "Security Status:"
-log_info "  - Function App accessible via private endpoint only"
+log_info "  - Static Web App accessible via private endpoint only"
 log_info "  - DNS resolution automatic within VNet"
 log_info "  - Traffic stays on Azure backbone network"
 log_info ""
 log_info "Next Steps:"
-log_info "1. Disable public network access on Function App:"
-log_info "   az functionapp update \\"
-log_info "     --name ${FUNCTION_APP_NAME} \\"
-log_info "     --resource-group ${RESOURCE_GROUP} \\"
-log_info "     --set publicNetworkAccess=Disabled"
+log_info "1. Test connectivity from a VM in the VNet:"
+log_info "   nslookup ${SWA_HOSTNAME}"
+log_info "   curl https://${SWA_HOSTNAME}"
 log_info ""
-log_info "2. Test connectivity from a VM in the VNet:"
-log_info "   nslookup ${FUNCTION_APP_NAME}.azurewebsites.net"
-log_info "   curl https://${FUNCTION_APP_NAME}.azurewebsites.net/api/v1/health"
+log_info "2. (Optional) Add Application Gateway for public access:"
+log_info "   - Create Application Gateway in the VNet"
+log_info "   - Configure backend pool with private IP: ${PE_IP}"
+log_info "   - Configure HTTPS listener and routing rules"
 log_info ""
-log_info "3. Verify data sovereignty compliance:"
-log_info "   ./lib/verify-regions.sh"
+log_info "3. (Optional) Verify custom domain still works:"
+log_info "   - Custom domains will resolve to private IP within VNet"
+log_info "   - External access will be blocked unless via App Gateway"
 log_info ""
 log_info "To remove the private endpoint:"
 log_info "  az network private-endpoint delete \\"

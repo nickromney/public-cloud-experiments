@@ -22,6 +22,14 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 
+# Extract resource name from Azure resource ID
+# Usage: extract_resource_name "/subscriptions/.../virtualNetworks/my-vnet" "virtualNetworks"
+extract_resource_name() {
+  local resource_id="$1"
+  local resource_type="$2"
+  echo "${resource_id}" | awk -F'/' -v type="${resource_type}" '{for(i=1;i<=NF;i++) if($i==type) print $(i+1)}'
+}
+
 # Get script directory and source shared utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/selection-utils.sh
@@ -175,11 +183,11 @@ if [[ "${CHECK_MODE}" == "true" ]]; then
   INTEGRATION_COUNT=$(echo "${INTEGRATION_LIST}" | jq -r 'length')
 
   if [[ "${INTEGRATION_COUNT}" -gt 0 ]]; then
-    CURRENT_VNET=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].vnetResourceId' | awk -F'/' '{print $NF}')
-    CURRENT_SUBNET=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].name')
-    INTEGRATION_STATUS=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].properties.status // "Unknown"')
     VNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].vnetResourceId')
     SUBNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].id')
+    CURRENT_VNET=$(extract_resource_name "${VNET_ID}" "virtualNetworks")
+    CURRENT_SUBNET=$(extract_resource_name "${SUBNET_ID}" "subnets")
+    INTEGRATION_STATUS=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].properties.status // "Unknown"')
 
     log_info "VNet Integration: ENABLED"
     log_info "  Status: ${INTEGRATION_STATUS}"
@@ -410,12 +418,19 @@ if ! az network vnet subnet show \
   exit 1
 fi
 
-# Get subnet details
+# Get subnet details and resource ID
 SUBNET_PREFIX=$(az network vnet subnet show \
   --name "${SUBNET_NAME}" \
   --vnet-name "${VNET_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "addressPrefix" \
+  -o tsv)
+
+SUBNET_ID=$(az network vnet subnet show \
+  --name "${SUBNET_NAME}" \
+  --vnet-name "${VNET_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" \
+  --query "id" \
   -o tsv)
 
 log_info "Subnet ${SUBNET_NAME} exists with prefix: ${SUBNET_PREFIX}"
@@ -456,8 +471,11 @@ INTEGRATION_LIST=$(az functionapp vnet-integration list \
 INTEGRATION_COUNT=$(echo "${INTEGRATION_LIST}" | jq -r 'length')
 
 if [[ "${INTEGRATION_COUNT}" -gt 0 ]]; then
-  CURRENT_VNET=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].vnetResourceId' | awk -F'/' '{print $NF}')
-  CURRENT_SUBNET=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].name')
+  # Extract VNet and Subnet from resource IDs
+  CURRENT_VNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].vnetResourceId')
+  CURRENT_SUBNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].id')
+  CURRENT_VNET=$(extract_resource_name "${CURRENT_VNET_ID}" "virtualNetworks")
+  CURRENT_SUBNET=$(extract_resource_name "${CURRENT_SUBNET_ID}" "subnets")
   INTEGRATION_STATUS=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].properties.status // "Unknown"')
 
   log_info "Current VNet integration status: ${INTEGRATION_STATUS}"
@@ -495,12 +513,12 @@ log_info ""
 if [[ "${SKIP_INTEGRATION}" != "true" ]]; then
   log_step "Enabling VNet integration..."
   log_info "Connecting to ${VNET_NAME}/${SUBNET_NAME}..."
+  log_info "Using subnet resource ID: ${SUBNET_ID}"
 
   az functionapp vnet-integration add \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
-    --vnet "${VNET_NAME}" \
-    --subnet "${SUBNET_NAME}" \
+    --subnet "${SUBNET_ID}" \
     --output none
 
   log_info "VNet integration added successfully"
@@ -570,7 +588,7 @@ log_step "Testing Function still responds..."
 HOSTNAME=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "properties.defaultHostName" -o tsv)
+  --query "defaultHostName" -o tsv)
 
 FUNCTION_URL="https://${HOSTNAME}/api/v1/health"
 

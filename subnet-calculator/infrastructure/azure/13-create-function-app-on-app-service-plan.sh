@@ -153,6 +153,14 @@ if az storage account show \
 else
   # Create storage account (required for Function Apps)
   log_info "Creating storage account ${STORAGE_ACCOUNT_NAME}..."
+
+  # Build tags parameter if STORAGE_ACCOUNT_TAG is set
+  TAG_ARGS=()
+  if [[ -n "${STORAGE_ACCOUNT_TAG:-}" ]]; then
+    TAG_ARGS=(--tags "${STORAGE_ACCOUNT_TAG}")
+    log_info "  Tagging with: ${STORAGE_ACCOUNT_TAG}"
+  fi
+
   az storage account create \
     --name "${STORAGE_ACCOUNT_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
@@ -160,6 +168,7 @@ else
     --sku Standard_LRS \
     --kind StorageV2 \
     --allow-blob-public-access false \
+    ${TAG_ARGS[@]+"${TAG_ARGS[@]}"} \
     --output none
 
   log_info "Storage account created successfully"
@@ -195,7 +204,7 @@ if az functionapp show \
   HOSTNAME=$(az functionapp show \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
-    --query "properties.defaultHostName" -o tsv)
+    --query "defaultHostName" -o tsv)
 
   log_info ""
   log_info "Existing Function App details:"
@@ -208,7 +217,16 @@ fi
 
 # Create Function App on App Service Plan
 log_info "Creating Function App ${FUNCTION_APP_NAME} on plan ${APP_SERVICE_PLAN}..."
-az functionapp create \
+log_info "  Runtime: Python ${PYTHON_VERSION}"
+log_info "  Functions Version: 4"
+log_info "  This may take 1-2 minutes..."
+echo ""
+
+# Capture output and errors
+CREATE_OUTPUT=$(mktemp)
+CREATE_ERROR=$(mktemp)
+
+if az functionapp create \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --plan "${APP_SERVICE_PLAN}" \
@@ -218,9 +236,87 @@ az functionapp create \
   --functions-version 4 \
   --os-type Linux \
   --disable-app-insights \
-  --output none
+  --output json >"${CREATE_OUTPUT}" 2>"${CREATE_ERROR}"; then
 
-log_info "Function App created successfully"
+  log_info "Function App created successfully"
+  rm -f "${CREATE_OUTPUT}" "${CREATE_ERROR}"
+else
+  EXIT_CODE=$?
+  ERROR_MSG=$(cat "${CREATE_ERROR}")
+
+  log_error "Failed to create Function App (exit code: ${EXIT_CODE})"
+  log_error ""
+
+  # Check for common error patterns
+  if echo "${ERROR_MSG}" | grep -qi "functionAppStacks"; then
+    log_error "Azure Management API Error Detected"
+    log_error "This appears to be an Azure service issue, not a configuration problem."
+    log_error ""
+    log_error "The Azure CLI cannot query available runtime stacks."
+    log_error "This is often caused by Azure Front Door or management API outages."
+    log_error ""
+    log_error "Recommended Actions:"
+    log_error "  1. Check Azure Status: https://status.azure.com/"
+    log_error "  2. Wait for Azure to resolve the service issue"
+    log_error "  3. Re-run this deployment script - it will resume from this step"
+    log_error ""
+    log_error "What's Already Created (will be reused on retry):"
+    log_error "  ✓ VNet: ${VNET_NAME:-vnet-subnet-calc-private}"
+    log_error "  ✓ App Service Plan: ${APP_SERVICE_PLAN}"
+    log_error "  ✓ Storage Account: ${STORAGE_ACCOUNT_NAME}"
+    log_error ""
+  elif echo "${ERROR_MSG}" | grep -qi "name.*not available\|already exists"; then
+    log_error "Function App Name Conflict"
+    log_error "The name '${FUNCTION_APP_NAME}' is already taken globally."
+    log_error ""
+    log_error "Function App names must be globally unique across all of Azure."
+    log_error ""
+    log_error "Solutions:"
+    log_error "  1. Use a different name:"
+    log_error "     FUNCTION_APP_NAME=\"func-myapp-\$RANDOM\" ./script.sh"
+    log_error ""
+    log_error "  2. Check if you own this Function App in another resource group:"
+    log_error "     az functionapp list --query \"[?name=='${FUNCTION_APP_NAME}']\" -o table"
+    log_error ""
+  elif echo "${ERROR_MSG}" | grep -qi "quota\|limit"; then
+    log_error "Subscription Quota or Limit Exceeded"
+    log_error ""
+    log_error "Your subscription may have reached a limit for:"
+    log_error "  - Number of Function Apps"
+    log_error "  - Number of App Service Plans"
+    log_error "  - Regional capacity"
+    log_error ""
+    log_error "Solutions:"
+    log_error "  1. Delete unused Function Apps/Plans"
+    log_error "  2. Request quota increase from Azure Support"
+    log_error "  3. Try a different region: LOCATION=westeurope ./script.sh"
+    log_error ""
+  else
+    log_error "Unknown Error"
+    log_error ""
+    log_error "Full error message:"
+    cat "${CREATE_ERROR}" >&2
+    log_error ""
+    log_error "Debug Information:"
+    log_error "  Function App: ${FUNCTION_APP_NAME}"
+    log_error "  Resource Group: ${RESOURCE_GROUP}"
+    log_error "  Plan: ${APP_SERVICE_PLAN}"
+    log_error "  Storage: ${STORAGE_ACCOUNT_NAME}"
+    log_error "  Region: ${LOCATION}"
+    log_error ""
+    log_error "Try running with debug output:"
+    log_error "  az functionapp create --name ${FUNCTION_APP_NAME} \\"
+    log_error "    --resource-group ${RESOURCE_GROUP} \\"
+    log_error "    --plan ${APP_SERVICE_PLAN} \\"
+    log_error "    --storage-account ${STORAGE_ACCOUNT_NAME} \\"
+    log_error "    --runtime python --runtime-version ${PYTHON_VERSION} \\"
+    log_error "    --functions-version 4 --os-type Linux --debug"
+    log_error ""
+  fi
+
+  rm -f "${CREATE_OUTPUT}" "${CREATE_ERROR}"
+  exit 1
+fi
 
 # Configure CORS to allow all origins (for development)
 log_info "Configuring CORS to allow all origins (for development)..."
@@ -251,7 +347,7 @@ az functionapp config appsettings set \
 HOSTNAME=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "properties.defaultHostName" -o tsv)
+  --query "defaultHostName" -o tsv)
 
 FUNCTION_APP_ID=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \

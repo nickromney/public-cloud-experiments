@@ -37,9 +37,10 @@ get_sku_cost() {
     P1V2) echo "0.20" ;;
     P2V2) echo "0.40" ;;
     P3V2) echo "0.80" ;;
-    P1V3) echo "0.24" ;;
-    P2V3) echo "0.48" ;;
-    P3V3) echo "0.96" ;;
+    P0V3) echo "0.194" ;;  # $0.194/hour * 730 hours = ~$142/month
+    P1V3) echo "0.388" ;;
+    P2V3) echo "0.776" ;;
+    P3V3) echo "1.552" ;;
     *) echo "0.00" ;;
   esac
 }
@@ -57,6 +58,7 @@ get_sku_specs() {
     P1V2) echo "1 vCPU, 3.5 GB RAM" ;;
     P2V2) echo "2 vCPU, 7 GB RAM" ;;
     P3V2) echo "4 vCPU, 14 GB RAM" ;;
+    P0V3) echo "1 vCPU, 4 GB RAM" ;;
     P1V3) echo "2 vCPU, 8 GB RAM" ;;
     P2V3) echo "4 vCPU, 16 GB RAM" ;;
     P3V3) echo "8 vCPU, 32 GB RAM" ;;
