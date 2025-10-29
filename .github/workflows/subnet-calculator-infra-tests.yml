@@ -31,10 +31,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install BATS
+      - name: Install BATS and GNU Parallel
         run: |
           sudo apt-get update
-          sudo apt-get install -y bats
+          sudo apt-get install -y bats parallel
 
       - name: Install BATS support libraries
         run: |
@@ -82,7 +82,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y shellcheck bats
+          sudo apt-get install -y shellcheck bats parallel
 
       - name: Install BATS support libraries
         run: |

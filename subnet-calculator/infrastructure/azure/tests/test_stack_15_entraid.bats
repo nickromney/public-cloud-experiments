@@ -332,8 +332,8 @@ teardown() {
 }
 
 @test "Stack 15: Exits if credentials not provided after prompt" {
-  # Check that script has exit logic after app registration prompts
-  run grep -A 10 'Create new Entra ID app registration' azure-stack-15-swa-entraid-linked.sh
+  # Check that script has exit logic after app registration prompts (exit is ~50 lines after prompt)
+  run grep -A 55 'Create new Entra ID app registration' azure-stack-15-swa-entraid-linked.sh
   assert_success
   [[ "$output" =~ "exit" ]]
 }
@@ -477,9 +477,10 @@ teardown() {
 
 @test "Stack 15: Can create SWA before app registration" {
   # SWA creation (00-static-web-app.sh) should come before app setup (60-entraid-user-setup.sh)
-  SWA_LINE=$(grep -n '00-static-web-app.sh' azure-stack-15-swa-entraid-linked.sh | cut -d: -f1 | head -1)
-  SETUP_LINE=$(grep -n '60-entraid-user-setup.sh' azure-stack-15-swa-entraid-linked.sh | cut -d: -f1 | head -1)
-  [[ $SWA_LINE -lt $SETUP_LINE ]]
+  # Look for actual script calls, not comments
+  SWA_LINE=$(grep -n '"${SCRIPT_DIR}/00-static-web-app.sh"' azure-stack-15-swa-entraid-linked.sh | cut -d: -f1 | head -1)
+  SETUP_LINE=$(grep -n '"${SCRIPT_DIR}/60-entraid-user-setup.sh"' azure-stack-15-swa-entraid-linked.sh | cut -d: -f1 | head -1)
+  [[ -n "$SWA_LINE" ]] && [[ -n "$SETUP_LINE" ]] && [[ $SWA_LINE -lt $SETUP_LINE ]]
 }
 
 @test "Stack 15: Gets SWA hostname for app registration" {
