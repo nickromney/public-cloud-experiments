@@ -364,11 +364,16 @@ fi
 
 # Update redirect URIs
 log_info "Updating ${#URI_ARRAY[@]} redirect URI(s)..."
-# shellcheck disable=SC2046
-az ad app update \
-  --id "${AZURE_CLIENT_ID}" \
-  --web-redirect-uris $(printf '%s ' "${URI_ARRAY[@]}") \
-  --output none
+
+# Build command args array
+CMD_ARGS=("az" "ad" "app" "update" "--id" "${AZURE_CLIENT_ID}" "--web-redirect-uris")
+for uri in "${URI_ARRAY[@]}"; do
+  CMD_ARGS+=("${uri}")
+done
+CMD_ARGS+=("--output" "none")
+
+# Execute command
+"${CMD_ARGS[@]}"
 
 # Set logout URI
 az ad app update \
