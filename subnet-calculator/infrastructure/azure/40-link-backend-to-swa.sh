@@ -235,7 +235,7 @@ SWA_HOSTNAME=$(az staticwebapp show \
 FUNC_HOSTNAME=$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "properties.defaultHostName" -o tsv 2>/dev/null || echo "")
+  --query "defaultHostName" -o tsv 2>/dev/null || echo "")
 
 # Handle empty hostname (Flex Consumption)
 if [[ -z "${FUNC_HOSTNAME}" ]]; then

@@ -227,8 +227,9 @@ teardown() {
   assert_success
 }
 
-@test "Stack 15: Prompts for SWA DNS CNAME" {
-  run grep -i "create dns cname" azure-stack-15-swa-entraid-linked.sh
+@test "Stack 15: Explains DNS configuration workflow" {
+  # Script should explain DNS setup steps rather than prompting prematurely
+  run grep -i "will now\|Display.*TXT record\|Display.*CNAME" azure-stack-15-swa-entraid-linked.sh
   assert_success
 }
 

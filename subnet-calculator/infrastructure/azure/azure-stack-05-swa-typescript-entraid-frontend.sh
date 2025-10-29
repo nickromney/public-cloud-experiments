@@ -231,7 +231,7 @@ fi
 FUNCTION_APP_URL="https://$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "properties.defaultHostName" -o tsv 2>/dev/null || echo "")"
+  --query "defaultHostName" -o tsv 2>/dev/null || echo "")"
 
 if [[ "${FUNCTION_APP_URL}" == "https://" ]]; then
   log_error "Failed to get Function App URL"
