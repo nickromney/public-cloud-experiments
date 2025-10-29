@@ -287,15 +287,11 @@ fi
 # Update redirect URIs
 log_info "Updating ${#URI_ARRAY[@]} redirect URI(s)..."
 
-# Build command args array
-CMD_ARGS=("az" "ad" "app" "update" "--id" "${AZURE_CLIENT_ID}" "--web-redirect-uris")
-for uri in "${URI_ARRAY[@]}"; do
-  CMD_ARGS+=("${uri}")
-done
-CMD_ARGS+=("--output" "none")
-
-# Execute command
-"${CMD_ARGS[@]}"
+# Call az directly with array expansion
+az ad app update \
+  --id "${AZURE_CLIENT_ID}" \
+  --web-redirect-uris "${URI_ARRAY[@]}" \
+  --output none
 
 # Add logout URI
 az ad app update \
