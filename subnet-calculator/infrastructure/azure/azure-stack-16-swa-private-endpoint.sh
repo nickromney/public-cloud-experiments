@@ -395,8 +395,10 @@ log_info "Building and deploying frontend with Entra ID auth..."
 log_info "  API URL: (empty - use /api route via SWA proxy)"
 
 export FRONTEND=typescript
-export VITE_AUTH_ENABLED=true  # Entra ID via SWA built-in provider
-export VITE_API_URL=""  # Use SWA proxy to linked backend
+export SWA_AUTH_ENABLED=true   # Use SWA built-in Entra ID authentication (for staticwebapp.config.json)
+export VITE_AUTH_ENABLED=true  # Enable auth in frontend
+export VITE_AUTH_METHOD=entraid # Explicitly set auth method (works on custom domains)
+export VITE_API_URL=""         # Use SWA proxy to linked backend
 export STATIC_WEB_APP_NAME
 export RESOURCE_GROUP
 

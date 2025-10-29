@@ -39,6 +39,13 @@ export function isRunningInSWA(): boolean {
  * Determine which auth method is active
  */
 export function getAuthMethod(): 'none' | 'jwt' | 'entraid' {
+  // Check for explicit auth method from build-time config
+  const explicitMethod = import.meta.env.VITE_AUTH_METHOD as 'none' | 'jwt' | 'entraid' | undefined
+  if (explicitMethod) {
+    return explicitMethod
+  }
+
+  // Fallback to legacy detection for backwards compatibility
   if (!API_CONFIG.auth.enabled) {
     return 'none'
   }

@@ -101,7 +101,7 @@ readonly SWA_CUSTOM_DOMAIN="${SWA_CUSTOM_DOMAIN:-static-swa-entraid-linked.publi
 readonly FUNC_CUSTOM_DOMAIN="${FUNC_CUSTOM_DOMAIN:-subnet-calc-fa-entraid-linked.publiccloudexperiments.net}"
 readonly STATIC_WEB_APP_NAME="${STATIC_WEB_APP_NAME:-swa-subnet-calc-entraid-linked}"
 readonly FUNCTION_APP_NAME="${FUNCTION_APP_NAME:-func-subnet-calc-entraid-linked}"
-readonly STATIC_WEB_APP_SKU="Standard"  # Required for Entra ID
+readonly STATIC_WEB_APP_SKU="Standard" # Required for Entra ID
 
 # Check if environment variables are provided, but don't require them yet
 # (we'll offer to create the app registration if they're missing)
@@ -111,8 +111,8 @@ AZURE_CLIENT_SECRET="${AZURE_CLIENT_SECRET:-}"
 # Map region to SWA-compatible region
 REQUESTED_LOCATION="${LOCATION:-uksouth}"
 SWA_LOCATION=$(map_swa_region "${REQUESTED_LOCATION}")
-LOCATION="${REQUESTED_LOCATION}"  # Function App uses requested region (not readonly - will be temporarily overridden for SWA)
-readonly SWA_LOCATION  # SWA uses mapped region
+LOCATION="${REQUESTED_LOCATION}" # Function App uses requested region (not readonly - will be temporarily overridden for SWA)
+readonly SWA_LOCATION            # SWA uses mapped region
 
 # Banner
 echo ""
@@ -141,12 +141,27 @@ log_info ""
 
 # Check prerequisites
 log_step "Checking prerequisites..."
-command -v az &>/dev/null || { log_error "Azure CLI not found"; exit 1; }
-command -v jq &>/dev/null || { log_error "jq not found"; exit 1; }
-command -v npm &>/dev/null || { log_error "npm not found"; exit 1; }
-command -v uv &>/dev/null || { log_error "uv not found - install with: brew install uv"; exit 1; }
+command -v az &>/dev/null || {
+  log_error "Azure CLI not found"
+  exit 1
+}
+command -v jq &>/dev/null || {
+  log_error "jq not found"
+  exit 1
+}
+command -v npm &>/dev/null || {
+  log_error "npm not found"
+  exit 1
+}
+command -v uv &>/dev/null || {
+  log_error "uv not found - install with: brew install uv"
+  exit 1
+}
 
-az account show &>/dev/null || { log_error "Not logged in to Azure"; exit 1; }
+az account show &>/dev/null || {
+  log_error "Not logged in to Azure"
+  exit 1
+}
 log_info "Prerequisites OK"
 echo ""
 
@@ -240,7 +255,7 @@ if [[ "${APP_EXISTS}" == "false" ]]; then
 
       export STATIC_WEB_APP_NAME
       export STATIC_WEB_APP_SKU
-      export LOCATION="${SWA_LOCATION}"  # Override with SWA-compatible region
+      export LOCATION="${SWA_LOCATION}" # Override with SWA-compatible region
 
       "${SCRIPT_DIR}/00-static-web-app.sh"
 
@@ -288,7 +303,7 @@ readonly AZURE_CLIENT_SECRET
 echo ""
 
 # Step 1: Create Function App
-log_step "Step 1/7: Creating Function App..."
+log_step "Step 1/8: Creating Function App..."
 echo ""
 
 export FUNCTION_APP_NAME
@@ -309,15 +324,15 @@ az functionapp config appsettings set \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --settings \
-    AUTH_METHOD=none \
-    CORS_ORIGINS="https://${SWA_CUSTOM_DOMAIN}" \
+  AUTH_METHOD=none \
+  CORS_ORIGINS="https://${SWA_CUSTOM_DOMAIN}" \
   --output none
 
 log_info "Function App configured"
 echo ""
 
 # Step 2: Deploy Function API
-log_step "Step 2/7: Deploying Function API..."
+log_step "Step 2/8: Deploying Function API..."
 echo ""
 
 # If Function App already existed, ask if user wants to redeploy
@@ -333,7 +348,7 @@ if [[ "${FUNCTION_APP_EXISTED}" == "true" ]]; then
 fi
 
 if [[ "${SKIP_DEPLOYMENT}" == "false" ]]; then
-  export DISABLE_AUTH=true  # No auth on Function (SWA handles it)
+  export DISABLE_AUTH=true # No auth on Function (SWA handles it)
 
   "${SCRIPT_DIR}/22-deploy-function-zip.sh"
 
@@ -343,7 +358,7 @@ fi
 echo ""
 
 # Step 3: Create Static Web App (if not already created)
-log_step "Step 3/7: Creating Azure Static Web App..."
+log_step "Step 3/8: Creating Azure Static Web App..."
 echo ""
 
 # Check if SWA already exists (might have been created during app registration)
@@ -352,7 +367,7 @@ if az staticwebapp show --name "${STATIC_WEB_APP_NAME}" --resource-group "${RESO
 else
   export STATIC_WEB_APP_NAME
   export STATIC_WEB_APP_SKU
-  export LOCATION="${SWA_LOCATION}"  # Override with SWA-compatible region
+  export LOCATION="${SWA_LOCATION}" # Override with SWA-compatible region
 
   "${SCRIPT_DIR}/00-static-web-app.sh"
 
@@ -371,7 +386,7 @@ log_info "Static Web App URL: https://${SWA_URL}"
 echo ""
 
 # Step 4: Link Function App to SWA
-log_step "Step 4/7: Linking Function App to SWA..."
+log_step "Step 4/8: Linking Function App to SWA..."
 echo ""
 
 FUNC_RESOURCE_ID=$(az functionapp show \
@@ -391,7 +406,7 @@ log_info "Function App linked to SWA"
 echo ""
 
 # Step 5: Update Entra ID App Registration
-log_step "Step 5/7: Updating Entra ID app registration with redirect URIs..."
+log_step "Step 5/8: Updating Entra ID app registration with redirect URIs..."
 echo ""
 
 log_info "Adding redirect URIs for both domains..."
@@ -403,67 +418,43 @@ echo ""
 NEW_URI_1="https://${SWA_URL}/.auth/login/aad/callback"
 NEW_URI_2="https://${SWA_CUSTOM_DOMAIN}/.auth/login/aad/callback"
 
-# Get current URIs
-REDIRECT_URIS=$(az ad app show \
-  --id "${AZURE_CLIENT_ID}" \
-  --query "web.redirectUris[]" -o tsv 2>/dev/null | cat)
+# Get the app's object ID (needed for Graph API)
+APP_OBJECT_ID=$(az ad app show --id "${AZURE_CLIENT_ID}" --query id -o tsv)
 
-# Check if both URIs are already present
-NEEDS_UPDATE=false
-if ! echo "${REDIRECT_URIS}" | grep -qF "${NEW_URI_1}"; then
-  NEEDS_UPDATE=true
-fi
-if ! echo "${REDIRECT_URIS}" | grep -qF "${NEW_URI_2}"; then
-  NEEDS_UPDATE=true
-fi
+# Update redirect URIs using Graph API (same pattern as 60-entraid-user-setup.sh)
+log_info "Configuring redirect URIs and logout URL via Microsoft Graph API..."
+log_info "  Redirect URIs: Both .azurestaticapps.net and custom domain"
+log_info "  Logout URL: ${SWA_CUSTOM_DOMAIN} (custom domain)"
 
-if [[ "${NEEDS_UPDATE}" == "false" ]]; then
-  log_info "Redirect URIs already configured correctly"
-else
-  # Add new URIs to list - use process substitution to avoid trailing newline issues
-  mapfile -t URI_ARRAY < <(printf '%s\n%s\n%s\n' "${REDIRECT_URIS}" "${NEW_URI_1}" "${NEW_URI_2}" | grep -v '^$' | sort -u)
+# Note: implicitGrantSettings must be enabled for SWA built-in auth
+# Azure Portal will show a warning about this, but it's expected and correct.
+# SWA uses response_mode=form_post which requires implicit grant.
+# See: 60-ENTRAID-README.md for detailed explanation
+#
+# Note: Entra ID only allows ONE logoutUrl. We use the custom domain as primary.
+# The SWA config uses relative paths (/logged-out.html) so logout works correctly
+# on both the custom domain and .azurestaticapps.net domain.
+az rest --method PATCH \
+  --uri "https://graph.microsoft.com/v1.0/applications/${APP_OBJECT_ID}" \
+  --headers 'Content-Type=application/json' \
+  --body "{
+    \"web\": {
+      \"redirectUris\": [\"${NEW_URI_1}\", \"${NEW_URI_2}\"],
+      \"logoutUrl\": \"https://${SWA_CUSTOM_DOMAIN}/logged-out.html\",
+      \"implicitGrantSettings\": {
+        \"enableAccessTokenIssuance\": true,
+        \"enableIdTokenIssuance\": true
+      }
+    }
+  }" \
+  --output none
 
-  # Ensure we have at least one URI
-  if [ ${#URI_ARRAY[@]} -eq 0 ]; then
-    log_error "No redirect URIs to configure"
-    exit 1
-  fi
-
-  # Update redirect URIs
-  log_info "Updating ${#URI_ARRAY[@]} redirect URI(s)..."
-
-  # Call az directly with array expansion
-  az ad app update \
-    --id "${AZURE_CLIENT_ID}" \
-    --web-redirect-uris "${URI_ARRAY[@]}" \
-    --output none
-
-  log_info "Redirect URIs updated"
-fi
-
-# Add logout URI (check if already set)
-CURRENT_LOGOUT_URL=$(az ad app show \
-  --id "${AZURE_CLIENT_ID}" \
-  --query "web.logoutUrl" -o tsv 2>/dev/null | cat)
-
-TARGET_LOGOUT_URL="https://${SWA_CUSTOM_DOMAIN}/logged-out.html"
-
-if [[ "${CURRENT_LOGOUT_URL}" == "${TARGET_LOGOUT_URL}" ]]; then
-  log_info "Logout URL already configured correctly"
-else
-  log_info "Setting logout URL: ${TARGET_LOGOUT_URL}"
-  az ad app update \
-    --id "${AZURE_CLIENT_ID}" \
-    --set web.logoutUrl="https://${SWA_CUSTOM_DOMAIN}/logged-out.html" \
-    --output none
-  log_info "Logout URL updated"
-fi
-
+log_info "Redirect URIs and logout URL updated"
 log_info "Entra ID app configuration verified"
 echo ""
 
 # Step 6: Configure Entra ID on SWA
-log_step "Step 6/7: Configuring Entra ID authentication on SWA..."
+log_step "Step 6/8: Configuring Entra ID authentication on SWA..."
 echo ""
 
 export STATIC_WEB_APP_NAME
@@ -476,15 +467,17 @@ log_info "Entra ID configured on SWA"
 echo ""
 
 # Step 7: Deploy Frontend
-log_step "Step 7/7: Deploying frontend..."
+log_step "Step 7/8: Deploying frontend..."
 echo ""
 
 log_info "Building and deploying frontend with Entra ID auth..."
 log_info "  API URL: (empty - use /api route via SWA proxy)"
 
 export FRONTEND=typescript
-export VITE_AUTH_ENABLED=true  # Entra ID via SWA built-in provider
-export VITE_API_URL=""  # Use SWA proxy to linked backend
+export SWA_AUTH_ENABLED=true   # Use SWA built-in Entra ID authentication (for staticwebapp.config.json)
+export VITE_AUTH_ENABLED=true  # Enable auth in frontend
+export VITE_AUTH_METHOD=entraid # Explicitly set auth method (works on custom domains)
+export VITE_API_URL=""         # Use SWA proxy to linked backend
 export STATIC_WEB_APP_NAME
 export RESOURCE_GROUP
 
@@ -494,7 +487,7 @@ log_info "Frontend deployed"
 echo ""
 
 # Step 8: Configure Custom Domains
-log_step "Step 8/7: Configuring custom domains..."
+log_step "Step 8/8: Configuring custom domains..."
 echo ""
 
 log_info "SWA Custom domain: ${SWA_CUSTOM_DOMAIN}"

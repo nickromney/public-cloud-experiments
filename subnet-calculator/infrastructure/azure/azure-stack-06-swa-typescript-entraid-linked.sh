@@ -280,7 +280,7 @@ cd "${FRONTEND_DIR}"
 [[ ! -d "node_modules" ]] && npm install
 
 log_info "Building with empty API URL (use /api route via SWA proxy)..."
-VITE_API_URL="" npm run build
+VITE_AUTH_ENABLED=true VITE_AUTH_METHOD=entraid VITE_API_URL="" npm run build
 
 if [[ -f "staticwebapp-entraid.config.json" ]]; then
   cp staticwebapp-entraid.config.json dist/staticwebapp.config.json

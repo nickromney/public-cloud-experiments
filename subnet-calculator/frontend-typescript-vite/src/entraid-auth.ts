@@ -37,10 +37,16 @@ export function isRunningInSWA(): boolean {
 
 /**
  * Check if Entra ID auth should be used
- * (Only when auth is enabled AND running in SWA)
+ * Use explicit VITE_AUTH_METHOD if set, otherwise fall back to domain detection
  */
 export function useEntraIdAuth(): boolean {
-  // Import config to check if auth is enabled
+  // Check for explicit auth method configuration (works on any domain)
+  const explicitMethod = import.meta.env.VITE_AUTH_METHOD as string | undefined
+  if (explicitMethod === 'entraid') {
+    return true
+  }
+
+  // Fallback to legacy detection for backwards compatibility
   const authEnabled = import.meta.env.VITE_AUTH_ENABLED === 'true'
   return authEnabled && isRunningInSWA()
 }

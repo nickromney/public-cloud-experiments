@@ -112,32 +112,6 @@ SWA_HOSTNAME=$(az staticwebapp show \
   --resource-group "${RESOURCE_GROUP}" \
   --query defaultHostname -o tsv)
 
-log_info ""
-log_info "========================================="
-log_info "STEP 1: DNS Configuration Required"
-log_info "========================================="
-log_info ""
-log_info "Before continuing, you MUST configure these DNS records:"
-log_info ""
-log_info "1. CNAME record to point to Static Web App:"
-log_info "   Name:  ${CUSTOM_DOMAIN}"
-log_info "   Type:  CNAME"
-log_info "   Value: ${SWA_HOSTNAME}"
-log_info ""
-log_info "2. TXT record for domain validation (required for Enterprise Grade Edge):"
-log_info "   Name:  _dnsauth.${CUSTOM_DOMAIN}"
-log_info "   Type:  TXT"
-log_info "   Value: <validation-token-from-azure>"
-log_info ""
-log_info "Note: TXT validation via _dnsauth prefix is now the standard method."
-log_info "      Enterprise Grade Edge SWAs require TXT - CNAME validation deprecated."
-log_info "      The _dnsauth prefix allows zero-downtime migration."
-log_info ""
-log_info "To get the validation token, we'll add the custom domain first."
-log_info "Azure will provide the token, then you configure DNS, then we validate."
-log_info ""
-read -r -p "Press Enter to continue once you understand these requirements..."
-
 # Check if custom domain already exists
 if az staticwebapp hostname show \
   --name "${STATIC_WEB_APP_NAME}" \
@@ -165,10 +139,11 @@ fi
 # Add custom domain (this generates the validation token)
 log_info ""
 log_info "========================================="
-log_info "STEP 2: Adding Custom Domain"
+log_info "STEP 1: Adding Custom Domain to Azure"
 log_info "========================================="
 log_info ""
 log_info "Adding custom domain ${CUSTOM_DOMAIN}..."
+log_info "This will generate the DNS validation token..."
 
 # Add the custom domain with TXT validation (required for Enterprise Grade Edge)
 az staticwebapp hostname set \
@@ -203,10 +178,10 @@ VALIDATION_STATUS=$(echo "${VALIDATION_INFO}" | awk '{print $2}')
 
 log_info ""
 log_info "========================================="
-log_info "STEP 3: Configure DNS Records"
+log_info "STEP 2: Configure DNS Records"
 log_info "========================================="
 log_info ""
-log_info "Follow these steps in order:"
+log_info "Azure has generated a validation token. Configure these DNS records:"
 log_info ""
 log_info "1. Add TXT record for domain ownership validation:"
 log_info "   Name:  _dnsauth.${CUSTOM_DOMAIN}"
@@ -229,7 +204,7 @@ log_info ""
 
 # Offer to wait and validate
 log_info "========================================="
-log_info "STEP 4: Domain Validation"
+log_info "STEP 3: Domain Validation"
 log_info "========================================="
 log_info ""
 read -p "Have you configured the DNS records? (Y/n) " -n 1 -r
