@@ -275,11 +275,8 @@ REDIRECT_URIS=$(az ad app show \
   --id "${AZURE_CLIENT_ID}" \
   --query "web.redirectUris[]" -o tsv 2>/dev/null | cat)
 
-# Add new URIs to list
-ALL_URIS=$(printf '%s\n%s\n%s\n' "${REDIRECT_URIS}" "${NEW_URI_1}" "${NEW_URI_2}" | grep -v '^$' | sort -u)
-
-# Convert to array for az command
-mapfile -t URI_ARRAY <<< "${ALL_URIS}"
+# Add new URIs to list - use process substitution to avoid trailing newline issues
+mapfile -t URI_ARRAY < <(printf '%s\n%s\n%s\n' "${REDIRECT_URIS}" "${NEW_URI_1}" "${NEW_URI_2}" | grep -v '^$' | sort -u)
 
 # Ensure we have at least one URI
 if [ ${#URI_ARRAY[@]} -eq 0 ]; then
