@@ -266,20 +266,23 @@ log_info "  1. https://${SWA_URL}/.auth/login/aad/callback"
 log_info "  2. https://${SWA_CUSTOM_DOMAIN}/.auth/login/aad/callback"
 echo ""
 
-# Get current redirect URIs
-CURRENT_REDIRECT_URIS=$(az ad app show \
+# Get current redirect URIs as array
+mapfile -t CURRENT_URIS < <(az ad app show \
   --id "${AZURE_CLIENT_ID}" \
-  --query "web.redirectUris" -o json)
+  --query "web.redirectUris[]" -o tsv)
 
 # Add new URIs
-NEW_REDIRECT_URIS=$(echo "${CURRENT_REDIRECT_URIS}" | jq \
-  --arg uri1 "https://${SWA_URL}/.auth/login/aad/callback" \
-  --arg uri2 "https://${SWA_CUSTOM_DOMAIN}/.auth/login/aad/callback" \
-  '. + [$uri1, $uri2] | unique')
+NEW_URI_1="https://${SWA_URL}/.auth/login/aad/callback"
+NEW_URI_2="https://${SWA_CUSTOM_DOMAIN}/.auth/login/aad/callback"
+
+# Combine and deduplicate
+ALL_URIS=("${CURRENT_URIS[@]}" "${NEW_URI_1}" "${NEW_URI_2}")
+# shellcheck disable=SC2207
+UNIQUE_URIS=($(printf '%s\n' "${ALL_URIS[@]}" | sort -u))
 
 az ad app update \
   --id "${AZURE_CLIENT_ID}" \
-  --web-redirect-uris "${NEW_REDIRECT_URIS}" \
+  --web-redirect-uris "${UNIQUE_URIS[@]}" \
   --output none
 
 # Add logout URI

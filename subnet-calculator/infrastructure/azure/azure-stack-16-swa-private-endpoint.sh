@@ -345,19 +345,22 @@ log_info "Adding redirect URI (custom domain ONLY)..."
 log_info "  https://${CUSTOM_DOMAIN}/.auth/login/aad/callback"
 echo ""
 
-# Get current redirect URIs
-CURRENT_REDIRECT_URIS=$(az ad app show \
+# Get current redirect URIs as array
+mapfile -t CURRENT_URIS < <(az ad app show \
   --id "${AZURE_CLIENT_ID}" \
-  --query "web.redirectUris" -o json)
+  --query "web.redirectUris[]" -o tsv)
 
 # Add custom domain URI only
-NEW_REDIRECT_URIS=$(echo "${CURRENT_REDIRECT_URIS}" | jq \
-  --arg uri "https://${CUSTOM_DOMAIN}/.auth/login/aad/callback" \
-  '. + [$uri] | unique')
+NEW_URI="https://${CUSTOM_DOMAIN}/.auth/login/aad/callback"
+
+# Combine and deduplicate
+ALL_URIS=("${CURRENT_URIS[@]}" "${NEW_URI}")
+# shellcheck disable=SC2207
+UNIQUE_URIS=($(printf '%s\n' "${ALL_URIS[@]}" | sort -u))
 
 az ad app update \
   --id "${AZURE_CLIENT_ID}" \
-  --web-redirect-uris "${NEW_REDIRECT_URIS}" \
+  --web-redirect-uris "${UNIQUE_URIS[@]}" \
   --output none
 
 # Set logout URI
