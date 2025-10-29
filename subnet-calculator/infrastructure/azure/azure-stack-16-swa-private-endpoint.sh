@@ -348,7 +348,7 @@ echo ""
 # Get current redirect URIs as array
 mapfile -t CURRENT_URIS < <(az ad app show \
   --id "${AZURE_CLIENT_ID}" \
-  --query "web.redirectUris[]" -o tsv)
+  --query "web.redirectUris[]" -o tsv 2>/dev/null || true)
 
 # Add custom domain URI only
 NEW_URI="https://${CUSTOM_DOMAIN}/.auth/login/aad/callback"
@@ -356,7 +356,13 @@ NEW_URI="https://${CUSTOM_DOMAIN}/.auth/login/aad/callback"
 # Combine and deduplicate
 ALL_URIS=("${CURRENT_URIS[@]}" "${NEW_URI}")
 # shellcheck disable=SC2207
-UNIQUE_URIS=($(printf '%s\n' "${ALL_URIS[@]}" | sort -u))
+UNIQUE_URIS=($(printf '%s\n' "${ALL_URIS[@]}" | grep -v '^$' | sort -u))
+
+# Ensure we have at least one URI
+if [ ${#UNIQUE_URIS[@]} -eq 0 ]; then
+  log_error "No redirect URIs to configure"
+  exit 1
+fi
 
 az ad app update \
   --id "${AZURE_CLIENT_ID}" \
