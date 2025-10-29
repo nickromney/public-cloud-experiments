@@ -255,9 +255,9 @@ if [[ -n "${EXISTING_STORAGE}" ]]; then
   export STORAGE_ACCOUNT_NAME="${EXISTING_STORAGE}"
   log_info "Found existing tagged storage account: ${STORAGE_ACCOUNT_NAME}"
 else
-  # Generate globally unique name with random suffix
+  # Generate globally unique name with random suffix (6 hex chars = 16.7M combinations)
   STORAGE_BASE="stfuncprivateep"
-  STORAGE_SUFFIX=$(date +%s | tail -c 6)
+  STORAGE_SUFFIX=$(openssl rand -hex 3)
   export STORAGE_ACCOUNT_NAME="${STORAGE_BASE}${STORAGE_SUFFIX}"
   export STORAGE_ACCOUNT_TAG="${STORAGE_TAG}"
   log_info "Will create new storage account: ${STORAGE_ACCOUNT_NAME}"

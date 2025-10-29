@@ -22,6 +22,14 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 
+# Extract resource name from Azure resource ID
+# Usage: extract_resource_name "/subscriptions/.../virtualNetworks/my-vnet" "virtualNetworks"
+extract_resource_name() {
+  local resource_id="$1"
+  local resource_type="$2"
+  echo "${resource_id}" | awk -F'/' -v type="${resource_type}" '{for(i=1;i<=NF;i++) if($i==type) print $(i+1)}'
+}
+
 # Get script directory and source shared utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/selection-utils.sh
@@ -177,8 +185,8 @@ if [[ "${CHECK_MODE}" == "true" ]]; then
   if [[ "${INTEGRATION_COUNT}" -gt 0 ]]; then
     VNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].vnetResourceId')
     SUBNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].id')
-    CURRENT_VNET=$(echo "${VNET_ID}" | awk -F'/' '{for(i=1;i<=NF;i++) if($i=="virtualNetworks") print $(i+1)}')
-    CURRENT_SUBNET=$(echo "${SUBNET_ID}" | awk -F'/' '{for(i=1;i<=NF;i++) if($i=="subnets") print $(i+1)}')
+    CURRENT_VNET=$(extract_resource_name "${VNET_ID}" "virtualNetworks")
+    CURRENT_SUBNET=$(extract_resource_name "${SUBNET_ID}" "subnets")
     INTEGRATION_STATUS=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].properties.status // "Unknown"')
 
     log_info "VNet Integration: ENABLED"
@@ -466,8 +474,8 @@ if [[ "${INTEGRATION_COUNT}" -gt 0 ]]; then
   # Extract VNet and Subnet from resource IDs
   CURRENT_VNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].vnetResourceId')
   CURRENT_SUBNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].id')
-  CURRENT_VNET=$(echo "${CURRENT_VNET_ID}" | awk -F'/' '{for(i=1;i<=NF;i++) if($i=="virtualNetworks") print $(i+1)}')
-  CURRENT_SUBNET=$(echo "${CURRENT_SUBNET_ID}" | awk -F'/' '{for(i=1;i<=NF;i++) if($i=="subnets") print $(i+1)}')
+  CURRENT_VNET=$(extract_resource_name "${CURRENT_VNET_ID}" "virtualNetworks")
+  CURRENT_SUBNET=$(extract_resource_name "${CURRENT_SUBNET_ID}" "subnets")
   INTEGRATION_STATUS=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].properties.status // "Unknown"')
 
   log_info "Current VNet integration status: ${INTEGRATION_STATUS}"

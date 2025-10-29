@@ -37,7 +37,7 @@ get_sku_cost() {
     P1V2) echo "0.20" ;;
     P2V2) echo "0.40" ;;
     P3V2) echo "0.80" ;;
-    P0V3) echo "0.194" ;;
+    P0V3) echo "0.194" ;;  # $0.194/hour * 730 hours = ~$142/month
     P1V3) echo "0.388" ;;
     P2V3) echo "0.776" ;;
     P3V3) echo "1.552" ;;

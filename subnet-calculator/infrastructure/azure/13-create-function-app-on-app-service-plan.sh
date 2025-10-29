@@ -155,9 +155,9 @@ else
   log_info "Creating storage account ${STORAGE_ACCOUNT_NAME}..."
 
   # Build tags parameter if STORAGE_ACCOUNT_TAG is set
-  TAG_PARAM=""
+  TAG_ARGS=()
   if [[ -n "${STORAGE_ACCOUNT_TAG:-}" ]]; then
-    TAG_PARAM="--tags ${STORAGE_ACCOUNT_TAG}"
+    TAG_ARGS=(--tags "${STORAGE_ACCOUNT_TAG}")
     log_info "  Tagging with: ${STORAGE_ACCOUNT_TAG}"
   fi
 
@@ -168,7 +168,7 @@ else
     --sku Standard_LRS \
     --kind StorageV2 \
     --allow-blob-public-access false \
-    "${TAG_PARAM}" \
+    ${TAG_ARGS[@]+"${TAG_ARGS[@]}"} \
     --output none
 
   log_info "Storage account created successfully"
