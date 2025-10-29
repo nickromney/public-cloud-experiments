@@ -362,11 +362,13 @@ if [ ${#URI_ARRAY[@]} -eq 0 ]; then
   exit 1
 fi
 
-# Update with explicit array expansion
+# Convert array to JSON for --set parameter
 log_info "Updating ${#URI_ARRAY[@]} redirect URI(s)..."
+URI_JSON=$(printf '%s\n' "${URI_ARRAY[@]}" | jq -R . | jq -s .)
+
 az ad app update \
   --id "${AZURE_CLIENT_ID}" \
-  --web-redirect-uris "${URI_ARRAY[@]}" \
+  --set web.redirectUris="${URI_JSON}" \
   --output none
 
 # Set logout URI

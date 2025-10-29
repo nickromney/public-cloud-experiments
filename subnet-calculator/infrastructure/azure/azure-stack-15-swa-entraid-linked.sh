@@ -284,11 +284,19 @@ if [ ${#URI_ARRAY[@]} -eq 0 ]; then
   exit 1
 fi
 
-# Update with explicit array expansion
+# Debug: Show what we're about to send
 log_info "Updating ${#URI_ARRAY[@]} redirect URI(s)..."
+for i in "${!URI_ARRAY[@]}"; do
+  log_info "  [$i]: ${URI_ARRAY[$i]}"
+done
+
+# Convert array to JSON for --set parameter
+URI_JSON=$(printf '%s\n' "${URI_ARRAY[@]}" | jq -R . | jq -s .)
+
+log_info "Using --set with JSON array instead of --web-redirect-uris"
 az ad app update \
   --id "${AZURE_CLIENT_ID}" \
-  --web-redirect-uris "${URI_ARRAY[@]}" \
+  --set web.redirectUris="${URI_JSON}" \
   --output none
 
 # Add logout URI
