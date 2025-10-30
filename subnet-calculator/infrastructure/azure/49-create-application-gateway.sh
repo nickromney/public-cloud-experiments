@@ -308,7 +308,7 @@ PUBLIC_IP_ADDRESS=$(az network public-ip show \
 log_info "Public IP Address: ${PUBLIC_IP_ADDRESS}"
 
 # Create Application Gateway
-# Using minimum capacity (1) for cost optimization: ~$320/month for Standard_v2
+# Using minimum capacity (1) for cost optimization: ~$215/month for Standard_v2
 log_step "Creating Application Gateway (this may take 5-10 minutes)..."
 log_info "This is a long-running operation. Please wait..."
 
@@ -388,7 +388,7 @@ log_info "   az network application-gateway frontend-port create --port 443 ..."
 log_info "   az network application-gateway http-listener create --frontend-port 443 ..."
 log_info ""
 log_info "Monthly Cost Estimate:"
-log_info "  - Application Gateway (${APPGW_SKU}): ~\$320-421/month"
+log_info "  - Application Gateway (${APPGW_SKU}): ~\$215/month (capacity 1)"
 log_info "  - Public IP: ~\$3.65/month"
 log_info "  - Data processing: Variable"
 log_info ""
