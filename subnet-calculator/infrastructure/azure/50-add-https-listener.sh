@@ -161,6 +161,69 @@ detect_custom_domain() {
   export CUSTOM_DOMAIN
 }
 
+# Detect or create Key Vault (idempotent)
+setup_key_vault() {
+  log_step "Setting up Key Vault..."
+
+  # Count Key Vaults in resource group
+  KV_COUNT=$(az keyvault list \
+    --resource-group "${RESOURCE_GROUP}" \
+    --query "length(@)" -o tsv 2>/dev/null || echo "0")
+
+  if [[ "${KV_COUNT}" -eq 1 ]]; then
+    KEY_VAULT_NAME=$(az keyvault list \
+      --resource-group "${RESOURCE_GROUP}" \
+      --query "[0].name" -o tsv)
+    log_info "Found existing Key Vault: ${KEY_VAULT_NAME}"
+
+  elif [[ "${KV_COUNT}" -gt 1 ]]; then
+    if [[ -z "${KEY_VAULT_NAME:-}" ]]; then
+      log_error "Multiple Key Vaults found in ${RESOURCE_GROUP}"
+      log_error "Specify which one to use: KEY_VAULT_NAME='kv-name' $0"
+      az keyvault list \
+        --resource-group "${RESOURCE_GROUP}" \
+        --query "[].[name, properties.provisioningState]" -o table
+      exit 1
+    fi
+    log_info "Using specified Key Vault: ${KEY_VAULT_NAME}"
+
+  else
+    # Create new Key Vault with unique name
+    KV_SUFFIX=$(openssl rand -hex 2)  # 4 hex chars
+    KEY_VAULT_NAME="kv-subnet-calc-${KV_SUFFIX}"
+
+    log_info "Creating Key Vault: ${KEY_VAULT_NAME}..."
+    if az keyvault create \
+      --name "${KEY_VAULT_NAME}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --location "${LOCATION}" \
+      --enable-rbac-authorization true \
+      --sku standard \
+      --output none; then
+      log_info "Key Vault created successfully"
+    else
+      log_error "Failed to create Key Vault"
+      exit 1
+    fi
+  fi
+
+  # Verify Key Vault is accessible
+  if ! az keyvault show --name "${KEY_VAULT_NAME}" &>/dev/null; then
+    log_error "Key Vault '${KEY_VAULT_NAME}' not accessible"
+    exit 1
+  fi
+
+  # Get Key Vault resource ID for RBAC
+  KEY_VAULT_ID=$(az keyvault show \
+    --name "${KEY_VAULT_NAME}" \
+    --query "id" -o tsv)
+
+  log_info "Key Vault ready: ${KEY_VAULT_NAME}"
+
+  export KEY_VAULT_NAME
+  export KEY_VAULT_ID
+}
+
 # Main execution
 main() {
   log_info "========================================="
@@ -177,11 +240,13 @@ main() {
 
   detect_application_gateway
   detect_custom_domain
+  setup_key_vault
 
   log_info ""
   log_info "Configuration:"
   log_info "  Application Gateway: ${APPGW_NAME}"
   log_info "  Custom Domain: ${CUSTOM_DOMAIN}"
+  log_info "  Key Vault: ${KEY_VAULT_NAME}"
   log_info "  Resource Group: ${RESOURCE_GROUP}"
   log_info "  Location: ${LOCATION}"
 }
