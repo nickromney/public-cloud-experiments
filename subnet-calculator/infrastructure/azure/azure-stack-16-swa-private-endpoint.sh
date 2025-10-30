@@ -57,17 +57,27 @@
 #   - https://static-swa-private-endpoint.publiccloudexperiments.net/.auth/login/aad/callback
 #
 # Usage:
-#   AZURE_CLIENT_ID="xxx" AZURE_CLIENT_SECRET="xxx" ./azure-stack-16-swa-private-endpoint.sh
+#   # Fully automated (creates everything)
+#   ./azure-stack-16-swa-private-endpoint.sh
 #
-# Environment variables (required):
+#   # With existing app registration
+#   AZURE_CLIENT_ID="xxx" ./azure-stack-16-swa-private-endpoint.sh
+#
+#   # With explicit Key Vault
+#   KEY_VAULT_NAME="kv-subnet-calc-abcd" ./azure-stack-16-swa-private-endpoint.sh
+#
+# Environment variables (optional - all auto-created if not provided):
 #   AZURE_CLIENT_ID      - Entra ID app registration client ID
-#   AZURE_CLIENT_SECRET  - Entra ID app registration secret
-#
-# Environment variables (optional):
+#   KEY_VAULT_NAME       - Key Vault name (auto-created if not exists)
 #   RESOURCE_GROUP       - Azure resource group (auto-detected if not set)
 #   LOCATION             - Azure region (default: uksouth)
 #   CUSTOM_DOMAIN        - SWA custom domain (default: static-swa-private-endpoint.publiccloudexperiments.net)
 #   APP_SERVICE_PLAN_SKU - Plan SKU (default: S1, options: S1, P0V3)
+#
+# IMPORTANT CHANGES:
+#   • AZURE_CLIENT_SECRET no longer required! Retrieved from Key Vault automatically.
+#   • Script can create app registration automatically if AZURE_CLIENT_ID not provided.
+#   • Key Vault created early (Step 0) and used for all secrets.
 
 set -euo pipefail
 
@@ -105,15 +115,8 @@ readonly SUBNET_PE_NAME="${SUBNET_PE_NAME:-snet-private-endpoints}"
 readonly SUBNET_PE_PREFIX="${SUBNET_PE_PREFIX:-10.100.0.16/28}"
 readonly STATIC_WEB_APP_SKU="Standard"  # Required for Entra ID
 
-# Validate required environment variables
-if [[ -z "${AZURE_CLIENT_ID:-}" ]] || [[ -z "${AZURE_CLIENT_SECRET:-}" ]]; then
-  log_error "AZURE_CLIENT_ID and AZURE_CLIENT_SECRET are required"
-  log_error "Usage: AZURE_CLIENT_ID=xxx AZURE_CLIENT_SECRET=xxx $0"
-  exit 1
-fi
-
-readonly AZURE_CLIENT_ID
-readonly AZURE_CLIENT_SECRET
+# AZURE_CLIENT_ID is optional - will be created by script 52 if not provided
+AZURE_CLIENT_ID="${AZURE_CLIENT_ID:-}"
 
 # Map region to SWA-compatible region
 REQUESTED_LOCATION="${LOCATION:-uksouth}"
@@ -208,8 +211,20 @@ export RESOURCE_GROUP
 log_info "Using resource group: ${RESOURCE_GROUP}"
 echo ""
 
+# Step 0: Setup Key Vault
+log_step "Step 0/12: Setting up Key Vault..."
+echo ""
+
+export RESOURCE_GROUP
+export LOCATION="${REQUESTED_LOCATION}" # Use original location, not SWA_LOCATION
+
+"${SCRIPT_DIR}/51-setup-key-vault.sh"
+
+log_info "Key Vault ready: ${KEY_VAULT_NAME}"
+echo ""
+
 # Step 1: Create VNet Infrastructure
-log_step "Step 1/10: Creating VNet infrastructure..."
+log_step "Step 1/12: Creating VNet infrastructure..."
 echo ""
 
 export VNET_NAME
