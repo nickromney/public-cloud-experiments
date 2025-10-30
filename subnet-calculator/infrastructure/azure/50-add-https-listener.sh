@@ -618,7 +618,7 @@ main() {
   detect_custom_domain
 
   # Setup Key Vault (script 51)
-  "${SCRIPT_DIR}/51-setup-key-vault.sh"
+  source "${SCRIPT_DIR}/51-setup-key-vault.sh"
   # KEY_VAULT_NAME and KEY_VAULT_ID now available from export
 
   generate_and_upload_certificate

@@ -218,7 +218,7 @@ echo ""
 export RESOURCE_GROUP
 export LOCATION="${REQUESTED_LOCATION}" # Use original location, not SWA_LOCATION
 
-"${SCRIPT_DIR}/51-setup-key-vault.sh"
+source "${SCRIPT_DIR}/51-setup-key-vault.sh"
 
 log_info "Key Vault ready: ${KEY_VAULT_NAME}"
 echo ""
@@ -242,7 +242,7 @@ if [[ -z "${AZURE_CLIENT_ID:-}" ]]; then
     export CUSTOM_DOMAIN
     export KEY_VAULT_NAME
 
-    "${SCRIPT_DIR}/52-setup-app-registration.sh"
+    source "${SCRIPT_DIR}/52-setup-app-registration.sh"
 
     log_info "App registration created: ${AZURE_CLIENT_ID}"
     log_info "Secret stored in Key Vault as: ${STATIC_WEB_APP_NAME}-client-secret"
@@ -267,7 +267,7 @@ else
   export KEY_VAULT_NAME
   export AZURE_CLIENT_ID
 
-  "${SCRIPT_DIR}/52-setup-app-registration.sh"
+  source "${SCRIPT_DIR}/52-setup-app-registration.sh"
 
   log_info "App registration validated"
 fi
