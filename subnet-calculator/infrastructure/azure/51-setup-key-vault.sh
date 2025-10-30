@@ -35,17 +35,19 @@
 
 set -euo pipefail
 
-# Colors
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly RED='\033[0;31m'
-readonly BLUE='\033[0;34m'
-readonly NC='\033[0m'
+# Colors and logging functions (skip if already defined by parent script)
+if [[ -z "${GREEN:-}" ]]; then
+  GREEN='\033[0;32m'
+  YELLOW='\033[1;33m'
+  RED='\033[0;31m'
+  BLUE='\033[0;34m'
+  NC='\033[0m'
 
-log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
-log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
-log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
+  log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
+  log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+  log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+  log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
+fi
 
 # Validate required environment variables
 if [[ -z "${RESOURCE_GROUP:-}" ]]; then

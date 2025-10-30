@@ -279,41 +279,37 @@ EOF
   export CERT_EXPIRATION
 }
 
-# Enable managed identity and grant Key Vault access (idempotent)
+# Assign user-assigned managed identity to AppGW and grant Key Vault access (idempotent)
 configure_managed_identity() {
   log_step "Configuring managed identity for Application Gateway..."
 
-  # Check if system-assigned identity already enabled
-  IDENTITY_PRINCIPAL_ID=$(az network application-gateway show \
+  # Check if user-assigned identity already assigned to AppGW
+  CURRENT_IDENTITY=$(az network application-gateway show \
     --name "${APPGW_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
-    --query "identity.principalId" -o tsv 2>/dev/null || echo "")
+    --query "identity.userAssignedIdentities" -o json 2>/dev/null || echo "{}")
 
-  if [[ -z "${IDENTITY_PRINCIPAL_ID}" ]] || [[ "${IDENTITY_PRINCIPAL_ID}" == "null" ]]; then
-    log_info "Enabling system-assigned managed identity..."
+  if echo "${CURRENT_IDENTITY}" | jq -e ".[\"${MANAGED_IDENTITY_ID}\"]" &>/dev/null; then
+    log_info "User-assigned identity already assigned to Application Gateway"
+  else
+    log_info "Assigning user-assigned managed identity to Application Gateway..."
 
     if ! az network application-gateway identity assign \
       --gateway-name "${APPGW_NAME}" \
       --resource-group "${RESOURCE_GROUP}" \
+      --identity "${MANAGED_IDENTITY_ID}" \
       --output none; then
-      log_error "Failed to enable managed identity"
+      log_error "Failed to assign managed identity to Application Gateway"
       exit 1
     fi
 
-    # Retrieve identity principal ID
-    IDENTITY_PRINCIPAL_ID=$(az network application-gateway show \
-      --name "${APPGW_NAME}" \
-      --resource-group "${RESOURCE_GROUP}" \
-      --query "identity.principalId" -o tsv)
-
-    log_info "Managed identity enabled: ${IDENTITY_PRINCIPAL_ID}"
-  else
-    log_info "Managed identity already enabled: ${IDENTITY_PRINCIPAL_ID}"
+    log_info "Managed identity assigned: ${MANAGED_IDENTITY_NAME}"
+    log_info "Principal ID: ${MANAGED_IDENTITY_PRINCIPAL_ID}"
   fi
 
   # Check if RBAC role assignment already exists
   EXISTING_ROLE=$(az role assignment list \
-    --assignee "${IDENTITY_PRINCIPAL_ID}" \
+    --assignee "${MANAGED_IDENTITY_PRINCIPAL_ID}" \
     --role "Key Vault Secrets User" \
     --scope "${KEY_VAULT_ID}" \
     --query "[0].id" -o tsv 2>/dev/null || echo "")
@@ -324,7 +320,7 @@ configure_managed_identity() {
     log_info "Assigning 'Key Vault Secrets User' role to managed identity..."
 
     if ! az role assignment create \
-      --assignee "${IDENTITY_PRINCIPAL_ID}" \
+      --assignee "${MANAGED_IDENTITY_PRINCIPAL_ID}" \
       --role "Key Vault Secrets User" \
       --scope "${KEY_VAULT_ID}" \
       --output none; then
@@ -620,6 +616,12 @@ main() {
   # Setup Key Vault (script 51)
   source "${SCRIPT_DIR}/51-setup-key-vault.sh"
   # KEY_VAULT_NAME and KEY_VAULT_ID now available from export
+
+  # Setup User-Assigned Managed Identity (script 53)
+  MANAGED_IDENTITY_NAME="id-${APPGW_NAME}"
+  export MANAGED_IDENTITY_NAME
+  source "${SCRIPT_DIR}/53-setup-managed-identity.sh"
+  # MANAGED_IDENTITY_ID, MANAGED_IDENTITY_PRINCIPAL_ID, MANAGED_IDENTITY_CLIENT_ID now available
 
   generate_and_upload_certificate
   configure_managed_identity
