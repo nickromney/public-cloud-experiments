@@ -277,8 +277,9 @@ log_info ""
 
 START_TIME=$(date +%s)
 
-# Create APIM with VNet integration
-# Note: Developer SKU supports both External and Internal modes
+# Create APIM instance without VNet first
+# Note: Azure CLI doesn't support VNet subnet configuration in create command
+log_info "Creating APIM instance (without VNet)..."
 az apim create \
   --name "${APIM_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
@@ -286,12 +287,63 @@ az apim create \
   --publisher-email "${PUBLISHER_EMAIL}" \
   --publisher-name "${PUBLISHER_NAME}" \
   --sku-name "${APIM_SKU}" \
-  --virtual-network "${APIM_VNET_MODE}" \
-  --virtual-network-configuration subnet="${SUBNET_ID}" \
   --no-wait \
   --output none
 
 log_info "APIM creation initiated (running in background)"
+log_info "Waiting for APIM to be provisioned before applying VNet configuration..."
+
+# Wait for APIM to be created
+APIM_ID="/subscriptions/$(az account show --query id -o tsv)/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.ApiManagement/service/${APIM_NAME}"
+
+# Poll until APIM is created (or timeout after 60 minutes)
+TIMEOUT=3600
+ELAPSED=0
+INTERVAL=30
+
+while [[ ${ELAPSED} -lt ${TIMEOUT} ]]; do
+  APIM_STATE=$(az apim show \
+    --name "${APIM_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --query "provisioningState" -o tsv 2>/dev/null || echo "NotFound")
+
+  if [[ "${APIM_STATE}" == "Succeeded" ]]; then
+    log_info "✓ APIM instance provisioned successfully"
+    break
+  elif [[ "${APIM_STATE}" == "Failed" ]]; then
+    log_error "APIM provisioning failed"
+    exit 1
+  fi
+
+  if [[ $((ELAPSED % 300)) -eq 0 ]]; then
+    log_info "APIM provisioning status: ${APIM_STATE} (${ELAPSED}s elapsed)"
+  fi
+
+  sleep ${INTERVAL}
+  ELAPSED=$((ELAPSED + INTERVAL))
+done
+
+if [[ ${ELAPSED} -ge ${TIMEOUT} ]]; then
+  log_error "Timeout waiting for APIM to be provisioned"
+  exit 1
+fi
+
+# Apply VNet configuration using REST API
+log_info "Applying VNet configuration (${APIM_VNET_MODE} mode)..."
+
+az rest \
+  --method PATCH \
+  --uri "${APIM_ID}?api-version=2023-05-01-preview" \
+  --body "{
+    \"properties\": {
+      \"virtualNetworkType\": \"${APIM_VNET_MODE}\",
+      \"virtualNetworkConfiguration\": {
+        \"subnetResourceId\": \"${SUBNET_ID}\"
+      }
+    }
+  }"
+
+log_info "VNet configuration applied. APIM will update in background (~10-15 min)"
 log_info "Waiting for provisioning to complete..."
 
 # Poll for completion
