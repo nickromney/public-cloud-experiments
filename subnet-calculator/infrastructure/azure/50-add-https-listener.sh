@@ -168,7 +168,7 @@ detect_custom_domain() {
 generate_and_upload_certificate() {
   log_step "Setting up SSL certificate..."
 
-  readonly CERT_SECRET_NAME="appgw-ssl-cert"
+  readonly CERT_SECRET_NAME="${APPGW_NAME}-ssl-cert"
 
   # Check if certificate already exists
   SKIP_CERT_GENERATION=false
@@ -240,37 +240,20 @@ generate_and_upload_certificate() {
     exit 1
   fi
 
-  # Encode PFX as base64
-  log_info "Uploading certificate to Key Vault..."
+  # Upload to Key Vault as a certificate (not a secret)
+  log_info "Importing certificate to Key Vault..."
 
-  # Detect OS for base64 encoding
-  if [[ "$(uname)" == "Darwin" ]]; then
-    # macOS (no -w flag)
-    CERT_BASE64=$(base64 -i "${TEMP_CERT_DIR}/certificate.pfx")
-  else
-    # Linux (-w 0 for no line wrapping)
-    CERT_BASE64=$(base64 -w 0 "${TEMP_CERT_DIR}/certificate.pfx")
-  fi
-
-  # Create JSON secret value (AppGW expects this format)
-  CERT_JSON=$(cat <<EOF
-{
-  "data": "${CERT_BASE64}",
-  "password": "${CERT_PASSWORD}"
-}
-EOF
-)
-
-  # Upload to Key Vault
-  if az keyvault secret set \
+  # Note: Import as Key Vault certificate (not secret) for Application Gateway
+  # Key Vault manages the certificate and password, allowing AppGW to access it
+  if az keyvault certificate import \
     --vault-name "${KEY_VAULT_NAME}" \
     --name "${CERT_SECRET_NAME}" \
-    --value "${CERT_JSON}" \
-    --content-type "application/x-pkcs12" \
+    --file "${TEMP_CERT_DIR}/certificate.pfx" \
+    --password "${CERT_PASSWORD}" \
     --output none; then
-    log_info "Certificate uploaded successfully to Key Vault"
+    log_info "Certificate imported successfully to Key Vault"
   else
-    log_error "Failed to upload certificate to Key Vault"
+    log_error "Failed to import certificate to Key Vault"
     exit 1
   fi
 
@@ -382,7 +365,7 @@ configure_https_listener() {
   log_info "Retrieving certificate secret ID..."
   SECRET_ID=$(az keyvault secret show \
     --vault-name "${KEY_VAULT_NAME}" \
-    --name "appgw-ssl-cert" \
+    --name "${APPGW_NAME}-ssl-cert" \
     --query "id" -o tsv)
 
   if [[ -z "${SECRET_ID}" ]]; then
@@ -441,7 +424,7 @@ configure_https_listener() {
   if ! az network application-gateway ssl-cert create \
     --gateway-name "${APPGW_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
-    --name "appgw-ssl-cert" \
+    --name "${APPGW_NAME}-ssl-cert" \
     --key-vault-secret-id "${SECRET_ID}" \
     --output none; then
     log_error "Failed to add SSL certificate - rolling back..."
@@ -465,7 +448,7 @@ configure_https_listener() {
     --name "appGatewayHttpsListener" \
     --frontend-port "appGatewayHttpsPort" \
     --frontend-ip "appGatewayFrontendIP" \
-    --ssl-cert "appgw-ssl-cert" \
+    --ssl-cert "${APPGW_NAME}-ssl-cert" \
     --output none; then
     log_error "Failed to create HTTPS listener - rolling back..."
 
@@ -473,7 +456,7 @@ configure_https_listener() {
     az network application-gateway ssl-cert delete \
       --gateway-name "${APPGW_NAME}" \
       --resource-group "${RESOURCE_GROUP}" \
-      --name "appgw-ssl-cert" \
+      --name "${APPGW_NAME}-ssl-cert" \
       --output none 2>/dev/null || true
 
     az network application-gateway frontend-port delete \
