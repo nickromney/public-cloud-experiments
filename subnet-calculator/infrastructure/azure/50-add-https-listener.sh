@@ -400,6 +400,117 @@ configure_managed_identity() {
   log_info "Managed identity configuration complete"
 }
 
+# Configure HTTPS listener and update routing (replaces HTTP)
+configure_https_listener() {
+  log_step "Configuring HTTPS listener..."
+
+  # Check if HTTPS listener already exists
+  if az network application-gateway http-listener show \
+    --gateway-name "${APPGW_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --name "appGatewayHttpsListener" &>/dev/null; then
+
+    log_warn "HTTPS listener already exists"
+    log_info "Verifying configuration..."
+
+    az network application-gateway http-listener show \
+      --gateway-name "${APPGW_NAME}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "appGatewayHttpsListener" \
+      --query "{name: name, frontendPort: frontendPort.id, protocol: protocol}" -o json
+
+    log_info "HTTPS listener is already configured"
+    return
+  fi
+
+  # Get certificate secret ID (versionless for auto-renewal)
+  log_info "Retrieving certificate secret ID..."
+  SECRET_ID=$(az keyvault secret show \
+    --vault-name "${KEY_VAULT_NAME}" \
+    --name "appgw-ssl-cert" \
+    --query "id" -o tsv)
+
+  # Remove version from secret ID (enables automatic certificate rotation)
+  # shellcheck disable=SC2001
+  SECRET_ID=$(echo "${SECRET_ID}" | sed 's|/[^/]*$||')
+
+  log_info "Certificate secret ID: ${SECRET_ID}"
+
+  # Step 1: Delete existing HTTP listener
+  log_info "Removing HTTP/80 listener..."
+
+  if az network application-gateway http-listener show \
+    --gateway-name "${APPGW_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --name "appGatewayHttpListener" &>/dev/null; then
+
+    az network application-gateway http-listener delete \
+      --gateway-name "${APPGW_NAME}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "appGatewayHttpListener" \
+      --output none 2>/dev/null || log_warn "HTTP listener already removed"
+  fi
+
+  # Step 2: Delete existing HTTP frontend port
+  log_info "Removing HTTP/80 frontend port..."
+
+  if az network application-gateway frontend-port show \
+    --gateway-name "${APPGW_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --name "appGatewayFrontendPort" &>/dev/null; then
+
+    az network application-gateway frontend-port delete \
+      --gateway-name "${APPGW_NAME}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "appGatewayFrontendPort" \
+      --output none 2>/dev/null || log_warn "HTTP frontend port already removed"
+  fi
+
+  # Step 3: Create HTTPS frontend port (443)
+  log_info "Creating HTTPS/443 frontend port..."
+
+  az network application-gateway frontend-port create \
+    --gateway-name "${APPGW_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --name "appGatewayHttpsPort" \
+    --port 443 \
+    --output none
+
+  # Step 4: Create SSL certificate reference to Key Vault
+  log_info "Adding SSL certificate from Key Vault..."
+
+  az network application-gateway ssl-cert create \
+    --gateway-name "${APPGW_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --name "appgw-ssl-cert" \
+    --key-vault-secret-id "${SECRET_ID}" \
+    --output none
+
+  # Step 5: Create HTTPS listener
+  log_info "Creating HTTPS listener..."
+
+  az network application-gateway http-listener create \
+    --gateway-name "${APPGW_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --name "appGatewayHttpsListener" \
+    --frontend-port "appGatewayHttpsPort" \
+    --frontend-ip "appGatewayFrontendIP" \
+    --ssl-cert "appgw-ssl-cert" \
+    --output none
+
+  # Step 6: Update routing rule to use HTTPS listener
+  log_info "Updating routing rule to use HTTPS listener..."
+
+  az network application-gateway rule update \
+    --gateway-name "${APPGW_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --name "rule1" \
+    --http-listener "appGatewayHttpsListener" \
+    --output none
+
+  log_info "HTTPS listener configured successfully"
+}
+
 # Main execution
 main() {
   log_info "========================================="
@@ -419,7 +530,12 @@ main() {
   setup_key_vault
   generate_and_upload_certificate
   configure_managed_identity
+  configure_https_listener
 
+  log_info ""
+  log_info "========================================="
+  log_info "HTTPS Listener Configuration Complete!"
+  log_info "========================================="
   log_info ""
   log_info "Configuration:"
   log_info "  Application Gateway: ${APPGW_NAME}"
@@ -427,6 +543,8 @@ main() {
   log_info "  Key Vault: ${KEY_VAULT_NAME}"
   log_info "  Resource Group: ${RESOURCE_GROUP}"
   log_info "  Location: ${LOCATION}"
+  log_info ""
+  log_info "All done! Application Gateway now uses HTTPS/443."
 }
 
 main "$@"
