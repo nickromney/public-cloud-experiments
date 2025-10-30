@@ -228,12 +228,25 @@ NEW_STATE=$(curl -s -X GET \
   -H "Content-Type: application/json" \
   "${API_ENDPOINT}" | jq -r '.properties.publicNetworkAccess // "Enabled"')
 
-if [[ "${NEW_STATE}" == "Disabled" ]]; then
-  log_info "✓ Default hostname successfully disabled"
-else
-  log_warn "Warning: Could not verify hostname state change"
-  log_warn "Current state: ${NEW_STATE}"
+if [[ "${NEW_STATE}" != "Disabled" ]]; then
+  log_error "Failed to disable default hostname"
+  log_error "Current state: ${NEW_STATE}"
+  log_error ""
+  log_error "The API call succeeded but verification shows hostname is still enabled."
+  log_error "This may be due to:"
+  log_error "  1. Azure service delay in applying the change"
+  log_error "  2. Insufficient permissions"
+  log_error "  3. Azure service issue"
+  log_error ""
+  log_error "Check status manually:"
+  log_error "  az staticwebapp show \\"
+  log_error "    --name ${STATIC_WEB_APP_NAME} \\"
+  log_error "    --resource-group ${RESOURCE_GROUP} \\"
+  log_error "    --query 'properties.publicNetworkAccess'"
+  exit 1
 fi
+
+log_info "✓ Default hostname successfully disabled"
 
 echo ""
 log_info "========================================="

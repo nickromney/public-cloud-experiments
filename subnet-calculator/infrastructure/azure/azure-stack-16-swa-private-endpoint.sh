@@ -425,8 +425,12 @@ log_warn "This requires the 47-disable-default-hostname.sh script"
 
 if [[ -f "${SCRIPT_DIR}/47-disable-default-hostname.sh" ]]; then
   export STATIC_WEB_APP_NAME
-  "${SCRIPT_DIR}/47-disable-default-hostname.sh"
-  log_info "Default hostname disabled - custom domain is now PRIMARY"
+  if "${SCRIPT_DIR}/47-disable-default-hostname.sh"; then
+    log_info "Default hostname disabled successfully - custom domain is now PRIMARY"
+  else
+    log_warn "Failed to disable default hostname"
+    log_warn "Default hostname will remain active alongside custom domain"
+  fi
 else
   log_warn "Script 47-disable-default-hostname.sh not found"
   log_warn "Default hostname will remain active alongside custom domain"
