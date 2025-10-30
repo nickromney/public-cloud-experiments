@@ -49,7 +49,7 @@ readonly APIM_NAME_PREFIX="apim-subnet-calc"
 readonly CUSTOM_DOMAIN="${CUSTOM_DOMAIN:-static-swa-apim.publiccloudexperiments.net}"
 
 # Infrastructure from Stack 16 (reused)
-readonly VNET_NAME="vnet-platform"
+readonly VNET_NAME="vnet-subnet-calc-private"
 readonly APPGW_NAME="agw-swa-subnet-calc-private-endpoint"
 
 log_info ""
