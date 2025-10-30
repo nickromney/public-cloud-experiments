@@ -183,18 +183,17 @@ if [[ "${CHECK_MODE}" == "true" ]]; then
   INTEGRATION_COUNT=$(echo "${INTEGRATION_LIST}" | jq -r 'length')
 
   if [[ "${INTEGRATION_COUNT}" -gt 0 ]]; then
-    VNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].vnetResourceId')
-    SUBNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].properties.subnetResourceId // .[0].id')
-    CURRENT_VNET=$(extract_resource_name "${VNET_ID}" "virtualNetworks")
-    CURRENT_SUBNET=$(extract_resource_name "${SUBNET_ID}" "subnets")
+    # vnetResourceId contains the full subnet path including VNet
+    SUBNET_RESOURCE_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].vnetResourceId')
+    CURRENT_VNET=$(extract_resource_name "${SUBNET_RESOURCE_ID}" "virtualNetworks")
+    CURRENT_SUBNET=$(extract_resource_name "${SUBNET_RESOURCE_ID}" "subnets")
     INTEGRATION_STATUS=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].properties.status // "Unknown"')
 
     log_info "VNet Integration: ENABLED"
     log_info "  Status: ${INTEGRATION_STATUS}"
     log_info "  VNet: ${CURRENT_VNET}"
     log_info "  Subnet: ${CURRENT_SUBNET}"
-    log_info "  VNet ID: ${VNET_ID}"
-    log_info "  Subnet ID: ${SUBNET_ID}"
+    log_info "  Subnet Resource ID: ${SUBNET_RESOURCE_ID}"
   else
     log_warn "VNet Integration: NOT ENABLED"
     log_info "  Status: Not integrated"
@@ -472,10 +471,10 @@ INTEGRATION_COUNT=$(echo "${INTEGRATION_LIST}" | jq -r 'length')
 
 if [[ "${INTEGRATION_COUNT}" -gt 0 ]]; then
   # Extract VNet and Subnet from resource IDs
-  CURRENT_VNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].vnetResourceId')
-  CURRENT_SUBNET_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].properties.subnetResourceId // .[0].id')
-  CURRENT_VNET=$(extract_resource_name "${CURRENT_VNET_ID}" "virtualNetworks")
-  CURRENT_SUBNET=$(extract_resource_name "${CURRENT_SUBNET_ID}" "subnets")
+  # Note: vnetResourceId contains the full subnet path including VNet
+  CURRENT_SUBNET_RESOURCE_ID=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].vnetResourceId')
+  CURRENT_VNET=$(extract_resource_name "${CURRENT_SUBNET_RESOURCE_ID}" "virtualNetworks")
+  CURRENT_SUBNET=$(extract_resource_name "${CURRENT_SUBNET_RESOURCE_ID}" "subnets")
   INTEGRATION_STATUS=$(echo "${INTEGRATION_LIST}" | jq -r '.[0].properties.status // "Unknown"')
 
   log_info "Current VNet integration status: ${INTEGRATION_STATUS}"
@@ -515,11 +514,14 @@ if [[ "${SKIP_INTEGRATION}" != "true" ]]; then
   log_info "Connecting to ${VNET_NAME}/${SUBNET_NAME}..."
   log_info "Using subnet resource ID: ${SUBNET_ID}"
 
-  # When using subnet resource ID, Azure CLI ignores --vnet parameter
-  # We only need --subnet with the full resource ID
+  # Both --vnet and --subnet are required parameters per Azure CLI documentation
+  # even when using full subnet resource ID. Azure CLI may show an informational
+  # warning but both parameters are mandatory by design.
+  # See: https://learn.microsoft.com/en-us/cli/azure/functionapp/vnet-integration
   az functionapp vnet-integration add \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
+    --vnet "${VNET_NAME}" \
     --subnet "${SUBNET_ID}" \
     --output none
 
