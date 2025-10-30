@@ -339,7 +339,10 @@ az network application-gateway address-pool update \
   --servers "${SWA_PRIVATE_FQDN}" \
   --output none
 
-# Update HTTP settings to use the SWA hostname
+# Configure HTTP settings with custom domain Host header
+# - Uses CUSTOM_DOMAIN if set (passed from stack-16 script)
+# - Falls back to SWA_HOSTNAME for standalone usage
+# - Custom domain required for Entra ID authentication (redirect URIs)
 log_step "Configuring HTTP settings for SWA..."
 az network application-gateway http-settings update \
   --gateway-name "${APPGW_NAME}" \
@@ -349,7 +352,7 @@ az network application-gateway http-settings update \
   --protocol Https \
   --cookie-based-affinity Disabled \
   --timeout 30 \
-  --host-name "${SWA_HOSTNAME}" \
+  --host-name "${CUSTOM_DOMAIN:-${SWA_HOSTNAME}}" \
   --output none
 
 log_info "Application Gateway configured"
