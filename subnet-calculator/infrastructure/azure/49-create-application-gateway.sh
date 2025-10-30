@@ -196,14 +196,23 @@ if ! az network private-endpoint show \
   exit 1
 fi
 
-# Get private endpoint IP address
-SWA_PRIVATE_IP=$(az network private-endpoint show \
-  --name "${PE_NAME}" \
+# Get private endpoint IP from DNS zone group (more reliable than customDnsConfigs)
+log_step "Retrieving SWA private IP from DNS zone group..."
+SWA_PRIVATE_IP=$(az network private-endpoint dns-zone-group show \
+  --name "default" \
+  --endpoint-name "${PE_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "customDnsConfigs[0].ipAddresses[0]" -o tsv)
+  --query "privateDnsZoneConfigs[0].recordSets[0].ipAddresses[0]" -o tsv 2>/dev/null)
 
 if [[ -z "${SWA_PRIVATE_IP}" ]]; then
   log_error "Could not retrieve private IP for SWA private endpoint"
+  log_error "Ensure DNS zone group is configured on the private endpoint"
+  log_error ""
+  log_error "Check DNS zone group:"
+  log_error "  az network private-endpoint dns-zone-group show \\"
+  log_error "    --name default \\"
+  log_error "    --endpoint-name ${PE_NAME} \\"
+  log_error "    --resource-group ${RESOURCE_GROUP}"
   exit 1
 fi
 
