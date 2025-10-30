@@ -26,6 +26,9 @@
 
 set -euo pipefail
 
+# Script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Colors for output
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
@@ -161,74 +164,11 @@ detect_custom_domain() {
   export CUSTOM_DOMAIN
 }
 
-# Detect or create Key Vault (idempotent)
-setup_key_vault() {
-  log_step "Setting up Key Vault..."
-
-  # Count Key Vaults in resource group
-  KV_COUNT=$(az keyvault list \
-    --resource-group "${RESOURCE_GROUP}" \
-    --query "length(@)" -o tsv 2>/dev/null || echo "0")
-
-  if [[ "${KV_COUNT}" -eq 1 ]]; then
-    KEY_VAULT_NAME=$(az keyvault list \
-      --resource-group "${RESOURCE_GROUP}" \
-      --query "[0].name" -o tsv)
-    log_info "Found existing Key Vault: ${KEY_VAULT_NAME}"
-
-  elif [[ "${KV_COUNT}" -gt 1 ]]; then
-    if [[ -z "${KEY_VAULT_NAME:-}" ]]; then
-      log_error "Multiple Key Vaults found in ${RESOURCE_GROUP}"
-      log_error "Specify which one to use: KEY_VAULT_NAME='kv-name' $0"
-      az keyvault list \
-        --resource-group "${RESOURCE_GROUP}" \
-        --query "[].[name, properties.provisioningState]" -o table
-      exit 1
-    fi
-    log_info "Using specified Key Vault: ${KEY_VAULT_NAME}"
-
-  else
-    # Create new Key Vault with unique name
-    KV_SUFFIX=$(openssl rand -hex 2)  # 4 hex chars
-    KEY_VAULT_NAME="kv-subnet-calc-${KV_SUFFIX}"
-
-    log_info "Creating Key Vault: ${KEY_VAULT_NAME}..."
-    if az keyvault create \
-      --name "${KEY_VAULT_NAME}" \
-      --resource-group "${RESOURCE_GROUP}" \
-      --location "${LOCATION}" \
-      --enable-rbac-authorization true \
-      --sku standard \
-      --output none; then
-      log_info "Key Vault created successfully"
-    else
-      log_error "Failed to create Key Vault"
-      exit 1
-    fi
-  fi
-
-  # Verify Key Vault is accessible
-  if ! az keyvault show --name "${KEY_VAULT_NAME}" &>/dev/null; then
-    log_error "Key Vault '${KEY_VAULT_NAME}' not accessible"
-    exit 1
-  fi
-
-  # Get Key Vault resource ID for RBAC
-  KEY_VAULT_ID=$(az keyvault show \
-    --name "${KEY_VAULT_NAME}" \
-    --query "id" -o tsv)
-
-  log_info "Key Vault ready: ${KEY_VAULT_NAME}"
-
-  export KEY_VAULT_NAME
-  export KEY_VAULT_ID
-}
-
 # Generate self-signed certificate and upload to Key Vault (idempotent)
 generate_and_upload_certificate() {
   log_step "Setting up SSL certificate..."
 
-  readonly CERT_SECRET_NAME="appgw-ssl-cert"
+  readonly CERT_SECRET_NAME="${APPGW_NAME}-ssl-cert"
 
   # Check if certificate already exists
   SKIP_CERT_GENERATION=false
@@ -300,37 +240,20 @@ generate_and_upload_certificate() {
     exit 1
   fi
 
-  # Encode PFX as base64
-  log_info "Uploading certificate to Key Vault..."
+  # Upload to Key Vault as a certificate (not a secret)
+  log_info "Importing certificate to Key Vault..."
 
-  # Detect OS for base64 encoding
-  if [[ "$(uname)" == "Darwin" ]]; then
-    # macOS (no -w flag)
-    CERT_BASE64=$(base64 -i "${TEMP_CERT_DIR}/certificate.pfx")
-  else
-    # Linux (-w 0 for no line wrapping)
-    CERT_BASE64=$(base64 -w 0 "${TEMP_CERT_DIR}/certificate.pfx")
-  fi
-
-  # Create JSON secret value (AppGW expects this format)
-  CERT_JSON=$(cat <<EOF
-{
-  "data": "${CERT_BASE64}",
-  "password": "${CERT_PASSWORD}"
-}
-EOF
-)
-
-  # Upload to Key Vault
-  if az keyvault secret set \
+  # Note: Import as Key Vault certificate (not secret) for Application Gateway
+  # Key Vault manages the certificate and password, allowing AppGW to access it
+  if az keyvault certificate import \
     --vault-name "${KEY_VAULT_NAME}" \
     --name "${CERT_SECRET_NAME}" \
-    --value "${CERT_JSON}" \
-    --content-type "application/x-pkcs12" \
+    --file "${TEMP_CERT_DIR}/certificate.pfx" \
+    --password "${CERT_PASSWORD}" \
     --output none; then
-    log_info "Certificate uploaded successfully to Key Vault"
+    log_info "Certificate imported successfully to Key Vault"
   else
-    log_error "Failed to upload certificate to Key Vault"
+    log_error "Failed to import certificate to Key Vault"
     exit 1
   fi
 
@@ -339,41 +262,37 @@ EOF
   export CERT_EXPIRATION
 }
 
-# Enable managed identity and grant Key Vault access (idempotent)
+# Assign user-assigned managed identity to AppGW and grant Key Vault access (idempotent)
 configure_managed_identity() {
   log_step "Configuring managed identity for Application Gateway..."
 
-  # Check if system-assigned identity already enabled
-  IDENTITY_PRINCIPAL_ID=$(az network application-gateway show \
+  # Check if user-assigned identity already assigned to AppGW
+  CURRENT_IDENTITY=$(az network application-gateway show \
     --name "${APPGW_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
-    --query "identity.principalId" -o tsv 2>/dev/null || echo "")
+    --query "identity.userAssignedIdentities" -o json 2>/dev/null || echo "{}")
 
-  if [[ -z "${IDENTITY_PRINCIPAL_ID}" ]] || [[ "${IDENTITY_PRINCIPAL_ID}" == "null" ]]; then
-    log_info "Enabling system-assigned managed identity..."
+  if echo "${CURRENT_IDENTITY}" | jq -e ".[\"${MANAGED_IDENTITY_ID}\"]" &>/dev/null; then
+    log_info "User-assigned identity already assigned to Application Gateway"
+  else
+    log_info "Assigning user-assigned managed identity to Application Gateway..."
 
     if ! az network application-gateway identity assign \
       --gateway-name "${APPGW_NAME}" \
       --resource-group "${RESOURCE_GROUP}" \
+      --identity "${MANAGED_IDENTITY_ID}" \
       --output none; then
-      log_error "Failed to enable managed identity"
+      log_error "Failed to assign managed identity to Application Gateway"
       exit 1
     fi
 
-    # Retrieve identity principal ID
-    IDENTITY_PRINCIPAL_ID=$(az network application-gateway show \
-      --name "${APPGW_NAME}" \
-      --resource-group "${RESOURCE_GROUP}" \
-      --query "identity.principalId" -o tsv)
-
-    log_info "Managed identity enabled: ${IDENTITY_PRINCIPAL_ID}"
-  else
-    log_info "Managed identity already enabled: ${IDENTITY_PRINCIPAL_ID}"
+    log_info "Managed identity assigned: ${MANAGED_IDENTITY_NAME}"
+    log_info "Principal ID: ${MANAGED_IDENTITY_PRINCIPAL_ID}"
   fi
 
   # Check if RBAC role assignment already exists
   EXISTING_ROLE=$(az role assignment list \
-    --assignee "${IDENTITY_PRINCIPAL_ID}" \
+    --assignee "${MANAGED_IDENTITY_PRINCIPAL_ID}" \
     --role "Key Vault Secrets User" \
     --scope "${KEY_VAULT_ID}" \
     --query "[0].id" -o tsv 2>/dev/null || echo "")
@@ -384,7 +303,7 @@ configure_managed_identity() {
     log_info "Assigning 'Key Vault Secrets User' role to managed identity..."
 
     if ! az role assignment create \
-      --assignee "${IDENTITY_PRINCIPAL_ID}" \
+      --assignee "${MANAGED_IDENTITY_PRINCIPAL_ID}" \
       --role "Key Vault Secrets User" \
       --scope "${KEY_VAULT_ID}" \
       --output none; then
@@ -446,7 +365,7 @@ configure_https_listener() {
   log_info "Retrieving certificate secret ID..."
   SECRET_ID=$(az keyvault secret show \
     --vault-name "${KEY_VAULT_NAME}" \
-    --name "appgw-ssl-cert" \
+    --name "${APPGW_NAME}-ssl-cert" \
     --query "id" -o tsv)
 
   if [[ -z "${SECRET_ID}" ]]; then
@@ -505,7 +424,7 @@ configure_https_listener() {
   if ! az network application-gateway ssl-cert create \
     --gateway-name "${APPGW_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
-    --name "appgw-ssl-cert" \
+    --name "${APPGW_NAME}-ssl-cert" \
     --key-vault-secret-id "${SECRET_ID}" \
     --output none; then
     log_error "Failed to add SSL certificate - rolling back..."
@@ -529,7 +448,7 @@ configure_https_listener() {
     --name "appGatewayHttpsListener" \
     --frontend-port "appGatewayHttpsPort" \
     --frontend-ip "appGatewayFrontendIP" \
-    --ssl-cert "appgw-ssl-cert" \
+    --ssl-cert "${APPGW_NAME}-ssl-cert" \
     --output none; then
     log_error "Failed to create HTTPS listener - rolling back..."
 
@@ -537,7 +456,7 @@ configure_https_listener() {
     az network application-gateway ssl-cert delete \
       --gateway-name "${APPGW_NAME}" \
       --resource-group "${RESOURCE_GROUP}" \
-      --name "appgw-ssl-cert" \
+      --name "${APPGW_NAME}-ssl-cert" \
       --output none 2>/dev/null || true
 
     az network application-gateway frontend-port delete \
@@ -676,7 +595,17 @@ main() {
 
   detect_application_gateway
   detect_custom_domain
-  setup_key_vault
+
+  # Setup Key Vault (script 51)
+  source "${SCRIPT_DIR}/51-setup-key-vault.sh"
+  # KEY_VAULT_NAME and KEY_VAULT_ID now available from export
+
+  # Setup User-Assigned Managed Identity (script 53)
+  MANAGED_IDENTITY_NAME="id-${APPGW_NAME}"
+  export MANAGED_IDENTITY_NAME
+  source "${SCRIPT_DIR}/53-setup-managed-identity.sh"
+  # MANAGED_IDENTITY_ID, MANAGED_IDENTITY_PRINCIPAL_ID, MANAGED_IDENTITY_CLIENT_ID now available
+
   generate_and_upload_certificate
   configure_managed_identity
   configure_https_listener

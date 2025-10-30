@@ -244,7 +244,15 @@
       "Bash(SWA_NAME=swa-subnet-calc-entraid-linked )",
       "Bash(RESOURCE_GROUP=rg-subnet-calc )",
       "Bash(./64-verify-entraid-setup.sh)",
-      "Bash(az ad user show --id fa242336-854e-45f9-9337-6ccba6a6500d --query \"{id: id, displayName: displayName, userPrincipalName: userPrincipalName, accountEnabled: accountEnabled}\")"
+      "Bash(az ad user show --id fa242336-854e-45f9-9337-6ccba6a6500d --query \"{id: id, displayName: displayName, userPrincipalName: userPrincipalName, accountEnabled: accountEnabled}\")",
+      "Skill(superpowers:brainstorming)",
+      "Bash(az network private-endpoint list:*)",
+      "Bash(az network private-endpoint show:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git commit:*)",
+      "Bash(git log:*)",
+      "Bash(STATIC_WEB_APP_NAME=\"swa-subnet-calc-private-endpoint\" CUSTOM_DOMAIN=\"static-swa-private-endpoint.publiccloudexperiments.net\" KEY_VAULT_NAME=\"kv-subnet-calc-098c\" ./subnet-calculator/infrastructure/azure/52-setup-app-registration.sh:*)",
+      "Bash(az keyvault secret show:*)"
     ],
     "deny": [],
     "ask": []

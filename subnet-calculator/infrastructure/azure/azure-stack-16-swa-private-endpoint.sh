@@ -57,17 +57,31 @@
 #   - https://static-swa-private-endpoint.publiccloudexperiments.net/.auth/login/aad/callback
 #
 # Usage:
-#   AZURE_CLIENT_ID="xxx" AZURE_CLIENT_SECRET="xxx" ./azure-stack-16-swa-private-endpoint.sh
+#   # Fully automated (creates everything)
+#   ./azure-stack-16-swa-private-endpoint.sh
 #
-# Environment variables (required):
+#   # With existing app registration
+#   AZURE_CLIENT_ID="xxx" ./azure-stack-16-swa-private-endpoint.sh
+#
+#   # With explicit Key Vault
+#   KEY_VAULT_NAME="kv-subnet-calc-abcd" ./azure-stack-16-swa-private-endpoint.sh
+#
+#   # CI/CD mode (no interactive prompts)
+#   AUTO_APPROVE=1 ./azure-stack-16-swa-private-endpoint.sh
+#
+# Environment variables (optional - all auto-created if not provided):
 #   AZURE_CLIENT_ID      - Entra ID app registration client ID
-#   AZURE_CLIENT_SECRET  - Entra ID app registration secret
-#
-# Environment variables (optional):
+#   KEY_VAULT_NAME       - Key Vault name (auto-created if not exists)
 #   RESOURCE_GROUP       - Azure resource group (auto-detected if not set)
 #   LOCATION             - Azure region (default: uksouth)
 #   CUSTOM_DOMAIN        - SWA custom domain (default: static-swa-private-endpoint.publiccloudexperiments.net)
 #   APP_SERVICE_PLAN_SKU - Plan SKU (default: S1, options: S1, P0V3)
+#   AUTO_APPROVE         - Skip interactive prompts for CI/CD (default: not set)
+#
+# IMPORTANT CHANGES:
+#   • AZURE_CLIENT_SECRET no longer required! Retrieved from Key Vault automatically.
+#   • Script can create app registration automatically if AZURE_CLIENT_ID not provided.
+#   • Key Vault created early (Step 0) and used for all secrets.
 
 set -euo pipefail
 
@@ -105,15 +119,8 @@ readonly SUBNET_PE_NAME="${SUBNET_PE_NAME:-snet-private-endpoints}"
 readonly SUBNET_PE_PREFIX="${SUBNET_PE_PREFIX:-10.100.0.16/28}"
 readonly STATIC_WEB_APP_SKU="Standard"  # Required for Entra ID
 
-# Validate required environment variables
-if [[ -z "${AZURE_CLIENT_ID:-}" ]] || [[ -z "${AZURE_CLIENT_SECRET:-}" ]]; then
-  log_error "AZURE_CLIENT_ID and AZURE_CLIENT_SECRET are required"
-  log_error "Usage: AZURE_CLIENT_ID=xxx AZURE_CLIENT_SECRET=xxx $0"
-  exit 1
-fi
-
-readonly AZURE_CLIENT_ID
-readonly AZURE_CLIENT_SECRET
+# AZURE_CLIENT_ID is optional - will be created by script 52 if not provided
+AZURE_CLIENT_ID="${AZURE_CLIENT_ID:-}"
 
 # Map region to SWA-compatible region
 REQUESTED_LOCATION="${LOCATION:-uksouth}"
@@ -152,7 +159,7 @@ esac
 echo ""
 log_info "========================================="
 log_info "Stack 3: Private Endpoint + Entra ID"
-log_info "HIGH SECURITY SETUP"
+log_info "HIGH SECURITY SETUP (12 steps)"
 log_info "========================================="
 log_info ""
 log_info "Architecture:"
@@ -208,8 +215,78 @@ export RESOURCE_GROUP
 log_info "Using resource group: ${RESOURCE_GROUP}"
 echo ""
 
+# Step 0: Setup Key Vault
+log_step "Step 0/12: Setting up Key Vault..."
+echo ""
+
+export RESOURCE_GROUP
+export LOCATION="${REQUESTED_LOCATION}" # Use original location, not SWA_LOCATION
+
+source "${SCRIPT_DIR}/51-setup-key-vault.sh"
+
+log_info "Key Vault ready: ${KEY_VAULT_NAME}"
+echo ""
+
+# Step 0.5: Setup App Registration
+log_step "Step 0.5/12: Setting up Entra ID App Registration..."
+echo ""
+
+if [[ -z "${AZURE_CLIENT_ID:-}" ]]; then
+  log_info "No AZURE_CLIENT_ID provided"
+  log_info "Script can automatically:"
+  log_info " • Create Entra ID app registration"
+  log_info " • Configure redirect URIs for custom domain"
+  log_info " • Generate and store client secret in Key Vault"
+  log_info ""
+
+  # Allow skipping prompt in CI/CD or automation
+  if [[ -n "${AUTO_APPROVE:-}" ]]; then
+    log_info "AUTO_APPROVE set: proceeding without interactive prompt"
+    REPLY="Y"
+  else
+    read -p "Create app registration automatically? (Y/n) " -n 1 -r
+    echo
+  fi
+
+  if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+    export STATIC_WEB_APP_NAME
+    export CUSTOM_DOMAIN
+    export KEY_VAULT_NAME
+
+    source "${SCRIPT_DIR}/52-setup-app-registration.sh"
+
+    log_info "App registration created: ${AZURE_CLIENT_ID}"
+    log_info "Secret stored in Key Vault as: ${STATIC_WEB_APP_NAME}-client-secret"
+  else
+    log_error "App registration required to continue"
+    log_error ""
+    log_error "Options:"
+    log_error " 1. Re-run with AZURE_CLIENT_ID=xxx"
+    log_error " 2. Run script 52 manually:"
+    log_error "    STATIC_WEB_APP_NAME=\"${STATIC_WEB_APP_NAME}\" \\"
+    log_error "    CUSTOM_DOMAIN=\"${CUSTOM_DOMAIN}\" \\"
+    log_error "    KEY_VAULT_NAME=\"${KEY_VAULT_NAME}\" \\"
+    log_error "    ./52-setup-app-registration.sh"
+    exit 1
+  fi
+else
+  log_info "Using provided AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}"
+  log_info "Validating app registration and ensuring secret in Key Vault..."
+
+  export STATIC_WEB_APP_NAME
+  export CUSTOM_DOMAIN
+  export KEY_VAULT_NAME
+  export AZURE_CLIENT_ID
+
+  source "${SCRIPT_DIR}/52-setup-app-registration.sh"
+
+  log_info "App registration validated"
+fi
+
+echo ""
+
 # Step 1: Create VNet Infrastructure
-log_step "Step 1/10: Creating VNet infrastructure..."
+log_step "Step 1/12: Creating VNet infrastructure..."
 echo ""
 
 export VNET_NAME
@@ -226,7 +303,7 @@ log_info "VNet infrastructure created"
 echo ""
 
 # Step 2: Create App Service Plan
-log_step "Step 2/10: Creating App Service Plan (${APP_SERVICE_PLAN_SKU})..."
+log_step "Step 2/12: Creating App Service Plan (${APP_SERVICE_PLAN_SKU})..."
 echo ""
 
 log_info "Creating ${APP_SERVICE_PLAN_SKU} App Service Plan for private endpoint support..."
@@ -239,7 +316,7 @@ log_info "App Service Plan created"
 echo ""
 
 # Step 3: Create Function App on App Service Plan
-log_step "Step 3/10: Creating Function App on App Service Plan..."
+log_step "Step 3/12: Creating Function App on App Service Plan..."
 echo ""
 
 # Check if Function App was newly created or already existed
@@ -289,7 +366,7 @@ log_info "Function App configured"
 echo ""
 
 # Step 4: Enable VNet Integration
-log_step "Step 4/10: Enabling VNet integration on Function App..."
+log_step "Step 4/12: Enabling VNet integration on Function App..."
 echo ""
 
 export FUNCTION_APP_NAME
@@ -302,7 +379,7 @@ log_info "VNet integration enabled"
 echo ""
 
 # Step 5: Deploy Function API
-log_step "Step 5/10: Deploying Function API..."
+log_step "Step 5/12: Deploying Function API..."
 echo ""
 
 # If Function App already existed, ask if user wants to redeploy
@@ -328,7 +405,7 @@ fi
 echo ""
 
 # Step 6: Create Private Endpoint for Function App
-log_step "Step 6/10: Creating private endpoint for Function App..."
+log_step "Step 6/12: Creating private endpoint for Function App..."
 echo ""
 
 export FUNCTION_APP_NAME
@@ -342,7 +419,7 @@ log_info "Function App is now accessible ONLY via private network"
 echo ""
 
 # Step 7: Create Static Web App
-log_step "Step 7/11: Creating Azure Static Web App..."
+log_step "Step 7/12: Creating Azure Static Web App..."
 echo ""
 
 export STATIC_WEB_APP_NAME
@@ -363,7 +440,7 @@ log_info "Static Web App created: https://${SWA_URL}"
 echo ""
 
 # Step 8: Create Private Endpoint for Static Web App
-log_step "Step 8/11: Creating private endpoint for Static Web App..."
+log_step "Step 8/12: Creating private endpoint for Static Web App..."
 echo ""
 
 export STATIC_WEB_APP_NAME
@@ -377,7 +454,7 @@ log_info "SWA is now accessible ONLY via private network"
 echo ""
 
 # Step 9: Link Function App to SWA
-log_step "Step 9/11: Linking Function App to SWA..."
+log_step "Step 9/12: Linking Function App to SWA..."
 echo ""
 
 FUNC_RESOURCE_ID=$(az functionapp show \
@@ -397,7 +474,7 @@ log_info "Function App linked to SWA"
 echo ""
 
 # Step 10: Configure Custom Domain and Disable Default Hostname
-log_step "Step 10/11: Configuring custom domain..."
+log_step "Step 10/12: Configuring custom domain..."
 echo ""
 
 log_info "Custom domain: ${CUSTOM_DOMAIN}"
@@ -439,7 +516,7 @@ fi
 echo ""
 
 # Step 11: Update Entra ID and Deploy Frontend
-log_step "Step 11/11: Updating Entra ID and deploying frontend..."
+log_step "Step 11/12: Updating Entra ID and deploying frontend..."
 echo ""
 
 log_info "Adding redirect URI (custom domain ONLY)..."
@@ -494,7 +571,8 @@ echo ""
 # Configure Entra ID on SWA
 export STATIC_WEB_APP_NAME
 export AZURE_CLIENT_ID
-export AZURE_CLIENT_SECRET
+export KEY_VAULT_NAME # NEW: Pass to script 42 for secret retrieval
+# Do NOT export AZURE_CLIENT_SECRET - script 42 retrieves from Key Vault
 
 "${SCRIPT_DIR}/42-configure-entraid-swa.sh"
 
