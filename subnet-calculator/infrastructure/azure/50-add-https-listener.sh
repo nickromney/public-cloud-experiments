@@ -26,6 +26,9 @@
 
 set -euo pipefail
 
+# Script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Colors for output
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
@@ -159,69 +162,6 @@ detect_custom_domain() {
 
   log_info "Auto-detected custom domain: ${CUSTOM_DOMAIN}"
   export CUSTOM_DOMAIN
-}
-
-# Detect or create Key Vault (idempotent)
-setup_key_vault() {
-  log_step "Setting up Key Vault..."
-
-  # Count Key Vaults in resource group
-  KV_COUNT=$(az keyvault list \
-    --resource-group "${RESOURCE_GROUP}" \
-    --query "length(@)" -o tsv 2>/dev/null || echo "0")
-
-  if [[ "${KV_COUNT}" -eq 1 ]]; then
-    KEY_VAULT_NAME=$(az keyvault list \
-      --resource-group "${RESOURCE_GROUP}" \
-      --query "[0].name" -o tsv)
-    log_info "Found existing Key Vault: ${KEY_VAULT_NAME}"
-
-  elif [[ "${KV_COUNT}" -gt 1 ]]; then
-    if [[ -z "${KEY_VAULT_NAME:-}" ]]; then
-      log_error "Multiple Key Vaults found in ${RESOURCE_GROUP}"
-      log_error "Specify which one to use: KEY_VAULT_NAME='kv-name' $0"
-      az keyvault list \
-        --resource-group "${RESOURCE_GROUP}" \
-        --query "[].[name, properties.provisioningState]" -o table
-      exit 1
-    fi
-    log_info "Using specified Key Vault: ${KEY_VAULT_NAME}"
-
-  else
-    # Create new Key Vault with unique name
-    KV_SUFFIX=$(openssl rand -hex 2)  # 4 hex chars
-    KEY_VAULT_NAME="kv-subnet-calc-${KV_SUFFIX}"
-
-    log_info "Creating Key Vault: ${KEY_VAULT_NAME}..."
-    if az keyvault create \
-      --name "${KEY_VAULT_NAME}" \
-      --resource-group "${RESOURCE_GROUP}" \
-      --location "${LOCATION}" \
-      --enable-rbac-authorization true \
-      --sku standard \
-      --output none; then
-      log_info "Key Vault created successfully"
-    else
-      log_error "Failed to create Key Vault"
-      exit 1
-    fi
-  fi
-
-  # Verify Key Vault is accessible
-  if ! az keyvault show --name "${KEY_VAULT_NAME}" &>/dev/null; then
-    log_error "Key Vault '${KEY_VAULT_NAME}' not accessible"
-    exit 1
-  fi
-
-  # Get Key Vault resource ID for RBAC
-  KEY_VAULT_ID=$(az keyvault show \
-    --name "${KEY_VAULT_NAME}" \
-    --query "id" -o tsv)
-
-  log_info "Key Vault ready: ${KEY_VAULT_NAME}"
-
-  export KEY_VAULT_NAME
-  export KEY_VAULT_ID
 }
 
 # Generate self-signed certificate and upload to Key Vault (idempotent)
@@ -676,7 +616,11 @@ main() {
 
   detect_application_gateway
   detect_custom_domain
-  setup_key_vault
+
+  # Setup Key Vault (script 51)
+  "${SCRIPT_DIR}/51-setup-key-vault.sh"
+  # KEY_VAULT_NAME and KEY_VAULT_ID now available from export
+
   generate_and_upload_certificate
   configure_managed_identity
   configure_https_listener
