@@ -411,9 +411,12 @@ log_info "  4. Wait for you to configure DNS"
 log_info ""
 
 export CUSTOM_DOMAIN
-"${SCRIPT_DIR}/41-configure-custom-domain-swa.sh"
-
-log_info "Custom domain configured"
+if "${SCRIPT_DIR}/41-configure-custom-domain-swa.sh"; then
+  log_info "Custom domain configured successfully"
+else
+  log_warn "Custom domain configuration incomplete or validation pending"
+  log_info "Continuing with remaining steps..."
+fi
 echo ""
 
 # Disable default azurestaticapps.net hostname

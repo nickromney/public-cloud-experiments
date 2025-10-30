@@ -160,9 +160,10 @@ log_warn "  ✗ https://${DEFAULT_HOSTNAME} will no longer be accessible"
 log_warn "  ✓ Custom domain(s) will remain active"
 log_warn "  ✓ This change is reversible (can be re-enabled later)"
 log_warn ""
-read -r -p "Continue? (yes/no): " CONFIRM
+read -r -p "Continue? (Y/n): " CONFIRM
+CONFIRM=${CONFIRM:-Y}
 
-if [[ "${CONFIRM}" != "yes" ]]; then
+if [[ ! "${CONFIRM}" =~ ^[Yy]$ ]]; then
   log_info "Operation cancelled"
   exit 0
 fi

@@ -129,6 +129,7 @@ if az staticwebapp hostname show \
       --resource-group "${RESOURCE_GROUP}" \
       --hostname "${CUSTOM_DOMAIN}" \
       --validation-method dns-txt-token \
+      --no-wait \
       --output none
 
     log_info "✓ ${CUSTOM_DOMAIN} set as default domain"
@@ -154,6 +155,7 @@ az staticwebapp hostname set \
   --resource-group "${RESOURCE_GROUP}" \
   --hostname "${CUSTOM_DOMAIN}" \
   --validation-method dns-txt-token \
+  --no-wait \
   --output none || {
     log_error "Failed to add custom domain"
     log_error "This may be because:"
@@ -297,6 +299,7 @@ if [[ "${SET_AS_DEFAULT}" == "true" ]]; then
     --resource-group "${RESOURCE_GROUP}" \
     --hostname "${CUSTOM_DOMAIN}" \
     --validation-method dns-txt-token \
+    --no-wait \
     --output none
 
   log_info "✓ ${CUSTOM_DOMAIN} set as default domain"
