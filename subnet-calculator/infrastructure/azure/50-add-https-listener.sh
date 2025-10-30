@@ -413,6 +413,25 @@ configure_https_listener() {
     log_warn "HTTPS listener already exists"
     log_info "Verifying configuration..."
 
+    # Validate HTTPS configuration
+    HTTPS_PORT=$(az network application-gateway http-listener show \
+      --gateway-name "${APPGW_NAME}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "appGatewayHttpsListener" \
+      --query "frontendPort.id" -o tsv 2>/dev/null | grep -o "appGatewayHttpsPort" || echo "")
+
+    HTTPS_PROTOCOL=$(az network application-gateway http-listener show \
+      --gateway-name "${APPGW_NAME}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "appGatewayHttpsListener" \
+      --query "protocol" -o tsv 2>/dev/null || echo "")
+
+    if [[ "${HTTPS_PORT}" != "appGatewayHttpsPort" ]] || [[ "${HTTPS_PROTOCOL}" != "Https" ]]; then
+      log_error "HTTPS listener exists but has invalid configuration"
+      log_error "Port: ${HTTPS_PORT}, Protocol: ${HTTPS_PROTOCOL}"
+      exit 1
+    fi
+
     az network application-gateway http-listener show \
       --gateway-name "${APPGW_NAME}" \
       --resource-group "${RESOURCE_GROUP}" \
@@ -430,83 +449,150 @@ configure_https_listener() {
     --name "appgw-ssl-cert" \
     --query "id" -o tsv)
 
+  if [[ -z "${SECRET_ID}" ]]; then
+    log_error "Failed to retrieve certificate secret ID from Key Vault"
+    exit 1
+  fi
+
   # Remove version from secret ID (enables automatic certificate rotation)
   # shellcheck disable=SC2001
   SECRET_ID=$(echo "${SECRET_ID}" | sed 's|/[^/]*$||')
 
   log_info "Certificate secret ID: ${SECRET_ID}"
 
-  # Step 1: Delete existing HTTP listener
-  log_info "Removing HTTP/80 listener..."
-
-  if az network application-gateway http-listener show \
+  # Detect routing rule name dynamically (do NOT hardcode "rule1")
+  log_info "Detecting routing rule..."
+  ROUTING_RULE_NAME=$(az network application-gateway rule list \
     --gateway-name "${APPGW_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
-    --name "appGatewayHttpListener" &>/dev/null; then
+    --query "[0].name" -o tsv)
 
-    az network application-gateway http-listener delete \
-      --gateway-name "${APPGW_NAME}" \
-      --resource-group "${RESOURCE_GROUP}" \
-      --name "appGatewayHttpListener" \
-      --output none 2>/dev/null || log_warn "HTTP listener already removed"
+  if [[ -z "${ROUTING_RULE_NAME}" ]]; then
+    log_error "Failed to detect routing rule name"
+    exit 1
   fi
 
-  # Step 2: Delete existing HTTP frontend port
-  log_info "Removing HTTP/80 frontend port..."
+  log_info "Found routing rule: ${ROUTING_RULE_NAME}"
 
-  if az network application-gateway frontend-port show \
-    --gateway-name "${APPGW_NAME}" \
-    --resource-group "${RESOURCE_GROUP}" \
-    --name "appGatewayFrontendPort" &>/dev/null; then
+  # CREATE-THEN-DELETE PATTERN (prevents outage if HTTPS creation fails)
+  # This is CRITICAL - we must have a working listener at all times
 
-    az network application-gateway frontend-port delete \
-      --gateway-name "${APPGW_NAME}" \
-      --resource-group "${RESOURCE_GROUP}" \
-      --name "appGatewayFrontendPort" \
-      --output none 2>/dev/null || log_warn "HTTP frontend port already removed"
-  fi
-
-  # Step 3: Create HTTPS frontend port (443)
+  # Step 1: Create HTTPS frontend port (443)
   log_info "Creating HTTPS/443 frontend port..."
 
-  az network application-gateway frontend-port create \
+  if ! az network application-gateway frontend-port create \
     --gateway-name "${APPGW_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
     --name "appGatewayHttpsPort" \
     --port 443 \
-    --output none
+    --output none; then
+    log_error "Failed to create HTTPS frontend port"
+    exit 1
+  fi
 
-  # Step 4: Create SSL certificate reference to Key Vault
+  # Step 2: Create SSL certificate reference to Key Vault
   log_info "Adding SSL certificate from Key Vault..."
 
-  az network application-gateway ssl-cert create \
+  if ! az network application-gateway ssl-cert create \
     --gateway-name "${APPGW_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
     --name "appgw-ssl-cert" \
     --key-vault-secret-id "${SECRET_ID}" \
-    --output none
+    --output none; then
+    log_error "Failed to add SSL certificate - rolling back..."
 
-  # Step 5: Create HTTPS listener
+    # Rollback: Remove HTTPS port
+    az network application-gateway frontend-port delete \
+      --gateway-name "${APPGW_NAME}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "appGatewayHttpsPort" \
+      --output none 2>/dev/null || true
+
+    exit 1
+  fi
+
+  # Step 3: Create HTTPS listener
   log_info "Creating HTTPS listener..."
 
-  az network application-gateway http-listener create \
+  if ! az network application-gateway http-listener create \
     --gateway-name "${APPGW_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
     --name "appGatewayHttpsListener" \
     --frontend-port "appGatewayHttpsPort" \
     --frontend-ip "appGatewayFrontendIP" \
     --ssl-cert "appgw-ssl-cert" \
-    --output none
+    --output none; then
+    log_error "Failed to create HTTPS listener - rolling back..."
 
-  # Step 6: Update routing rule to use HTTPS listener
-  log_info "Updating routing rule to use HTTPS listener..."
+    # Rollback: Remove SSL cert and HTTPS port
+    az network application-gateway ssl-cert delete \
+      --gateway-name "${APPGW_NAME}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "appgw-ssl-cert" \
+      --output none 2>/dev/null || true
 
-  az network application-gateway rule update \
+    az network application-gateway frontend-port delete \
+      --gateway-name "${APPGW_NAME}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "appGatewayHttpsPort" \
+      --output none 2>/dev/null || true
+
+    exit 1
+  fi
+
+  # Step 4: Update routing rule to use HTTPS listener (atomic switch)
+  log_info "Switching routing rule to HTTPS listener..."
+
+  if ! az network application-gateway rule update \
     --gateway-name "${APPGW_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
-    --name "rule1" \
+    --name "${ROUTING_RULE_NAME}" \
     --http-listener "appGatewayHttpsListener" \
-    --output none
+    --output none; then
+    log_error "Failed to update routing rule - HTTPS listener created but not active"
+    log_error "Manual intervention required - AppGW may still be using HTTP"
+    exit 1
+  fi
+
+  log_info "Routing rule updated - traffic now using HTTPS"
+
+  # Step 5: NOW it's safe to delete HTTP components (service is on HTTPS)
+  log_info "Removing old HTTP/80 listener..."
+
+  if az network application-gateway http-listener show \
+    --gateway-name "${APPGW_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --name "appGatewayHttpListener" &>/dev/null; then
+
+    if ! az network application-gateway http-listener delete \
+      --gateway-name "${APPGW_NAME}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "appGatewayHttpListener" \
+      --output none; then
+      log_warn "Failed to delete HTTP listener (non-critical - HTTPS is active)"
+    else
+      log_info "HTTP listener removed"
+    fi
+  fi
+
+  # Step 6: Delete old HTTP frontend port
+  log_info "Removing old HTTP/80 frontend port..."
+
+  if az network application-gateway frontend-port show \
+    --gateway-name "${APPGW_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --name "appGatewayFrontendPort" &>/dev/null; then
+
+    if ! az network application-gateway frontend-port delete \
+      --gateway-name "${APPGW_NAME}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --name "appGatewayFrontendPort" \
+      --output none; then
+      log_warn "Failed to delete HTTP frontend port (non-critical - HTTPS is active)"
+    else
+      log_info "HTTP frontend port removed"
+    fi
+  fi
 
   log_info "HTTPS listener configured successfully"
 }
