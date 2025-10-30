@@ -86,6 +86,81 @@ validate_environment() {
   log_info "Location: ${LOCATION}"
 }
 
+# Detect or validate Application Gateway
+detect_application_gateway() {
+  log_step "Detecting Application Gateway..."
+
+  if [[ -n "${APPGW_NAME:-}" ]]; then
+    log_info "Using specified Application Gateway: ${APPGW_NAME}"
+  else
+    # Count AppGWs in resource group
+    APPGW_COUNT=$(az network application-gateway list \
+      --resource-group "${RESOURCE_GROUP}" \
+      --query "length(@)" -o tsv 2>/dev/null || echo "0")
+
+    if [[ "${APPGW_COUNT}" -eq 0 ]]; then
+      log_error "No Application Gateway found in ${RESOURCE_GROUP}"
+      log_error "Create one first with script 49"
+      exit 1
+    elif [[ "${APPGW_COUNT}" -eq 1 ]]; then
+      APPGW_NAME=$(az network application-gateway list \
+        --resource-group "${RESOURCE_GROUP}" \
+        --query "[0].name" -o tsv)
+      log_info "Auto-detected Application Gateway: ${APPGW_NAME}"
+    else
+      log_error "Multiple Application Gateways found in ${RESOURCE_GROUP}"
+      log_error "Specify which one to use: APPGW_NAME='agw-name' $0"
+      az network application-gateway list \
+        --resource-group "${RESOURCE_GROUP}" \
+        --query "[].[name, provisioningState]" -o table
+      exit 1
+    fi
+  fi
+
+  # Verify AppGW exists and is running
+  APPGW_STATE=$(az network application-gateway show \
+    --name "${APPGW_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --query "provisioningState" -o tsv 2>/dev/null || echo "NotFound")
+
+  if [[ "${APPGW_STATE}" != "Succeeded" ]]; then
+    log_error "Application Gateway '${APPGW_NAME}' state: ${APPGW_STATE}"
+    log_error "Wait for provisioning to complete or check for errors"
+    exit 1
+  fi
+
+  log_info "Application Gateway is ready: ${APPGW_NAME}"
+
+  # Export for other functions
+  export APPGW_NAME
+}
+
+# Detect custom domain from AppGW configuration
+detect_custom_domain() {
+  log_step "Detecting custom domain..."
+
+  if [[ -n "${CUSTOM_DOMAIN:-}" ]]; then
+    log_info "Using specified custom domain: ${CUSTOM_DOMAIN}"
+    return
+  fi
+
+  # Try to get custom domain from HTTP settings host header
+  CUSTOM_DOMAIN=$(az network application-gateway http-settings show \
+    --gateway-name "${APPGW_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --name appGatewayBackendHttpSettings \
+    --query "hostName" -o tsv 2>/dev/null || echo "")
+
+  if [[ -z "${CUSTOM_DOMAIN}" ]]; then
+    log_error "Could not detect custom domain from Application Gateway"
+    log_error "Specify domain: CUSTOM_DOMAIN='your-domain.com' $0"
+    exit 1
+  fi
+
+  log_info "Auto-detected custom domain: ${CUSTOM_DOMAIN}"
+  export CUSTOM_DOMAIN
+}
+
 # Main execution
 main() {
   log_info "========================================="
@@ -98,7 +173,17 @@ main() {
 
   log_info ""
   log_info "Script initialized successfully"
-  log_info "Next: Detect Application Gateway..."
+  log_info ""
+
+  detect_application_gateway
+  detect_custom_domain
+
+  log_info ""
+  log_info "Configuration:"
+  log_info "  Application Gateway: ${APPGW_NAME}"
+  log_info "  Custom Domain: ${CUSTOM_DOMAIN}"
+  log_info "  Resource Group: ${RESOURCE_GROUP}"
+  log_info "  Location: ${LOCATION}"
 }
 
 main "$@"
