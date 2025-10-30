@@ -560,7 +560,8 @@ echo ""
 # Configure Entra ID on SWA
 export STATIC_WEB_APP_NAME
 export AZURE_CLIENT_ID
-export AZURE_CLIENT_SECRET
+export KEY_VAULT_NAME # NEW: Pass to script 42 for secret retrieval
+# Do NOT export AZURE_CLIENT_SECRET - script 42 retrieves from Key Vault
 
 "${SCRIPT_DIR}/42-configure-entraid-swa.sh"
 
