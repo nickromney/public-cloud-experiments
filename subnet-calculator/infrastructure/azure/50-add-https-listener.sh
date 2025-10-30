@@ -339,6 +339,67 @@ EOF
   export CERT_EXPIRATION
 }
 
+# Enable managed identity and grant Key Vault access (idempotent)
+configure_managed_identity() {
+  log_step "Configuring managed identity for Application Gateway..."
+
+  # Check if system-assigned identity already enabled
+  IDENTITY_PRINCIPAL_ID=$(az network application-gateway show \
+    --name "${APPGW_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --query "identity.principalId" -o tsv 2>/dev/null || echo "")
+
+  if [[ -z "${IDENTITY_PRINCIPAL_ID}" ]] || [[ "${IDENTITY_PRINCIPAL_ID}" == "null" ]]; then
+    log_info "Enabling system-assigned managed identity..."
+
+    if ! az network application-gateway identity assign \
+      --gateway-name "${APPGW_NAME}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --output none; then
+      log_error "Failed to enable managed identity"
+      exit 1
+    fi
+
+    # Retrieve identity principal ID
+    IDENTITY_PRINCIPAL_ID=$(az network application-gateway show \
+      --name "${APPGW_NAME}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --query "identity.principalId" -o tsv)
+
+    log_info "Managed identity enabled: ${IDENTITY_PRINCIPAL_ID}"
+  else
+    log_info "Managed identity already enabled: ${IDENTITY_PRINCIPAL_ID}"
+  fi
+
+  # Check if RBAC role assignment already exists
+  EXISTING_ROLE=$(az role assignment list \
+    --assignee "${IDENTITY_PRINCIPAL_ID}" \
+    --role "Key Vault Secrets User" \
+    --scope "${KEY_VAULT_ID}" \
+    --query "[0].id" -o tsv 2>/dev/null || echo "")
+
+  if [[ -n "${EXISTING_ROLE}" ]]; then
+    log_info "RBAC role assignment already exists"
+  else
+    log_info "Assigning 'Key Vault Secrets User' role to managed identity..."
+
+    if ! az role assignment create \
+      --assignee "${IDENTITY_PRINCIPAL_ID}" \
+      --role "Key Vault Secrets User" \
+      --scope "${KEY_VAULT_ID}" \
+      --output none; then
+      log_error "Failed to assign RBAC role"
+      exit 1
+    fi
+
+    log_info "RBAC role assigned successfully"
+    log_info "Waiting 30 seconds for RBAC propagation..."
+    sleep 30
+  fi
+
+  log_info "Managed identity configuration complete"
+}
+
 # Main execution
 main() {
   log_info "========================================="
@@ -357,6 +418,7 @@ main() {
   detect_custom_domain
   setup_key_vault
   generate_and_upload_certificate
+  configure_managed_identity
 
   log_info ""
   log_info "Configuration:"
