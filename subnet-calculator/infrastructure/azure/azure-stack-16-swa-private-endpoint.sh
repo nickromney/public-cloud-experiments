@@ -568,6 +568,10 @@ else
     # Call the Application Gateway creation script
     "${SCRIPT_DIR}/49-create-application-gateway.sh"
 
+    # Add HTTPS listener (script 50)
+    log_info "Adding HTTPS listener to Application Gateway..."
+    "${SCRIPT_DIR}/50-add-https-listener.sh"
+
     APPGW_EXISTS=true
 
     # Get public IP for summary
