@@ -277,9 +277,10 @@ log_info ""
 
 START_TIME=$(date +%s)
 
-# Create APIM instance without VNet first
-# Note: Azure CLI doesn't support VNet subnet configuration in create command
-log_info "Creating APIM instance (without VNet)..."
+# Create APIM instance with VNet type specified
+# Note: VNet type (External/Internal) is set at creation
+#       Subnet configuration will be applied via REST API after provisioning
+log_info "Creating APIM instance with VNet type: ${APIM_VNET_MODE}..."
 az apim create \
   --name "${APIM_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
@@ -287,6 +288,7 @@ az apim create \
   --publisher-email "${PUBLISHER_EMAIL}" \
   --publisher-name "${PUBLISHER_NAME}" \
   --sku-name "${APIM_SKU}" \
+  --virtual-network "${APIM_VNET_MODE}" \
   --no-wait \
   --output none
 
@@ -328,22 +330,22 @@ if [[ ${ELAPSED} -ge ${TIMEOUT} ]]; then
   exit 1
 fi
 
-# Apply VNet configuration using REST API
-log_info "Applying VNet configuration (${APIM_VNET_MODE} mode)..."
+# Apply VNet subnet configuration using REST API
+# Note: VNet type is already set at creation, we're only configuring the subnet here
+log_info "Applying VNet subnet configuration (${APIM_VNET_MODE} mode)..."
 
 az rest \
   --method PATCH \
   --uri "${APIM_ID}?api-version=2023-05-01-preview" \
   --body "{
     \"properties\": {
-      \"virtualNetworkType\": \"${APIM_VNET_MODE}\",
       \"virtualNetworkConfiguration\": {
         \"subnetResourceId\": \"${SUBNET_ID}\"
       }
     }
   }"
 
-log_info "VNet configuration applied. APIM will update in background (~10-15 min)"
+log_info "VNet subnet configuration applied. APIM will update in background (~10-15 min)"
 log_info "Waiting for provisioning to complete..."
 
 # Poll for completion
