@@ -316,7 +316,7 @@ az network application-gateway create \
   --resource-group "${RESOURCE_GROUP}" \
   --location "${LOCATION}" \
   --sku "${APPGW_SKU}" \
-  --capacity 2 \
+  --capacity 1 `# Minimum capacity for v2 (cost optimization: ~$214/month)` \
   --vnet-name "${VNET_NAME}" \
   --subnet "${APPGW_SUBNET_NAME}" \
   --public-ip-address "${PUBLIC_IP_NAME}" \
