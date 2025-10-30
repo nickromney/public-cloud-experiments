@@ -66,6 +66,9 @@
 #   # With explicit Key Vault
 #   KEY_VAULT_NAME="kv-subnet-calc-abcd" ./azure-stack-16-swa-private-endpoint.sh
 #
+#   # CI/CD mode (no interactive prompts)
+#   AUTO_APPROVE=1 ./azure-stack-16-swa-private-endpoint.sh
+#
 # Environment variables (optional - all auto-created if not provided):
 #   AZURE_CLIENT_ID      - Entra ID app registration client ID
 #   KEY_VAULT_NAME       - Key Vault name (auto-created if not exists)
@@ -73,6 +76,7 @@
 #   LOCATION             - Azure region (default: uksouth)
 #   CUSTOM_DOMAIN        - SWA custom domain (default: static-swa-private-endpoint.publiccloudexperiments.net)
 #   APP_SERVICE_PLAN_SKU - Plan SKU (default: S1, options: S1, P0V3)
+#   AUTO_APPROVE         - Skip interactive prompts for CI/CD (default: not set)
 #
 # IMPORTANT CHANGES:
 #   • AZURE_CLIENT_SECRET no longer required! Retrieved from Key Vault automatically.
@@ -234,8 +238,15 @@ if [[ -z "${AZURE_CLIENT_ID:-}" ]]; then
   log_info " • Configure redirect URIs for custom domain"
   log_info " • Generate and store client secret in Key Vault"
   log_info ""
-  read -p "Create app registration automatically? (Y/n) " -n 1 -r
-  echo
+
+  # Allow skipping prompt in CI/CD or automation
+  if [[ -n "${AUTO_APPROVE:-}" ]]; then
+    log_info "AUTO_APPROVE set: proceeding without interactive prompt"
+    REPLY="Y"
+  else
+    read -p "Create app registration automatically? (Y/n) " -n 1 -r
+    echo
+  fi
 
   if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     export STATIC_WEB_APP_NAME

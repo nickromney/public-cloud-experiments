@@ -130,8 +130,8 @@ else
   else
     log_info "Creating new app registration: ${APP_DISPLAY_NAME}"
 
-    # Build redirect URIs JSON array
-    REDIRECT_URIS_JSON=$(printf '"%s",' "${REDIRECT_URIS[@]}" | sed 's/,$//')
+    # Build redirect URIs JSON array (safe JSON encoding with jq)
+    REDIRECT_URIS_JSON=$(printf '%s\n' "${REDIRECT_URIS[@]}" | jq -R . | jq -s -c .)
 
     # Create app registration via Graph API
     CREATE_RESULT=$(az rest --method POST \
@@ -158,7 +158,7 @@ fi
 
 # Update redirect URIs (in case they changed)
 log_info "Updating redirect URIs..."
-REDIRECT_URIS_JSON=$(printf '"%s",' "${REDIRECT_URIS[@]}" | sed 's/,$//')
+REDIRECT_URIS_JSON=$(printf '%s\n' "${REDIRECT_URIS[@]}" | jq -R . | jq -s -c .)
 
 az rest --method PATCH \
   --uri "https://graph.microsoft.com/v1.0/applications/${APP_OBJECT_ID}" \
