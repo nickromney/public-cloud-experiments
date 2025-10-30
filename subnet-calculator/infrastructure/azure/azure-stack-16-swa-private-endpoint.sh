@@ -155,7 +155,7 @@ esac
 echo ""
 log_info "========================================="
 log_info "Stack 3: Private Endpoint + Entra ID"
-log_info "HIGH SECURITY SETUP"
+log_info "HIGH SECURITY SETUP (12 steps)"
 log_info "========================================="
 log_info ""
 log_info "Architecture:"
@@ -223,6 +223,57 @@ export LOCATION="${REQUESTED_LOCATION}" # Use original location, not SWA_LOCATIO
 log_info "Key Vault ready: ${KEY_VAULT_NAME}"
 echo ""
 
+# Step 0.5: Setup App Registration
+log_step "Step 0.5/12: Setting up Entra ID App Registration..."
+echo ""
+
+if [[ -z "${AZURE_CLIENT_ID:-}" ]]; then
+  log_info "No AZURE_CLIENT_ID provided"
+  log_info "Script can automatically:"
+  log_info " • Create Entra ID app registration"
+  log_info " • Configure redirect URIs for custom domain"
+  log_info " • Generate and store client secret in Key Vault"
+  log_info ""
+  read -p "Create app registration automatically? (Y/n) " -n 1 -r
+  echo
+
+  if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+    export STATIC_WEB_APP_NAME
+    export CUSTOM_DOMAIN
+    export KEY_VAULT_NAME
+
+    "${SCRIPT_DIR}/52-setup-app-registration.sh"
+
+    log_info "App registration created: ${AZURE_CLIENT_ID}"
+    log_info "Secret stored in Key Vault as: ${STATIC_WEB_APP_NAME}-client-secret"
+  else
+    log_error "App registration required to continue"
+    log_error ""
+    log_error "Options:"
+    log_error " 1. Re-run with AZURE_CLIENT_ID=xxx"
+    log_error " 2. Run script 52 manually:"
+    log_error "    STATIC_WEB_APP_NAME=\"${STATIC_WEB_APP_NAME}\" \\"
+    log_error "    CUSTOM_DOMAIN=\"${CUSTOM_DOMAIN}\" \\"
+    log_error "    KEY_VAULT_NAME=\"${KEY_VAULT_NAME}\" \\"
+    log_error "    ./52-setup-app-registration.sh"
+    exit 1
+  fi
+else
+  log_info "Using provided AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}"
+  log_info "Validating app registration and ensuring secret in Key Vault..."
+
+  export STATIC_WEB_APP_NAME
+  export CUSTOM_DOMAIN
+  export KEY_VAULT_NAME
+  export AZURE_CLIENT_ID
+
+  "${SCRIPT_DIR}/52-setup-app-registration.sh"
+
+  log_info "App registration validated"
+fi
+
+echo ""
+
 # Step 1: Create VNet Infrastructure
 log_step "Step 1/12: Creating VNet infrastructure..."
 echo ""
@@ -241,7 +292,7 @@ log_info "VNet infrastructure created"
 echo ""
 
 # Step 2: Create App Service Plan
-log_step "Step 2/10: Creating App Service Plan (${APP_SERVICE_PLAN_SKU})..."
+log_step "Step 2/12: Creating App Service Plan (${APP_SERVICE_PLAN_SKU})..."
 echo ""
 
 log_info "Creating ${APP_SERVICE_PLAN_SKU} App Service Plan for private endpoint support..."
@@ -254,7 +305,7 @@ log_info "App Service Plan created"
 echo ""
 
 # Step 3: Create Function App on App Service Plan
-log_step "Step 3/10: Creating Function App on App Service Plan..."
+log_step "Step 3/12: Creating Function App on App Service Plan..."
 echo ""
 
 # Check if Function App was newly created or already existed
@@ -304,7 +355,7 @@ log_info "Function App configured"
 echo ""
 
 # Step 4: Enable VNet Integration
-log_step "Step 4/10: Enabling VNet integration on Function App..."
+log_step "Step 4/12: Enabling VNet integration on Function App..."
 echo ""
 
 export FUNCTION_APP_NAME
@@ -317,7 +368,7 @@ log_info "VNet integration enabled"
 echo ""
 
 # Step 5: Deploy Function API
-log_step "Step 5/10: Deploying Function API..."
+log_step "Step 5/12: Deploying Function API..."
 echo ""
 
 # If Function App already existed, ask if user wants to redeploy
@@ -343,7 +394,7 @@ fi
 echo ""
 
 # Step 6: Create Private Endpoint for Function App
-log_step "Step 6/10: Creating private endpoint for Function App..."
+log_step "Step 6/12: Creating private endpoint for Function App..."
 echo ""
 
 export FUNCTION_APP_NAME
@@ -357,7 +408,7 @@ log_info "Function App is now accessible ONLY via private network"
 echo ""
 
 # Step 7: Create Static Web App
-log_step "Step 7/11: Creating Azure Static Web App..."
+log_step "Step 7/12: Creating Azure Static Web App..."
 echo ""
 
 export STATIC_WEB_APP_NAME
@@ -378,7 +429,7 @@ log_info "Static Web App created: https://${SWA_URL}"
 echo ""
 
 # Step 8: Create Private Endpoint for Static Web App
-log_step "Step 8/11: Creating private endpoint for Static Web App..."
+log_step "Step 8/12: Creating private endpoint for Static Web App..."
 echo ""
 
 export STATIC_WEB_APP_NAME
@@ -392,7 +443,7 @@ log_info "SWA is now accessible ONLY via private network"
 echo ""
 
 # Step 9: Link Function App to SWA
-log_step "Step 9/11: Linking Function App to SWA..."
+log_step "Step 9/12: Linking Function App to SWA..."
 echo ""
 
 FUNC_RESOURCE_ID=$(az functionapp show \
@@ -412,7 +463,7 @@ log_info "Function App linked to SWA"
 echo ""
 
 # Step 10: Configure Custom Domain and Disable Default Hostname
-log_step "Step 10/11: Configuring custom domain..."
+log_step "Step 10/12: Configuring custom domain..."
 echo ""
 
 log_info "Custom domain: ${CUSTOM_DOMAIN}"
@@ -454,7 +505,7 @@ fi
 echo ""
 
 # Step 11: Update Entra ID and Deploy Frontend
-log_step "Step 11/11: Updating Entra ID and deploying frontend..."
+log_step "Step 11/12: Updating Entra ID and deploying frontend..."
 echo ""
 
 log_info "Adding redirect URI (custom domain ONLY)..."
