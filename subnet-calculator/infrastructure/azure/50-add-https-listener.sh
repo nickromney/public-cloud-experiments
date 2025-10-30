@@ -597,6 +597,60 @@ configure_https_listener() {
   log_info "HTTPS listener configured successfully"
 }
 
+# Display configuration summary and next steps
+display_summary() {
+  log_info ""
+  log_info "Configuration Summary:"
+  log_info "  Application Gateway: ${APPGW_NAME}"
+  log_info "  Key Vault: ${KEY_VAULT_NAME}"
+  log_info "  Custom Domain: ${CUSTOM_DOMAIN}"
+  log_info "  Certificate Expires: ${CERT_EXPIRATION:-Check Key Vault}"
+  log_info ""
+
+  # Get public IP
+  PUBLIC_IP=$(az network application-gateway show \
+    --name "${APPGW_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --query "frontendIPConfigurations[0].publicIPAddress.id" -o tsv 2>/dev/null)
+
+  if [[ -n "${PUBLIC_IP}" ]]; then
+    PUBLIC_IP_ADDRESS=$(az network public-ip show \
+      --ids "${PUBLIC_IP}" \
+      --query "ipAddress" -o tsv 2>/dev/null)
+    log_info "Public IP Address: ${PUBLIC_IP_ADDRESS}"
+  fi
+
+  log_info ""
+  log_info "Next Steps:"
+  log_info ""
+  log_info "1. Test HTTPS access (expect self-signed certificate warning):"
+  log_info "   curl -k -v -H \"Host: ${CUSTOM_DOMAIN}\" https://${PUBLIC_IP_ADDRESS}/"
+  log_info ""
+  log_info "2. Switch Cloudflare SSL/TLS mode to 'Full':"
+  log_info "   - Log into Cloudflare dashboard"
+  log_info "   - Navigate to SSL/TLS settings for your domain"
+  log_info "   - Change mode from 'Flexible' to 'Full'"
+  log_info "   - Wait ~30 seconds for propagation"
+  log_info ""
+  log_info "3. Verify end-to-end HTTPS:"
+  log_info "   curl -v https://${CUSTOM_DOMAIN}/"
+  log_info ""
+  log_info "4. Test Entra ID authentication flow:"
+  log_info "   - Visit https://${CUSTOM_DOMAIN} in browser"
+  log_info "   - Should redirect to Entra ID login"
+  log_info "   - Verify authentication works correctly"
+  log_info ""
+  log_info "5. Check backend health:"
+  log_info "   az network application-gateway show-backend-health \\"
+  log_info "     --name ${APPGW_NAME} \\"
+  log_info "     --resource-group ${RESOURCE_GROUP}"
+  log_info ""
+  log_info "Certificate Renewal:"
+  log_info "  Certificate expires: ${CERT_EXPIRATION:-365 days from generation}"
+  log_info "  To renew: FORCE_CERT_REGEN=true $0"
+  log_info ""
+}
+
 # Main execution
 main() {
   log_info "========================================="
@@ -617,19 +671,8 @@ main() {
   generate_and_upload_certificate
   configure_managed_identity
   configure_https_listener
+  display_summary
 
-  log_info ""
-  log_info "========================================="
-  log_info "HTTPS Listener Configuration Complete!"
-  log_info "========================================="
-  log_info ""
-  log_info "Configuration:"
-  log_info "  Application Gateway: ${APPGW_NAME}"
-  log_info "  Custom Domain: ${CUSTOM_DOMAIN}"
-  log_info "  Key Vault: ${KEY_VAULT_NAME}"
-  log_info "  Resource Group: ${RESOURCE_GROUP}"
-  log_info "  Location: ${LOCATION}"
-  log_info ""
   log_info "All done! Application Gateway now uses HTTPS/443."
 }
 
