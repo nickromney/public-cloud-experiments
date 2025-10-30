@@ -460,15 +460,24 @@ configure_https_listener() {
 
   log_info "Certificate secret ID: ${SECRET_ID}"
 
-  # Detect routing rule name dynamically (do NOT hardcode "rule1")
-  log_info "Detecting routing rule..."
+  # Find the routing rule that uses the HTTP listener we're replacing
+  log_info "Detecting routing rule that uses HTTP listener..."
   ROUTING_RULE_NAME=$(az network application-gateway rule list \
     --gateway-name "${APPGW_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
-    --query "[0].name" -o tsv)
+    --query "[?httpListener.id && contains(httpListener.id, 'appGatewayHttpListener')].name" -o tsv)
 
-  if [[ -z "${ROUTING_RULE_NAME}" ]]; then
-    log_error "Failed to detect routing rule name"
+  # Validate exactly one rule found
+  RULE_COUNT=$(echo "${ROUTING_RULE_NAME}" | wc -w | tr -d ' ')
+
+  if [[ ${RULE_COUNT} -eq 0 ]]; then
+    log_error "No routing rule found using HTTP listener 'appGatewayHttpListener'"
+    log_error "Cannot determine which rule to update for HTTPS"
+    exit 1
+  elif [[ ${RULE_COUNT} -gt 1 ]]; then
+    log_error "Multiple routing rules found using HTTP listener 'appGatewayHttpListener':"
+    echo "${ROUTING_RULE_NAME}"
+    log_error "Script cannot safely determine which rule to update"
     exit 1
   fi
 
