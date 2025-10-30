@@ -4,13 +4,13 @@ on:
   push:
     branches: [main]
     paths:
-      - 'subnet-calculator/infrastructure/azure/**'
-      - '.github/workflows/subnet-calculator-infra-tests.yml'
+      - "subnet-calculator/infrastructure/azure/**"
+      - ".github/workflows/subnet-calculator-infra-tests.yml"
   pull_request:
     branches: [main]
     paths:
-      - 'subnet-calculator/infrastructure/azure/**'
-      - '.github/workflows/subnet-calculator-infra-tests.yml'
+      - "subnet-calculator/infrastructure/azure/**"
+      - ".github/workflows/subnet-calculator-infra-tests.yml"
   workflow_dispatch:
 
 jobs:
@@ -71,38 +71,3 @@ jobs:
             echo "No test files found yet. Skipping tests."
             exit 0
           fi
-
-  quality:
-    name: Quality Checks
-    runs-on: ubuntu-latest
-    needs: [shellcheck, bats-tests]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck bats parallel
-
-      - name: Install BATS support libraries
-        run: |
-          cd subnet-calculator/infrastructure/azure
-          mkdir -p tests/test_helper
-          # Remove any existing files/directories and clone fresh
-          rm -rf tests/test_helper/bats-support
-          git clone \
-            https://github.com/bats-core/bats-support \
-            tests/test_helper/bats-support
-          rm -rf tests/test_helper/bats-support/.git
-
-          rm -rf tests/test_helper/bats-assert
-          git clone \
-            https://github.com/bats-core/bats-assert \
-            tests/test_helper/bats-assert
-          rm -rf tests/test_helper/bats-assert/.git
-
-      - name: Run quality checks
-        run: |
-          cd subnet-calculator/infrastructure/azure
-          make quality || true
-          echo "Quality checks complete"
