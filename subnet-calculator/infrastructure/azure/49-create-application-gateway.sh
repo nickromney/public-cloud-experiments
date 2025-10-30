@@ -324,19 +324,19 @@ az network application-gateway create \
   --http-settings-port 443 \
   --http-settings-protocol Https \
   --frontend-port 80 \
-  --servers "${SWA_PRIVATE_IP}" \
+  --servers "${SWA_PRIVATE_FQDN}" \
   --priority 100 \
   --output none
 
 log_info "Application Gateway created: ${APPGW_NAME}"
 
 # Update backend pool with proper hostname
-log_step "Configuring backend pool with SWA hostname..."
+log_step "Configuring backend pool with SWA private FQDN..."
 az network application-gateway address-pool update \
   --gateway-name "${APPGW_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --name appGatewayBackendPool \
-  --servers "${SWA_PRIVATE_IP}" \
+  --servers "${SWA_PRIVATE_FQDN}" \
   --output none
 
 # Update HTTP settings to use the SWA hostname
