@@ -6,10 +6,14 @@
 # After running this script, the SWA will require Entra ID login for unauthenticated users.
 #
 # Usage:
-#   # Interactive mode (prompts for all values)
+#   # With Key Vault secret (production - recommended)
+#   STATIC_WEB_APP_NAME="swa-subnet-calc-entraid" \
+#   AZURE_CLIENT_ID="00000000-0000-0000-0000-000000000000" \
+#   KEY_VAULT_NAME="kv-subnet-calc-abcd" \
+#   RESOURCE_GROUP="rg-subnet-calc" \
 #   ./42-configure-entraid-swa.sh
 #
-#   # Specify all parameters
+#   # With environment variable secret (testing/CI)
 #   STATIC_WEB_APP_NAME="swa-subnet-calc-entraid" \
 #   AZURE_CLIENT_ID="00000000-0000-0000-0000-000000000000" \
 #   AZURE_CLIENT_SECRET="your-secret-here" \
@@ -19,7 +23,8 @@
 # Parameters:
 #   STATIC_WEB_APP_NAME  - Name of the Static Web App
 #   AZURE_CLIENT_ID      - Entra ID app registration Client ID
-#   AZURE_CLIENT_SECRET  - Entra ID app registration Client Secret
+#   AZURE_CLIENT_SECRET  - Client Secret (optional if KEY_VAULT_NAME set)
+#   KEY_VAULT_NAME       - Key Vault for secret retrieval (optional if AZURE_CLIENT_SECRET set)
 #   RESOURCE_GROUP       - Resource group containing the SWA
 #
 # Environment Variables (from .env):
@@ -135,15 +140,43 @@ if [[ -z "${AZURE_CLIENT_ID:-}" ]]; then
   fi
 fi
 
-# Prompt for AZURE_CLIENT_SECRET if not set
-if [[ -z "${AZURE_CLIENT_SECRET:-}" ]]; then
-  log_warn "AZURE_CLIENT_SECRET not set"
-  read -rsp "Enter Entra ID Client Secret: " AZURE_CLIENT_SECRET
-  echo ""
-  if [[ -z "${AZURE_CLIENT_SECRET}" ]]; then
-    log_error "Client Secret cannot be empty"
+# Get AZURE_CLIENT_SECRET from environment or Key Vault
+if [[ -n "${AZURE_CLIENT_SECRET:-}" ]]; then
+  log_info "Using AZURE_CLIENT_SECRET from environment variable"
+
+elif [[ -n "${KEY_VAULT_NAME:-}" ]]; then
+  SECRET_NAME="${STATIC_WEB_APP_NAME}-client-secret"
+  log_info "Retrieving secret from Key Vault: ${SECRET_NAME}"
+
+  AZURE_CLIENT_SECRET=$(az keyvault secret show \
+    --vault-name "${KEY_VAULT_NAME}" \
+    --name "${SECRET_NAME}" \
+    --query "value" -o tsv 2>/dev/null || echo "")
+
+  if [[ -n "${AZURE_CLIENT_SECRET}" ]]; then
+    log_info "Secret retrieved successfully"
+  else
+    log_error "Secret '${SECRET_NAME}' not found in Key Vault '${KEY_VAULT_NAME}'"
+    log_error ""
+    log_error "Options:"
+    log_error " 1. Run script 52 to create app registration and store secret:"
+    log_error "    STATIC_WEB_APP_NAME=\"${STATIC_WEB_APP_NAME}\" \\"
+    log_error "    CUSTOM_DOMAIN=\"your-domain\" \\"
+    log_error "    KEY_VAULT_NAME=\"${KEY_VAULT_NAME}\" \\"
+    log_error "    ./52-setup-app-registration.sh"
+    log_error ""
+    log_error " 2. Set AZURE_CLIENT_SECRET environment variable"
     exit 1
   fi
+
+else
+  log_error "AZURE_CLIENT_SECRET not provided and KEY_VAULT_NAME not set"
+  log_error ""
+  log_error "Options:"
+  log_error " 1. Set AZURE_CLIENT_SECRET env var (testing/CI)"
+  log_error " 2. Set KEY_VAULT_NAME to retrieve from Key Vault (production)"
+  log_error " 3. Run script 52 to create app registration"
+  exit 1
 fi
 
 log_info ""
