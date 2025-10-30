@@ -250,7 +250,9 @@
       "Bash(az network private-endpoint show:*)",
       "Bash(git rev-parse:*)",
       "Bash(git commit:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(STATIC_WEB_APP_NAME=\"swa-subnet-calc-private-endpoint\" CUSTOM_DOMAIN=\"static-swa-private-endpoint.publiccloudexperiments.net\" KEY_VAULT_NAME=\"kv-subnet-calc-098c\" ./subnet-calculator/infrastructure/azure/52-setup-app-registration.sh:*)",
+      "Bash(az keyvault secret show:*)"
     ],
     "deny": [],
     "ask": []
