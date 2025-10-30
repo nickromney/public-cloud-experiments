@@ -419,21 +419,21 @@ else
 fi
 echo ""
 
-# Disable default azurestaticapps.net hostname
-log_info "Disabling default azurestaticapps.net hostname..."
-log_warn "This requires the 47-disable-default-hostname.sh script"
+# Disable public access to azurestaticapps.net hostname
+log_info "Disabling public access to azurestaticapps.net hostname..."
+log_warn "This sets publicNetworkAccess: Disabled (returns 403, does not redirect)"
 
 if [[ -f "${SCRIPT_DIR}/47-disable-default-hostname.sh" ]]; then
   export STATIC_WEB_APP_NAME
   if "${SCRIPT_DIR}/47-disable-default-hostname.sh"; then
-    log_info "Default hostname disabled successfully - custom domain is now PRIMARY"
+    log_info "Public access disabled successfully - default hostname returns 403"
   else
-    log_warn "Failed to disable default hostname"
-    log_warn "Default hostname will remain active alongside custom domain"
+    log_warn "Failed to disable public access"
+    log_warn "Default hostname remains publicly accessible"
   fi
 else
   log_warn "Script 47-disable-default-hostname.sh not found"
-  log_warn "Default hostname will remain active alongside custom domain"
+  log_warn "Default hostname remains publicly accessible"
   log_warn "To disable manually, use Azure Portal or REST API"
 fi
 echo ""
