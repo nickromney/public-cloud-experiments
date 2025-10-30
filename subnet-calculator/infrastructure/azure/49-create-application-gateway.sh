@@ -182,6 +182,28 @@ SWA_HOSTNAME=$(az staticwebapp show \
 
 log_info "SWA Hostname: ${SWA_HOSTNAME}"
 
+# Extract region number and construct private FQDN for backend pool
+# Region number (e.g., "3" in *.3.azurestaticapps.net) varies by SWA location
+# Private FQDN resolves via private DNS zone to private endpoint IP
+log_step "Constructing private FQDN for backend pool..."
+if [[ "${SWA_HOSTNAME}" =~ \.([0-9]+)\.azurestaticapps\.net$ ]]; then
+  SWA_REGION_NUMBER="${BASH_REMATCH[1]}"
+  # Transform: name.3.azurestaticapps.net -> name.privatelink.3.azurestaticapps.net
+  SWA_PRIVATE_FQDN="${SWA_HOSTNAME/.${SWA_REGION_NUMBER}.azurestaticapps.net/.privatelink.${SWA_REGION_NUMBER}.azurestaticapps.net}"
+
+  log_info "SWA Hostname:     ${SWA_HOSTNAME}"
+  log_info "Region Number:    ${SWA_REGION_NUMBER}"
+  log_info "Private FQDN:     ${SWA_PRIVATE_FQDN}"
+else
+  log_error "Could not determine SWA region number from hostname: ${SWA_HOSTNAME}"
+  log_error "Expected format: <name>.<number>.azurestaticapps.net"
+  log_error ""
+  log_error "Example: delightful-field-0cd326e03.3.azurestaticapps.net"
+  log_error "  Region number: 3"
+  log_error "  Private FQDN: delightful-field-0cd326e03.privatelink.3.azurestaticapps.net"
+  exit 1
+fi
+
 # Find the private endpoint for the SWA
 log_step "Finding SWA private endpoint..."
 PE_NAME="pe-${STATIC_WEB_APP_NAME}"
@@ -196,14 +218,23 @@ if ! az network private-endpoint show \
   exit 1
 fi
 
-# Get private endpoint IP address
-SWA_PRIVATE_IP=$(az network private-endpoint show \
-  --name "${PE_NAME}" \
+# Get private endpoint IP from DNS zone group (more reliable than customDnsConfigs)
+log_step "Retrieving SWA private IP from DNS zone group..."
+SWA_PRIVATE_IP=$(az network private-endpoint dns-zone-group show \
+  --name "default" \
+  --endpoint-name "${PE_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "customDnsConfigs[0].ipAddresses[0]" -o tsv)
+  --query "privateDnsZoneConfigs[0].recordSets[0].ipAddresses[0]" -o tsv 2>/dev/null)
 
 if [[ -z "${SWA_PRIVATE_IP}" ]]; then
   log_error "Could not retrieve private IP for SWA private endpoint"
+  log_error "Ensure DNS zone group is configured on the private endpoint"
+  log_error ""
+  log_error "Check DNS zone group:"
+  log_error "  az network private-endpoint dns-zone-group show \\"
+  log_error "    --name default \\"
+  log_error "    --endpoint-name ${PE_NAME} \\"
+  log_error "    --resource-group ${RESOURCE_GROUP}"
   exit 1
 fi
 
@@ -277,6 +308,7 @@ PUBLIC_IP_ADDRESS=$(az network public-ip show \
 log_info "Public IP Address: ${PUBLIC_IP_ADDRESS}"
 
 # Create Application Gateway
+# Using minimum capacity (1) for cost optimization: ~$215/month for Standard_v2
 log_step "Creating Application Gateway (this may take 5-10 minutes)..."
 log_info "This is a long-running operation. Please wait..."
 
@@ -285,7 +317,7 @@ az network application-gateway create \
   --resource-group "${RESOURCE_GROUP}" \
   --location "${LOCATION}" \
   --sku "${APPGW_SKU}" \
-  --capacity 2 \
+  --capacity 1 \
   --vnet-name "${VNET_NAME}" \
   --subnet "${APPGW_SUBNET_NAME}" \
   --public-ip-address "${PUBLIC_IP_NAME}" \
@@ -293,22 +325,25 @@ az network application-gateway create \
   --http-settings-port 443 \
   --http-settings-protocol Https \
   --frontend-port 80 \
-  --servers "${SWA_PRIVATE_IP}" \
+  --servers "${SWA_PRIVATE_FQDN}" \
   --priority 100 \
   --output none
 
 log_info "Application Gateway created: ${APPGW_NAME}"
 
 # Update backend pool with proper hostname
-log_step "Configuring backend pool with SWA hostname..."
+log_step "Configuring backend pool with SWA private FQDN..."
 az network application-gateway address-pool update \
   --gateway-name "${APPGW_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --name appGatewayBackendPool \
-  --servers "${SWA_PRIVATE_IP}" \
+  --servers "${SWA_PRIVATE_FQDN}" \
   --output none
 
-# Update HTTP settings to use the SWA hostname
+# Configure HTTP settings with custom domain Host header
+# - Uses CUSTOM_DOMAIN if set (passed from stack-16 script)
+# - Falls back to SWA_HOSTNAME for standalone usage
+# - Custom domain required for Entra ID authentication (redirect URIs)
 log_step "Configuring HTTP settings for SWA..."
 az network application-gateway http-settings update \
   --gateway-name "${APPGW_NAME}" \
@@ -318,7 +353,7 @@ az network application-gateway http-settings update \
   --protocol Https \
   --cookie-based-affinity Disabled \
   --timeout 30 \
-  --host-name "${SWA_HOSTNAME}" \
+  --host-name "${CUSTOM_DOMAIN:-${SWA_HOSTNAME}}" \
   --output none
 
 log_info "Application Gateway configured"
@@ -330,13 +365,15 @@ log_info "Application Gateway Created!"
 log_info "========================================="
 log_info "Application Gateway:  ${APPGW_NAME}"
 log_info "Public IP:            ${PUBLIC_IP_ADDRESS}"
-log_info "Backend (SWA):        ${SWA_PRIVATE_IP} (${SWA_HOSTNAME})"
+log_info "Backend (SWA):        ${SWA_PRIVATE_FQDN}"
+log_info "Backend IP:           ${SWA_PRIVATE_IP}"
+log_info "Host Header:          ${CUSTOM_DOMAIN:-${SWA_HOSTNAME}}"
 log_info ""
 log_info "Access URLs:"
 log_info "  HTTP:  http://${PUBLIC_IP_ADDRESS}"
 log_info ""
 log_info "Architecture:"
-log_info "  Internet → ${PUBLIC_IP_ADDRESS}:80 → App Gateway → ${SWA_PRIVATE_IP}:443 → SWA"
+log_info "  Internet → ${PUBLIC_IP_ADDRESS}:80 → App Gateway → ${SWA_PRIVATE_FQDN}:443 → SWA (${SWA_PRIVATE_IP})"
 log_info ""
 log_info "Next Steps:"
 log_info "1. Test HTTP access:"
@@ -351,7 +388,7 @@ log_info "   az network application-gateway frontend-port create --port 443 ..."
 log_info "   az network application-gateway http-listener create --frontend-port 443 ..."
 log_info ""
 log_info "Monthly Cost Estimate:"
-log_info "  - Application Gateway (${APPGW_SKU}): ~\$320-421/month"
+log_info "  - Application Gateway (${APPGW_SKU}): ~\$215/month (capacity 1)"
 log_info "  - Public IP: ~\$3.65/month"
 log_info "  - Data processing: Variable"
 log_info ""
