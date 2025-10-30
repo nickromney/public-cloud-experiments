@@ -182,6 +182,28 @@ SWA_HOSTNAME=$(az staticwebapp show \
 
 log_info "SWA Hostname: ${SWA_HOSTNAME}"
 
+# Extract region number and construct private FQDN for backend pool
+# Region number (e.g., "3" in *.3.azurestaticapps.net) varies by SWA location
+# Private FQDN resolves via private DNS zone to private endpoint IP
+log_step "Constructing private FQDN for backend pool..."
+if [[ "${SWA_HOSTNAME}" =~ \.([0-9]+)\.azurestaticapps\.net$ ]]; then
+  SWA_REGION_NUMBER="${BASH_REMATCH[1]}"
+  # Transform: name.3.azurestaticapps.net -> name.privatelink.3.azurestaticapps.net
+  SWA_PRIVATE_FQDN="${SWA_HOSTNAME/.${SWA_REGION_NUMBER}.azurestaticapps.net/.privatelink.${SWA_REGION_NUMBER}.azurestaticapps.net}"
+
+  log_info "SWA Hostname:     ${SWA_HOSTNAME}"
+  log_info "Region Number:    ${SWA_REGION_NUMBER}"
+  log_info "Private FQDN:     ${SWA_PRIVATE_FQDN}"
+else
+  log_error "Could not determine SWA region number from hostname: ${SWA_HOSTNAME}"
+  log_error "Expected format: <name>.<number>.azurestaticapps.net"
+  log_error ""
+  log_error "Example: delightful-field-0cd326e03.3.azurestaticapps.net"
+  log_error "  Region number: 3"
+  log_error "  Private FQDN: delightful-field-0cd326e03.privatelink.3.azurestaticapps.net"
+  exit 1
+fi
+
 # Find the private endpoint for the SWA
 log_step "Finding SWA private endpoint..."
 PE_NAME="pe-${STATIC_WEB_APP_NAME}"
