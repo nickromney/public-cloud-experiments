@@ -204,7 +204,7 @@ fi
 FUNCTION_APP_URL="https://$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "properties.defaultHostName" -o tsv 2>/dev/null || echo "")"
+  --query "defaultHostName" -o tsv 2>/dev/null || echo "")"
 
 log_info "Function App created: ${FUNCTION_APP_NAME}"
 log_info "URL: ${FUNCTION_APP_URL}"
@@ -267,7 +267,7 @@ export JWT_ALGORITHM
 FLASK_APP_URL="https://$(az webapp show \
   --name "${APP_SERVICE_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "properties.defaultHostName" -o tsv 2>/dev/null || echo "")"
+  --query "defaultHostName" -o tsv 2>/dev/null || echo "")"
 
 log_info "Flask App deployed: ${FLASK_APP_URL}"
 echo ""

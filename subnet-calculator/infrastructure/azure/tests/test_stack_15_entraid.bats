@@ -227,8 +227,9 @@ teardown() {
   assert_success
 }
 
-@test "Stack 15: Prompts for SWA DNS CNAME" {
-  run grep -i "create dns cname" azure-stack-15-swa-entraid-linked.sh
+@test "Stack 15: Explains DNS configuration workflow" {
+  # Script should explain DNS setup steps rather than prompting prematurely
+  run grep -i "will now\|Display.*TXT record\|Display.*CNAME" azure-stack-15-swa-entraid-linked.sh
   assert_success
 }
 
@@ -331,8 +332,10 @@ teardown() {
 }
 
 @test "Stack 15: Exits if credentials not provided after prompt" {
-  run bash -c "grep -A 5 'Create new Entra ID app registration' azure-stack-15-swa-entraid-linked.sh | grep -q 'exit'"
+  # Check that script has exit logic after app registration prompts (exit is ~50 lines after prompt)
+  run grep -A 55 'Create new Entra ID app registration' azure-stack-15-swa-entraid-linked.sh
   assert_success
+  [[ "$output" =~ "exit" ]]
 }
 
 # === Security and Auth Tests ===
@@ -466,20 +469,25 @@ teardown() {
 }
 
 @test "Stack 15: Checks reply pattern for Y/n" {
-  run grep -E 'REPLY.*\^\\[Nn\\]\$' azure-stack-15-swa-entraid-linked.sh
+  run grep -E 'REPLY.*\^\[Nn\]\$' azure-stack-15-swa-entraid-linked.sh
   assert_success
 }
 
 # === SWA Creation Before App Registration Tests ===
 
 @test "Stack 15: Can create SWA before app registration" {
-  run bash -c "grep -B 5 '60-entraid-user-setup.sh' azure-stack-15-swa-entraid-linked.sh | grep -q '00-static-web-app.sh'"
-  assert_success
+  # SWA creation (00-static-web-app.sh) should come before app setup (60-entraid-user-setup.sh)
+  # Look for actual script calls, not comments
+  SWA_LINE=$(grep -n '"${SCRIPT_DIR}/00-static-web-app.sh"' azure-stack-15-swa-entraid-linked.sh | cut -d: -f1 | head -1)
+  SETUP_LINE=$(grep -n '"${SCRIPT_DIR}/60-entraid-user-setup.sh"' azure-stack-15-swa-entraid-linked.sh | cut -d: -f1 | head -1)
+  [[ -n "$SWA_LINE" ]] && [[ -n "$SETUP_LINE" ]] && [[ $SWA_LINE -lt $SETUP_LINE ]]
 }
 
 @test "Stack 15: Gets SWA hostname for app registration" {
-  run bash -c "grep -B 5 '60-entraid-user-setup.sh' azure-stack-15-swa-entraid-linked.sh | grep -q 'SWA_HOSTNAME'"
+  # Should query SWA hostname before calling app setup script
+  run grep -B 10 '60-entraid-user-setup.sh' azure-stack-15-swa-entraid-linked.sh
   assert_success
+  [[ "$output" =~ "SWA_HOSTNAME" ]]
 }
 
 @test "Stack 15: Passes SWA hostname to setup script" {

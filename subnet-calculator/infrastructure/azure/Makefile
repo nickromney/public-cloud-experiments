@@ -167,7 +167,8 @@ test-unit: ## Run unit tests with mocked Azure CLI (no Azure required)
 		echo "Create test files in tests/ directory first."; \
 		exit 1; \
 	fi
-	cd tests && bats test_*.bats
+	@echo "$(BLUE)Running tests in parallel (--jobs 4)...$(NC)"
+	cd tests && bats --jobs 4 test_*.bats
 
 .PHONY: test-integration
 test-integration: check-env ## Run integration tests (requires Azure login)

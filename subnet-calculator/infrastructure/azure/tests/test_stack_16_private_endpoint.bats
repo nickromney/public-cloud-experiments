@@ -137,22 +137,30 @@ teardown() {
 }
 
 @test "Stack 16: Has B1 cost calculation" {
-  run bash -c "grep -A 2 'B1)' azure-stack-16-swa-private-endpoint.sh | grep -E '\$22|\$13'"
+  run grep 'B1)' azure-stack-16-swa-private-endpoint.sh
+  assert_success
+  run grep '\$13.*B1\|\$22.*B1' azure-stack-16-swa-private-endpoint.sh
   assert_success
 }
 
 @test "Stack 16: Has S1 cost calculation" {
-  run bash -c "grep -A 2 'S1)' azure-stack-16-swa-private-endpoint.sh | grep -E '\$79|\$70'"
+  run grep 'S1)' azure-stack-16-swa-private-endpoint.sh
+  assert_success
+  run grep '\$70.*S1\|\$79.*S1' azure-stack-16-swa-private-endpoint.sh
   assert_success
 }
 
 @test "Stack 16: Has P0V3 cost calculation" {
-  run bash -c "grep -A 2 'P0V3)' azure-stack-16-swa-private-endpoint.sh | grep -E '\$151|\$142'"
+  run grep 'P0V3)' azure-stack-16-swa-private-endpoint.sh
+  assert_success
+  run grep '\$142.*P0V3\|\$151.*P0V3' azure-stack-16-swa-private-endpoint.sh
   assert_success
 }
 
 @test "Stack 16: Has P1V3 cost calculation" {
-  run bash -c "grep -A 2 'P1V3)' azure-stack-16-swa-private-endpoint.sh | grep -E '\$293|\$284'"
+  run grep 'P1V3)' azure-stack-16-swa-private-endpoint.sh
+  assert_success
+  run grep '\$284.*P1V3\|\$293.*P1V3' azure-stack-16-swa-private-endpoint.sh
   assert_success
 }
 
@@ -174,7 +182,7 @@ teardown() {
 }
 
 @test "Stack 16: Generates random suffix for new storage" {
-  run bash -c "grep 'STORAGE_SUFFIX.*date' azure-stack-16-swa-private-endpoint.sh"
+  run bash -c "grep 'STORAGE_SUFFIX.*openssl rand' azure-stack-16-swa-private-endpoint.sh"
   assert_success
 }
 
@@ -320,8 +328,9 @@ teardown() {
   assert_success
 }
 
-@test "Stack 16: Prompts for DNS CNAME" {
-  run grep -i "create dns cname" azure-stack-16-swa-private-endpoint.sh
+@test "Stack 16: Explains DNS configuration workflow" {
+  # Script should explain DNS setup steps rather than prompting prematurely
+  run grep -i "will now\|Display.*TXT record\|Display.*CNAME" azure-stack-16-swa-private-endpoint.sh
   assert_success
 }
 
@@ -656,7 +665,7 @@ teardown() {
 }
 
 @test "Stack 16: Checks reply pattern for Y/n" {
-  run grep -E 'REPLY.*\^\\[Nn\\]\$' azure-stack-16-swa-private-endpoint.sh
+  run grep -E 'REPLY.*\^\[Nn\]\$' azure-stack-16-swa-private-endpoint.sh
   assert_success
 }
 

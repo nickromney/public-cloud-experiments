@@ -78,7 +78,7 @@ if [[ -z "${API_BASE_URL:-}" ]]; then
       API_BASE_URL="https://$(az functionapp show \
         --name "${FUNCTION_APP_NAME}" \
         --resource-group "${RESOURCE_GROUP}" \
-        --query "properties.defaultHostName" -o tsv)"
+        --query "defaultHostName" -o tsv)"
       log_info "Auto-detected Function App: ${FUNCTION_APP_NAME}"
       log_info "API URL: ${API_BASE_URL}"
     elif [[ "${FUNC_COUNT}" -gt 1 ]]; then
@@ -88,7 +88,7 @@ if [[ -z "${API_BASE_URL:-}" ]]; then
       API_BASE_URL="https://$(az functionapp show \
         --name "${FUNCTION_APP_NAME}" \
         --resource-group "${RESOURCE_GROUP}" \
-        --query "properties.defaultHostName" -o tsv)"
+        --query "defaultHostName" -o tsv)"
     else
       log_error "No Function App found and API_BASE_URL not set"
       log_error "Either set API_BASE_URL or create a Function App first"
@@ -98,7 +98,7 @@ if [[ -z "${API_BASE_URL:-}" ]]; then
     API_BASE_URL="https://$(az functionapp show \
       --name "${FUNCTION_APP_NAME}" \
       --resource-group "${RESOURCE_GROUP}" \
-      --query "properties.defaultHostName" -o tsv)"
+      --query "defaultHostName" -o tsv)"
   fi
 fi
 
@@ -303,7 +303,7 @@ rm -rf "${TEMP_DIR}"
 APP_SERVICE_URL="https://$(az webapp show \
   --name "${APP_SERVICE_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "properties.defaultHostName" -o tsv)"
+  --query "defaultHostName" -o tsv)"
 
 log_info ""
 log_info "========================================="

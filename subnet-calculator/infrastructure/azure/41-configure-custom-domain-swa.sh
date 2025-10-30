@@ -113,11 +113,13 @@ SWA_HOSTNAME=$(az staticwebapp show \
   --query defaultHostname -o tsv)
 
 # Check if custom domain already exists
+DOMAIN_ALREADY_EXISTS=false
 if az staticwebapp hostname show \
   --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --hostname "${CUSTOM_DOMAIN}" &>/dev/null; then
   log_warn "Custom domain ${CUSTOM_DOMAIN} already configured for ${STATIC_WEB_APP_NAME}"
+  DOMAIN_ALREADY_EXISTS=true
 
   # Check if it should be set as default
   if [[ "${SET_AS_DEFAULT}" == "true" ]]; then
@@ -127,16 +129,18 @@ if az staticwebapp hostname show \
       --resource-group "${RESOURCE_GROUP}" \
       --hostname "${CUSTOM_DOMAIN}" \
       --validation-method dns-txt-token \
+      --no-wait \
       --output none
 
     log_info "✓ ${CUSTOM_DOMAIN} set as default domain"
     log_info "All traffic will be redirected to https://${CUSTOM_DOMAIN}"
   fi
 
-  exit 0
+  # Continue to display validation info even for existing domains
 fi
 
-# Add custom domain (this generates the validation token)
+# Add custom domain (this generates the validation token) - skip if already exists
+if [[ "${DOMAIN_ALREADY_EXISTS}" == "false" ]]; then
 log_info ""
 log_info "========================================="
 log_info "STEP 1: Adding Custom Domain to Azure"
@@ -151,6 +155,7 @@ az staticwebapp hostname set \
   --resource-group "${RESOURCE_GROUP}" \
   --hostname "${CUSTOM_DOMAIN}" \
   --validation-method dns-txt-token \
+  --no-wait \
   --output none || {
     log_error "Failed to add custom domain"
     log_error "This may be because:"
@@ -160,28 +165,39 @@ az staticwebapp hostname set \
     exit 1
   }
 
-log_info "✓ Custom domain added"
+  log_info "✓ Custom domain added"
+fi
 
 # Get validation token
 log_info ""
 log_info "Retrieving validation token..."
 
-# The validation token is shown when you query the hostname
-VALIDATION_INFO=$(az staticwebapp hostname show \
+# Get the validation token
+VALIDATION_TOKEN=$(az staticwebapp hostname show \
   --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --hostname "${CUSTOM_DOMAIN}" \
-  --query "[validationToken, status]" -o tsv)
+  --query "validationToken" -o tsv)
 
-VALIDATION_TOKEN=$(echo "${VALIDATION_INFO}" | awk '{print $1}')
-VALIDATION_STATUS=$(echo "${VALIDATION_INFO}" | awk '{print $2}')
+# Get the validation status
+VALIDATION_STATUS=$(az staticwebapp hostname show \
+  --name "${STATIC_WEB_APP_NAME}" \
+  --resource-group "${RESOURCE_GROUP}" \
+  --hostname "${CUSTOM_DOMAIN}" \
+  --query "status" -o tsv)
 
 log_info ""
 log_info "========================================="
 log_info "STEP 2: Configure DNS Records"
 log_info "========================================="
 log_info ""
-log_info "Azure has generated a validation token. Configure these DNS records:"
+log_info "Validation Token Retrieved:"
+log_info ""
+echo "${VALIDATION_TOKEN}"
+log_info ""
+log_info "Current validation status: ${VALIDATION_STATUS}"
+log_info ""
+log_info "Configure these DNS records:"
 log_info ""
 log_info "1. Add TXT record for domain ownership validation:"
 log_info "   Name:  _dnsauth.${CUSTOM_DOMAIN}"
@@ -191,8 +207,7 @@ log_info ""
 log_info "   Note: The _dnsauth prefix is Azure's standard validation method."
 log_info "         It allows zero-downtime migration if you have existing traffic."
 log_info ""
-log_info "2. Wait for TXT validation to complete (check status below or in Portal)"
-log_info "   Current validation status: ${VALIDATION_STATUS}"
+log_info "2. Wait for TXT validation to complete (check status in Portal or via CLI)"
 log_info ""
 log_info "3. After validation succeeds (status: Ready), add CNAME to route traffic:"
 log_info "   Name:  ${CUSTOM_DOMAIN}"
@@ -284,6 +299,7 @@ if [[ "${SET_AS_DEFAULT}" == "true" ]]; then
     --resource-group "${RESOURCE_GROUP}" \
     --hostname "${CUSTOM_DOMAIN}" \
     --validation-method dns-txt-token \
+    --no-wait \
     --output none
 
   log_info "✓ ${CUSTOM_DOMAIN} set as default domain"

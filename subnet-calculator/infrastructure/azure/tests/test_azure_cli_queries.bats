@@ -115,14 +115,22 @@ teardown() {
 }
 
 @test "14-configure-function-vnet-integration.sh extracts VNet name from resource ID correctly" {
-  # Should use awk to extract virtualNetworks name from path
-  run grep -E 'virtualNetworks.*print' 14-configure-function-vnet-integration.sh
+  # Should have extract_resource_name function with print logic
+  run grep -E 'extract_resource_name.*virtualNetworks' 14-configure-function-vnet-integration.sh
+  assert_success
+
+  # Function should have print logic for extraction
+  run grep -E 'print.*\$\(i\+1\)' 14-configure-function-vnet-integration.sh
   assert_success
 }
 
 @test "14-configure-function-vnet-integration.sh extracts Subnet name from resource ID correctly" {
-  # Should use awk to extract subnets name from path
-  run grep -E 'subnets.*print' 14-configure-function-vnet-integration.sh
+  # Should call extract_resource_name with subnets parameter
+  run grep -E 'extract_resource_name.*subnets' 14-configure-function-vnet-integration.sh
+  assert_success
+
+  # Function should have print logic for extraction
+  run grep -E 'print.*\$\(i\+1\)' 14-configure-function-vnet-integration.sh
   assert_success
 }
 

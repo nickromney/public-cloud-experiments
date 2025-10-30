@@ -237,9 +237,12 @@ case "${FRONTEND}" in
     if [[ "${SWA_AUTH_ENABLED:-false}" == "true" ]]; then
       log_info "Using Entra ID authentication config (SWA built-in provider)"
       CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-entraid-builtin.config.json"
+    elif [[ "${VITE_AUTH_ENABLED:-false}" == "true" ]]; then
+      log_info "Using Entra ID authentication config (frontend JWT with SWA)"
+      CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-entraid.config.json"
     else
-      # No SWA platform authentication (may still have frontend JWT auth)
-      log_info "Using no-auth config (no SWA platform authentication)"
+      # No authentication at all
+      log_info "Using no-auth config (no platform or frontend authentication)"
       CONFIG_FILE="${SCRIPT_DIR}/staticwebapp-noauth.config.json"
     fi
 

@@ -1,14 +1,32 @@
 #!/usr/bin/env bash
 #
-# 47-disable-default-hostname.sh - Disable Default *.azurestaticapps.net Hostname
+# 47-disable-default-hostname.sh - Disable Public Access to *.azurestaticapps.net
 #
-# This script disables the default *.azurestaticapps.net hostname on an Azure Static Web App,
-# making the custom domain the only accessible endpoint.
+# This script disables PUBLIC NETWORK ACCESS to the default *.azurestaticapps.net
+# hostname, causing requests to return 403 Forbidden. This is different from "setting
+# a custom domain as default" which redirects traffic.
+#
+# What this does:
+#   - Sets publicNetworkAccess: "Disabled" via REST API
+#   - Blocks all public access to *.azurestaticapps.net (returns 403)
+#   - Custom domains remain accessible (if configured with private endpoint)
+#
+# What this does NOT do:
+#   - Does NOT "set custom domain as default" (that's a separate Portal/API feature)
+#   - Does NOT redirect from *.azurestaticapps.net to custom domain
+#   - Does NOT delete or remove the default hostname
+#
+# Two separate features explained:
+#   1. "Set as default" (Portal) - Redirects *.azurestaticapps.net → custom domain
+#   2. "Disable publicNetworkAccess" (this script) - Blocks access with 403
 #
 # Use case:
-#   - High-security environments requiring single domain access
-#   - Compliance requirements (e.g., ONLY custom domain in Entra ID redirect URIs)
-#   - Prevent accidental access via default hostname
+#   - Private endpoint deployments where default hostname should be blocked
+#   - High-security environments requiring network-level access control
+#   - Compliance requirements for private-only access
+#
+# Note: To "set custom domain as default" (redirect behavior), use Azure Portal
+#       or REST API if available. That is a different setting.
 #
 # Requirements:
 #   - Azure CLI logged in
@@ -26,7 +44,7 @@
 #
 # Note:
 #   This uses the Azure REST API directly as the Azure CLI does not yet support
-#   disabling the default hostname. The operation is idempotent.
+#   modifying publicNetworkAccess. The operation is idempotent.
 #
 # References:
 #   https://learn.microsoft.com/en-us/azure/static-web-apps/custom-domain
@@ -152,17 +170,21 @@ echo ""
 
 # Confirm action
 log_warn "========================================="
-log_warn "WARNING: This will disable the default hostname"
+log_warn "WARNING: This will disable PUBLIC ACCESS to the default hostname"
 log_warn "========================================="
 log_warn ""
-log_warn "After this operation:"
-log_warn "  ✗ https://${DEFAULT_HOSTNAME} will no longer be accessible"
-log_warn "  ✓ Custom domain(s) will remain active"
-log_warn "  ✓ This change is reversible (can be re-enabled later)"
+log_warn "This sets publicNetworkAccess: \"Disabled\" which blocks public access."
+log_warn "This is NOT the same as 'set custom domain as default' (redirects)."
 log_warn ""
-read -r -p "Continue? (yes/no): " CONFIRM
+log_warn "After this operation:"
+log_warn "  ✗ https://${DEFAULT_HOSTNAME} will return 403 Forbidden"
+log_warn "  ✓ Custom domain(s) remain accessible via private endpoint"
+log_warn "  ✓ This change is reversible (set publicNetworkAccess: \"Enabled\")"
+log_warn ""
+read -r -p "Continue? (Y/n): " CONFIRM
+CONFIRM=${CONFIRM:-Y}
 
-if [[ "${CONFIRM}" != "yes" ]]; then
+if [[ ! "${CONFIRM}" =~ ^[Yy]$ ]]; then
   log_info "Operation cancelled"
   exit 0
 fi
@@ -227,12 +249,25 @@ NEW_STATE=$(curl -s -X GET \
   -H "Content-Type: application/json" \
   "${API_ENDPOINT}" | jq -r '.properties.publicNetworkAccess // "Enabled"')
 
-if [[ "${NEW_STATE}" == "Disabled" ]]; then
-  log_info "✓ Default hostname successfully disabled"
-else
-  log_warn "Warning: Could not verify hostname state change"
-  log_warn "Current state: ${NEW_STATE}"
+if [[ "${NEW_STATE}" != "Disabled" ]]; then
+  log_error "Failed to disable default hostname"
+  log_error "Current state: ${NEW_STATE}"
+  log_error ""
+  log_error "The API call succeeded but verification shows hostname is still enabled."
+  log_error "This may be due to:"
+  log_error "  1. Azure service delay in applying the change"
+  log_error "  2. Insufficient permissions"
+  log_error "  3. Azure service issue"
+  log_error ""
+  log_error "Check status manually:"
+  log_error "  az staticwebapp show \\"
+  log_error "    --name ${STATIC_WEB_APP_NAME} \\"
+  log_error "    --resource-group ${RESOURCE_GROUP} \\"
+  log_error "    --query 'properties.publicNetworkAccess'"
+  exit 1
 fi
+
+log_info "✓ Public network access successfully disabled"
 
 echo ""
 log_info "========================================="
@@ -240,16 +275,16 @@ log_info "Operation Complete"
 log_info "========================================="
 log_info ""
 log_info "Static Web App: ${STATIC_WEB_APP_NAME}"
-log_info "Default hostname: ${DEFAULT_HOSTNAME} (DISABLED)"
+log_info "Default hostname: ${DEFAULT_HOSTNAME} (PUBLIC ACCESS DISABLED)"
 log_info ""
 log_info "Active custom domains:"
 echo "${CUSTOM_DOMAINS}" | while read -r domain; do
   log_info "  ✓ https://${domain}"
 done
 echo ""
-log_info "The Static Web App is now accessible ONLY via custom domain(s)"
+log_info "Public requests to ${DEFAULT_HOSTNAME} will return 403 Forbidden"
+log_info "Custom domains remain accessible via private endpoint"
 log_info ""
-log_warn "To re-enable the default hostname, use Azure Portal or set:"
-log_warn '  "publicNetworkAccess": "Enabled"'
-log_warn "  via the same REST API endpoint"
+log_warn "To re-enable public access, set publicNetworkAccess: \"Enabled\""
+log_warn "  via Azure Portal or REST API endpoint"
 log_info ""

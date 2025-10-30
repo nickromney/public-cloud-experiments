@@ -247,9 +247,57 @@ log_step "Checking for existing private endpoint..."
 if az network private-endpoint show \
   --name "${PE_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
-  log_error "Private endpoint ${PE_NAME} already exists"
-  log_error "Delete it first or use a different name"
-  exit 1
+
+  log_info "Private endpoint ${PE_NAME} already exists - verifying configuration..."
+
+  # Get the target resource ID from existing private endpoint
+  EXISTING_TARGET=$(az network private-endpoint show \
+    --name "${PE_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --query "privateLinkServiceConnections[0].privateLinkServiceId" -o tsv 2>/dev/null || echo "")
+
+  # Get the subnet ID from existing private endpoint
+  EXISTING_SUBNET=$(az network private-endpoint show \
+    --name "${PE_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --query "subnet.id" -o tsv 2>/dev/null || echo "")
+
+  # Verify it's connected to the correct Function App
+  if [[ "${EXISTING_TARGET}" == "${FUNCTION_APP_ID}" ]]; then
+    log_info "Private endpoint is correctly connected to ${FUNCTION_APP_NAME}"
+
+    # Verify it's in the correct subnet
+    if [[ "${EXISTING_SUBNET}" == "${SUBNET_ID}" ]]; then
+      log_info "Private endpoint is in the correct subnet: ${SUBNET_NAME}"
+      log_info "Configuration is correct - skipping private endpoint creation"
+      log_info ""
+
+      # Get details for display
+      PE_IP=$(az network private-endpoint show \
+        --name "${PE_NAME}" \
+        --resource-group "${RESOURCE_GROUP}" \
+        --query "customDnsConfigs[0].ipAddresses[0]" -o tsv 2>/dev/null || echo "N/A")
+
+      log_info "Private endpoint: ${PE_NAME}"
+      log_info "Private IP: ${PE_IP}"
+      log_info "Status: Already configured (idempotent)"
+      exit 0
+    else
+      log_warn "Private endpoint exists but is in a different subnet"
+      log_warn "  Expected subnet: ${SUBNET_ID}"
+      log_warn "  Current subnet: ${EXISTING_SUBNET}"
+      log_error "Please delete the private endpoint and re-run:"
+      log_error "  az network private-endpoint delete --name ${PE_NAME} --resource-group ${RESOURCE_GROUP}"
+      exit 1
+    fi
+  else
+    log_warn "Private endpoint ${PE_NAME} exists but is connected to a different resource"
+    log_warn "  Expected: ${FUNCTION_APP_ID}"
+    log_warn "  Current: ${EXISTING_TARGET}"
+    log_error "Please delete the private endpoint and re-run:"
+    log_error "  az network private-endpoint delete --name ${PE_NAME} --resource-group ${RESOURCE_GROUP}"
+    exit 1
+  fi
 fi
 
 # Create private endpoint

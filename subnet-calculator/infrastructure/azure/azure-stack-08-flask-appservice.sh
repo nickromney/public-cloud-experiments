@@ -175,7 +175,7 @@ fi
 FUNCTION_APP_URL="https://$(az functionapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "properties.defaultHostName" -o tsv 2>/dev/null || echo "")"
+  --query "defaultHostName" -o tsv 2>/dev/null || echo "")"
 
 if [[ "${FUNCTION_APP_URL}" == "https://" ]]; then
   log_error "Failed to get Function App URL"
@@ -225,7 +225,7 @@ export JWT_SECRET_KEY
 APP_SERVICE_URL="https://$(az webapp show \
   --name "${APP_SERVICE_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "properties.defaultHostName" -o tsv 2>/dev/null || echo "")"
+  --query "defaultHostName" -o tsv 2>/dev/null || echo "")"
 
 if [[ "${APP_SERVICE_URL}" == "https://" ]]; then
   log_error "Failed to get App Service URL"
