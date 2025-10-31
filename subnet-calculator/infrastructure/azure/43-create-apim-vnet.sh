@@ -330,22 +330,23 @@ if [[ ${ELAPSED} -ge ${TIMEOUT} ]]; then
   exit 1
 fi
 
-# Apply VNet subnet configuration using REST API
-# Note: VNet type is already set at creation, we're only configuring the subnet here
-log_info "Applying VNet subnet configuration (${APIM_VNET_MODE} mode)..."
+# Apply VNet configuration using REST API
+# Note: Must set BOTH virtualNetworkType AND virtualNetworkConfiguration together
+log_info "Applying VNet configuration (${APIM_VNET_MODE} mode)..."
 
 az rest \
   --method PATCH \
   --uri "${APIM_ID}?api-version=2023-05-01-preview" \
   --body "{
     \"properties\": {
+      \"virtualNetworkType\": \"${APIM_VNET_MODE}\",
       \"virtualNetworkConfiguration\": {
         \"subnetResourceId\": \"${SUBNET_ID}\"
       }
     }
   }"
 
-log_info "VNet subnet configuration applied. APIM will update in background (~10-15 min)"
+log_info "VNet configuration applied. APIM will update in background (~10-15 min)"
 log_info "Waiting for provisioning to complete..."
 
 # Poll for completion
