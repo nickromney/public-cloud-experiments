@@ -48,9 +48,9 @@ readonly STATIC_WEB_APP_NAME="swa-subnet-calc-apim"
 readonly APIM_NAME_PREFIX="apim-subnet-calc"
 readonly CUSTOM_DOMAIN="${CUSTOM_DOMAIN:-static-swa-apim.publiccloudexperiments.net}"
 
-# Infrastructure from Stack 16 (reused)
-readonly VNET_NAME="vnet-subnet-calc-private"
-readonly APPGW_NAME="agw-swa-subnet-calc-private-endpoint"
+# Stack 17 Infrastructure (dedicated VNet for External APIM)
+readonly VNET_NAME="vnet-subnet-calc-apim-external"
+readonly NSG_NAME="nsg-apim-external"
 
 log_info ""
 log_info "==========================================="
@@ -61,9 +61,13 @@ log_info "Custom Domain: ${CUSTOM_DOMAIN}"
 log_info "SWA Name:      ${STATIC_WEB_APP_NAME}"
 log_info "APIM Prefix:   ${APIM_NAME_PREFIX}"
 log_info ""
-log_info "Reused from Stack 16:"
-log_info "  - VNet:      ${VNET_NAME}"
-log_info "  - AppGW:     ${APPGW_NAME}"
+log_info "Stack 17 Infrastructure:"
+log_info "  - VNet:      ${VNET_NAME} (dedicated for External APIM)"
+log_info "  - NSG:       ${NSG_NAME}"
+log_info "  - SWA:       ${STATIC_WEB_APP_NAME}"
+log_info "  - APIM:      (will be created)"
+log_info ""
+log_info "Reused from other stacks:"
 log_info "  - Function:  (auto-detected)"
 log_info "  - Key Vault: (auto-detected)"
 log_info ""
@@ -74,28 +78,16 @@ if [[ -z "${RESOURCE_GROUP:-}" ]]; then
   exit 1
 fi
 
-# Verify Stack 16 infrastructure exists
-log_step "Verifying Stack 16 infrastructure..."
+# Verify required infrastructure exists
+log_step "Verifying prerequisites..."
 
-# Check VNet
-if ! az network vnet show --name "${VNET_NAME}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
-  log_error "VNet '${VNET_NAME}' not found. Deploy Stack 16 first"
-  exit 1
-fi
-
-# Check AppGW
-if ! az network application-gateway show --name "${APPGW_NAME}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
-  log_error "Application Gateway '${APPGW_NAME}' not found. Deploy Stack 16 first"
-  exit 1
-fi
-
-# Check for Function App with private endpoint
+# Check for Function App (can be from any stack)
 FUNCTION_APP_NAME=$(az functionapp list \
   --resource-group "${RESOURCE_GROUP}" \
   --query "[?contains(name, 'func-subnet-calc')].name | [0]" -o tsv 2>/dev/null || echo "")
 
 if [[ -z "${FUNCTION_APP_NAME}" ]]; then
-  log_error "No Function App found. Deploy Stack 16 first"
+  log_error "No Function App found. Deploy a stack with Function App first (e.g., Stack 3, 5, or 16)"
   exit 1
 fi
 
@@ -105,11 +97,11 @@ KEY_VAULT_NAME=$(az keyvault list \
   --query "[0].name" -o tsv 2>/dev/null || echo "")
 
 if [[ -z "${KEY_VAULT_NAME}" ]]; then
-  log_error "No Key Vault found. Deploy Stack 16 first"
+  log_error "No Key Vault found. Deploy a stack with Key Vault first"
   exit 1
 fi
 
-log_info "✓ Stack 16 infrastructure verified"
+log_info "✓ Prerequisites verified"
 log_info "  Function App: ${FUNCTION_APP_NAME}"
 log_info "  Key Vault:    ${KEY_VAULT_NAME}"
 log_info ""
@@ -117,11 +109,11 @@ log_info ""
 # Export for child scripts
 export RESOURCE_GROUP
 export VNET_NAME
+export NSG_NAME
 export FUNCTION_APP_NAME
 export KEY_VAULT_NAME
 export STATIC_WEB_APP_NAME
 export CUSTOM_DOMAIN
-export APPGW_NAME
 
 # Get location
 LOCATION=$(az group show --name "${RESOURCE_GROUP}" --query location -o tsv)
@@ -130,8 +122,29 @@ export LOCATION
 log_info "Starting Stack 17 deployment..."
 log_info ""
 
-# Step 1: Create APIM with VNet External mode (~45 min)
-log_step "Step 1/9: Create APIM instance (VNet External mode)"
+# Step 1: Create VNet for APIM External mode
+log_step "Step 1/11: Create VNet for APIM"
+log_info ""
+
+export VNET_MODE="External"
+"${SCRIPT_DIR}/41-create-apim-vnet.sh"
+
+log_info ""
+log_info "✓ VNet created: ${VNET_NAME}"
+log_info ""
+
+# Step 2: Create NSG for APIM subnet
+log_step "Step 2/11: Create NSG for APIM subnet"
+log_info ""
+
+"${SCRIPT_DIR}/42-create-apim-nsg.sh"
+
+log_info ""
+log_info "✓ NSG created and attached: ${NSG_NAME}"
+log_info ""
+
+# Step 3: Create APIM with VNet External mode (~45 min)
+log_step "Step 3/11: Create APIM instance (VNet External mode)"
 log_warn "⏱️  This will take approximately 45-55 minutes"
 log_info ""
 
@@ -148,16 +161,16 @@ log_info ""
 log_info "✓ APIM instance ready: ${APIM_NAME}"
 log_info ""
 
-# Step 2: Setup App Registration for Entra ID
-log_step "Step 2/9: Setup App Registration"
+# Step 4: Setup App Registration for Entra ID
+log_step "Step 4/11: Setup App Registration"
 "${SCRIPT_DIR}/52-setup-app-registration.sh"
 
 log_info ""
 log_info "✓ App Registration ready"
 log_info ""
 
-# Step 3: Create Static Web App
-log_step "Step 3/9: Create Static Web App"
+# Step 5: Create Static Web App
+log_step "Step 5/11: Create Static Web App"
 
 if az staticwebapp show --name "${STATIC_WEB_APP_NAME}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
   log_info "Static Web App already exists: ${STATIC_WEB_APP_NAME}"
@@ -176,7 +189,7 @@ fi
 log_info ""
 
 # Step 4: Create private endpoint for SWA
-log_step "Step 4/9: Create private endpoint for SWA"
+log_step "Step 6/11: Create private endpoint for SWA"
 "${SCRIPT_DIR}/48-create-private-endpoint-swa.sh"
 
 log_info ""
@@ -184,7 +197,7 @@ log_info "✓ SWA private endpoint ready"
 log_info ""
 
 # Step 5: Configure APIM backend (import Function OpenAPI)
-log_step "Step 5/9: Configure APIM backend"
+log_step "Step 7/11: Configure APIM backend"
 
 # Get Function URL
 FUNCTION_URL=$(az functionapp show \
@@ -201,7 +214,7 @@ log_info "✓ APIM backend configured"
 log_info ""
 
 # Step 6: Apply APIM policies (subscription mode)
-log_step "Step 6/9: Apply APIM policies"
+log_step "Step 8/11: Apply APIM policies"
 
 export AUTH_MODE="subscription"
 "${SCRIPT_DIR}/32-apim-policies.sh"
@@ -211,7 +224,7 @@ log_info "✓ APIM policies applied"
 log_info ""
 
 # Step 7: Link SWA to APIM
-log_step "Step 7/9: Link SWA to APIM backend"
+log_step "Step 9/11: Link SWA to APIM backend"
 "${SCRIPT_DIR}/44-link-swa-to-apim.sh"
 
 log_info ""
@@ -219,7 +232,7 @@ log_info "✓ SWA linked to APIM"
 log_info ""
 
 # Step 8: Deploy frontend code to SWA
-log_step "Step 8/9: Deploy frontend code"
+log_step "Step 10/11: Deploy frontend code"
 
 SWA_DEPLOYMENT_TOKEN=$(az staticwebapp secrets list \
   --name "${STATIC_WEB_APP_NAME}" \
@@ -232,7 +245,7 @@ log_warn "Deployment token: ${SWA_DEPLOYMENT_TOKEN}"
 log_info ""
 
 # Step 9: Add HTTPS listener to AppGW
-log_step "Step 9/9: Add HTTPS listener to Application Gateway"
+log_step "Step 11/11: Verify deployment"
 
 # Get SWA private FQDN
 SWA_HOSTNAME=$(az staticwebapp show \
