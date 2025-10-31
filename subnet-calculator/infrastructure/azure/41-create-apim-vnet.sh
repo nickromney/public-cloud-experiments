@@ -8,10 +8,12 @@
 # APIM External Mode:
 #   - APIM gateway is public, can reach private backends
 #   - Requires subnet for APIM only
+#   - Peers to Stack 16 VNet to reach private Function App
 #
 # APIM Internal Mode:
 #   - APIM gateway is private (VNet only)
-#   - Requires Application Gateway subnet + APIM subnet
+#   - Requires subnet for APIM only
+#   - Peers to Stack 16 VNet to reach AppGW (for routing) and private Function App
 #
 # Usage:
 #   # External mode (Stack 17)
@@ -35,7 +37,6 @@
 #   LOCATION        - Azure region (auto-detected from resource group)
 #   VNET_PREFIX     - VNet address space (default: 10.200.0.0/16 for External, 10.201.0.0/16 for Internal)
 #   APIM_SUBNET_PREFIX - APIM subnet CIDR (default: 10.x.0.0/27)
-#   APPGW_SUBNET_PREFIX - AppGW subnet CIDR (default: 10.x.1.0/24, Internal mode only)
 #
 # Exit Codes:
 #   0 - Success (VNet and subnets created)
@@ -100,12 +101,9 @@ fi
 if [[ "${VNET_MODE}" == "External" ]]; then
   VNET_PREFIX="${VNET_PREFIX:-10.200.0.0/16}"
   APIM_SUBNET_PREFIX="${APIM_SUBNET_PREFIX:-10.200.0.0/27}"
-  NEEDS_APPGW=false
 else
   VNET_PREFIX="${VNET_PREFIX:-10.201.0.0/16}"
   APIM_SUBNET_PREFIX="${APIM_SUBNET_PREFIX:-10.201.0.0/27}"
-  APPGW_SUBNET_PREFIX="${APPGW_SUBNET_PREFIX:-10.201.1.0/24}"
-  NEEDS_APPGW=true
 fi
 
 log_info ""
@@ -118,9 +116,6 @@ log_info "VNet Name:         ${VNET_NAME}"
 log_info "VNet Mode:         ${VNET_MODE}"
 log_info "VNet Address:      ${VNET_PREFIX}"
 log_info "APIM Subnet:       ${APIM_SUBNET_PREFIX}"
-if [[ "${NEEDS_APPGW}" == "true" ]]; then
-  log_info "AppGW Subnet:      ${APPGW_SUBNET_PREFIX}"
-fi
 log_info ""
 
 # Check if VNet already exists
@@ -133,27 +128,12 @@ if az network vnet show --resource-group "${RESOURCE_GROUP}" --name "${VNET_NAME
     --resource-group "${RESOURCE_GROUP}" \
     --vnet-name "${VNET_NAME}" \
     --name "snet-apim" &>/dev/null; then
-    log_info "APIM subnet already exists"
+    log_info "✓ VNet and APIM subnet already configured"
+    exit 0
   else
     log_error "VNet exists but APIM subnet is missing"
     exit 1
   fi
-
-  # Check AppGW subnet for Internal mode
-  if [[ "${NEEDS_APPGW}" == "true" ]]; then
-    if az network vnet subnet show \
-      --resource-group "${RESOURCE_GROUP}" \
-      --vnet-name "${VNET_NAME}" \
-      --name "snet-appgw" &>/dev/null; then
-      log_info "Application Gateway subnet already exists"
-    else
-      log_error "VNet exists but Application Gateway subnet is missing"
-      exit 1
-    fi
-  fi
-
-  log_info "✓ VNet and required subnets already configured"
-  exit 0
 fi
 
 # Create VNet
@@ -178,19 +158,6 @@ az network vnet subnet create \
 
 log_info "✓ APIM subnet created"
 
-# Create Application Gateway subnet (Internal mode only)
-if [[ "${NEEDS_APPGW}" == "true" ]]; then
-  log_step "Creating Application Gateway subnet..."
-  az network vnet subnet create \
-    --resource-group "${RESOURCE_GROUP}" \
-    --vnet-name "${VNET_NAME}" \
-    --name "snet-appgw" \
-    --address-prefix "${APPGW_SUBNET_PREFIX}" \
-    --output none
-
-  log_info "✓ Application Gateway subnet created"
-fi
-
 log_info ""
 log_info "======================================="
 log_info "VNet Configuration Complete"
@@ -199,11 +166,9 @@ log_info "VNet Name:     ${VNET_NAME}"
 log_info "VNet Mode:     ${VNET_MODE}"
 log_info "Subnets:"
 log_info "  - snet-apim:   ${APIM_SUBNET_PREFIX}"
-if [[ "${NEEDS_APPGW}" == "true" ]]; then
-  log_info "  - snet-appgw:  ${APPGW_SUBNET_PREFIX}"
-fi
 log_info ""
 log_info "Next steps:"
-log_info "  1. Create NSG for APIM subnet (42-create-apim-nsg.sh)"
-log_info "  2. Deploy APIM instance (43-create-apim-vnet.sh)"
+log_info "  1. Create VNet peering to Stack 16 VNet"
+log_info "  2. Create NSG for APIM subnet (42-create-apim-nsg.sh)"
+log_info "  3. Deploy APIM instance (43-create-apim-vnet.sh)"
 log_info ""

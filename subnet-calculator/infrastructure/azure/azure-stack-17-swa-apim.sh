@@ -123,7 +123,7 @@ log_info "Starting Stack 17 deployment..."
 log_info ""
 
 # Step 1: Create VNet for APIM External mode
-log_step "Step 1/11: Create VNet for APIM"
+log_step "Step 1/12: Create VNet for APIM"
 log_info ""
 
 export VNET_MODE="External"
@@ -133,8 +133,30 @@ log_info ""
 log_info "✓ VNet created: ${VNET_NAME}"
 log_info ""
 
-# Step 2: Create NSG for APIM subnet
-log_step "Step 2/11: Create NSG for APIM subnet"
+# Step 2: Create VNet peering to Stack 16
+log_step "Step 2/12: Create VNet peering to Stack 16"
+log_info ""
+
+# Find Stack 16 VNet (vnet-subnet-calc-private)
+STACK16_VNET=$(az network vnet list \
+  --resource-group "${RESOURCE_GROUP}" \
+  --query "[?contains(name, 'vnet-subnet-calc-private')].name | [0]" -o tsv 2>/dev/null || echo "")
+
+if [[ -z "${STACK16_VNET}" ]]; then
+  log_error "Stack 16 VNet not found. Deploy Stack 16 first."
+  exit 1
+fi
+
+export SOURCE_VNET="${VNET_NAME}"
+export DEST_VNET="${STACK16_VNET}"
+"${SCRIPT_DIR}/40-create-vnet-peering.sh"
+
+log_info ""
+log_info "✓ VNet peering configured"
+log_info ""
+
+# Step 3: Create NSG for APIM subnet
+log_step "Step 3/12: Create NSG for APIM subnet"
 log_info ""
 
 "${SCRIPT_DIR}/42-create-apim-nsg.sh"
@@ -144,7 +166,7 @@ log_info "✓ NSG created and attached: ${NSG_NAME}"
 log_info ""
 
 # Step 3: Create APIM with VNet External mode (~45 min)
-log_step "Step 3/11: Create APIM instance (VNet External mode)"
+log_step "Step 4/12: Create APIM instance (VNet External mode)"
 log_warn "⏱️  This will take approximately 45-55 minutes"
 log_info ""
 
@@ -162,7 +184,7 @@ log_info "✓ APIM instance ready: ${APIM_NAME}"
 log_info ""
 
 # Step 4: Setup App Registration for Entra ID
-log_step "Step 4/11: Setup App Registration"
+log_step "Step 5/12: Setup App Registration"
 "${SCRIPT_DIR}/52-setup-app-registration.sh"
 
 log_info ""
@@ -170,7 +192,7 @@ log_info "✓ App Registration ready"
 log_info ""
 
 # Step 5: Create Static Web App
-log_step "Step 5/11: Create Static Web App"
+log_step "Step 6/12: Create Static Web App"
 
 if az staticwebapp show --name "${STATIC_WEB_APP_NAME}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
   log_info "Static Web App already exists: ${STATIC_WEB_APP_NAME}"
@@ -189,7 +211,7 @@ fi
 log_info ""
 
 # Step 4: Create private endpoint for SWA
-log_step "Step 6/11: Create private endpoint for SWA"
+log_step "Step 7/12: Create private endpoint for SWA"
 "${SCRIPT_DIR}/48-create-private-endpoint-swa.sh"
 
 log_info ""
@@ -197,7 +219,7 @@ log_info "✓ SWA private endpoint ready"
 log_info ""
 
 # Step 5: Configure APIM backend (import Function OpenAPI)
-log_step "Step 7/11: Configure APIM backend"
+log_step "Step 8/12: Configure APIM backend"
 
 # Get Function URL
 FUNCTION_URL=$(az functionapp show \
@@ -214,7 +236,7 @@ log_info "✓ APIM backend configured"
 log_info ""
 
 # Step 6: Apply APIM policies (subscription mode)
-log_step "Step 8/11: Apply APIM policies"
+log_step "Step 9/12: Apply APIM policies"
 
 export AUTH_MODE="subscription"
 "${SCRIPT_DIR}/32-apim-policies.sh"
@@ -224,7 +246,7 @@ log_info "✓ APIM policies applied"
 log_info ""
 
 # Step 7: Link SWA to APIM
-log_step "Step 9/11: Link SWA to APIM backend"
+log_step "Step 10/12: Link SWA to APIM backend"
 "${SCRIPT_DIR}/44-link-swa-to-apim.sh"
 
 log_info ""
@@ -232,7 +254,7 @@ log_info "✓ SWA linked to APIM"
 log_info ""
 
 # Step 8: Deploy frontend code to SWA
-log_step "Step 10/11: Deploy frontend code"
+log_step "Step 11/12: Deploy frontend code"
 
 SWA_DEPLOYMENT_TOKEN=$(az staticwebapp secrets list \
   --name "${STATIC_WEB_APP_NAME}" \
@@ -245,7 +267,7 @@ log_warn "Deployment token: ${SWA_DEPLOYMENT_TOKEN}"
 log_info ""
 
 # Step 9: Add HTTPS listener to AppGW
-log_step "Step 11/11: Verify deployment"
+log_step "Step 12/12: Verify deployment"
 
 # Get SWA private FQDN
 SWA_HOSTNAME=$(az staticwebapp show \
