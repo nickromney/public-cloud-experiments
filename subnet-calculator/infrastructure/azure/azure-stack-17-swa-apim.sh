@@ -67,7 +67,8 @@ log_info "  - NSG:       ${NSG_NAME}"
 log_info "  - SWA:       ${STATIC_WEB_APP_NAME}"
 log_info "  - APIM:      (will be created)"
 log_info ""
-log_info "Reused from other stacks:"
+log_info "Reused from Stack 16:"
+log_info "  - AppGW:     (auto-detected, adds listener)"
 log_info "  - Function:  (auto-detected)"
 log_info "  - Key Vault: (auto-detected)"
 log_info ""
@@ -101,9 +102,20 @@ if [[ -z "${KEY_VAULT_NAME}" ]]; then
   exit 1
 fi
 
+# Check for Application Gateway (from Stack 16)
+APPGW_NAME=$(az network application-gateway list \
+  --resource-group "${RESOURCE_GROUP}" \
+  --query "[?contains(name, 'agw-swa')].name | [0]" -o tsv 2>/dev/null || echo "")
+
+if [[ -z "${APPGW_NAME}" ]]; then
+  log_error "No Application Gateway found. Deploy Stack 16 first"
+  exit 1
+fi
+
 log_info "✓ Prerequisites verified"
 log_info "  Function App: ${FUNCTION_APP_NAME}"
 log_info "  Key Vault:    ${KEY_VAULT_NAME}"
+log_info "  AppGW:        ${APPGW_NAME} (from Stack 16)"
 log_info ""
 
 # Export for child scripts
@@ -112,6 +124,7 @@ export VNET_NAME
 export NSG_NAME
 export FUNCTION_APP_NAME
 export KEY_VAULT_NAME
+export APPGW_NAME
 export STATIC_WEB_APP_NAME
 export CUSTOM_DOMAIN
 

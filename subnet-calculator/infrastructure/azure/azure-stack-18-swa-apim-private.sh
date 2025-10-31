@@ -51,10 +51,9 @@ readonly STATIC_WEB_APP_NAME="swa-subnet-calc-apim-private"
 readonly APIM_NAME_PREFIX="apim-subnet-calc-private"
 readonly CUSTOM_DOMAIN="${CUSTOM_DOMAIN:-static-swa-apim-private.publiccloudexperiments.net}"
 
-# Stack 18 Infrastructure (dedicated VNet for Internal APIM + AppGW)
+# Stack 18 Infrastructure (dedicated VNet for Internal APIM)
 readonly VNET_NAME="vnet-subnet-calc-apim-internal"
 readonly NSG_NAME="nsg-apim-internal"
-readonly APPGW_NAME="agw-swa-apim-private"
 
 log_info ""
 log_info "================================================="
@@ -66,13 +65,13 @@ log_info "SWA Name:      ${STATIC_WEB_APP_NAME}"
 log_info "APIM Prefix:   ${APIM_NAME_PREFIX}"
 log_info ""
 log_info "Stack 18 Infrastructure:"
-log_info "  - VNet:      ${VNET_NAME} (dedicated for Internal APIM + AppGW)"
+log_info "  - VNet:      ${VNET_NAME} (dedicated for Internal APIM)"
 log_info "  - NSG:       ${NSG_NAME}"
-log_info "  - AppGW:     ${APPGW_NAME}"
 log_info "  - SWA:       ${STATIC_WEB_APP_NAME}"
 log_info "  - APIM:      (will be created)"
 log_info ""
-log_info "Reused from other stacks:"
+log_info "Reused from Stack 16:"
+log_info "  - AppGW:     (auto-detected, adds listener + path routing)"
 log_info "  - Function:  (auto-detected)"
 log_info "  - Key Vault: (auto-detected)"
 log_info ""
@@ -106,9 +105,20 @@ if [[ -z "${KEY_VAULT_NAME}" ]]; then
   exit 1
 fi
 
+# Check for Application Gateway (from Stack 16)
+APPGW_NAME=$(az network application-gateway list \
+  --resource-group "${RESOURCE_GROUP}" \
+  --query "[?contains(name, 'agw-swa')].name | [0]" -o tsv 2>/dev/null || echo "")
+
+if [[ -z "${APPGW_NAME}" ]]; then
+  log_error "No Application Gateway found. Deploy Stack 16 first"
+  exit 1
+fi
+
 log_info "✓ Prerequisites verified"
 log_info "  Function App: ${FUNCTION_APP_NAME}"
 log_info "  Key Vault:    ${KEY_VAULT_NAME}"
+log_info "  AppGW:        ${APPGW_NAME} (from Stack 16)"
 log_info ""
 
 # Export for child scripts
