@@ -276,18 +276,3 @@ html[data-theme="light"] tr.highlight {
 .performance-timing table {
   margin-bottom: 0.5rem;
 }
-
-.text-success {
-  color: #4caf50;
-  font-weight: 600;
-}
-
-.text-warning {
-  color: #ff9800;
-  font-weight: 600;
-}
-
-.text-danger {
-  color: #f44336;
-  font-weight: 600;
-}

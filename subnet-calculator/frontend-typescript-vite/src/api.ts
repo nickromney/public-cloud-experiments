@@ -189,29 +189,72 @@ class ApiClient {
     }
   }
 
-  async performLookup(address: string, mode: string): Promise<ApiResults> {
+  async performLookup(
+    address: string,
+    mode: string
+  ): Promise<{
+    results: ApiResults
+    timing: Array<{ call: string; requestTime: string; responseTime: string; duration: number }>
+  }> {
     const results: ApiResults = {}
+    const timing: Array<{ call: string; requestTime: string; responseTime: string; duration: number }> = []
 
     // Validate
+    const validateStart = performance.now()
+    const validateRequestTime = new Date().toISOString()
     results.validate = await this.validateAddress(address)
+    const validateResponseTime = new Date().toISOString()
+    timing.push({
+      call: 'validate',
+      requestTime: validateRequestTime,
+      responseTime: validateResponseTime,
+      duration: performance.now() - validateStart,
+    })
 
     // Check if private
     try {
+      const privateStart = performance.now()
+      const privateRequestTime = new Date().toISOString()
       results.private = await this.checkPrivate(address)
+      const privateResponseTime = new Date().toISOString()
+      timing.push({
+        call: 'checkPrivate',
+        requestTime: privateRequestTime,
+        responseTime: privateResponseTime,
+        duration: performance.now() - privateStart,
+      })
     } catch (e) {
       // IPv6 addresses don't support this endpoint
       console.log('Private check skipped:', e)
     }
 
     // Check if Cloudflare
+    const cloudflareStart = performance.now()
+    const cloudflareRequestTime = new Date().toISOString()
     results.cloudflare = await this.checkCloudflare(address)
+    const cloudflareResponseTime = new Date().toISOString()
+    timing.push({
+      call: 'checkCloudflare',
+      requestTime: cloudflareRequestTime,
+      responseTime: cloudflareResponseTime,
+      duration: performance.now() - cloudflareStart,
+    })
 
     // Get subnet info if it's a network
     if (results.validate.type === 'network') {
+      const subnetStart = performance.now()
+      const subnetRequestTime = new Date().toISOString()
       results.subnet = await this.getSubnetInfo(address, mode)
+      const subnetResponseTime = new Date().toISOString()
+      timing.push({
+        call: 'getSubnetInfo',
+        requestTime: subnetRequestTime,
+        responseTime: subnetResponseTime,
+        duration: performance.now() - subnetStart,
+      })
     }
 
-    return results
+    return { results, timing }
   }
 }
 

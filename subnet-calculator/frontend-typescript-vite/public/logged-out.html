@@ -5,91 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Logged Out - IPv4 Subnet Calculator</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root[data-theme="dark"] {
-            --bg-primary: #1a1a1a;
-            --bg-secondary: #2d2d2d;
-            --text-primary: #e0e0e0;
-            --text-secondary: #b0b0b0;
-            --accent: #4a9eff;
-            --accent-hover: #357abd;
-            --border: #404040;
-        }
-
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background-color: var(--bg-primary);
-            color: var(--text-primary);
             display: flex;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            padding: 20px;
         }
 
-        .container {
-            background-color: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 48px;
+        .logout-container {
             max-width: 500px;
-            width: 100%;
             text-align: center;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
         }
 
-        .icon {
+        .logout-icon {
             font-size: 64px;
-            margin-bottom: 24px;
+            margin-bottom: 1rem;
         }
 
-        h1 {
-            font-size: 28px;
-            margin-bottom: 16px;
-            color: var(--text-primary);
+        .logout-container h1 {
+            margin-bottom: 1rem;
         }
 
-        p {
-            color: var(--text-secondary);
-            line-height: 1.6;
-            margin-bottom: 32px;
+        .logout-container p {
+            margin-bottom: 2rem;
         }
 
-        .button {
-            background-color: var(--accent);
-            color: white;
-            border: none;
-            padding: 14px 32px;
-            font-size: 16px;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.2s, transform 0.1s;
-            display: inline-block;
-            text-decoration: none;
+        .logout-container a {
+            display: block;
             width: 100%;
-            margin-bottom: 12px;
-        }
-
-        .button:hover {
-            background-color: var(--accent-hover);
-        }
-
-        .button:active {
-            transform: scale(0.98);
         }
     </style>
 </head>
 <body>
-    <div class="container" id="content">
-        <!-- Content will be inserted by JavaScript based on auth status -->
-    </div>
+    <main class="container">
+        <div class="logout-container" id="content">
+            <!-- Content will be inserted by JavaScript based on auth status -->
+        </div>
+    </main>
 
     <script>
         async function checkAuthAndRender() {
@@ -106,19 +60,19 @@
                 } else {
                     // User is logged out - show logged out message
                     content.innerHTML = `
-                        <div class="icon">👋</div>
+                        <div class="logout-icon">👋</div>
                         <h1>You've been logged out</h1>
                         <p>Thank you for using the IPv4 Subnet Calculator.</p>
-                        <a href="/login.html" class="button">Log in again</a>
+                        <a href="/login.html" role="button">Log in again</a>
                     `;
                 }
             } catch (error) {
                 // Error checking auth - show logged out message anyway
                 content.innerHTML = `
-                    <div class="icon">👋</div>
+                    <div class="logout-icon">👋</div>
                     <h1>You've been logged out</h1>
                     <p>Thank you for using the IPv4 Subnet Calculator.</p>
-                    <a href="/login.html" class="button">Log in again</a>
+                    <a href="/login.html" role="button">Log in again</a>
                 `;
             }
         }
