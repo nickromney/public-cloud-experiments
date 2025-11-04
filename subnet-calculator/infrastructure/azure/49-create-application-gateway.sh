@@ -276,9 +276,26 @@ log_step "Checking for existing Application Gateway..."
 if az network application-gateway show \
   --name "${APPGW_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
-  log_error "Application Gateway ${APPGW_NAME} already exists"
-  log_error "Delete it first or use a different name"
-  exit 1
+  log_warn "Application Gateway ${APPGW_NAME} already exists"
+  log_info "Skipping creation - AppGW will be reused by multiple stacks"
+
+  # Get AppGW details for summary
+  PUBLIC_IP_ADDRESS=$(az network public-ip show \
+    --name "${PUBLIC_IP_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --query ipAddress -o tsv 2>/dev/null || echo "Not found")
+
+  log_info ""
+  log_info "========================================="
+  log_info "Existing Application Gateway"
+  log_info "========================================="
+  log_info "Application Gateway:  ${APPGW_NAME}"
+  log_info "Public IP:            ${PUBLIC_IP_ADDRESS}"
+  log_info ""
+  log_info "To add HTTPS listeners for additional domains:"
+  log_info "  ./54-add-https-listener-named.sh"
+  log_info ""
+  exit 0
 fi
 
 # Create Public IP for Application Gateway (must be Standard SKU for v2)

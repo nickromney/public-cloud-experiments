@@ -42,7 +42,7 @@
 
 - Modify: `subnet-calculator/infrastructure/azure/49-create-application-gateway.sh:199-211`
 
-**Step 1: Identify current broken code**
+### Step 1: Identify current broken code
 
 Lines 199-211 currently use:
 
@@ -55,7 +55,7 @@ SWA_PRIVATE_IP=$(az network private-endpoint show \
 
 This returns empty because `customDnsConfigs` array is empty.
 
-**Step 2: Replace with DNS zone group query**
+### Step 2: Replace with DNS zone group query
 
 Replace lines 199-211 with:
 
@@ -81,11 +81,11 @@ if [[ -z "${SWA_PRIVATE_IP}" ]]; then
 fi
 ```
 
-**Step 3: Save file**
+### Step 3: Save file
 
 Save the changes to 49-create-application-gateway.sh
 
-**Step 4: Commit change**
+### Step 4: Commit change
 
 ```bash
 git add subnet-calculator/infrastructure/azure/49-create-application-gateway.sh
@@ -108,7 +108,7 @@ Related to: Application Gateway for SWA private endpoint
 
 - Modify: `subnet-calculator/infrastructure/azure/49-create-application-gateway.sh:183-184` (after line 183)
 
-**Step 1: Add region number extraction and FQDN construction**
+### Step 1: Add region number extraction and FQDN construction
 
 After line 183 (after getting `SWA_HOSTNAME`), add:
 
@@ -137,11 +137,11 @@ else
 fi
 ```
 
-**Step 2: Save file**
+### Step 2: Save file
 
 Save the changes to 49-create-application-gateway.sh
 
-**Step 3: Commit change**
+### Step 3: Commit change
 
 ```bash
 git add subnet-calculator/infrastructure/azure/49-create-application-gateway.sh
@@ -169,7 +169,7 @@ Related to: Application Gateway for SWA private endpoint
 - Modify: `subnet-calculator/infrastructure/azure/49-create-application-gateway.sh:296`
 - Modify: `subnet-calculator/infrastructure/azure/49-create-application-gateway.sh:308`
 
-**Step 1: Change initial backend pool creation to use FQDN**
+### Step 1: Change initial backend pool creation to use FQDN
 
 Line 296 currently:
 
@@ -183,7 +183,7 @@ Change to:
   --servers "${SWA_PRIVATE_FQDN}" \
 ```
 
-**Step 2: Change backend pool update to use FQDN**
+### Step 2: Change backend pool update to use FQDN
 
 Lines 303-309 currently:
 
@@ -209,11 +209,11 @@ az network application-gateway address-pool update \
   --output none
 ```
 
-**Step 3: Save file**
+### Step 3: Save file
 
 Save the changes to 49-create-application-gateway.sh
 
-**Step 4: Commit change**
+### Step 4: Commit change
 
 ```bash
 git add subnet-calculator/infrastructure/azure/49-create-application-gateway.sh
@@ -241,7 +241,7 @@ Related to: Application Gateway for SWA private endpoint
 
 - Modify: `subnet-calculator/infrastructure/azure/49-create-application-gateway.sh:288`
 
-**Step 1: Change capacity from 2 to 1**
+### Step 1: Change capacity from 2 to 1
 
 Line 288 currently:
 
@@ -255,7 +255,7 @@ Change to:
   --capacity 1 \
 ```
 
-**Step 2: Add comment explaining cost optimization**
+### Step 2: Add comment explaining cost optimization
 
 Before line 288, add comment:
 
@@ -263,11 +263,11 @@ Before line 288, add comment:
   --capacity 1 \  # Minimum capacity for v2 (cost optimization: ~$214/month)
 ```
 
-**Step 3: Save file**
+### Step 3: Save file
 
 Save the changes to 49-create-application-gateway.sh
 
-**Step 4: Commit change**
+### Step 4: Commit change
 
 ```bash
 git add subnet-calculator/infrastructure/azure/49-create-application-gateway.sh
@@ -290,7 +290,7 @@ Related to: Application Gateway for SWA private endpoint
 
 - Modify: `subnet-calculator/infrastructure/azure/49-create-application-gateway.sh:321`
 
-**Step 1: Change HTTP settings to use custom domain Host header**
+### Step 1: Change HTTP settings to use custom domain Host header
 
 Line 321 currently:
 
@@ -304,7 +304,7 @@ Change to:
   --host-name "${CUSTOM_DOMAIN:-${SWA_HOSTNAME}}" \
 ```
 
-**Step 2: Add explanation comment**
+### Step 2: Add explanation comment
 
 Before the http-settings update block (around line 312), add:
 
@@ -315,11 +315,11 @@ Before the http-settings update block (around line 312), add:
 # - Custom domain required for Entra ID authentication (redirect URIs)
 ```
 
-**Step 3: Save file**
+### Step 3: Save file
 
 Save the changes to 49-create-application-gateway.sh
 
-**Step 4: Commit change**
+### Step 4: Commit change
 
 ```bash
 git add subnet-calculator/infrastructure/azure/49-create-application-gateway.sh
@@ -346,7 +346,7 @@ Related to: Application Gateway for SWA private endpoint
 
 - Modify: `subnet-calculator/infrastructure/azure/49-create-application-gateway.sh:333-336`
 
-**Step 1: Update backend display to show FQDN**
+### Step 1: Update backend display to show FQDN
 
 Lines 333-336 currently show only IP. Update to:
 
@@ -356,7 +356,7 @@ log_info "Backend IP:           ${SWA_PRIVATE_IP}"
 log_info "Host Header:          ${CUSTOM_DOMAIN:-${SWA_HOSTNAME}}"
 ```
 
-**Step 2: Update architecture diagram**
+### Step 2: Update architecture diagram
 
 Line 339 currently:
 
@@ -370,11 +370,11 @@ Change to:
 log_info "  Internet → ${PUBLIC_IP_ADDRESS}:80 → App Gateway → ${SWA_PRIVATE_FQDN}:443 → SWA (${SWA_PRIVATE_IP})"
 ```
 
-**Step 3: Save file**
+### Step 3: Save file
 
 Save the changes to 49-create-application-gateway.sh
 
-**Step 4: Commit change**
+### Step 4: Commit change
 
 ```bash
 git add subnet-calculator/infrastructure/azure/49-create-application-gateway.sh
@@ -399,7 +399,7 @@ Related to: Application Gateway for SWA private endpoint
 
 - No file changes
 
-**Step 1: Verify script syntax**
+### Step 1: Verify script syntax
 
 ```bash
 bash -n subnet-calculator/infrastructure/azure/49-create-application-gateway.sh
@@ -407,7 +407,7 @@ bash -n subnet-calculator/infrastructure/azure/49-create-application-gateway.sh
 
 Expected: No output (syntax is valid)
 
-**Step 2: Run shellcheck for best practices**
+### Step 2: Run shellcheck for best practices
 
 ```bash
 shellcheck subnet-calculator/infrastructure/azure/49-create-application-gateway.sh
@@ -415,7 +415,7 @@ shellcheck subnet-calculator/infrastructure/azure/49-create-application-gateway.
 
 Expected: No errors (warnings about SC2086 for variable expansion are acceptable)
 
-**Step 3: Review all changes**
+### Step 3: Review all changes
 
 ```bash
 git diff main...HEAD subnet-calculator/infrastructure/azure/49-create-application-gateway.sh
@@ -430,7 +430,7 @@ Review the diff to ensure all changes are correct:
 - HTTP settings use custom domain
 - Summary output is updated
 
-**Step 4: Commit verification**
+### Step 4: Commit verification
 
 ```bash
 git log --oneline -6
@@ -448,7 +448,7 @@ Expected: 6 commits (1 per task)
 
 **Important:** This task requires active Azure resources and will create billable resources (~$214/month).
 
-**Step 1: Set required environment variables**
+### Step 1: Set required environment variables
 
 From the Stack 16 deployment, you should have:
 
@@ -464,7 +464,7 @@ export STATIC_WEB_APP_NAME=swa-subnet-calc-private-endpoint
 export CUSTOM_DOMAIN=static-swa-private-endpoint.publiccloudexperiments.net
 ```
 
-**Step 2: Run the Application Gateway creation script**
+### Step 2: Run the Application Gateway creation script
 
 ```bash
 cd subnet-calculator/infrastructure/azure
@@ -480,7 +480,7 @@ Expected output sections:
 5. HTTP settings configured with custom domain
 6. Final summary with public IP and backend configuration
 
-**Step 3: Verify backend health**
+### Step 3: Verify backend health
 
 After Application Gateway is created:
 
@@ -502,7 +502,7 @@ If health is Unhealthy, check:
 - Private endpoint is in correct subnet
 - NSG rules allow traffic from AppGW subnet
 
-**Step 4: Test HTTP access**
+### Step 4: Test HTTP access
 
 Get public IP:
 
@@ -526,7 +526,7 @@ Expected:
 - HTTP 200 with SWA content, OR
 - HTTP 302 redirect to Entra ID login
 
-**Step 5: Test DNS resolution from AppGW subnet**
+### Step 5: Test DNS resolution from AppGW subnet
 
 This requires a VM in the VNet or using Cloud Shell with VNet integration.
 
@@ -538,7 +538,7 @@ nslookup delightful-field-0cd326e03.privatelink.3.azurestaticapps.net
 
 Expected: Should resolve to 10.100.0.21
 
-**Step 6: Document test results**
+### Step 6: Document test results
 
 Create a test results file:
 
@@ -577,7 +577,7 @@ cat /tmp/appgw-test-results.txt
 
 **Context:** The stack-16 script already calls script 49 and exports CUSTOM_DOMAIN. We just need to verify the integration is correct.
 
-**Step 1: Verify CUSTOM_DOMAIN is exported before calling script 49**
+### Step 1: Verify CUSTOM_DOMAIN is exported before calling script 49
 
 Check lines 560-569 in azure-stack-16-swa-private-endpoint.sh:
 
@@ -591,7 +591,7 @@ Check lines 560-569 in azure-stack-16-swa-private-endpoint.sh:
     "${SCRIPT_DIR}/49-create-application-gateway.sh"
 ```
 
-**Step 2: Add CUSTOM_DOMAIN export**
+### Step 2: Add CUSTOM_DOMAIN export
 
 Before calling the script, ensure CUSTOM_DOMAIN is exported:
 
@@ -606,11 +606,11 @@ Before calling the script, ensure CUSTOM_DOMAIN is exported:
     "${SCRIPT_DIR}/49-create-application-gateway.sh"
 ```
 
-**Step 3: Save file**
+### Step 3: Save file
 
 Save changes to azure-stack-16-swa-private-endpoint.sh
 
-**Step 4: Commit change**
+### Step 4: Commit change
 
 ```bash
 git add subnet-calculator/infrastructure/azure/azure-stack-16-swa-private-endpoint.sh
@@ -633,7 +633,7 @@ Related to: Application Gateway for SWA private endpoint
 
 **Important:** This is the full end-to-end test. Can be skipped if Application Gateway already created in Task 8.
 
-**Step 1: Delete existing Application Gateway (if created in Task 8)**
+### Step 1: Delete existing Application Gateway (if created in Task 8)
 
 If you already created the Application Gateway in Task 8, delete it first:
 
@@ -651,7 +651,7 @@ az network public-ip delete \
 
 Wait 2-3 minutes for deletion to complete.
 
-**Step 2: Run stack-16 script (answer 'y' to Application Gateway creation)**
+### Step 2: Run stack-16 script (answer 'y' to Application Gateway creation)
 
 ```bash
 cd subnet-calculator/infrastructure/azure
@@ -662,7 +662,7 @@ AZURE_CLIENT_SECRET="<your-client-secret>" \
 
 When prompted "Create Application Gateway now? (Y/n)", answer: y
 
-**Step 3: Verify Application Gateway is created correctly**
+### Step 3: Verify Application Gateway is created correctly
 
 Check the summary output at the end. It should show:
 
@@ -670,7 +670,7 @@ Check the summary output at the end. It should show:
 - SWA Private: Private endpoint only
 - Function Private: Private endpoint only
 
-**Step 4: Verify backend health (same as Task 8 Step 3)**
+### Step 4: Verify backend health (same as Task 8 Step 3)
 
 ```bash
 az network application-gateway show-backend-health \
@@ -681,7 +681,7 @@ az network application-gateway show-backend-health \
 
 Expected: Health should be "Healthy"
 
-**Step 5: Test complete flow with Cloudflare**
+### Step 5: Test complete flow with Cloudflare
 
 1. Configure Cloudflare DNS:
    - Type: CNAME
@@ -708,7 +708,7 @@ Expected: Health should be "Healthy"
 
 - Create: `subnet-calculator/infrastructure/azure/docs/application-gateway-troubleshooting.md`
 
-**Step 1: Create troubleshooting guide**
+### Step 1: Create troubleshooting guide
 
 ```bash
 cat > subnet-calculator/infrastructure/azure/docs/application-gateway-troubleshooting.md <<'EOF'
@@ -847,9 +847,7 @@ curl -v -H "Host: static-swa-private-endpoint.publiccloudexperiments.net" \
 Should return SWA content or Entra ID redirect.
 EOF
 
-```
-
-**Step 2: Commit documentation**
+### Step 2: Commit documentation
 
 ```bash
 git add subnet-calculator/infrastructure/azure/docs/application-gateway-troubleshooting.md
@@ -866,7 +864,7 @@ Related to: Application Gateway for SWA private endpoint
 "
 ```
 
-**Step 3: Update main README with Application Gateway info**
+### Step 3: Update main README with Application Gateway info
 
 If there's a README in the infrastructure/azure directory, add a section about the Application Gateway setup.
 
@@ -878,13 +876,13 @@ If there's a README in the infrastructure/azure directory, add a section about t
 
 - No file changes
 
-**Step 1: Push branch to remote**
+### Step 1: Push branch to remote
 
 ```bash
 git push origin chore/20251030-app-gateway
 ```
 
-**Step 2: Create pull request**
+### Step 2: Create pull request
 
 ```bash
 gh pr create \
@@ -964,9 +962,7 @@ New resource: Application Gateway Standard_v2 (capacity 1)
 EOF
 )"
 
-```
-
-**Step 3: Review PR and merge when ready**
+### Step 3: Review PR and merge when ready
 
 After PR is reviewed and tests pass:
 
