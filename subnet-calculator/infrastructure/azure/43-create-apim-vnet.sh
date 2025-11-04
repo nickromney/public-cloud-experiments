@@ -296,6 +296,7 @@ if az apim show \
     if [[ "${APIM_VNET_MODE}" == "Internal" ]]; then
       log_info "Internal Mode:"
       log_info "  ✓ Gateway is private (VNet only)"
+      log_info "  ✓ Gets private IP via VNet injection"
       log_info "  ✓ Requires Application Gateway for public access"
       log_info "  ⚠️  NOT compatible with SWA→APIM linking"
     else
@@ -306,11 +307,18 @@ if az apim show \
     fi
 
     log_info ""
-    log_info "Next Steps (Stack 18):"
-    log_info "  1. Create private endpoint: ./56-create-private-endpoint-apim.sh"
-    log_info "  2. Configure backend: ./31-apim-backend.sh"
-    log_info "  3. Apply policies: ./32-apim-policies.sh"
-    log_info "  4. Configure AppGW path-based routing: ./55-add-path-based-routing.sh"
+    if [[ "${APIM_VNET_MODE}" == "Internal" ]]; then
+      log_info "Next Steps (Stack 18 - Internal):"
+      log_info "  1. Configure backend: ./31-apim-backend.sh"
+      log_info "  2. Apply policies: ./32-apim-policies.sh"
+      log_info "  3. Configure AppGW path-based routing: ./55-add-path-based-routing.sh"
+      log_info "  Note: Private endpoint NOT needed (VNet injection provides private IP)"
+    else
+      log_info "Next Steps (Stack 17 - External):"
+      log_info "  1. Configure backend: ./31-apim-backend.sh"
+      log_info "  2. Apply policies: ./32-apim-policies.sh"
+      log_info "  3. Link to SWA (optional): Use APIM as backend for SWA"
+    fi
     log_info ""
     log_info "Save this APIM name for other scripts: ${APIM_NAME}"
     log_info ""
@@ -476,14 +484,15 @@ if [[ "${APIM_VNET_TYPE}" == "External" ]]; then
 elif [[ "${APIM_VNET_TYPE}" == "Internal" ]]; then
   log_info "Internal Mode:"
   log_info "  ✓ Gateway is private (VNet only)"
+  log_info "  ✓ Gets private IP via VNet injection"
   log_info "  ✓ Requires Application Gateway for public access"
   log_info "  ⚠️  NOT compatible with SWA→APIM linking"
   log_info ""
   log_info "Next Steps (Stack 18):"
-  log_info "  1. Create private endpoint: ./56-create-private-endpoint-apim.sh"
-  log_info "  2. Configure backend: ./31-apim-backend.sh"
-  log_info "  3. Apply policies: ./32-apim-policies.sh"
-  log_info "  4. Configure AppGW path-based routing: ./55-add-path-based-routing.sh"
+  log_info "  1. Configure backend: ./31-apim-backend.sh"
+  log_info "  2. Apply policies: ./32-apim-policies.sh"
+  log_info "  3. Configure AppGW path-based routing: ./55-add-path-based-routing.sh"
+  log_info "  Note: Private endpoint NOT needed (VNet injection provides private IP)"
 fi
 
 log_info ""

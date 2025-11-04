@@ -433,10 +433,10 @@ teardown() {
 
 # === Deployment Steps Tests ===
 
-@test "Stack 16: Has 11 deployment steps" {
-  run bash -c "grep -c 'Step [0-9]*/1[01]' azure-stack-16-swa-private-endpoint.sh"
+@test "Stack 16: Has 12 deployment steps" {
+  run bash -c "grep -c 'Step [0-9]*/1[0-2]' azure-stack-16-swa-private-endpoint.sh"
   assert_success
-  [[ "${output}" -ge 11 ]]
+  [[ "${output}" -ge 12 ]]
 }
 
 @test "Stack 16: Creates VNet first" {

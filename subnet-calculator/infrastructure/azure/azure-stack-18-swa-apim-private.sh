@@ -325,10 +325,11 @@ log_info ""
 # Step 10: Create backend pool for APIM
 log_step "Step 13/16: Create APIM backend pool"
 
-APIM_PRIVATE_IP=$(az network private-endpoint show \
-  --name "pe-${APIM_NAME}" \
+# Get APIM private IP (Internal mode gets IP from VNet injection, not private endpoint)
+APIM_PRIVATE_IP=$(az apim show \
+  --name "${APIM_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "customDnsConfigs[0].ipAddresses[0]" -o tsv)
+  --query "privateIPAddresses[0]" -o tsv)
 
 log_info "Creating APIM backend pool with private IP: ${APIM_PRIVATE_IP}"
 
