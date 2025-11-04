@@ -48,8 +48,8 @@ test.describe('Entra ID Logout Flow', () => {
     // Should show logged-out message
     await expect(page.locator('h1')).toContainText("You've been logged out")
 
-    // Should have "Log in again" button
-    const loginButton = page.locator('a[href="/.auth/login/aad"]')
+    // Should have "Log in again" button (links to /login.html)
+    const loginButton = page.locator('a[href="/login.html"]')
     await expect(loginButton).toBeVisible()
     await expect(loginButton).toContainText('Log in again')
   })
@@ -96,26 +96,18 @@ test.describe('Entra ID Logout Flow', () => {
     }
   })
 
-  test('04 - staticwebapp.config.json has correct logout configuration', async ({ request }) => {
-    // Fetch the config file
-    const response = await request.get(`${BASE_URL}/staticwebapp.config.json`)
-    expect(response.status()).toBe(200)
+  test('04 - logged-out page is accessible (verifies SWA config allows anonymous)', async ({ page }) => {
+    // This test verifies the behavior that staticwebapp.config.json should enable
+    // The config file itself should never be publicly accessible
 
-    const config = (await response.json()) as StaticWebAppConfig
+    // Navigate to logged-out page
+    const response = await page.goto(`${BASE_URL}/logged-out.html`)
 
-    // Should have logged-out.html route with anonymous access
-    const loggedOutRoute = config.routes.find((r) => r.route === '/logged-out.html')
-    expect(loggedOutRoute).toBeDefined()
-    expect(loggedOutRoute?.allowedRoles).toContain('anonymous')
+    // Should be accessible without authentication (200 OK, not 401/403)
+    expect(response?.status()).toBe(200)
 
-    // Should have /logout route with redirect
-    const logoutRoute = config.routes.find((r) => r.route === '/logout')
-    expect(logoutRoute).toBeDefined()
-    expect(logoutRoute?.redirect).toContain('/.auth/logout')
-    expect(logoutRoute?.redirect).toContain('post_logout_redirect_uri=/logged-out.html')
-
-    // Should exclude logged-out.html from navigationFallback
-    expect(config.navigationFallback.exclude).toContain('/logged-out.html')
+    // Should load the actual page content
+    await expect(page.locator('h1')).toContainText("You've been logged out")
   })
 
   test('05 - logout button redirects to /logout route', async ({ page }) => {
@@ -173,13 +165,13 @@ test.describe('Entra ID Logout Flow', () => {
   test('07 - login button on logged-out page redirects to auth', async ({ page }) => {
     await page.goto(`${BASE_URL}/logged-out.html`)
 
-    // Find login button
-    const loginButton = page.locator('a[href="/.auth/login/aad"]')
+    // Find login button (links to /login.html)
+    const loginButton = page.locator('a[href="/login.html"]')
     await expect(loginButton).toBeVisible()
 
     // Verify href
     const href = await loginButton.getAttribute('href')
-    expect(href).toBe('/.auth/login/aad')
+    expect(href).toBe('/login.html')
 
     // Note: We don't click it in tests as it would initiate actual authentication
     // which requires interactive login

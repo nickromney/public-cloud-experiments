@@ -60,14 +60,42 @@ export function showApiStatus(healthy: boolean, service?: string, version?: stri
   showElement('api-status')
 }
 
-export function renderResults(results: ApiResults): void {
+export function renderResults(
+  results: ApiResults,
+  timingInfo?: {
+    overallDuration: number
+    overallRequestTimestamp: string
+    overallResponseTimestamp: string
+    address: string
+    mode: string
+    apiCalls: Array<{ call: string; requestTime: string; responseTime: string; duration: number }>
+  }
+): void {
   const resultsContent = document.getElementById('results-content')
   if (!resultsContent) return
 
   let html = ''
 
+  // Overall Performance Timing (if provided)
+  if (timingInfo) {
+    const overallSeconds = (timingInfo.overallDuration / 1000).toFixed(3)
+    const requestPayload = JSON.stringify({ address: timingInfo.address, mode: timingInfo.mode })
+    html += `
+      <article class="performance-timing">
+        <h3>Performance - Overall</h3>
+        <table>
+          <tr><th>Total Response Time</th><td><strong>${timingInfo.overallDuration.toFixed(0)}ms</strong> (${overallSeconds}s)</td></tr>
+          <tr><th>First Request Sent (UTC)</th><td>${timingInfo.overallRequestTimestamp}</td></tr>
+          <tr><th>Last Response Received (UTC)</th><td>${timingInfo.overallResponseTimestamp}</td></tr>
+          <tr><th>Request Payload</th><td><code>${requestPayload}</code></td></tr>
+        </table>
+      </article>
+    `
+  }
+
   // Validation
   if (results.validate) {
+    const validateTiming = timingInfo?.apiCalls.find((c) => c.call === 'validate')
     html += `
       <article>
         <h3>Validation</h3>
@@ -77,12 +105,25 @@ export function renderResults(results: ApiResults): void {
           <tr><th>Address</th><td><code>${results.validate.address}</code></td></tr>
           <tr><th>IP Version</th><td>${results.validate.is_ipv4 ? 'IPv4' : 'IPv6'}</td></tr>
         </table>
+        ${
+          validateTiming
+            ? `<details>
+          <summary>API Call Timing</summary>
+          <table>
+            <tr><th>Duration</th><td><strong>${validateTiming.duration.toFixed(0)}ms</strong></td></tr>
+            <tr><th>Request (UTC)</th><td>${validateTiming.requestTime}</td></tr>
+            <tr><th>Response (UTC)</th><td>${validateTiming.responseTime}</td></tr>
+          </table>
+        </details>`
+            : ''
+        }
       </article>
     `
   }
 
   // Private check
   if (results.private) {
+    const privateTiming = timingInfo?.apiCalls.find((c) => c.call === 'checkPrivate')
     html += `
       <article>
         <h3>Private Address Check</h3>
@@ -92,12 +133,25 @@ export function renderResults(results: ApiResults): void {
           <tr><th>RFC6598 (Shared)</th><td>${results.private.is_rfc6598 ? '✓ Yes' : '✗ No'}</td></tr>
           ${results.private.matched_rfc6598_range ? `<tr><th>Matched Range</th><td><code>${results.private.matched_rfc6598_range}</code></td></tr>` : ''}
         </table>
+        ${
+          privateTiming
+            ? `<details>
+          <summary>API Call Timing</summary>
+          <table>
+            <tr><th>Duration</th><td><strong>${privateTiming.duration.toFixed(0)}ms</strong></td></tr>
+            <tr><th>Request (UTC)</th><td>${privateTiming.requestTime}</td></tr>
+            <tr><th>Response (UTC)</th><td>${privateTiming.responseTime}</td></tr>
+          </table>
+        </details>`
+            : ''
+        }
       </article>
     `
   }
 
   // Cloudflare check
   if (results.cloudflare) {
+    const cloudflareTiming = timingInfo?.apiCalls.find((c) => c.call === 'checkCloudflare')
     html += `
       <article>
         <h3>Cloudflare Check</h3>
@@ -106,6 +160,18 @@ export function renderResults(results: ApiResults): void {
           <tr><th>IP Version</th><td>IPv${results.cloudflare.ip_version}</td></tr>
           ${results.cloudflare.matched_ranges ? `<tr><th>Matched Ranges</th><td><code>${results.cloudflare.matched_ranges.join(', ')}</code></td></tr>` : ''}
         </table>
+        ${
+          cloudflareTiming
+            ? `<details>
+          <summary>API Call Timing</summary>
+          <table>
+            <tr><th>Duration</th><td><strong>${cloudflareTiming.duration.toFixed(0)}ms</strong></td></tr>
+            <tr><th>Request (UTC)</th><td>${cloudflareTiming.requestTime}</td></tr>
+            <tr><th>Response (UTC)</th><td>${cloudflareTiming.responseTime}</td></tr>
+          </table>
+        </details>`
+            : ''
+        }
       </article>
     `
   }
@@ -113,6 +179,7 @@ export function renderResults(results: ApiResults): void {
   // Subnet info
   if (results.subnet) {
     const s = results.subnet
+    const subnetTiming = timingInfo?.apiCalls.find((c) => c.call === 'getSubnetInfo')
     html += `
       <article>
         <h3>Subnet Information (${s.mode} Mode)</h3>
@@ -129,6 +196,18 @@ export function renderResults(results: ApiResults): void {
           <tr><th>Last Usable IP</th><td><code>${s.last_usable_ip}</code></td></tr>
           ${s.note ? `<tr><th>Note</th><td>${s.note}</td></tr>` : ''}
         </table>
+        ${
+          subnetTiming
+            ? `<details>
+          <summary>API Call Timing</summary>
+          <table>
+            <tr><th>Duration</th><td><strong>${subnetTiming.duration.toFixed(0)}ms</strong></td></tr>
+            <tr><th>Request (UTC)</th><td>${subnetTiming.requestTime}</td></tr>
+            <tr><th>Response (UTC)</th><td>${subnetTiming.responseTime}</td></tr>
+          </table>
+        </details>`
+            : ''
+        }
       </article>
     `
   }

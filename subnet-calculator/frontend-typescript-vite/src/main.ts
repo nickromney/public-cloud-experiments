@@ -55,11 +55,31 @@ async function handleSubmit(event: Event): Promise<void> {
     return
   }
 
+  // Start performance timing
+  const overallRequestTimestamp = new Date().toISOString()
+  const overallStartTime = performance.now()
+
   showLoading()
 
   try {
-    const results = await apiClient.performLookup(address, mode)
-    renderResults(results)
+    const { results, timing } = await apiClient.performLookup(address, mode)
+
+    // End performance timing
+    const overallResponseTimestamp = new Date().toISOString()
+    const overallEndTime = performance.now()
+    const overallDuration = overallEndTime - overallStartTime
+
+    // Store timing for display
+    const timingInfo = {
+      overallDuration,
+      overallRequestTimestamp,
+      overallResponseTimestamp,
+      address,
+      mode,
+      apiCalls: timing,
+    }
+
+    renderResults(results, timingInfo)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error occurred'
     showError(`Error: ${message}`)
