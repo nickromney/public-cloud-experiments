@@ -53,13 +53,13 @@ test.describe('Performance Timing', () => {
     await page.waitForSelector('.performance-timing', { state: 'visible' })
 
     // Check request timestamp is present
-    const requestRow = page.locator('.performance-timing tr').filter({ hasText: 'Request Sent (UTC)' })
+    const requestRow = page.locator('.performance-timing tr').filter({ hasText: 'First Request Sent (UTC)' })
     await expect(requestRow).toBeVisible()
     const requestTimestamp = await requestRow.locator('td').textContent()
     expect(requestTimestamp).toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/)
 
     // Check response timestamp is present
-    const responseRow = page.locator('.performance-timing tr').filter({ hasText: 'Response Received (UTC)' })
+    const responseRow = page.locator('.performance-timing tr').filter({ hasText: 'Last Response Received (UTC)' })
     await expect(responseRow).toBeVisible()
     const responseTimestamp = await responseRow.locator('td').textContent()
     expect(responseTimestamp).toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/)
