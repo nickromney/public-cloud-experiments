@@ -141,7 +141,7 @@ else
         \"displayName\": \"${APP_DISPLAY_NAME}\",
         \"signInAudience\": \"AzureADMyOrg\",
         \"web\": {
-          \"redirectUris\": [${REDIRECT_URIS_JSON}],
+          \"redirectUris\": ${REDIRECT_URIS_JSON},
           \"implicitGrantSettings\": {
             \"enableAccessTokenIssuance\": true,
             \"enableIdTokenIssuance\": true
@@ -165,7 +165,7 @@ az rest --method PATCH \
   --headers 'Content-Type=application/json' \
   --body "{
     \"web\": {
-      \"redirectUris\": [${REDIRECT_URIS_JSON}],
+      \"redirectUris\": ${REDIRECT_URIS_JSON},
       \"implicitGrantSettings\": {
         \"enableAccessTokenIssuance\": true,
         \"enableIdTokenIssuance\": true

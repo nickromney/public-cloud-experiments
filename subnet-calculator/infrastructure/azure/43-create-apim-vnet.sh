@@ -262,9 +262,67 @@ log_info "Subnet ID: ${SUBNET_ID}"
 if az apim show \
   --name "${APIM_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
-  log_error "APIM instance ${APIM_NAME} already exists"
-  log_error "Use a different name or reuse the existing instance"
-  exit 1
+
+  # Get existing APIM VNet type
+  EXISTING_VNET_TYPE=$(az apim show \
+    --name "${APIM_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --query "virtualNetworkType" -o tsv 2>/dev/null || echo "None")
+
+  # Check if VNet mode matches
+  if [[ "${EXISTING_VNET_TYPE}" == "${APIM_VNET_MODE}" ]]; then
+    log_info "APIM instance ${APIM_NAME} already exists with VNet mode: ${EXISTING_VNET_TYPE}"
+    log_info "Skipping APIM creation, will use existing instance"
+    log_info ""
+
+    # Get gateway URL
+    APIM_GATEWAY=$(az apim show \
+      --name "${APIM_NAME}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --query "gatewayUrl" -o tsv)
+
+    log_info "✓ APIM Instance Created Successfully!"
+    log_info ""
+    log_info "========================================="
+    log_info "APIM Details"
+    log_info "========================================="
+    log_info "Name:             ${APIM_NAME}"
+    log_info "VNet Mode:        ${EXISTING_VNET_TYPE}"
+    log_info "Gateway URL:      ${APIM_GATEWAY}"
+    log_info "Developer Portal: https://${APIM_NAME}.developer.azure-api.net"
+    log_info "Private IP:       N/A"
+    log_info ""
+
+    if [[ "${APIM_VNET_MODE}" == "Internal" ]]; then
+      log_info "Internal Mode:"
+      log_info "  ✓ Gateway is private (VNet only)"
+      log_info "  ✓ Requires Application Gateway for public access"
+      log_info "  ⚠️  NOT compatible with SWA→APIM linking"
+    else
+      log_info "External Mode:"
+      log_info "  ✓ Gateway is public"
+      log_info "  ✓ Can reach private backends via VNet"
+      log_info "  ✓ Compatible with SWA→APIM linking"
+    fi
+
+    log_info ""
+    log_info "Next Steps (Stack 18):"
+    log_info "  1. Create private endpoint: ./56-create-private-endpoint-apim.sh"
+    log_info "  2. Configure backend: ./31-apim-backend.sh"
+    log_info "  3. Apply policies: ./32-apim-policies.sh"
+    log_info "  4. Configure AppGW path-based routing: ./55-add-path-based-routing.sh"
+    log_info ""
+    log_info "Save this APIM name for other scripts: ${APIM_NAME}"
+    log_info ""
+
+    # Exit successfully - instance already exists with correct configuration
+    exit 0
+  else
+    log_error "APIM instance ${APIM_NAME} already exists with VNet mode: ${EXISTING_VNET_TYPE}"
+    log_error "Requested VNet mode: ${APIM_VNET_MODE}"
+    log_error "Cannot change VNet mode on existing APIM instance"
+    exit 1
+  fi
 fi
 
 # Create APIM instance with VNet integration

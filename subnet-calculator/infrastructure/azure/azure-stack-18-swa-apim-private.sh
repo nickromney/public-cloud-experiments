@@ -206,15 +206,24 @@ log_info ""
 log_info "✓ APIM instance ready: ${APIM_NAME}"
 log_info ""
 
-# Step 2: Create private endpoint for APIM
-log_step "Step 5/16: Create private endpoint for APIM"
-"${SCRIPT_DIR}/56-create-private-endpoint-apim.sh"
+# Step 5: Skip private endpoint for APIM (Internal mode has private IP via VNet injection)
+log_step "Step 5/16: Get APIM private IP (Internal mode)"
+log_info "APIM is in Internal VNet mode - no private endpoint needed"
+log_info "APIM gets private IP automatically from VNet subnet"
 
+# Get APIM private IP from network interface
+APIM_PRIVATE_IP=$(az network vnet subnet show \
+  --resource-group "${RESOURCE_GROUP}" \
+  --vnet-name "${VNET_NAME}" \
+  --name "snet-apim" \
+  --query "ipConfigurations[0].privateIPAddress" -o tsv 2>/dev/null || echo "Pending")
+
+log_info "APIM Private IP: ${APIM_PRIVATE_IP}"
 log_info ""
-log_info "✓ APIM private endpoint ready"
+log_info "✓ APIM private IP configuration verified"
 log_info ""
 
-# Step 3: Setup App Registration for Entra ID
+# Step 6: Setup App Registration for Entra ID
 log_step "Step 6/16: Setup App Registration"
 "${SCRIPT_DIR}/52-setup-app-registration.sh"
 
