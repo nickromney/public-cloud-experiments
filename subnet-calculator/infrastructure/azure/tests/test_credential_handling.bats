@@ -156,8 +156,12 @@ teardown() {
   assert_success
 }
 
-@test "42-configure-entraid-swa.sh prompts for AZURE_CLIENT_SECRET if not set" {
-  run grep 'Enter Entra ID Client Secret' 42-configure-entraid-swa.sh
+@test "42-configure-entraid-swa.sh checks for AZURE_CLIENT_SECRET from env or Key Vault" {
+  # Script no longer prompts interactively - uses env var or Key Vault
+  run grep 'AZURE_CLIENT_SECRET from environment' 42-configure-entraid-swa.sh
+  assert_success
+
+  run grep 'KEY_VAULT_NAME' 42-configure-entraid-swa.sh
   assert_success
 }
 
@@ -181,10 +185,13 @@ teardown() {
   [[ "$output" =~ "exit 1" ]]
 }
 
-@test "42-configure-entraid-swa.sh exits if Client Secret is empty" {
-  run grep -A 2 'Client Secret cannot be empty' 42-configure-entraid-swa.sh
+@test "42-configure-entraid-swa.sh exits if Client Secret not provided" {
+  # Script errors if secret not in env var and not in Key Vault
+  run grep 'AZURE_CLIENT_SECRET not provided' 42-configure-entraid-swa.sh
   assert_success
-  [[ "$output" =~ "exit 1" ]]
+
+  run grep -A 7 'AZURE_CLIENT_SECRET not provided' 42-configure-entraid-swa.sh
+  assert_output --partial 'exit 1'
 }
 
 # Confirmation prompt tests
@@ -248,8 +255,12 @@ teardown() {
 
 # Security best practices tests
 
-@test "42-configure-entraid-swa.sh uses read -rsp for secret input" {
-  run grep 'read -rsp' 42-configure-entraid-swa.sh
+@test "42-configure-entraid-swa.sh retrieves secret from environment or Key Vault" {
+  # Modern approach: env var or Key Vault, not interactive prompt
+  run grep 'AZURE_CLIENT_SECRET from environment' 42-configure-entraid-swa.sh
+  assert_success
+
+  run grep 'keyvault secret show' 42-configure-entraid-swa.sh
   assert_success
 }
 

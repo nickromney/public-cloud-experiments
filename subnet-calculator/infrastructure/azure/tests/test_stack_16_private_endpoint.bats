@@ -114,18 +114,31 @@ teardown() {
 
 # === Required Environment Variables Tests ===
 
-@test "Stack 16: Requires AZURE_CLIENT_ID" {
-  run bash -c "grep -E 'AZURE_CLIENT_ID.*required' azure-stack-16-swa-private-endpoint.sh"
+@test "Stack 16: AZURE_CLIENT_ID is optional (auto-created)" {
+  # Script can auto-create app registration if AZURE_CLIENT_ID not provided
+  run bash -c "grep 'AZURE_CLIENT_ID is optional' azure-stack-16-swa-private-endpoint.sh"
+  assert_success
+
+  run bash -c "grep 'can create app registration automatically' azure-stack-16-swa-private-endpoint.sh"
   assert_success
 }
 
-@test "Stack 16: Requires AZURE_CLIENT_SECRET" {
-  run bash -c "grep -E 'AZURE_CLIENT_SECRET.*required' azure-stack-16-swa-private-endpoint.sh"
+@test "Stack 16: AZURE_CLIENT_SECRET not required (Key Vault)" {
+  # Script retrieves secret from Key Vault automatically
+  run bash -c "grep 'AZURE_CLIENT_SECRET no longer required' azure-stack-16-swa-private-endpoint.sh"
+  assert_success
+
+  run bash -c "grep 'Retrieved from Key Vault' azure-stack-16-swa-private-endpoint.sh"
   assert_success
 }
 
-@test "Stack 16: Validates credentials are set" {
-  run bash -c "grep -A 3 'if.*AZURE_CLIENT_ID' azure-stack-16-swa-private-endpoint.sh | grep -q exit"
+@test "Stack 16: Handles missing AZURE_CLIENT_ID gracefully" {
+  # Script provides helpful info when AZURE_CLIENT_ID not provided
+  run bash -c "grep 'No AZURE_CLIENT_ID provided' azure-stack-16-swa-private-endpoint.sh"
+  assert_success
+
+  # Script can auto-create via script 52
+  run bash -c "grep '52-setup-app-registration.sh' azure-stack-16-swa-private-endpoint.sh"
   assert_success
 }
 
