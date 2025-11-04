@@ -55,12 +55,36 @@ async function handleSubmit(event: Event): Promise<void> {
     return
   }
 
+  // Start performance timing
+  const startTime = performance.now()
+  console.log(`[Performance] Button pressed at ${startTime.toFixed(2)}ms`)
+
   showLoading()
 
   try {
     const results = await apiClient.performLookup(address, mode)
-    renderResults(results)
+
+    // End performance timing
+    const endTime = performance.now()
+    const duration = endTime - startTime
+    console.log(`[Performance] Response received at ${endTime.toFixed(2)}ms`)
+    console.log(`[Performance] Total API response time: ${duration.toFixed(2)}ms (${(duration / 1000).toFixed(3)}s)`)
+
+    // Store timing for display
+    const timingInfo = {
+      duration,
+      startTime: new Date().toISOString(),
+      address,
+      mode,
+    }
+
+    renderResults(results, timingInfo)
   } catch (error) {
+    const endTime = performance.now()
+    const duration = endTime - startTime
+    console.log(`[Performance] Error received at ${endTime.toFixed(2)}ms`)
+    console.log(`[Performance] Time to error: ${duration.toFixed(2)}ms (${(duration / 1000).toFixed(3)}s)`)
+
     const message = error instanceof Error ? error.message : 'Unknown error occurred'
     showError(`Error: ${message}`)
   }

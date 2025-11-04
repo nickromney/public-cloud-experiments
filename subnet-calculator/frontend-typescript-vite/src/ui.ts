@@ -60,11 +60,34 @@ export function showApiStatus(healthy: boolean, service?: string, version?: stri
   showElement('api-status')
 }
 
-export function renderResults(results: ApiResults): void {
+export function renderResults(
+  results: ApiResults,
+  timingInfo?: { duration: number; startTime: string; address: string; mode: string }
+): void {
   const resultsContent = document.getElementById('results-content')
   if (!resultsContent) return
 
   let html = ''
+
+  // Performance Timing (if provided)
+  if (timingInfo) {
+    const durationSeconds = (timingInfo.duration / 1000).toFixed(3)
+    const colorClass =
+      timingInfo.duration < 500 ? 'text-success' : timingInfo.duration < 1000 ? 'text-warning' : 'text-danger'
+    html += `
+      <article class="performance-timing">
+        <h3>⚡ Performance</h3>
+        <table>
+          <tr><th>Response Time</th><td class="${colorClass}"><strong>${timingInfo.duration.toFixed(0)}ms</strong> (${durationSeconds}s)</td></tr>
+          <tr><th>Timestamp</th><td>${new Date(timingInfo.startTime).toLocaleTimeString()}</td></tr>
+          <tr><th>Query</th><td><code>${timingInfo.address}</code> (${timingInfo.mode} mode)</td></tr>
+        </table>
+        <small style="color: var(--muted-color);">
+          🟢 Fast (&lt;500ms) | 🟡 Moderate (500-1000ms) | 🔴 Slow (&gt;1000ms)
+        </small>
+      </article>
+    `
+  }
 
   // Validation
   if (results.validate) {

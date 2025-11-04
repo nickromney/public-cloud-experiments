@@ -262,3 +262,32 @@ html[data-theme="light"] tr.highlight {
     align-items: flex-start;
   }
 }
+
+/* Performance timing styles */
+.performance-timing {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(33, 150, 243, 0.1) 100%);
+  border-left: 4px solid var(--pico-primary);
+}
+
+.performance-timing h3 {
+  margin-bottom: 1rem;
+}
+
+.performance-timing table {
+  margin-bottom: 0.5rem;
+}
+
+.text-success {
+  color: #4caf50;
+  font-weight: 600;
+}
+
+.text-warning {
+  color: #ff9800;
+  font-weight: 600;
+}
+
+.text-danger {
+  color: #f44336;
+  font-weight: 600;
+}
