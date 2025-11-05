@@ -288,10 +288,10 @@ if [[ "${APP_EXISTS}" == "false" ]]; then
   # Allow auto-approve in CI/CD (defaults to option 2: create new)
   if [[ -n "${AUTO_APPROVE:-}" ]]; then
     log_info "AUTO_APPROVE set: choosing option 2 (create new)"
+    log_warn "Note: AUTO_APPROVE defaults to creating new app registration (option 2)"
     REPLY="2"
   else
-    read -p "Choose option (1-3): " -n 1 -r
-    echo
+    read -p "Choose option (1-3): " -r
     echo
   fi
 
@@ -374,14 +374,14 @@ if [[ "${APP_EXISTS}" == "false" ]]; then
     APP_EXISTS=true
   else
     # Option 3 or any other input - exit
-    log_info "Exiting. To proceed, set AZURE_CLIENT_ID environment variable:"
+    log_info "User chose to exit. To proceed, set AZURE_CLIENT_ID environment variable:"
     log_info "  export AZURE_CLIENT_ID=<your-client-id>"
     log_info ""
     log_info "Or run with:"
     log_info "  AZURE_CLIENT_ID=xxx $0"
     log_info ""
     log_info "The client secret will be retrieved from Key Vault automatically."
-    exit 0
+    exit 1
   fi
 fi
 
