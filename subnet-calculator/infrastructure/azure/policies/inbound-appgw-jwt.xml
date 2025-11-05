@@ -5,7 +5,7 @@
         <choose>
             <when condition="@(context.Request.Headers.GetValueOrDefault("X-Forwarded-For","").StartsWith("10.100.0"))">
                 <!-- Request from AppGW - skip subscription key validation -->
-                <set-variable name="skip-subscription-check" value="@(true)" />
+                <!-- Subscription key check is skipped for AppGW subnet via policy structure -->
             </when>
             <otherwise>
                 <!-- External request - validate subscription key -->
@@ -21,9 +21,12 @@
                            counter-key="@(context.Request.IpAddress)" />
 
         <!-- CORS policy for frontend access -->
+        <!-- Note: Traffic comes through AppGW (10.100.0.0/24), not directly from browsers -->
+        <!-- CORS is restrictive since API is only accessed via AppGW path-based routing -->
         <cors allow-credentials="false">
             <allowed-origins>
-                <origin>*</origin>
+                <origin>https://static-swa-private-endpoint.publiccloudexperiments.net</origin>
+                <origin>https://lively-beach-0aedf4b03.3.azurestaticapps.net</origin>
             </allowed-origins>
             <allowed-methods>
                 <method>GET</method>
@@ -31,7 +34,8 @@
                 <method>OPTIONS</method>
             </allowed-methods>
             <allowed-headers>
-                <header>*</header>
+                <header>Content-Type</header>
+                <header>Authorization</header>
             </allowed-headers>
         </cors>
 
