@@ -255,20 +255,59 @@ if [[ "${APP_EXISTS}" == "false" ]]; then
       export AZURE_CLIENT_ID
       log_info "Selected app registration: ${AZURE_CLIENT_ID}"
 
-      # Still need the secret
-      log_warn "You'll need to provide AZURE_CLIENT_SECRET for this app registration"
-      log_info "Retrieve it from Azure Portal or Key Vault, or create a new one"
-      echo ""
-      read -r -p "Enter AZURE_CLIENT_SECRET (or press Enter to skip): " INPUT_SECRET
+      # Try to retrieve secret from Key Vault
+      log_info "Looking for client secret in Key Vault..."
 
-      if [[ -n "${INPUT_SECRET}" ]]; then
-        AZURE_CLIENT_SECRET="${INPUT_SECRET}"
-        export AZURE_CLIENT_SECRET
-        log_info "AZURE_CLIENT_SECRET set"
-        APP_EXISTS=true
+      # Find Key Vault in resource group
+      KEY_VAULT_NAME=$(az keyvault list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv 2>/dev/null)
+
+      if [[ -n "${KEY_VAULT_NAME}" ]]; then
+        log_info "Found Key Vault: ${KEY_VAULT_NAME}"
+
+        # Try to get secret with standard naming pattern: {swa-name}-client-secret
+        SECRET_NAME="${STATIC_WEB_APP_NAME}-client-secret"
+        log_info "Checking for secret: ${SECRET_NAME}"
+
+        RETRIEVED_SECRET=$(az keyvault secret show \
+          --vault-name "${KEY_VAULT_NAME}" \
+          --name "${SECRET_NAME}" \
+          --query value -o tsv 2>/dev/null)
+
+        if [[ -n "${RETRIEVED_SECRET}" ]]; then
+          AZURE_CLIENT_SECRET="${RETRIEVED_SECRET}"
+          export AZURE_CLIENT_SECRET
+          log_info "✓ Retrieved AZURE_CLIENT_SECRET from Key Vault"
+          APP_EXISTS=true
+        else
+          log_warn "Secret '${SECRET_NAME}' not found in Key Vault"
+          log_info "You can provide it manually or it will be stored after creation"
+          echo ""
+          read -r -p "Enter AZURE_CLIENT_SECRET (or press Enter to skip): " INPUT_SECRET
+
+          if [[ -n "${INPUT_SECRET}" ]]; then
+            AZURE_CLIENT_SECRET="${INPUT_SECRET}"
+            export AZURE_CLIENT_SECRET
+            log_info "AZURE_CLIENT_SECRET set"
+            APP_EXISTS=true
+          else
+            log_error "Cannot proceed without AZURE_CLIENT_SECRET"
+            exit 1
+          fi
+        fi
       else
-        log_error "Cannot proceed without AZURE_CLIENT_SECRET"
-        exit 1
+        log_warn "No Key Vault found in resource group ${RESOURCE_GROUP}"
+        echo ""
+        read -r -p "Enter AZURE_CLIENT_SECRET: " INPUT_SECRET
+
+        if [[ -n "${INPUT_SECRET}" ]]; then
+          AZURE_CLIENT_SECRET="${INPUT_SECRET}"
+          export AZURE_CLIENT_SECRET
+          log_info "AZURE_CLIENT_SECRET set"
+          APP_EXISTS=true
+        else
+          log_error "Cannot proceed without AZURE_CLIENT_SECRET"
+          exit 1
+        fi
       fi
     else
       log_error "Failed to select app registration"
