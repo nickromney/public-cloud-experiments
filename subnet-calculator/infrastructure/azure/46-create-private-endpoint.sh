@@ -161,7 +161,7 @@ log_info ""
 
 # Verify Function App exists and get resource ID
 log_step "Verifying Function App exists..."
-if ! FUNCTION_APP_ID=$(az functionapp show \
+if ! FUNCTION_APP_ID=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query id -o tsv 2>/dev/null); then
@@ -172,7 +172,7 @@ log_info "Function App found: ${FUNCTION_APP_ID}"
 
 # Check Function App SKU (private endpoints require App Service Plan)
 log_step "Checking Function App SKU..."
-FUNC_SKU=$(az functionapp show \
+FUNC_SKU=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "sku" -o tsv 2>/dev/null || echo "Unknown")

@@ -173,17 +173,18 @@ echo ""
 
 export RESOURCE_GROUP
 export LOCATION
-"${SCRIPT_DIR}/10-function-app.sh"
+FUNCTION_APP_NAME="${FUNCTION_APP_NAME:-func-subnet-calc-entraid-linked}"
+export FUNCTION_APP_NAME
 
-if [[ -z "${FUNCTION_APP_NAME:-}" ]]; then
-  FUNC_COUNT=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "length(@)" -o tsv)
-  if [[ "${FUNC_COUNT}" -ge 1 ]]; then
-    FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" \
-      --query "sort_by(@, &lastModifiedTimeUtc)[-1].name" -o tsv)
-  fi
+# Check if Function App already exists
+if az webapp show --name "${FUNCTION_APP_NAME}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
+  log_info "Using existing Function App: ${FUNCTION_APP_NAME}"
+else
+  log_info "Creating new Function App: ${FUNCTION_APP_NAME}"
+  "${SCRIPT_DIR}/10-function-app.sh"
 fi
 
-FUNCTION_APP_URL="https://$(az functionapp show \
+FUNCTION_APP_URL="https://$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "defaultHostName" -o tsv)"
@@ -225,7 +226,7 @@ echo ""
 log_step "Step 4/6: Linking Function App to SWA..."
 echo ""
 
-FUNC_RESOURCE_ID=$(az functionapp show \
+FUNC_RESOURCE_ID=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query id -o tsv)

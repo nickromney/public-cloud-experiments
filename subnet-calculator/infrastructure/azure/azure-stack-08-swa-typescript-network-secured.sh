@@ -165,7 +165,7 @@ cd "${FRONTEND_DIR}"
 
 [[ ! -d "node_modules" ]] && npm install
 
-FUNCTION_APP_URL="https://$(az functionapp show --name "${FUNCTION_APP_NAME}" \
+FUNCTION_APP_URL="https://$(az webapp show --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" --query "defaultHostName" -o tsv)"
 
 VITE_API_URL="${FUNCTION_APP_URL}" npm run build

@@ -311,7 +311,7 @@ export LOCATION
 
 # Check if Function App was newly created or already existed
 FUNCTION_APP_EXISTED=false
-if az functionapp show \
+if az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
   FUNCTION_APP_EXISTED=true
@@ -319,12 +319,12 @@ fi
 
 "${SCRIPT_DIR}/10-function-app.sh"
 
-log_info "Configuring Function App settings (no auth - SWA handles it)..."
+log_info "Configuring Function App settings (SWA auth - trusts X-MS-CLIENT-PRINCIPAL header)..."
 az functionapp config appsettings set \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --settings \
-  AUTH_METHOD=none \
+  AUTH_METHOD=swa \
   CORS_ORIGINS="https://${SWA_CUSTOM_DOMAIN}" \
   --output none
 
@@ -348,7 +348,7 @@ if [[ "${FUNCTION_APP_EXISTED}" == "true" ]]; then
 fi
 
 if [[ "${SKIP_DEPLOYMENT}" == "false" ]]; then
-  export DISABLE_AUTH=true # No auth on Function (SWA handles it)
+  export DISABLE_AUTH=false # Enable SWA auth (validates X-MS-CLIENT-PRINCIPAL header)
 
   "${SCRIPT_DIR}/22-deploy-function-zip.sh"
 
@@ -389,7 +389,7 @@ echo ""
 log_step "Step 4/8: Linking Function App to SWA..."
 echo ""
 
-FUNC_RESOURCE_ID=$(az functionapp show \
+FUNC_RESOURCE_ID=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query id -o tsv)
@@ -475,8 +475,8 @@ log_info "  API URL: (empty - use /api route via SWA proxy)"
 
 export FRONTEND=typescript
 export SWA_AUTH_ENABLED=true   # Use SWA built-in Entra ID authentication (for staticwebapp.config.json)
-export VITE_AUTH_ENABLED=true  # Enable auth in frontend
-export VITE_AUTH_METHOD=entraid # Explicitly set auth method (works on custom domains)
+export VITE_AUTH_ENABLED=true  # Enable auth in frontend (to show user info via .auth/me)
+export VITE_AUTH_METHOD=entraid # Explicitly set auth method
 export VITE_API_URL=""         # Use SWA proxy to linked backend
 export STATIC_WEB_APP_NAME
 export RESOURCE_GROUP
@@ -506,13 +506,13 @@ export CUSTOM_DOMAIN="${SWA_CUSTOM_DOMAIN}"
 log_info "SWA custom domain configured"
 echo ""
 
-FUNC_DEFAULT_HOSTNAME=$(az functionapp show \
+FUNC_DEFAULT_HOSTNAME=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "defaultHostName" -o tsv)
 
 # Get custom domain verification ID for TXT record
-VERIFICATION_ID=$(az functionapp show \
+VERIFICATION_ID=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "customDomainVerificationId" -o tsv)

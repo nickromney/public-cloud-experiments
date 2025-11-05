@@ -201,7 +201,7 @@ if [[ -z "${API_BASE_URL:-}" ]]; then
 
   if [[ "${FUNC_COUNT}" -eq 1 ]]; then
     FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
-    API_BASE_URL="https://$(az functionapp show --name "${FUNCTION_APP_NAME}" \
+    API_BASE_URL="https://$(az webapp show --name "${FUNCTION_APP_NAME}" \
       --resource-group "${RESOURCE_GROUP}" --query "defaultHostName" -o tsv)/api/v1"
     log_info "Auto-detected API: ${API_BASE_URL}"
   else

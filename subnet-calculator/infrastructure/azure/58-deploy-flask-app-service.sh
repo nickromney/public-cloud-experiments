@@ -75,7 +75,7 @@ if [[ -z "${API_BASE_URL:-}" ]]; then
 
     if [[ "${FUNC_COUNT}" -eq 1 ]]; then
       FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
-      API_BASE_URL="https://$(az functionapp show \
+      API_BASE_URL="https://$(az webapp show \
         --name "${FUNCTION_APP_NAME}" \
         --resource-group "${RESOURCE_GROUP}" \
         --query "defaultHostName" -o tsv)"
@@ -85,7 +85,7 @@ if [[ -z "${API_BASE_URL:-}" ]]; then
       log_warn "Multiple Function Apps found:"
       FUNCTION_APP_NAME=$(select_function_app "${RESOURCE_GROUP}") || exit 1
       log_info "Selected: ${FUNCTION_APP_NAME}"
-      API_BASE_URL="https://$(az functionapp show \
+      API_BASE_URL="https://$(az webapp show \
         --name "${FUNCTION_APP_NAME}" \
         --resource-group "${RESOURCE_GROUP}" \
         --query "defaultHostName" -o tsv)"
@@ -95,7 +95,7 @@ if [[ -z "${API_BASE_URL:-}" ]]; then
       exit 1
     fi
   else
-    API_BASE_URL="https://$(az functionapp show \
+    API_BASE_URL="https://$(az webapp show \
       --name "${FUNCTION_APP_NAME}" \
       --resource-group "${RESOURCE_GROUP}" \
       --query "defaultHostName" -o tsv)"

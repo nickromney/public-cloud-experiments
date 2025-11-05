@@ -135,13 +135,13 @@ else
 fi
 
 # Check if Function App already exists FIRST (before creating storage account)
-if az functionapp show \
+if az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
   log_warn "Function App ${FUNCTION_APP_NAME} already exists"
 
   # Get hostname
-  HOSTNAME=$(az functionapp show \
+  HOSTNAME=$(az webapp show \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
     --query "defaultHostName" -o tsv)
@@ -208,7 +208,7 @@ az functionapp update \
   --output none
 
 # Get hostname
-HOSTNAME=$(az functionapp show \
+HOSTNAME=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "defaultHostName" -o tsv)
@@ -232,4 +232,4 @@ log_info "1. Use 21-deploy-function.sh to deploy the API"
 log_info "2. Access API docs at: https://${HOSTNAME}/api/v1/docs"
 log_info ""
 log_info "To get the Function App URL again, run:"
-log_info "  az functionapp show --name ${FUNCTION_APP_NAME} --resource-group ${RESOURCE_GROUP} --query \"defaultHostName\" -o tsv"
+log_info "  az webapp show --name ${FUNCTION_APP_NAME} --resource-group ${RESOURCE_GROUP} --query \"defaultHostName\" -o tsv"

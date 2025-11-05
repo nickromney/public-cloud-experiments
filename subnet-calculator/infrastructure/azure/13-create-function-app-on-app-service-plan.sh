@@ -175,12 +175,12 @@ else
 fi
 
 # Check if Function App already exists
-if az functionapp show \
+if az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
 
   # Get existing plan name
-  EXISTING_PLAN=$(az functionapp show \
+  EXISTING_PLAN=$(az webapp show \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
     --query "appServicePlanId" \
@@ -201,7 +201,7 @@ if az functionapp show \
   fi
 
   # Get hostname for output
-  HOSTNAME=$(az functionapp show \
+  HOSTNAME=$(az webapp show \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
     --query "defaultHostName" -o tsv)
@@ -344,12 +344,12 @@ az functionapp config appsettings set \
   --output none
 
 # Get Function App details for output
-HOSTNAME=$(az functionapp show \
+HOSTNAME=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "defaultHostName" -o tsv)
 
-FUNCTION_APP_ID=$(az functionapp show \
+FUNCTION_APP_ID=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query id -o tsv)
@@ -376,6 +376,6 @@ log_info "  1. Deploy your function code using: 21-deploy-function.sh"
 log_info "  2. Access API docs at: https://${HOSTNAME}/api/v1/docs"
 log_info ""
 log_info "To verify the function is on the correct plan:"
-log_info "  az functionapp show --name ${FUNCTION_APP_NAME} --resource-group ${RESOURCE_GROUP} \\"
+log_info "  az webapp show --name ${FUNCTION_APP_NAME} --resource-group ${RESOURCE_GROUP} \\"
 log_info "    --query '{name:name,plan:serverFarmId}' -o json"
 log_info ""

@@ -122,7 +122,7 @@ log_info ""
 
 # Verify Function App exists
 log_step "Verifying Function App exists..."
-if ! az functionapp show \
+if ! az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
   log_error "Function App ${FUNCTION_APP_NAME} not found in ${RESOURCE_GROUP}"
@@ -270,7 +270,7 @@ echo "${FINAL_RULES}" | while IFS=$'\t' read -r name action priority ip_or_tag s
 done
 
 # Get Function App URL
-FUNC_HOSTNAME=$(az functionapp show \
+FUNC_HOSTNAME=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "defaultHostName" -o tsv 2>/dev/null || echo "")

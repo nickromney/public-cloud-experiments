@@ -186,7 +186,7 @@ if [[ -z "${FUNCTION_APP_NAME:-}" ]]; then
   fi
 fi
 
-FUNCTION_APP_URL="https://$(az functionapp show \
+FUNCTION_APP_URL="https://$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "defaultHostName" -o tsv 2>/dev/null || echo "")"

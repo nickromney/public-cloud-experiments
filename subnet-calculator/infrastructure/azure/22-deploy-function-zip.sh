@@ -75,7 +75,7 @@ fi
 readonly DISABLE_AUTH="${DISABLE_AUTH:-false}"
 
 # Verify Function App exists
-if ! az functionapp show \
+if ! az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
   log_error "Function App ${FUNCTION_APP_NAME} not found in resource group ${RESOURCE_GROUP}"
@@ -142,7 +142,7 @@ log_info "Waiting for deployment to complete (30 seconds)..."
 sleep 30
 
 # Get Function App URL
-FUNCTION_APP_URL="https://$(az functionapp show \
+FUNCTION_APP_URL="https://$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "defaultHostName" -o tsv)"

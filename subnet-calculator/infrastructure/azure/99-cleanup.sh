@@ -103,7 +103,7 @@ else
 fi
 
 # Delete Function App
-if az functionapp show \
+if az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
   log_info "Deleting Function App ${FUNCTION_APP_NAME}..."
