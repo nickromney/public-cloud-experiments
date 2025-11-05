@@ -312,20 +312,40 @@ select_entra_app_registration() {
     # Multiple - prompt for selection
     echo "" >/dev/tty
     echo "Found ${#items[@]} Entra ID app registrations with redirect URIs:" >/dev/tty
-    local selected_name
-    selected_name=$(select_from_list "Enter app registration" "${items[@]}")
 
-    # Find the app_id corresponding to the selected display name
-    local i=0
-    for name in "${display_names[@]}"; do
-      if [[ "${name}" == "${selected_name}" ]]; then
-        echo "${app_ids[$i]}"
-        return 0
-      fi
+    # Use select_from_list which returns the first field (which will be partial name due to awk)
+    # Instead, we'll handle selection ourselves to properly parse display names with spaces
+    local i=1
+    for item in "${items[@]}"; do
+      echo "  ${i}. ${item}" >/dev/tty
       ((i++))
     done
+    echo "" >/dev/tty
 
-    echo "ERROR: Could not find app registration" >&2
-    return 1
+    local selection
+    while true; do
+      read -r -p "Enter app registration (1-${#items[@]}) or app ID: " selection
+
+      # Check if it's a number
+      if [[ "${selection}" =~ ^[0-9]+$ ]]; then
+        if [[ "${selection}" -ge 1 && "${selection}" -le "${#items[@]}" ]]; then
+          echo "${app_ids[$((selection - 1))]}"
+          return 0
+        else
+          echo "Invalid selection. Please enter a number between 1 and ${#items[@]}" >&2
+          continue
+        fi
+      else
+        # Check if it matches an app ID (full or partial)
+        for idx in "${!app_ids[@]}"; do
+          if [[ "${app_ids[$idx]}" == "${selection}"* ]]; then
+            echo "${app_ids[$idx]}"
+            return 0
+          fi
+        done
+        echo "Invalid selection. Please enter a number (1-${#items[@]}) or app ID" >&2
+        continue
+      fi
+    done
   fi
 }
