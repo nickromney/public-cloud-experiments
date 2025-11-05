@@ -5,26 +5,26 @@
 Two deployment options are available:
 
 1. **Separate Resources (Recommended)**: Azure Static Web App (frontend) + Azure Function App (backend)
-2. **Integrated (Future)**: Azure Static Web App with managed functions
+1. **Integrated (Future)**: Azure Static Web App with managed functions
 
 This guide covers Option 1: Separate Resources.
 
 ```text
 ┌─────────────────────────────────────┐
-│   Azure Static Web App (Free SKU)  │
-│  - TypeScript Vite SPA              │
-│  - Global CDN                       │
-│  - Region: Central US               │
+│ Azure Static Web App (Free SKU) │
+│ - TypeScript Vite SPA │
+│ - Global CDN │
+│ - Region: Central US │
 └──────────────┬──────────────────────┘
-               │
-               │ HTTPS
-               │
+ │
+ │ HTTPS
+ │
 ┌──────────────▼──────────────────────┐
-│  Azure Function App (Consumption)   │
-│  - Python 3.11                      │
-│  - FastAPI                          │
-│  - Subnet calculation API           │
-│  - Region: Any (e.g., South Central)│
+│ Azure Function App (Consumption) │
+│ - Python 3.11 │
+│ - FastAPI │
+│ - Subnet calculation API │
+│ - Region: Any (e.g., South Central)│
 └─────────────────────────────────────┘
 ```
 
@@ -238,8 +238,8 @@ curl https://func-subnet-calc-12345.azurewebsites.net/api/v1/health
 
 # Test validation endpoint
 curl -X POST https://func-subnet-calc-12345.azurewebsites.net/api/v1/ipv4/validate \
-  -H "Content-Type: application/json" \
-  -d '{"address":"192.168.1.1"}'
+ -H "Content-Type: application/json" \
+ -d '{"address":"192.168.1.1"}'
 
 # API documentation
 open https://func-subnet-calc-12345.azurewebsites.net/api/v1/docs
@@ -262,13 +262,13 @@ curl -I https://proud-coast-xxxxx.1.azurestaticapps.net
 ```bash
 # Tail logs
 az functionapp log tail \
-  --name func-subnet-calc-12345 \
-  --resource-group xxx
+ --name func-subnet-calc-12345 \
+ --resource-group xxx
 
 # View log stream in portal
 az functionapp browse \
-  --name func-subnet-calc-12345 \
-  --resource-group xxx
+ --name func-subnet-calc-12345 \
+ --resource-group xxx
 ```
 
 ### Static Web App Status
@@ -276,13 +276,13 @@ az functionapp browse \
 ```bash
 # Show details
 az staticwebapp show \
-  --name swa-subnet-calc \
-  --resource-group xxx
+ --name swa-subnet-calc \
+ --resource-group xxx
 
 # List all environments
 az staticwebapp environment list \
-  --name swa-subnet-calc \
-  --resource-group xxx
+ --name swa-subnet-calc \
+ --resource-group xxx
 ```
 
 ## Troubleshooting
@@ -333,17 +333,17 @@ Verify:
 
 ```bash
 az functionapp cors show \
-  --name func-subnet-calc-12345 \
-  --resource-group xxx
+ --name func-subnet-calc-12345 \
+ --resource-group xxx
 ```
 
 Manual fix:
 
 ```bash
 az functionapp cors add \
-  --name func-subnet-calc-12345 \
-  --resource-group xxx \
-  --allowed-origins "*"
+ --name func-subnet-calc-12345 \
+ --resource-group xxx \
+ --allowed-origins "*"
 ```
 
 ### Function App Cold Start
@@ -355,8 +355,8 @@ az functionapp cors add \
 **Solutions**:
 
 1. Wait for warm-up (1-2 minutes after deployment)
-2. Use Premium plan (not free tier)
-3. Keep function warm with scheduled pings
+1. Use Premium plan (not free tier)
+1. Keep function warm with scheduled pings
 
 ## Cleanup
 
@@ -375,18 +375,18 @@ az group delete --name xxx --yes --no-wait
 ```bash
 # Remove Function App
 az functionapp delete \
-  --name func-subnet-calc-12345 \
-  --resource-group xxx
+ --name func-subnet-calc-12345 \
+ --resource-group xxx
 
 # Remove Static Web App
 az staticwebapp delete \
-  --name swa-subnet-calc \
-  --resource-group xxx
+ --name swa-subnet-calc \
+ --resource-group xxx
 
 # Remove storage account
 az storage account delete \
-  --name stsubnetcalc12345 \
-  --resource-group xxx
+ --name stsubnetcalc12345 \
+ --resource-group xxx
 ```
 
 ## Cost Estimates
@@ -416,21 +416,25 @@ az storage account delete \
 ### Production Recommendations
 
 1. **Enable Authentication**:
-   - JWT tokens
-   - Azure AD integration
-   - API key management
 
-2. **Configure CORS**:
-   - Restrict to SWA domain only
-   - Remove wildcard (`*`)
+- JWT tokens
+- Azure AD integration
+- API key management
 
-3. **Enable Application Insights**:
-   - Monitor usage and errors
-   - Set up alerts
+1. **Configure CORS**:
 
-4. **Custom Domain**:
-   - Use custom domain with SSL
-   - Azure Front Door for enterprise
+- Restrict to SWA domain only
+- Remove wildcard (`*`)
+
+1. **Enable Application Insights**:
+
+- Monitor usage and errors
+- Set up alerts
+
+1. **Custom Domain**:
+
+- Use custom domain with SSL
+- Azure Front Door for enterprise
 
 ## References
 

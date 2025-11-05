@@ -165,10 +165,10 @@ APIM_VNET_MODE="Internal" ./43-create-apim-vnet.sh
 When you run `az staticwebapp backends link`, Azure automatically:
 
 1. **Creates APIM Product**: `Azure Static Web Apps - <hostname> (Linked)`
-2. **Generates Subscription Key**: Automatic key generation
-3. **Configures JWT Validation**: Inbound policy added to product
-4. **Enables Request Proxying**: SWA proxies `/api/*` to APIM
-5. **Injects Headers**: SWA adds subscription key and access token
+1. **Generates Subscription Key**: Automatic key generation
+1. **Configures JWT Validation**: Inbound policy added to product
+1. **Enables Request Proxying**: SWA proxies `/api/*` to APIM
+1. **Injects Headers**: SWA adds subscription key and access token
 
 ```bash
 # Stack 17: Automatic linking
@@ -215,9 +215,9 @@ APIM_BACKEND_POOL="apim-backend" \
 **Manual steps required**:
 
 1. Create APIM product manually (script 31)
-2. Configure subscription keys manually (script 32)
-3. Apply policies manually (script 32)
-4. Configure AppGW path routing (script 55)
+1. Configure subscription keys manually (script 32)
+1. Apply policies manually (script 32)
+1. Configure AppGW path routing (script 55)
 
 ### 3. Application Gateway Configuration
 
@@ -381,12 +381,12 @@ Both stacks share most infrastructure:
 If you deploy Stack 17 first and later want Stack 18:
 
 1. **Create new APIM instance** (Internal mode, different name)
-2. **Create APIM private endpoint**
-3. **Create new SWA** (different name for Stack 18)
-4. **Add new AppGW listener** for Stack 18 domain
-5. **Configure path-based routing**
-6. **Copy APIM APIs** from Stack 17 APIM to Stack 18 APIM
-7. **Update DNS** to point Stack 18 domain to AppGW
+1. **Create APIM private endpoint**
+1. **Create new SWA** (different name for Stack 18)
+1. **Add new AppGW listener** for Stack 18 domain
+1. **Configure path-based routing**
+1. **Copy APIM APIs** from Stack 17 APIM to Stack 18 APIM
+1. **Update DNS** to point Stack 18 domain to AppGW
 
 **No migration needed for**:
 
@@ -400,11 +400,11 @@ If you deploy Stack 17 first and later want Stack 18:
 If you want to simplify from Stack 18 to Stack 17:
 
 1. **Create new APIM instance** (External mode)
-2. **Create new SWA** (for Stack 17)
-3. **Link SWA to APIM** using `az staticwebapp backends link`
-4. **Add AppGW listener** with basic routing
-5. **Copy APIM APIs** from Stack 18 to Stack 17 APIM
-6. **Update DNS**
+1. **Create new SWA** (for Stack 17)
+1. **Link SWA to APIM** using `az staticwebapp backends link`
+1. **Add AppGW listener** with basic routing
+1. **Copy APIM APIs** from Stack 18 to Stack 17 APIM
+1. **Update DNS**
 
 ## Security Considerations
 

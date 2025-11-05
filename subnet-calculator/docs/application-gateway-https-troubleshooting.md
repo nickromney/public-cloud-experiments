@@ -15,38 +15,38 @@ This guide covers common issues when adding HTTPS listener to Application Gatewa
 
 1. Verify managed identity is enabled:
 
-   ```bash
-   az network application-gateway show \
-     --name "${APPGW_NAME}" \
-     --resource-group "${RESOURCE_GROUP}" \
-     --query "identity.principalId"
-   ```
+ ```bash
+ az network application-gateway show \
+ --name "${APPGW_NAME}" \
+ --resource-group "${RESOURCE_GROUP}" \
+ --query "identity.principalId"
+ ```
 
-2. Verify RBAC role assignment:
+1. Verify RBAC role assignment:
 
-   ```bash
-   IDENTITY_ID=$(az network application-gateway show \
-     --name "${APPGW_NAME}" \
-     --resource-group "${RESOURCE_GROUP}" \
-     --query "identity.principalId" -o tsv)
+ ```bash
+ IDENTITY_ID=$(az network application-gateway show \
+ --name "${APPGW_NAME}" \
+ --resource-group "${RESOURCE_GROUP}" \
+ --query "identity.principalId" -o tsv)
 
-   az role assignment list \
-     --assignee "${IDENTITY_ID}" \
-     --all
-   ```
+ az role assignment list \
+ --assignee "${IDENTITY_ID}" \
+ --all
+ ```
 
-3. Re-apply RBAC if missing:
+1. Re-apply RBAC if missing:
 
-   ```bash
-   KV_ID=$(az keyvault show --name "${KEY_VAULT_NAME}" --query "id" -o tsv)
+ ```bash
+ KV_ID=$(az keyvault show --name "${KEY_VAULT_NAME}" --query "id" -o tsv)
 
-   az role assignment create \
-     --assignee "${IDENTITY_ID}" \
-     --role "Key Vault Secrets User" \
-     --scope "${KV_ID}"
-   ```
+ az role assignment create \
+ --assignee "${IDENTITY_ID}" \
+ --role "Key Vault Secrets User" \
+ --scope "${KV_ID}"
+ ```
 
-4. Wait 60 seconds for RBAC propagation, then restart Application Gateway listener.
+1. Wait 60 seconds for RBAC propagation, then restart Application Gateway listener.
 
 ## Issue 2: Backend Health Shows "Unhealthy" After HTTPS Change
 
@@ -62,10 +62,10 @@ This guide covers common issues when adding HTTPS listener to Application Gatewa
 ```bash
 # Verify HTTP settings use HTTPS protocol
 az network application-gateway http-settings show \
-  --gateway-name "${APPGW_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --name appGatewayBackendHttpSettings \
-  --query "{protocol: protocol, port: port}"
+ --gateway-name "${APPGW_NAME}" \
+ --resource-group "${RESOURCE_GROUP}" \
+ --name appGatewayBackendHttpSettings \
+ --query "{protocol: protocol, port: port}"
 ```
 
 Expected: `{"protocol": "Https", "port": 443}`
@@ -77,10 +77,10 @@ Expected: `{"protocol": "Https", "port": 443}`
 ```bash
 # Verify host header is set correctly
 az network application-gateway http-settings show \
-  --gateway-name "${APPGW_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --name appGatewayBackendHttpSettings \
-  --query "hostName"
+ --gateway-name "${APPGW_NAME}" \
+ --resource-group "${RESOURCE_GROUP}" \
+ --name appGatewayBackendHttpSettings \
+ --query "hostName"
 ```
 
 Expected: Your custom domain (e.g., `static-swa-private-endpoint.publiccloudexperiments.net`)
@@ -97,18 +97,19 @@ Expected: Your custom domain (e.g., `static-swa-private-endpoint.publiccloudexpe
 **Solution:**
 
 1. Check Cloudflare DNS record:
-   - Record should have orange cloud (Proxied), not grey cloud (DNS Only)
-   - A record should point to Application Gateway public IP
 
-2. Verify with dig:
+- Record should have orange cloud (Proxied), not grey cloud (DNS Only)
+- A record should point to Application Gateway public IP
 
-   ```bash
-   dig +short ${CUSTOM_DOMAIN}
-   ```
+1. Verify with dig:
 
-   Should return Cloudflare IPs, not Azure public IP directly.
+ ```bash
+ dig +short ${CUSTOM_DOMAIN}
+ ```
 
-3. Re-enable proxy in Cloudflare dashboard.
+ Should return Cloudflare IPs, not Azure public IP directly.
+
+1. Re-enable proxy in Cloudflare dashboard.
 
 ## Issue 4: Certificate Expired
 
@@ -123,20 +124,20 @@ Expected: Your custom domain (e.g., `static-swa-private-endpoint.publiccloudexpe
 
 1. Regenerate certificate:
 
-   ```bash
-   RESOURCE_GROUP="${RESOURCE_GROUP}" \
-   FORCE_CERT_REGEN=true \
-   ./50-add-https-listener.sh
-   ```
+ ```bash
+ RESOURCE_GROUP="${RESOURCE_GROUP}" \
+ FORCE_CERT_REGEN=true \
+ ./50-add-https-listener.sh
+ ```
 
-2. Verify new certificate is active:
+1. Verify new certificate is active:
 
-   ```bash
-   az keyvault secret show \
-     --vault-name "${KEY_VAULT_NAME}" \
-     --name "appgw-ssl-cert" \
-     --query "attributes.expires"
-   ```
+ ```bash
+ az keyvault secret show \
+ --vault-name "${KEY_VAULT_NAME}" \
+ --name "appgw-ssl-cert" \
+ --query "attributes.expires"
+ ```
 
 ## Issue 5: "Multiple Key Vaults Found" Error
 
@@ -168,23 +169,23 @@ KEY_VAULT_NAME="kv-subnet-calc-xxxx" \
 
 1. Verify HTTP settings host header:
 
-   ```bash
-   az network application-gateway http-settings show \
-     --gateway-name "${APPGW_NAME}" \
-     --resource-group "${RESOURCE_GROUP}" \
-     --name appGatewayBackendHttpSettings \
-     --query "hostName"
-   ```
+ ```bash
+ az network application-gateway http-settings show \
+ --gateway-name "${APPGW_NAME}" \
+ --resource-group "${RESOURCE_GROUP}" \
+ --name appGatewayBackendHttpSettings \
+ --query "hostName"
+ ```
 
-2. If incorrect, update to custom domain:
+1. If incorrect, update to custom domain:
 
-   ```bash
-   az network application-gateway http-settings update \
-     --gateway-name "${APPGW_NAME}" \
-     --resource-group "${RESOURCE_GROUP}" \
-     --name appGatewayBackendHttpSettings \
-     --host-name "${CUSTOM_DOMAIN}"
-   ```
+ ```bash
+ az network application-gateway http-settings update \
+ --gateway-name "${APPGW_NAME}" \
+ --resource-group "${RESOURCE_GROUP}" \
+ --name appGatewayBackendHttpSettings \
+ --host-name "${CUSTOM_DOMAIN}"
+ ```
 
 ## Diagnostic Commands
 
@@ -192,36 +193,36 @@ KEY_VAULT_NAME="kv-subnet-calc-xxxx" \
 
 ```bash
 az network application-gateway show \
-  --name "${APPGW_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --query "{name: name, provisioningState: provisioningState, operationalState: operationalState}"
+ --name "${APPGW_NAME}" \
+ --resource-group "${RESOURCE_GROUP}" \
+ --query "{name: name, provisioningState: provisioningState, operationalState: operationalState}"
 ```
 
 ### Check Backend Health
 
 ```bash
 az network application-gateway show-backend-health \
-  --name "${APPGW_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --query "backendAddressPools[0].backendHttpSettingsCollection[0].servers[0]"
+ --name "${APPGW_NAME}" \
+ --resource-group "${RESOURCE_GROUP}" \
+ --query "backendAddressPools[0].backendHttpSettingsCollection[0].servers[0]"
 ```
 
 ### Check Certificate Details
 
 ```bash
 az keyvault secret show \
-  --vault-name "${KEY_VAULT_NAME}" \
-  --name "appgw-ssl-cert" \
-  --query "{created: attributes.created, expires: attributes.expires, enabled: attributes.enabled}"
+ --vault-name "${KEY_VAULT_NAME}" \
+ --name "appgw-ssl-cert" \
+ --query "{created: attributes.created, expires: attributes.expires, enabled: attributes.enabled}"
 ```
 
 ### Test HTTPS Listener
 
 ```bash
 PUBLIC_IP=$(az network public-ip show \
-  --name pip-agw-${APPGW_NAME} \
-  --resource-group "${RESOURCE_GROUP}" \
-  --query "ipAddress" -o tsv)
+ --name pip-agw-${APPGW_NAME} \
+ --resource-group "${RESOURCE_GROUP}" \
+ --query "ipAddress" -o tsv)
 
 curl -k -v -H "Host: ${CUSTOM_DOMAIN}" https://${PUBLIC_IP}/
 ```
@@ -230,9 +231,9 @@ curl -k -v -H "Host: ${CUSTOM_DOMAIN}" https://${PUBLIC_IP}/
 
 ```bash
 az monitor activity-log list \
-  --resource-group "${RESOURCE_GROUP}" \
-  --resource-id "$(az network application-gateway show --name "${APPGW_NAME}" --resource-group "${RESOURCE_GROUP}" --query id -o tsv)" \
-  --offset 1h
+ --resource-group "${RESOURCE_GROUP}" \
+ --resource-id "$(az network application-gateway show --name "${APPGW_NAME}" --resource-group "${RESOURCE_GROUP}" --query id -o tsv)" \
+ --offset 1h
 ```
 
 ## Cost Monitoring
@@ -241,10 +242,10 @@ az monitor activity-log list \
 
 ```bash
 az monitor metrics list \
-  --resource "$(az keyvault show --name "${KEY_VAULT_NAME}" --query id -o tsv)" \
-  --metric "ServiceApiHit" \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
-  --interval PT1H
+ --resource "$(az keyvault show --name "${KEY_VAULT_NAME}" --query id -o tsv)" \
+ --metric "ServiceApiHit" \
+ --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+ --interval PT1H
 ```
 
 Expected: Very low operations (AppGW retrieves certificate only on startup/update).

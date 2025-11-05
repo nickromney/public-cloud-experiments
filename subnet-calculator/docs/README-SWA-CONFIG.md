@@ -63,11 +63,11 @@ swa deploy --app-location dist --api-location "" --deployment-token "${TOKEN}"
 
 ```bash
 az staticwebapp appsettings set \
-  --name swa-name \
-  --resource-group rg-name \
-  --setting-names \
-  AZURE_CLIENT_ID="your-client-id" \
-  AZURE_CLIENT_SECRET="your-client-secret"
+ --name swa-name \
+ --resource-group rg-name \
+ --setting-names \
+ AZURE_CLIENT_ID="your-client-id" \
+ AZURE_CLIENT_SECRET="your-client-secret"
 ```
 
 **Usage:**
@@ -101,9 +101,9 @@ swa deploy --app-location dist --api-location "" --deployment-token "${TOKEN}"
 # For managed functions, api_location must point to function code
 cp staticwebapp-managed.config.json dist/staticwebapp.config.json
 swa deploy \
-  --app-location dist \
-  --api-location ../api-fastapi-azure-function \
-  --deployment-token "${TOKEN}"
+ --app-location dist \
+ --api-location ../api-fastapi-azure-function \
+ --deployment-token "${TOKEN}"
 ```
 
 ## GitHub Actions Workflows
@@ -127,15 +127,15 @@ swa deploy \
 
 1. Get deployment token:
 
-   ```bash
-   az staticwebapp secrets list \
-     --name swa-name \
-     --resource-group rg-name \
-     --query properties.apiKey -o tsv
-   ```
+ ```bash
+ az staticwebapp secrets list \
+ --name swa-name \
+ --resource-group rg-name \
+ --query properties.apiKey -o tsv
+ ```
 
-2. Add to GitHub Secrets as `AZURE_STATIC_WEB_APPS_API_TOKEN`
-3. Push to main branch
+1. Add to GitHub Secrets as `AZURE_STATIC_WEB_APPS_API_TOKEN`
+1. Push to main branch
 
 ### swa-byo-functions.yml
 
@@ -152,27 +152,27 @@ swa deploy \
 
 - `AZURE_STATIC_WEB_APPS_API_TOKEN`: SWA deployment token
 - Optional (for backend linking):
-  - `AZURE_CREDENTIALS`: Service principal credentials
-  - `AZURE_CLIENT_ID`: Service principal client ID
-  - `AZURE_TENANT_ID`: Tenant ID
-  - `SWA_NAME`: Static Web App name
-  - `RESOURCE_GROUP`: Resource group name
-  - `FUNCTION_APP_RESOURCE_ID`: Full resource ID of function app
-  - `FUNCTION_APP_REGION`: Function app region (e.g., uksouth)
+- `AZURE_CREDENTIALS`: Service principal credentials
+- `AZURE_CLIENT_ID`: Service principal client ID
+- `AZURE_TENANT_ID`: Tenant ID
+- `SWA_NAME`: Static Web App name
+- `RESOURCE_GROUP`: Resource group name
+- `FUNCTION_APP_RESOURCE_ID`: Full resource ID of function app
+- `FUNCTION_APP_REGION`: Function app region (e.g., uksouth)
 
 **Usage:**
 
 1. Deploy function app separately:
 
-   ```bash
-   cd infrastructure/azure
-   export LOCATION=uksouth
-   ./10-function-app.sh
-   ./21-deploy-function.sh
-   ```
+ ```bash
+ cd infrastructure/azure
+ export LOCATION=uksouth
+ ./10-function-app.sh
+ ./21-deploy-function.sh
+ ```
 
-2. Configure GitHub secrets
-3. Push to main branch
+1. Configure GitHub secrets
+1. Push to main branch
 
 ## Configuration Schema
 
@@ -180,7 +180,7 @@ All configuration files follow the Azure Static Web Apps schema:
 
 ```json
 {
-  "$schema": "https://json.schemastore.org/staticwebapp.config.json"
+ "$schema": "https://json.schemastore.org/staticwebapp.config.json"
 }
 ```
 
@@ -192,10 +192,10 @@ All configurations include:
 
 ```json
 {
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": ["/api/*", "/*.{css,scss,js,png,gif,ico,jpg,svg}"]
-  }
+ "navigationFallback": {
+ "rewrite": "/index.html",
+ "exclude": ["/api/*", "/*.{css,scss,js,png,gif,ico,jpg,svg}"]
+ }
 }
 ```
 
@@ -223,9 +223,9 @@ Additional headers for authenticated configs:
 
 ```json
 {
-  "globalHeaders": {
-    "cache-control": "public, max-age=3600"
-  }
+ "globalHeaders": {
+ "cache-control": "public, max-age=3600"
+ }
 }
 ```
 
@@ -233,9 +233,9 @@ Additional headers for authenticated configs:
 
 ```json
 {
-  "globalHeaders": {
-    "cache-control": "no-cache, no-store, must-revalidate"
-  }
+ "globalHeaders": {
+ "cache-control": "no-cache, no-store, must-revalidate"
+ }
 }
 ```
 
@@ -246,25 +246,25 @@ Additional headers for authenticated configs:
 Via Azure Portal:
 
 1. Navigate to Entra ID → App registrations
-2. Click "New registration"
-3. Name: "Subnet Calculator SWA"
-4. Supported account types: Single tenant (or multi-tenant as needed)
-5. Redirect URI: Web → `https://your-swa.azurestaticapps.net/.auth/login/aad/callback`
-6. Click "Register"
-7. Note the "Application (client) ID"
-8. Go to "Certificates & secrets" → "New client secret"
-9. Add secret and copy the value
+1. Click "New registration"
+1. Name: "Subnet Calculator SWA"
+1. Supported account types: Single tenant (or multi-tenant as needed)
+1. Redirect URI: Web → `https://your-swa.azurestaticapps.net/.auth/login/aad/callback`
+1. Click "Register"
+1. Note the "Application (client) ID"
+1. Go to "Certificates & secrets" → "New client secret"
+1. Add secret and copy the value
 
 Via Azure CLI:
 
 ```bash
 # Create app registration
 az ad app create \
-  --display-name "Subnet Calculator SWA" \
-  --sign-in-audience AzureADMyOrg \
-  --web-redirect-uris \
-    "https://your-swa.azurestaticapps.net/.auth/login/aad/callback" \
-    "https://your-custom-domain.com/.auth/login/aad/callback"
+ --display-name "Subnet Calculator SWA" \
+ --sign-in-audience AzureADMyOrg \
+ --web-redirect-uris \
+ "https://your-swa.azurestaticapps.net/.auth/login/aad/callback" \
+ "https://your-custom-domain.com/.auth/login/aad/callback"
 
 # Get client ID
 APP_ID=$(az ad app list --display-name "Subnet Calculator SWA" --query "[0].appId" -o tsv)
@@ -281,11 +281,11 @@ echo "AZURE_CLIENT_SECRET=${SECRET}"
 
 ```bash
 az staticwebapp appsettings set \
-  --name swa-name \
-  --resource-group rg-name \
-  --setting-names \
-  AZURE_CLIENT_ID="${AZURE_CLIENT_ID}" \
-  AZURE_CLIENT_SECRET="${AZURE_CLIENT_SECRET}"
+ --name swa-name \
+ --resource-group rg-name \
+ --setting-names \
+ AZURE_CLIENT_ID="${AZURE_CLIENT_ID}" \
+ AZURE_CLIENT_SECRET="${AZURE_CLIENT_SECRET}"
 ```
 
 ### 3. Add Custom Domain Redirect URIs
@@ -294,10 +294,10 @@ When using custom domains, add redirect URIs for each domain:
 
 ```bash
 az ad app update \
-  --id "${AZURE_CLIENT_ID}" \
-  --web-redirect-uris \
-    "https://your-swa.azurestaticapps.net/.auth/login/aad/callback" \
-    "https://your-custom-domain.com/.auth/login/aad/callback"
+ --id "${AZURE_CLIENT_ID}" \
+ --web-redirect-uris \
+ "https://your-swa.azurestaticapps.net/.auth/login/aad/callback" \
+ "https://your-custom-domain.com/.auth/login/aad/callback"
 ```
 
 ## Testing
@@ -327,9 +327,9 @@ After deployment:
 ```bash
 # Get SWA URL
 az staticwebapp show \
-  --name swa-name \
-  --resource-group rg-name \
-  --query defaultHostname -o tsv
+ --name swa-name \
+ --resource-group rg-name \
+ --query defaultHostname -o tsv
 
 # Test endpoints
 curl https://your-swa.azurestaticapps.net
@@ -347,13 +347,13 @@ curl https://your-swa.azurestaticapps.net/.auth/me
 
 1. Verify SWA settings:
 
-   ```bash
-   az staticwebapp appsettings list --name swa-name --resource-group rg-name
-   ```
+ ```bash
+ az staticwebapp appsettings list --name swa-name --resource-group rg-name
+ ```
 
-2. Check redirect URIs in Entra ID app registration
-3. Verify staticwebapp.config.json is in deployed dist folder
-4. Check browser console for errors
+1. Check redirect URIs in Entra ID app registration
+1. Verify staticwebapp.config.json is in deployed dist folder
+1. Check browser console for errors
 
 ### Issue: API calls returning 404
 
@@ -362,12 +362,12 @@ curl https://your-swa.azurestaticapps.net/.auth/me
 **Solutions:**
 
 1. For BYO: Verify api_location is empty string
-2. For managed: Verify api_location points to function code
-3. Check if backend is linked (BYO):
+1. For managed: Verify api_location points to function code
+1. Check if backend is linked (BYO):
 
-   ```bash
-   az staticwebapp show --name swa-name --resource-group rg-name --query linkedBackends
-   ```
+ ```bash
+ az staticwebapp show --name swa-name --resource-group rg-name --query linkedBackends
+ ```
 
 ### Issue: Wrong region for functions
 
@@ -376,12 +376,12 @@ curl https://your-swa.azurestaticapps.net/.auth/me
 **Solutions:**
 
 1. For UK/Australia/specific regions: Use BYO functions (api_location="")
-2. For EU: Can use managed functions (api_location="path/to/api")
-3. Verify function app region:
+1. For EU: Can use managed functions (api_location="path/to/api")
+1. Verify function app region:
 
-   ```bash
-   az functionapp show --name func-name --resource-group rg-name --query location
-   ```
+ ```bash
+ az functionapp show --name func-name --resource-group rg-name --query location
+ ```
 
 ## References
 

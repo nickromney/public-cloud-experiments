@@ -8,28 +8,28 @@ Stack 3 demonstrates maximum security with private endpoints and custom domain a
 
 ```text
 ┌──────────────────────────────────────┐
-│ User → Entra ID Login                │
+│ User → Entra ID Login │
 └──────────────┬───────────────────────┘
-               │
+ │
 ┌──────────────▼───────────────────────┐
-│ Azure Static Web App (Standard)      │
-│ - Custom domain (PRIMARY)            │
-│ - azurestaticapps.net (DISABLED)     │
-│ - Entra ID authentication            │
-│ - /api/* → Private VNet → Function   │
+│ Azure Static Web App (Standard) │
+│ - Custom domain (PRIMARY) │
+│ - azurestaticapps.net (DISABLED) │
+│ - Entra ID authentication │
+│ - /api/* → Private VNet → Function │
 └──────────────┬───────────────────────┘
-               │ Private VNet
+ │ Private VNet
 ┌──────────────▼───────────────────────┐
-│ VNet (10.0.0.0/16)                   │
-│ ├─ functions subnet (10.0.1.0/24)    │
-│ └─ endpoints subnet (10.0.2.0/24)    │
+│ VNet (10.0.0.0/16) │
+│ ├─ functions subnet (10.0.1.0/24) │
+│ └─ endpoints subnet (10.0.2.0/24) │
 └──────────────┬───────────────────────┘
-               │ Private Endpoint
+ │ Private Endpoint
 ┌──────────────▼───────────────────────┐
-│ Azure Function App (S1/P0V3)         │
-│ - NO public access                   │
-│ - Private endpoint only              │
-│ - VNet integration                   │
+│ Azure Function App (S1/P0V3) │
+│ - NO public access │
+│ - Private endpoint only │
+│ - VNet integration │
 └──────────────────────────────────────┘
 ```
 
@@ -43,8 +43,8 @@ Stack 3 demonstrates maximum security with private endpoints and custom domain a
 ### Prerequisites
 
 1. **Entra ID App**: Client ID and secret
-2. **DNS Access**: CNAME for custom domain
-3. **Budget**: ~$79-128/month for App Service Plan
+1. **DNS Access**: CNAME for custom domain
+1. **Budget**: ~$79-128/month for App Service Plan
 
 ### Quick Deploy
 
@@ -56,9 +56,9 @@ export AZURE_CLIENT_ID="your-client-id"
 export AZURE_CLIENT_SECRET="your-secret"
 
 # Optional: Choose plan (S1 or P0V3)
-export APP_SERVICE_PLAN_SKU="S1"  # Default: S1 ($70/mo)
+export APP_SERVICE_PLAN_SKU="S1" # Default: S1 ($70/mo)
 # OR
-export APP_SERVICE_PLAN_SKU="P0V3"  # More RAM ($119/mo)
+export APP_SERVICE_PLAN_SKU="P0V3" # More RAM ($119/mo)
 
 # Deploy
 ./azure-stack-16-swa-private-endpoint.sh
@@ -85,16 +85,16 @@ Note: NO `*.azurestaticapps.net` URI - that domain is disabled.
 ### Network Isolation
 
 1. **Private Endpoint**: Function App has NO public IP
-2. **VNet Integration**: All backend communication via private network
-3. **Network Security Group**: Controls subnet-level traffic
-4. **Custom Domain PRIMARY**: Default *.azurestaticapps.net domain disabled
+1. **VNet Integration**: All backend communication via private network
+1. **Network Security Group**: Controls subnet-level traffic
+1. **Custom Domain PRIMARY**: Default *.azurestaticapps.net domain disabled
 
 ### Authentication
 
 1. **Entra ID Only**: Platform-level authentication
-2. **Single Domain**: Custom domain is ONLY access point
-3. **HttpOnly Cookies**: Protected session management
-4. **Restricted Redirects**: Only custom domain in redirect URIs
+1. **Single Domain**: Custom domain is ONLY access point
+1. **HttpOnly Cookies**: Protected session management
+1. **Restricted Redirects**: Only custom domain in redirect URIs
 
 ## Testing
 
@@ -124,7 +124,7 @@ curl https://<func>.azurewebsites.net
 ```bash
 # Login via browser first, then:
 curl https://static-swa-private-endpoint.publiccloudexperiments.net/api/v1/health \
-  -H "Cookie: StaticWebAppsAuthCookie=<cookie>"
+ -H "Cookie: StaticWebAppsAuthCookie=<cookie>"
 # Should work (goes via private network)
 ```
 
@@ -185,8 +185,8 @@ cd infrastructure/azure
 ```bash
 # Check private endpoint
 az network private-endpoint list \
-  --resource-group rg-subnet-calc \
-  --query "[].{Name:name, State:provisioningState}"
+ --resource-group rg-subnet-calc \
+ --query "[].{Name:name, State:provisioningState}"
 
 # Check DNS
 nslookup <func>.azurewebsites.net

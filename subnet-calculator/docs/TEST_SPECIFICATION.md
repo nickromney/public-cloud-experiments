@@ -436,11 +436,12 @@ All frontends should implement identical behavior tests to ensure consistency ac
 ### Test Order Requirements
 
 1. Tests MUST be numbered 01-32 (or 01-30 for TypeScript)
-2. Tests MUST appear in the same order in each file
-3. Tests MUST use identical assertions where possible
-4. Skip tests that don't apply using appropriate framework mechanisms:
-   - Python: `pytest.mark.skip` decorator
-   - TypeScript: `test.skip()` method
+1. Tests MUST appear in the same order in each file
+1. Tests MUST use identical assertions where possible
+1. Skip tests that don't apply using appropriate framework mechanisms:
+
+- Python: `pytest.mark.skip` decorator
+- TypeScript: `test.skip()` method
 
 ### Element ID Requirements
 
@@ -503,9 +504,9 @@ BASE_URL=http://localhost:3000 npm test
 
 ```bash
 # From repository root
-make test                    # Run all tests
-make python-test            # Run Python tests only
-make typescript-test        # Run TypeScript tests only
+make test # Run all tests
+make python-test # Run Python tests only
+make typescript-test # Run TypeScript tests only
 ```
 
 ---

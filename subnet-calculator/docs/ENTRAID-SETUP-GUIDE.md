@@ -37,21 +37,22 @@ Backend API
 Before starting, you need:
 
 1. **Azure Subscription** with permissions to:
-   - Create Entra ID app registrations
-   - Configure Azure Static Web App
-   - Set environment variables
 
-2. **Azure CLI** installed and logged in:
+- Create Entra ID app registrations
+- Configure Azure Static Web App
+- Set environment variables
 
-   ```bash
-   az login
-   ```
+1. **Azure CLI** installed and logged in:
 
-3. **Static Web App** already created:
+ ```bash
+ az login
+ ```
 
-   ```bash
-   az staticwebapp show --name <your-swa-name> --resource-group <your-rg>
-   ```
+1. **Static Web App** already created:
+
+ ```bash
+ az staticwebapp show --name <your-swa-name> --resource-group <your-rg>
+ ```
 
 ## Step 1: Get Your Static Web App URL
 
@@ -80,11 +81,12 @@ Your SWA URL: https://swatest-xyz123.azurestaticapps.net
 ### Via Azure Portal (Recommended for First Time)
 
 1. Go to **Azure Portal** → **Entra ID** → **App registrations**
-2. Click **New registration**
-3. Fill in:
-   - **Name**: `subnet-calc-entraid` (or your preferred name)
-   - **Supported account types**: **Accounts in this organizational directory only (Single tenant)**
-   - Click **Register**
+1. Click **New registration**
+1. Fill in:
+
+- **Name**: `subnet-calc-entraid` (or your preferred name)
+- **Supported account types**: **Accounts in this organizational directory only (Single tenant)**
+- Click **Register**
 
 ### Via Azure CLI
 
@@ -112,20 +114,20 @@ The redirect URI tells Entra ID where to send users after they authenticate.
 ### Via Azure Portal
 
 1. In the app registration, go to **Authentication** blade
-2. Click **Add a Redirect URI**
-3. Add this exact URI:
+1. Click **Add a Redirect URI**
+1. Add this exact URI:
 
-   ```text
-   https://<your-swa-url>/.auth/login/aad/callback
-   ```
+ ```text
+ https://<your-swa-url>/.auth/login/aad/callback
+ ```
 
-   Example:
+ Example:
 
-   ```text
-   https://swatest-xyz123.azurestaticapps.net/.auth/login/aad/callback
-   ```
+ ```text
+ https://swatest-xyz123.azurestaticapps.net/.auth/login/aad/callback
+ ```
 
-4. Click **Save**
+1. Click **Save**
 
 ### Via Azure CLI
 
@@ -144,14 +146,16 @@ The client secret is used by SWA to authenticate with Entra ID (backend to backe
 ### Via Azure Portal
 
 1. In the app registration, go to **Certificates & secrets** blade
-2. Click **New client secret**
-3. Fill in:
-   - **Description**: `SWA Backend` (or your preference)
-   - **Expires**: 24 months (or your security policy)
+1. Click **New client secret**
+1. Fill in:
 
-4. Click **Add**
-5. **Immediately copy the Value** (this is your `AZURE_CLIENT_SECRET`)
-   - You can only see it once! If you lose it, delete and create a new one
+- **Description**: `SWA Backend` (or your preference)
+- **Expires**: 24 months (or your security policy)
+
+1. Click **Add**
+1. **Immediately copy the Value** (this is your `AZURE_CLIENT_SECRET`)
+
+- You can only see it once! If you lose it, delete and create a new one
 
 ### Via Azure CLI
 
@@ -228,25 +232,27 @@ This script will:
 
 1. **Open your SWA URL** in a browser:
 
-   ```text
-   https://swatest-xyz123.azurestaticapps.net
-   ```
+ ```text
+ https://swatest-xyz123.azurestaticapps.net
+ ```
 
-2. **You should be redirected to Entra ID login** with:
-   - Your organization's Entra ID login page
-   - Tenant-specific endpoint (not `/common/`)
+1. **You should be redirected to Entra ID login** with:
 
-3. **Sign in with your Entra ID account**:
+- Your organization's Entra ID login page
+- Tenant-specific endpoint (not `/common/`)
 
-   ```text
-   swatest@akscicdpipelines.onmicrosoft.com
-   ```
+1. **Sign in with your Entra ID account**:
 
-4. **You should see the app** with your user information displayed
+ ```text
+ swatest@akscicdpipelines.onmicrosoft.com
+ ```
 
-5. **Test API calls**:
-   - App should make calls to `/api/v1/health` through SWA proxy
-   - Backend receives authenticated request via headers
+1. **You should see the app** with your user information displayed
+
+1. **Test API calls**:
+
+- App should make calls to `/api/v1/health` through SWA proxy
+- Backend receives authenticated request via headers
 
 ## Configuration Details
 
@@ -333,11 +339,11 @@ All routes are protected in `staticwebapp-entraid.config.json`:
 **Fix**:
 
 1. Go to **Azure Portal** → **Entra ID** → **App registrations** → `subnet-calc-entraid`
-2. Go to **Authentication** blade
-3. Add redirect URI: `https://<your-swa-url>/.auth/login/aad/callback`
-4. Click **Save**
-5. Wait 2-3 minutes for changes to propagate
-6. Try login again (this is the step you need to do manually in Azure Portal)
+1. Go to **Authentication** blade
+1. Add redirect URI: `https://<your-swa-url>/.auth/login/aad/callback`
+1. Click **Save**
+1. Wait 2-3 minutes for changes to propagate
+1. Try login again (this is the step you need to do manually in Azure Portal)
 
 ### Error: AADSTS50194 - Application not configured as multi-tenant
 
@@ -378,13 +384,13 @@ VITE_AUTH_ENABLED=true ./infrastructure/azure/20-deploy-frontend.sh
 **Fix**:
 
 1. Verify SWA proxy is configured correctly (relative URLs, no API_URL)
-2. Check SWA has Entra ID configured:
+1. Check SWA has Entra ID configured:
 
-   ```bash
-   az staticwebapp appsettings list --name $SWA_NAME --resource-group $RG
-   ```
+ ```bash
+ az staticwebapp appsettings list --name $SWA_NAME --resource-group $RG
+ ```
 
-3. Verify redirect URI matches your SWA URL exactly
+1. Verify redirect URI matches your SWA URL exactly
 
 ## Environment Variables
 
@@ -408,27 +414,32 @@ VITE_API_URL= # Leave empty - SWA proxy pattern
 ## Security Best Practices
 
 1. **Use Tenant-Specific Endpoints**
-   - Always use `https://login.microsoftonline.com/TENANT_ID/v2.0`
-   - Never use `/common/` for single-tenant apps
 
-2. **Use Authorization Code Flow**
-   - Always use `response_type=code`
-   - Never use hybrid flow (`code id_token`) unnecessarily
+- Always use `https://login.microsoftonline.com/TENANT_ID/v2.0`
+- Never use `/common/` for single-tenant apps
 
-3. **Protect Secrets**
-   - Store `AZURE_CLIENT_SECRET` in Azure Key Vault in production
-   - Never commit secrets to git
-   - Rotate secrets regularly (e.g., every 24 months)
+1. **Use Authorization Code Flow**
 
-4. **Monitor Access**
-   - Check Azure logs for failed authentication attempts
-   - Review authorized users periodically
-   - Set up alerts for suspicious activity
+- Always use `response_type=code`
+- Never use hybrid flow (`code id_token`) unnecessarily
 
-5. **Test with Multiple Users**
-   - Test with different Entra ID user accounts
-   - Verify role-based access control (if using roles)
-   - Test token expiration and refresh
+1. **Protect Secrets**
+
+- Store `AZURE_CLIENT_SECRET` in Azure Key Vault in production
+- Never commit secrets to git
+- Rotate secrets regularly (e.g., every 24 months)
+
+1. **Monitor Access**
+
+- Check Azure logs for failed authentication attempts
+- Review authorized users periodically
+- Set up alerts for suspicious activity
+
+1. **Test with Multiple Users**
+
+- Test with different Entra ID user accounts
+- Verify role-based access control (if using roles)
+- Test token expiration and refresh
 
 ## Next Steps
 

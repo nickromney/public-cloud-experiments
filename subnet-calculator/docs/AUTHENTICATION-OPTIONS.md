@@ -107,20 +107,20 @@ SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_ad # Signature
 
 ```text
 1. User logs in → Backend issues JWT
-2. Client stores JWT (localStorage, cookie)
-3. Client sends JWT with each request: Authorization: Bearer <token>
-4. API validates signature + expiry
+1. Client stores JWT (localStorage, cookie)
+1. Client sends JWT with each request: Authorization: Bearer <token>
+1. API validates signature + expiry
 ```
 
 **Decoded payload:**
 
 ```json
 {
-  "sub": "user@example.com",
-  "name": "John Doe",
-  "iat": 1516239022,
-  "exp": 1516242622,
-  "roles": ["user", "admin"]
+ "sub": "user@example.com",
+ "name": "John Doe",
+ "iat": 1516239022,
+ "exp": 1516242622,
+ "roles": ["user", "admin"]
 }
 ```
 
@@ -211,10 +211,10 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:7071/api/v1/health
 
 ```text
 1. User clicks "Login with Google"
-2. Redirect to accounts.google.com → user logs in
-3. Google redirects back with authorization code
-4. Backend exchanges code for access_token + id_token
-5. Frontend uses access_token for API calls
+1. Redirect to accounts.google.com → user logs in
+1. Google redirects back with authorization code
+1. Backend exchanges code for access_token + id_token
+1. Frontend uses access_token for API calls
 ```
 
 **Request:**
@@ -228,9 +228,9 @@ Authorization: Bearer <access_token_from_google>
 
 ```text
 1. Service A requests token from OAuth server
-2. OAuth server validates client_id + client_secret
-3. Service A gets access_token
-4. Service A calls Service B with token
+1. OAuth server validates client_id + client_secret
+1. Service A gets access_token
+1. Service A calls Service B with token
 ```
 
 ### OpenID Connect
@@ -241,12 +241,12 @@ OAuth 2.0 + identity layer (adds `id_token` with user info)
 
 ```json
 {
-  "iss": "https://accounts.google.com",
-  "sub": "10769150350006150715113082367",
-  "email": "user@example.com",
-  "email_verified": true,
-  "iat": 1516239022,
-  "exp": 1516242622
+ "iss": "https://accounts.google.com",
+ "sub": "10769150350006150715113082367",
+ "email": "user@example.com",
+ "email_verified": true,
+ "iat": 1516239022,
+ "exp": 1516242622
 }
 ```
 
@@ -351,9 +351,9 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:7071/api/v1/health
 
 ```text
 1. User visits app → redirected to login.microsoftonline.com
-2. User logs in with corporate account (user@company.com)
-3. Azure AD issues access_token + id_token
-4. App validates tokens against Azure AD
+1. User logs in with corporate account (user@company.com)
+1. Azure AD issues access_token + id_token
+1. App validates tokens against Azure AD
 ```
 
 ### Two Flavors
@@ -489,8 +489,8 @@ az account get-access-token --resource "api://your-app-client-id" --query access
 **EasyAuth (easiest):**
 
 1. Enable in Azure Portal
-2. All requests have `X-MS-TOKEN-AAD-ID-TOKEN` header
-3. Zero code changes
+1. All requests have `X-MS-TOKEN-AAD-ID-TOKEN` header
+1. Zero code changes
 
 **Manual validation:**
 
@@ -515,11 +515,11 @@ from msal import ConfidentialClientApplication
 
 ```text
 1. Client initiates TLS connection
-2. Server presents its certificate
-3. Client validates server cert (normal TLS)
-4. Server requests client certificate
-5. Client presents its certificate
-6. Server validates client cert → authenticated
+1. Server presents its certificate
+1. Client validates server cert (normal TLS)
+1. Server requests client certificate
+1. Client presents its certificate
+1. Server validates client cert → authenticated
 ```
 
 **Result:** Both parties cryptographically verified
@@ -646,12 +646,12 @@ Client → API Gateway (mTLS, JWT validation, IP allow-list)
 
 ### Tools by Cloud
 
-| Layer        | Azure                      | Cloudflare            | Generic           |
+| Layer | Azure | Cloudflare | Generic |
 | ------------ | -------------------------- | --------------------- | ----------------- |
-| **Identity** | Azure AD, Managed Identity | Cloudflare Access     | Auth0, Okta       |
-| **Network**  | Azure Front Door, APIM     | Cloudflare Tunnel     | Envoy, Istio      |
-| **Policy**   | Azure Policy               | Cloudflare Zero Trust | Open Policy Agent |
-| **Secrets**  | Azure Key Vault            | Cloudflare Workers KV | HashiCorp Vault   |
+| **Identity** | Azure AD, Managed Identity | Cloudflare Access | Auth0, Okta |
+| **Network** | Azure Front Door, APIM | Cloudflare Tunnel | Envoy, Istio |
+| **Policy** | Azure Policy | Cloudflare Zero Trust | Open Policy Agent |
+| **Secrets** | Azure Key Vault | Cloudflare Workers KV | HashiCorp Vault |
 
 ### Multi-Cloud Example
 
@@ -671,8 +671,8 @@ Browser → Azure Static Web App (Azure AD login)
 **Requirements:**
 
 1. Azure AD issues JWT
-2. Cloudflare Worker validates Azure AD public keys
-3. Or: Use shared JWT issuer (Auth0, Okta)
+1. Cloudflare Worker validates Azure AD public keys
+1. Or: Use shared JWT issuer (Auth0, Okta)
 
 **Code (Cloudflare Worker):**
 
@@ -681,24 +681,24 @@ Browser → Azure Static Web App (Azure AD login)
 import { importSPKI, jwtVerify } from "jose";
 
 export default {
-  async fetch(request) {
-    const token = request.headers.get("Authorization")?.replace("Bearer ", "");
+ async fetch(request) {
+ const token = request.headers.get("Authorization")?.replace("Bearer ", "");
 
-    // Get Azure AD public keys
-    const jwks = await fetch(
-      "https://login.microsoftonline.com/common/discovery/v2.0/keys"
-    );
+ // Get Azure AD public keys
+ const jwks = await fetch(
+ "https://login.microsoftonline.com/common/discovery/v2.0/keys"
+ );
 
-    // Verify token
-    const { payload } = await jwtVerify(token, jwks);
+ // Verify token
+ const { payload } = await jwtVerify(token, jwks);
 
-    // Check permissions
-    if (!payload.roles.includes("ApiUser")) {
-      return new Response("Forbidden", { status: 403 });
-    }
+ // Check permissions
+ if (!payload.roles.includes("ApiUser")) {
+ return new Response("Forbidden", { status: 403 });
+ }
 
-    return new Response("OK");
-  },
+ return new Response("OK");
+ },
 };
 ```
 
@@ -728,7 +728,7 @@ NO **Difficult** - Need to mock/run multiple services
 **Options:**
 
 1. **Use real cloud services** (Azure AD + Cloudflare Workers)
-2. **Mock each layer:**
+1. **Mock each layer:**
 
 - Identity: Use test JWT with known secret
 - Network: Run API gateway locally (Envoy, nginx)
@@ -745,17 +745,17 @@ NO **Difficult** - Need to mock/run multiple services
 
 ## Comparison Matrix
 
-| Feature                  | API Keys | JWT     | OAuth/OIDC | Azure AD | mTLS     | Zero Trust |
+| Feature | API Keys | JWT | OAuth/OIDC | Azure AD | mTLS | Zero Trust |
 | ------------------------ | -------- | ------- | ---------- | -------- | -------- | ---------- |
-| **User Identity**        | NO       | YES     | YES        | YES      | YES      | YES        |
-| **Stateless**            | YES      | YES     | WARNING    | WARNING  | YES      | YES        |
-| **Browser-Friendly**     | YES      | YES     | YES        | YES      | NO       | YES        |
-| **Service-to-Service**   | YES      | YES     | YES        | YES      | YES      | YES        |
-| **Revocation**           | NO       | NO      | YES        | YES      | YES      | YES        |
-| **Granular Permissions** | NO       | YES     | YES        | YES      | NO       | YES        |
-| **Local Testing**        | **\***   | **\***  | \*\*\*     | \*\*\*\* | \*\*     | \*         |
-| **Setup Time**           | < 1 hour | ~ 1 day | ~ 1 week   | ~ 3 days | ~ 1 week | ~ 1 month  |
-| **Code Complexity**      | \*       | \*\*    | \*\*\*     | \*\*\*   | \*\*\*\* | **\***     |
+| **User Identity** | NO | YES | YES | YES | YES | YES |
+| **Stateless** | YES | YES | WARNING | WARNING | YES | YES |
+| **Browser-Friendly** | YES | YES | YES | YES | NO | YES |
+| **Service-to-Service** | YES | YES | YES | YES | YES | YES |
+| **Revocation** | NO | NO | YES | YES | YES | YES |
+| **Granular Permissions** | NO | YES | YES | YES | NO | YES |
+| **Local Testing** | **\*** | **\*** | \*\*\* | \*\*\*\* | \*\* | \* |
+| **Setup Time** | < 1 hour | ~ 1 day | ~ 1 week | ~ 3 days | ~ 1 week | ~ 1 month |
+| **Code Complexity** | \* | \*\* | \*\*\* | \*\*\* | \*\*\*\* | **\*** |
 
 ---
 

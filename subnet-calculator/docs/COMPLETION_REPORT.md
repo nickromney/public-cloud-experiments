@@ -78,10 +78,10 @@ Rewrote all test files with numbered, ordered tests (01-32 or 01-30):
 - [x] All 32 tests implemented in canonical order
 - [x] Created `conftest.py` with base_url fixture
 - [x] Fixed 4 tests to match client-side behavior:
-  - `test_06`: Validation happens server-side
-  - `test_19`: Table generated dynamically
-  - `test_21`: Clear button in hidden results section
-  - `test_22`: Button visibility depends on results
+- `test_06`: Validation happens server-side
+- `test_19`: Table generated dynamically
+- `test_21`: Clear button in hidden results section
+- `test_22`: Button visibility depends on results
 - [x] 32/32 tests passing
 
 #### TypeScript Vite Frontend (`frontend-typescript-vite/tests/frontend.spec.ts`)
@@ -124,14 +124,14 @@ Created standardized Makefiles for all frontends:
 All frontends implement these 10 test groups:
 
 1. **Basic Page & Elements** (5 tests) - Page load, form elements, selectors, placeholders
-2. **Input Validation** (3 tests) - Invalid IPs, valid IPs, CIDR notation
-3. **Example Buttons** (2 tests) - Button population, all buttons present
-4. **Responsive Layout** (3 tests) - Mobile, tablet, desktop viewports
-5. **Theme Management** (3 tests) - Theme switcher, persistence, default
-6. **UI State & Display** (4 tests) - Loading, error, results, copy button
-7. **Button Functionality** (2 tests) - Clear button, accessible labels
-8. **API Error Handling** (6 tests) - Status panel, connection failures, timeouts, errors
-9. **Full API Integration** (2 tests) - Valid IP mocked, CIDR range mocked
+1. **Input Validation** (3 tests) - Invalid IPs, valid IPs, CIDR notation
+1. **Example Buttons** (2 tests) - Button population, all buttons present
+1. **Responsive Layout** (3 tests) - Mobile, tablet, desktop viewports
+1. **Theme Management** (3 tests) - Theme switcher, persistence, default
+1. **UI State & Display** (4 tests) - Loading, error, results, copy button
+1. **Button Functionality** (2 tests) - Clear button, accessible labels
+1. **API Error Handling** (6 tests) - Status panel, connection failures, timeouts, errors
+1. **Full API Integration** (2 tests) - Valid IP mocked, CIDR range mocked
 10. **Progressive Enhancement** (2 tests, Flask/Static only) - No-JS fallback, noscript warning
 
 ---
@@ -145,8 +145,8 @@ All frontends implement these 10 test groups:
 make test
 
 # Or individually
-make python-test      # Runs Flask + Static HTML
-make typescript-test  # Runs TypeScript Vite
+make python-test # Runs Flask + Static HTML
+make typescript-test # Runs TypeScript Vite
 ```
 
 ### Run Individual Frontend Tests
@@ -192,20 +192,20 @@ BASE_URL=http://localhost:3000 npm test
 ```text
 subnet-calculator/
 ├── docs/
-│   ├── TEST_SPECIFICATION.md       # Complete test spec (32 tests)
-│   ├── TODO.md                     # Task tracking (now complete)
-│   └── COMPLETION_REPORT.md        # This document
+│ ├── TEST_SPECIFICATION.md # Complete test spec (32 tests)
+│ ├── TODO.md # Task tracking (now complete)
+│ └── COMPLETION_REPORT.md # This document
 ├── frontend-python-flask/
-│   ├── test_frontend.py            # 32 tests [x]
-│   ├── conftest.py                 # Pytest fixtures
-│   └── Makefile                    # Build targets [x]
+│ ├── test_frontend.py # 32 tests [x]
+│ ├── conftest.py # Pytest fixtures
+│ └── Makefile # Build targets [x]
 ├── frontend-html-static/
-│   ├── test_frontend.py            # 32 tests [x]
-│   ├── conftest.py                 # Pytest fixtures [x] (new)
-│   └── Makefile                    # Build targets [x] (new)
+│ ├── test_frontend.py # 32 tests [x]
+│ ├── conftest.py # Pytest fixtures [x] (new)
+│ └── Makefile # Build targets [x] (new)
 └── frontend-typescript-vite/
-    ├── tests/frontend.spec.ts      # 30 tests [x]
-    └── Makefile                    # Build targets [x] (new)
+ ├── tests/frontend.spec.ts # 30 tests [x]
+ └── Makefile # Build targets [x] (new)
 ```
 
 ---
@@ -213,13 +213,13 @@ subnet-calculator/
 ## Key Achievements
 
 1. [x] **100% Test Coverage** - All 94 tests passing across 3 frontends
-2. [x] **Harmonized Behavior** - Identical element IDs and defaults everywhere
-3. [x] **Canonical Test Order** - Tests numbered 01-32 (or 01-30) in all files
-4. [x] **Auto-Detection** - Root Makefile finds projects automatically
-5. [x] **Comprehensive Documentation** - Full specs and instructions
-6. [x] **Docker Tested** - All tests verified against running containers
-7. [x] **Lint Clean** - All markdown documentation passes markdownlint
-8. [x] **Parallel Execution** - Used 4 sub-agents to complete in ~15 minutes
+1. [x] **Harmonized Behavior** - Identical element IDs and defaults everywhere
+1. [x] **Canonical Test Order** - Tests numbered 01-32 (or 01-30) in all files
+1. [x] **Auto-Detection** - Root Makefile finds projects automatically
+1. [x] **Comprehensive Documentation** - Full specs and instructions
+1. [x] **Docker Tested** - All tests verified against running containers
+1. [x] **Lint Clean** - All markdown documentation passes markdownlint
+1. [x] **Parallel Execution** - Used 4 sub-agents to complete in ~15 minutes
 
 ---
 
@@ -236,10 +236,10 @@ subnet-calculator/
 While all core objectives are complete, potential future enhancements:
 
 1. Add visual regression testing with Percy or similar
-2. Add accessibility testing with axe-core
-3. Add performance testing with Lighthouse
-4. Add E2E integration tests with real API
-5. Add cross-browser testing matrix (Firefox, Safari, Edge)
+1. Add accessibility testing with axe-core
+1. Add performance testing with Lighthouse
+1. Add E2E integration tests with real API
+1. Add cross-browser testing matrix (Firefox, Safari, Edge)
 
 ---
 

@@ -82,10 +82,10 @@ npm run swa -- start stack6-entra
 ### Emulated Auth Flow
 
 1. Click "Login with Azure AD" (emulated button)
-2. SWA CLI shows a fake login screen
-3. Enter any email/username (no password needed locally)
-4. SWA CLI sets authentication cookies
-5. Your app receives the authenticated user
+1. SWA CLI shows a fake login screen
+1. Enter any email/username (no password needed locally)
+1. SWA CLI sets authentication cookies
+1. Your app receives the authenticated user
 
 **IMPORTANT LIMITATIONS - Local Development:**
 

@@ -8,20 +8,20 @@ Stack 2 demonstrates enterprise-grade authentication using Azure Entra ID (Azure
 
 ```text
 ┌─────────────────────────────────────┐
-│ User → Entra ID Login               │
+│ User → Entra ID Login │
 └──────────────┬──────────────────────┘
-               │
+ │
 ┌──────────────▼──────────────────────┐
-│ Azure Static Web App (Standard)     │
-│ - TypeScript Vite SPA               │
-│ - Entra ID authentication           │
-│ - /api/* → SWA Proxy → Function     │
-│ - Custom domain + azurestaticapps   │
+│ Azure Static Web App (Standard) │
+│ - TypeScript Vite SPA │
+│ - Entra ID authentication │
+│ - /api/* → SWA Proxy → Function │
+│ - Custom domain + azurestaticapps │
 └──────────────┬──────────────────────┘
-               │ Linked backend
+ │ Linked backend
 ┌──────────────▼──────────────────────┐
-│ Azure Function App (Consumption)    │
-│ - Linked to SWA as managed backend  │
+│ Azure Function App (Consumption) │
+│ - Linked to SWA as managed backend │
 │ - Accessible via both custom domains│
 │ - No auth on Function (SWA handles) │
 └─────────────────────────────────────┘
@@ -37,8 +37,8 @@ Stack 2 demonstrates enterprise-grade authentication using Azure Entra ID (Azure
 ### Prerequisites
 
 1. **Entra ID App Registration**: Existing app ID `370b8618-a252-442e-9941-c47a9f7da89e`
-2. **Client Secret**: Valid secret for the app registration
-3. **DNS Access**: Create CNAME records for both domains
+1. **Client Secret**: Valid secret for the app registration
+1. **DNS Access**: Create CNAME records for both domains
 
 ### Quick Deploy
 
@@ -65,7 +65,7 @@ subnet-calc-fa-entraid-linked.publiccloudexperiments.net → CNAME → <func>.az
 The script automatically adds:
 
 1. `https://<app>.azurestaticapps.net/.auth/login/aad/callback`
-2. `https://static-swa-entraid-linked.publiccloudexperiments.net/.auth/login/aad/callback`
+1. `https://static-swa-entraid-linked.publiccloudexperiments.net/.auth/login/aad/callback`
 
 ## Authentication Flow
 
@@ -126,7 +126,7 @@ open https://static-swa-entraid-linked.publiccloudexperiments.net
 
 ```bash
 curl https://static-swa-entraid-linked.publiccloudexperiments.net/.auth/me \
-  -H "Cookie: StaticWebAppsAuthCookie=<cookie-from-browser>"
+ -H "Cookie: StaticWebAppsAuthCookie=<cookie-from-browser>"
 
 # Returns user info
 ```
@@ -162,9 +162,9 @@ curl https://subnet-calc-fa-entraid-linked.publiccloudexperiments.net/api/v1/ipv
 ### Best Practices
 
 1. **Use custom domain as primary** for user-facing URLs
-2. **Configure logout redirect** to custom domain
-3. **Set session timeout** appropriately for your use case
-4. **Monitor failed logins** in Entra ID logs
+1. **Configure logout redirect** to custom domain
+1. **Set session timeout** appropriately for your use case
+1. **Monitor failed logins** in Entra ID logs
 
 ## Configuration
 
@@ -172,37 +172,37 @@ curl https://subnet-calc-fa-entraid-linked.publiccloudexperiments.net/api/v1/ipv
 
 ```json
 {
-  "routes": [
-    {
-      "route": "/logged-out.html",
-      "allowedRoles": ["anonymous", "authenticated"]
-    },
-    {
-      "route": "/logout",
-      "redirect": "/.auth/logout?post_logout_redirect_uri=/logged-out.html"
-    },
-    {
-      "route": "/api/*",
-      "allowedRoles": ["authenticated"]
-    },
-    {
-      "route": "/*",
-      "allowedRoles": ["authenticated"]
-    }
-  ],
-  "responseOverrides": {
-    "401": {
-      "statusCode": 302,
-      "redirect": "/.auth/login/aad"
-    }
-  }
+ "routes": [
+ {
+ "route": "/logged-out.html",
+ "allowedRoles": ["anonymous", "authenticated"]
+ },
+ {
+ "route": "/logout",
+ "redirect": "/.auth/logout?post_logout_redirect_uri=/logged-out.html"
+ },
+ {
+ "route": "/api/*",
+ "allowedRoles": ["authenticated"]
+ },
+ {
+ "route": "/*",
+ "allowedRoles": ["authenticated"]
+ }
+ ],
+ "responseOverrides": {
+ "401": {
+ "statusCode": 302,
+ "redirect": "/.auth/login/aad"
+ }
+ }
 }
 ```
 
 ### Function App Settings
 
 ```bash
-AUTH_METHOD=none  # SWA handles auth
+AUTH_METHOD=none # SWA handles auth
 CORS_ORIGINS=https://static-swa-entraid-linked.publiccloudexperiments.net
 ```
 
@@ -216,7 +216,7 @@ CORS_ORIGINS=https://static-swa-entraid-linked.publiccloudexperiments.net
 
 ```bash
 az ad app show --id 370b8618-a252-442e-9941-c47a9f7da89e \
-  --query "web.redirectUris"
+ --query "web.redirectUris"
 ```
 
 ### Issue: Infinite login loop
@@ -227,8 +227,8 @@ az ad app show --id 370b8618-a252-442e-9941-c47a9f7da89e \
 
 ```bash
 az staticwebapp appsettings list \
-  --name swa-subnet-calc-entraid-linked \
-  --resource-group rg-subnet-calc
+ --name swa-subnet-calc-entraid-linked \
+ --resource-group rg-subnet-calc
 ```
 
 ## Cost Breakdown

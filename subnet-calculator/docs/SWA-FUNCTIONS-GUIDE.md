@@ -8,11 +8,11 @@ Azure Static Web Apps (SWA) supports **three distinct approaches** for integrati
 
 ## Quick Decision Matrix
 
-| Approach                | When to Use                                 | Best For                                | Cost         |
+| Approach | When to Use | Best For | Cost |
 | ----------------------- | ------------------------------------------- | --------------------------------------- | ------------ |
-| **Managed Functions**   | EU deployments, simple APIs, GitHub Actions | Speed, simplicity, automated deployment | $9/month SWA |
-| **Linked Backend**      | Data sovereignty, same-origin benefits      | UK/Australia, Entra ID, modern stacks   | $9/month SWA |
-| **Separate Deployment** | Existing function app, cross-origin API     | Legacy integrations, direct API access  | $9/month SWA |
+| **Managed Functions** | EU deployments, simple APIs, GitHub Actions | Speed, simplicity, automated deployment | $9/month SWA |
+| **Linked Backend** | Data sovereignty, same-origin benefits | UK/Australia, Entra ID, modern stacks | $9/month SWA |
+| **Separate Deployment** | Existing function app, cross-origin API | Legacy integrations, direct API access | $9/month SWA |
 
 ---
 
@@ -92,7 +92,7 @@ Managed functions only available in:
 - Prototypes and demos
 - When you don't need UK data sovereignty
 
-  **Not For:**
+ **Not For:**
 
 - UK data sovereignty required
 - Australia or Canada deployments
@@ -250,7 +250,7 @@ Deploy to any Azure region:
 - Same-origin benefits needed
 - Modern web apps (TypeScript, React, Vue)
 
-  **Not For:**
+ **Not For:**
 
 - Simple APIs (Managed Functions is simpler)
 - EU deployments where westeurope is acceptable
@@ -349,7 +349,7 @@ swa deploy \
 ```typescript
 // Must send credentials for cookies
 fetch("https://func-api.azurewebsites.net/api/v1/health", {
-  credentials: "include", // Important!
+ credentials: "include", // Important!
 });
 ```
 
@@ -371,7 +371,7 @@ az functionapp cors add \
 - REST API development (direct function access)
 - When SWA proxy not beneficial
 
-  **Not For:**
+ **Not For:**
 
 - New deployments (use Linked Backend instead)
 - Avoiding CORS complexity
@@ -401,19 +401,19 @@ export VITE_API_URL="https://func-subnet-calc-xyz.azurewebsites.net"
 
 ## Comparison Table
 
-| Feature                 | Managed           | Linked                | Separate                                        |
+| Feature | Managed | Linked | Separate |
 | ----------------------- | ----------------- | --------------------- | ----------------------------------------------- |
-| **Deployment**          | Automatic (SWA)   | Manual + Link         | Manual                                          |
-| **Region**              | 5 regions only    | All regions           | All regions                                     |
-| **URL Structure**       | `/api/v1/...`     | `/api/v1/...`         | `https://func-api.azurewebsites.net/api/v1/...` |
-| **Same-Origin**         | Yes (embedded)    | Yes (SWA proxy)       | No (cross-origin)                               |
-| **CORS**                | Not needed        | Not needed            | Required                                        |
-| **Function URL**        | Embedded (hidden) | Linked (hidden)       | Visible                                         |
-| **Data Sovereignty**    | Limited           | Full control          | Full control                                    |
-| **VNet Integration**    | No                | Yes (Premium)         | Yes (Premium)                                   |
-| **Portal Visibility**   | Embedded in SWA   | Separate function app | Separate function app                           |
-| **Separate Management** | No                | Yes                   | Yes                                             |
-| **Cost (Consumption)**  | $9/month          | $9/month              | $9/month                                        |
+| **Deployment** | Automatic (SWA) | Manual + Link | Manual |
+| **Region** | 5 regions only | All regions | All regions |
+| **URL Structure** | `/api/v1/...` | `/api/v1/...` | `https://func-api.azurewebsites.net/api/v1/...` |
+| **Same-Origin** | Yes (embedded) | Yes (SWA proxy) | No (cross-origin) |
+| **CORS** | Not needed | Not needed | Required |
+| **Function URL** | Embedded (hidden) | Linked (hidden) | Visible |
+| **Data Sovereignty** | Limited | Full control | Full control |
+| **VNet Integration** | No | Yes (Premium) | Yes (Premium) |
+| **Portal Visibility** | Embedded in SWA | Separate function app | Separate function app |
+| **Separate Management** | No | Yes | Yes |
+| **Cost (Consumption)** | $9/month | $9/month | $9/month |
 
 ---
 

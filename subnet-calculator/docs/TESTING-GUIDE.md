@@ -5,10 +5,10 @@ This document provides a complete overview of all testing methods available for 
 ## Table of Contents
 
 1. [Testing Overview](#testing-overview)
-2. [Podman Compose Stack Testing](#podman-compose-stack-testing)
-3. [SWA CLI Local Emulator Testing](#swa-cli-local-emulator-testing)
-4. [Azure Deployment Testing](#azure-deployment-testing)
-5. [Test Coverage Summary](#test-coverage-summary)
+1. [Podman Compose Stack Testing](#podman-compose-stack-testing)
+1. [SWA CLI Local Emulator Testing](#swa-cli-local-emulator-testing)
+1. [Azure Deployment Testing](#azure-deployment-testing)
+1. [Test Coverage Summary](#test-coverage-summary)
 
 ---
 
@@ -16,14 +16,14 @@ This document provides a complete overview of all testing methods available for 
 
 The subnet calculator has **~320 tests** across multiple layers:
 
-| Layer               | Test Type        | Count   | Tools                |
+| Layer | Test Type | Count | Tools |
 | ------------------- | ---------------- | ------- | -------------------- |
-| **Backend APIs**    | Unit + Endpoint  | 185     | pytest, curl         |
-| **Frontend**        | E2E + Unit       | 43      | Playwright           |
-| **SWA Proxy**       | Integration      | 8       | Playwright + SWA CLI |
-| **API Collections** | Manual/Automated | 12      | Bruno CLI            |
-| **Integration**     | Stack Testing    | 10      | Makefile + shell     |
-| **Deployment**      | Production       | Various | Azure CLI + curl     |
+| **Backend APIs** | Unit + Endpoint | 185 | pytest, curl |
+| **Frontend** | E2E + Unit | 43 | Playwright |
+| **SWA Proxy** | Integration | 8 | Playwright + SWA CLI |
+| **API Collections** | Manual/Automated | 12 | Bruno CLI |
+| **Integration** | Stack Testing | 10 | Makefile + shell |
+| **Deployment** | Production | Various | Azure CLI + curl |
 
 ---
 
@@ -450,43 +450,43 @@ npx @usebruno/cli@latest run "Azure Stack 06" --env production
 
 ### Complete Test Inventory
 
-| Component                | Test Type   | Count    | File/Location                                        | Auth         |
+| Component | Test Type | Count | File/Location | Auth |
 | ------------------------ | ----------- | -------- | ---------------------------------------------------- | ------------ |
-| **Backend APIs**         |             |          |                                                      |              |
-| Azure Function           | Unit        | 108      | `api-fastapi-azure-function/tests/`                  | N/A          |
-| Azure Function           | Endpoint    | 17       | `api-fastapi-azure-function/test_endpoints.sh`       | None         |
-| Azure Function           | Auth        | 3        | `api-fastapi-azure-function/test_auth.sh`            | Various      |
-| Container App            | Unit        | 60       | `api-fastapi-container-app/tests/`                   | N/A          |
-| Container App            | Endpoint    | 18       | `api-fastapi-container-app/test_endpoints.sh`        | JWT          |
-| **Frontend**             |             |          |                                                      |              |
-| Flask                    | E2E         | 20       | `frontend-python-flask/test_frontend.py`             | None         |
-| Static HTML              | E2E         | 23       | `frontend-html-static/test_frontend.py`              | None         |
-| TypeScript Vite          | Unit        | 30       | `frontend-typescript-vite/tests/frontend.spec.ts`    | Mocked       |
-| TypeScript Vite          | Integration | 8        | `frontend-typescript-vite/tests/integration.spec.ts` | Real API     |
-| TypeScript Vite          | SWA         | 8        | `frontend-typescript-vite/tests/swa.spec.ts`         | SWA emulated |
-| **API Collections**      |             |          |                                                      |              |
-| Bruno - Local Stack 01   | Manual/CLI  | 3        | `bruno-collections/Local Stack 01/`                  | None         |
-| Bruno - Local Stack 04   | Manual/CLI  | 3        | `bruno-collections/Local Stack 04/`                  | None         |
-| Bruno - Local Stack 05   | Manual/CLI  | 3        | `bruno-collections/Local Stack 05/`                  | JWT          |
-| Bruno - Azure Stack 06   | Manual/CLI  | 3        | `bruno-collections/Azure Stack 06/`                  | Entra ID     |
-| **Makefile Integration** |             |          |                                                      |              |
-| Stack 4                  | Integration | 5        | `Makefile:test-stack4`                               | None         |
-| Stack 5                  | Integration | 5        | `Makefile:test-stack5`                               | JWT          |
-|                          |             |          |                                                      |              |
-| **TOTAL TESTS**          |             | **~320** |                                                      |              |
+| **Backend APIs** | | | | |
+| Azure Function | Unit | 108 | `api-fastapi-azure-function/tests/` | N/A |
+| Azure Function | Endpoint | 17 | `api-fastapi-azure-function/test_endpoints.sh` | None |
+| Azure Function | Auth | 3 | `api-fastapi-azure-function/test_auth.sh` | Various |
+| Container App | Unit | 60 | `api-fastapi-container-app/tests/` | N/A |
+| Container App | Endpoint | 18 | `api-fastapi-container-app/test_endpoints.sh` | JWT |
+| **Frontend** | | | | |
+| Flask | E2E | 20 | `frontend-python-flask/test_frontend.py` | None |
+| Static HTML | E2E | 23 | `frontend-html-static/test_frontend.py` | None |
+| TypeScript Vite | Unit | 30 | `frontend-typescript-vite/tests/frontend.spec.ts` | Mocked |
+| TypeScript Vite | Integration | 8 | `frontend-typescript-vite/tests/integration.spec.ts` | Real API |
+| TypeScript Vite | SWA | 8 | `frontend-typescript-vite/tests/swa.spec.ts` | SWA emulated |
+| **API Collections** | | | | |
+| Bruno - Local Stack 01 | Manual/CLI | 3 | `bruno-collections/Local Stack 01/` | None |
+| Bruno - Local Stack 04 | Manual/CLI | 3 | `bruno-collections/Local Stack 04/` | None |
+| Bruno - Local Stack 05 | Manual/CLI | 3 | `bruno-collections/Local Stack 05/` | JWT |
+| Bruno - Azure Stack 06 | Manual/CLI | 3 | `bruno-collections/Azure Stack 06/` | Entra ID |
+| **Makefile Integration** | | | | |
+| Stack 4 | Integration | 5 | `Makefile:test-stack4` | None |
+| Stack 5 | Integration | 5 | `Makefile:test-stack5` | JWT |
+| | | | | |
+| **TOTAL TESTS** | | **~320** | | |
 
 ### Test Execution Time
 
-| Test Suite                | Time    | Notes                |
+| Test Suite | Time | Notes |
 | ------------------------- | ------- | -------------------- |
-| Azure Function Unit Tests | ~5 sec  | 108 tests            |
-| Container App Unit Tests  | ~3 sec  | 60 tests             |
-| Flask E2E Tests           | ~15 sec | 20 tests, headless   |
-| Static HTML E2E Tests     | ~18 sec | 23 tests, headless   |
-| Vite Unit Tests           | ~8 sec  | 30 tests             |
-| Vite Integration Tests    | ~10 sec | 8 tests, real API    |
-| Vite SWA Tests            | ~12 sec | 8 tests, via SWA CLI |
-| All Tests (Serial)        | ~90 sec | Full test suite      |
+| Azure Function Unit Tests | ~5 sec | 108 tests |
+| Container App Unit Tests | ~3 sec | 60 tests |
+| Flask E2E Tests | ~15 sec | 20 tests, headless |
+| Static HTML E2E Tests | ~18 sec | 23 tests, headless |
+| Vite Unit Tests | ~8 sec | 30 tests |
+| Vite Integration Tests | ~10 sec | 8 tests, real API |
+| Vite SWA Tests | ~12 sec | 8 tests, via SWA CLI |
+| All Tests (Serial) | ~90 sec | Full test suite |
 
 ---
 
