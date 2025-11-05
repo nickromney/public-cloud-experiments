@@ -156,8 +156,8 @@ teardown() {
 
 # === Function App Configuration Tests ===
 
-@test "Stack 15: Sets AUTH_METHOD to none" {
-  run grep "AUTH_METHOD=none" azure-stack-15-swa-entraid-linked.sh
+@test "Stack 15: Sets AUTH_METHOD to swa" {
+  run grep "AUTH_METHOD=swa" azure-stack-15-swa-entraid-linked.sh
   assert_success
 }
 
@@ -166,8 +166,8 @@ teardown() {
   assert_success
 }
 
-@test "Stack 15: Disables auth on Function App" {
-  run grep "DISABLE_AUTH=true" azure-stack-15-swa-entraid-linked.sh
+@test "Stack 15: Enables SWA auth on Function App" {
+  run grep "DISABLE_AUTH=false" azure-stack-15-swa-entraid-linked.sh
   assert_success
 }
 
@@ -211,7 +211,7 @@ teardown() {
 }
 
 @test "Stack 15: Uses Function resource ID for linking" {
-  run grep "FUNC_RESOURCE_ID.*az functionapp show" azure-stack-15-swa-entraid-linked.sh
+  run grep "FUNC_RESOURCE_ID.*az webapp show" azure-stack-15-swa-entraid-linked.sh
   assert_success
 }
 

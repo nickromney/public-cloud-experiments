@@ -370,7 +370,7 @@ teardown() {
 }
 
 @test "Stack 16: Uses Function resource ID for linking" {
-  run grep "FUNC_RESOURCE_ID.*az functionapp show" azure-stack-16-swa-private-endpoint.sh
+  run grep "FUNC_RESOURCE_ID.*az webapp show" azure-stack-16-swa-private-endpoint.sh
   assert_success
 }
 
