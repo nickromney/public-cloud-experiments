@@ -324,7 +324,7 @@ select_entra_app_registration() {
 
     local selection
     while true; do
-      read -r -p "Enter app registration (1-${#items[@]}) or app ID: " selection
+      read -r -p "Enter app registration (1-${#items[@]}) or app ID: " selection </dev/tty
 
       # Check if it's a number
       if [[ "${selection}" =~ ^[0-9]+$ ]]; then
