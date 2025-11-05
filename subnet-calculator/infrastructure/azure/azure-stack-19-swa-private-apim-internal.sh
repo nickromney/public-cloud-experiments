@@ -293,14 +293,15 @@ echo ""
 log_info "Deploying TypeScript frontend to ${STATIC_WEB_APP_NAME}..."
 log_info "Frontend will use relative /api URLs (proxied by AppGW to APIM)"
 
-# Use the 20-deploy-frontend.sh script
-"${SCRIPT_DIR}/20-deploy-frontend.sh" \
-  RESOURCE_GROUP="${RESOURCE_GROUP}" \
-  STATIC_WEB_APP_NAME="${STATIC_WEB_APP_NAME}" \
-  FRONTEND="typescript" || {
-  log_error "Frontend deployment failed"
-  exit 1
-}
+export FRONTEND=typescript
+export SWA_AUTH_ENABLED=true      # SWA platform auth (Entra ID)
+export VITE_AUTH_ENABLED=true     # Enable auth in frontend code
+export VITE_AUTH_METHOD=entraid   # Explicitly set Entra ID auth method
+export VITE_API_URL=""             # Use relative /api URLs (AppGW proxies)
+export STATIC_WEB_APP_NAME
+export RESOURCE_GROUP
+
+"${SCRIPT_DIR}/20-deploy-frontend.sh"
 
 log_info "✓ Frontend deployed"
 echo ""

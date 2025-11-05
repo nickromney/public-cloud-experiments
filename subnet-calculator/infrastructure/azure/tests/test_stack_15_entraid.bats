@@ -113,8 +113,9 @@ teardown() {
   assert_success
 }
 
-@test "Stack 15: Offers to create app registration if missing" {
-  run grep "Create new Entra ID app registration.*Y/n" azure-stack-15-swa-entraid-linked.sh
+@test "Stack 15: Offers options when app registration missing" {
+  # New behavior: Shows 3 options (select existing, create new, exit)
+  run grep "Choose option (1-3)" azure-stack-15-swa-entraid-linked.sh
   assert_success
 }
 
@@ -331,11 +332,11 @@ teardown() {
   assert_success
 }
 
-@test "Stack 15: Exits if credentials not provided after prompt" {
-  # Check that script has exit logic after app registration prompts (exit is ~50 lines after prompt)
-  run grep -A 55 'Create new Entra ID app registration' azure-stack-15-swa-entraid-linked.sh
+@test "Stack 15: Exits if option 3 selected" {
+  # Check that script has exit logic for option 3 (exit and set manually)
+  run grep -A 10 'Option 3 or any other input - exit' azure-stack-15-swa-entraid-linked.sh
   assert_success
-  [[ "$output" =~ "exit" ]]
+  [[ "$output" =~ "exit 0" ]]
 }
 
 # === Security and Auth Tests ===
@@ -458,8 +459,9 @@ teardown() {
 
 # === Y/n Prompt Pattern Tests ===
 
-@test "Stack 15: Uses Y/n prompt for app registration creation" {
-  run grep "Create new Entra ID app registration.*Y/n" azure-stack-15-swa-entraid-linked.sh
+@test "Stack 15: Uses numbered choice for app registration selection" {
+  # New behavior: Offers 3 numbered options instead of Y/n prompt
+  run grep "Choose option (1-3)" azure-stack-15-swa-entraid-linked.sh
   assert_success
 }
 

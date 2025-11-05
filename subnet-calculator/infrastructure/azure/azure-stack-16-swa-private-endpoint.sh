@@ -571,6 +571,7 @@ echo ""
 # Configure Entra ID on SWA
 export STATIC_WEB_APP_NAME
 export AZURE_CLIENT_ID
+export CUSTOM_DOMAIN  # Export custom domain for logout URL (already set at top of script)
 export KEY_VAULT_NAME # NEW: Pass to script 42 for secret retrieval
 # Do NOT export AZURE_CLIENT_SECRET - script 42 retrieves from Key Vault
 
@@ -588,6 +589,7 @@ export SWA_AUTH_ENABLED=true   # Use SWA built-in Entra ID authentication (for s
 export VITE_AUTH_ENABLED=true  # Enable auth in frontend
 export VITE_AUTH_METHOD=entraid # Explicitly set auth method (works on custom domains)
 export VITE_API_URL=""         # Use SWA proxy to linked backend
+export CUSTOM_DOMAIN           # Export custom domain for display (already set at top of script)
 export STATIC_WEB_APP_NAME
 export RESOURCE_GROUP
 

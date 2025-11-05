@@ -259,17 +259,21 @@ teardown() {
   assert_success
 }
 
-@test "staticwebapp-entraid.config.json uses secure code flow" {
-  run grep 'response_type=code' staticwebapp-entraid.config.json
-  assert_success
+@test "staticwebapp-entraid.config.json does not include loginParameters (per Azure docs)" {
+  # Azure Static Web Apps docs show minimal config without loginParameters
+  # Including response_type/scope caused authentication redirect loops
+  run grep 'loginParameters' staticwebapp-entraid.config.json
+  [ "$status" -ne 0 ]  # Should NOT find loginParameters
 }
 
-@test "staticwebapp-entraid.config.json does not use id_token response type" {
-  run bash -c "grep 'response_type' staticwebapp-entraid.config.json | grep -v 'response_type=code'"
-  [ "$status" -ne 0 ]  # Should NOT find id_token in response_type
+@test "staticwebapp-entraid.config.json does not use explicit response_type" {
+  # SWA handles OAuth flow automatically without explicit parameters
+  run grep 'response_type' staticwebapp-entraid.config.json
+  [ "$status" -ne 0 ]  # Should NOT find response_type
 }
 
-@test "staticwebapp-entraid.config.json requests correct scopes" {
-  run grep 'scope=openid profile email' staticwebapp-entraid.config.json
-  assert_success
+@test "staticwebapp-entraid.config.json does not include explicit scopes" {
+  # SWA uses default scopes automatically
+  run grep 'scope=' staticwebapp-entraid.config.json
+  [ "$status" -ne 0 ]  # Should NOT find explicit scope parameter
 }

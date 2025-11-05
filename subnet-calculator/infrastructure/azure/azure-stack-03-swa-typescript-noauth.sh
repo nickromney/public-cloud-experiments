@@ -204,7 +204,12 @@ log_step "Step 4/4: Deploying TypeScript Vite frontend..."
 echo ""
 
 export FRONTEND=typescript
-export API_URL="${FUNCTION_APP_URL}"
+export SWA_AUTH_ENABLED=false      # No SWA platform auth
+export VITE_AUTH_ENABLED=false     # No auth in frontend code
+export VITE_AUTH_METHOD=none       # Explicitly set no auth
+export VITE_API_URL="${FUNCTION_APP_URL}"
+export STATIC_WEB_APP_NAME
+export RESOURCE_GROUP
 
 "${SCRIPT_DIR}/20-deploy-frontend.sh"
 

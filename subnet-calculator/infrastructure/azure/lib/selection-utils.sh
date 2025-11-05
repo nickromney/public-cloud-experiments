@@ -281,3 +281,71 @@ select_app_service_plan() {
     return $?
   fi
 }
+
+# select_entra_app_registration - Specialized function for Entra ID app registration selection
+#
+# Usage:
+#   AZURE_CLIENT_ID=$(select_entra_app_registration)
+#
+# Returns the application (client) ID of the selected app registration
+#
+select_entra_app_registration() {
+  local -a items
+  local -a app_ids
+  local -a display_names
+
+  # Get app registrations (filter for web apps that might be SWA registrations)
+  while IFS=$'\t' read -r app_id display_name; do
+    app_ids+=("${app_id}")
+    display_names+=("${display_name}")
+    items+=("${display_name} (${app_id:0:8}...)")
+  done < <(az ad app list --query "[?web.redirectUris != null && web.redirectUris != \`[]\`].[appId,displayName]" -o tsv 2>/dev/null)
+
+  if [[ ${#items[@]} -eq 0 ]]; then
+    echo "ERROR: No Entra ID app registrations found with redirect URIs" >&2
+    return 1
+  elif [[ ${#items[@]} -eq 1 ]]; then
+    # Auto-select single app registration
+    echo "${app_ids[0]}"
+    return 0
+  else
+    # Multiple - prompt for selection
+    echo "" >/dev/tty
+    echo "Found ${#items[@]} Entra ID app registrations with redirect URIs:" >/dev/tty
+
+    # Use select_from_list which returns the first field (which will be partial name due to awk)
+    # Instead, we'll handle selection ourselves to properly parse display names with spaces
+    local i=1
+    for item in "${items[@]}"; do
+      echo "  ${i}. ${item}" >/dev/tty
+      ((i++))
+    done
+    echo "" >/dev/tty
+
+    local selection
+    while true; do
+      read -r -p "Enter app registration (1-${#items[@]}) or app ID: " selection </dev/tty
+
+      # Check if it's a number
+      if [[ "${selection}" =~ ^[0-9]+$ ]]; then
+        if [[ "${selection}" -ge 1 && "${selection}" -le "${#items[@]}" ]]; then
+          echo "${app_ids[$((selection - 1))]}"
+          return 0
+        else
+          echo "Invalid selection. Please enter a number between 1 and ${#items[@]}" >&2
+          continue
+        fi
+      else
+        # Check if it matches an app ID (full or partial)
+        for idx in "${!app_ids[@]}"; do
+          if [[ "${app_ids[$idx]}" == "${selection}"* ]]; then
+            echo "${app_ids[$idx]}"
+            return 0
+          fi
+        done
+        echo "Invalid selection. Please enter a number (1-${#items[@]}) or app ID" >&2
+        continue
+      fi
+    done
+  fi
+}

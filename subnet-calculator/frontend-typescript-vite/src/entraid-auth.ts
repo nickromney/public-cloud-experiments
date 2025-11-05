@@ -28,7 +28,11 @@ export interface AuthResponse {
 }
 
 /**
- * Check if we're running in Azure Static Web Apps
+ * Check if we're running in Azure Static Web Apps (legacy detection)
+ *
+ * IMPORTANT: This only detects default .azurestaticapps.net domains.
+ * For custom domains, VITE_AUTH_METHOD must be set explicitly during build.
+ * All deployment scripts (azure-stack-*.sh) should set VITE_AUTH_METHOD.
  */
 export function isRunningInSWA(): boolean {
   // SWA domains end with .azurestaticapps.net
