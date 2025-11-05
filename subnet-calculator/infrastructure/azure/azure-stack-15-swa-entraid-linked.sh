@@ -231,16 +231,50 @@ if [[ -n "${AZURE_CLIENT_ID}" ]]; then
   fi
 fi
 
-# If app doesn't exist or credentials not provided, offer to create
+# If app doesn't exist or credentials not provided, offer options
 if [[ "${APP_EXISTS}" == "false" ]]; then
   echo ""
   log_warn "No valid Entra ID app registration found"
-  log_info "This script can create one for you using 60-entraid-user-setup.sh"
   echo ""
-  read -p "Create new Entra ID app registration? (Y/n) " -n 1 -r
+  log_info "Options:"
+  log_info "  1. Select an existing app registration"
+  log_info "  2. Create a new one using 60-entraid-user-setup.sh"
+  log_info "  3. Exit and set AZURE_CLIENT_ID/AZURE_CLIENT_SECRET manually"
+  echo ""
+  read -p "Choose option (1-3): " -n 1 -r
+  echo
   echo
 
-  if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+  if [[ $REPLY == "1" ]]; then
+    # Use the selection utility to pick existing app registration
+    source "${SCRIPT_DIR}/lib/selection-utils.sh"
+    SELECTED_APP_ID=$(select_entra_app_registration)
+
+    if [[ -n "${SELECTED_APP_ID}" ]]; then
+      AZURE_CLIENT_ID="${SELECTED_APP_ID}"
+      export AZURE_CLIENT_ID
+      log_info "Selected app registration: ${AZURE_CLIENT_ID}"
+
+      # Still need the secret
+      log_warn "You'll need to provide AZURE_CLIENT_SECRET for this app registration"
+      log_info "Retrieve it from Azure Portal or Key Vault, or create a new one"
+      echo ""
+      read -r -p "Enter AZURE_CLIENT_SECRET (or press Enter to skip): " INPUT_SECRET
+
+      if [[ -n "${INPUT_SECRET}" ]]; then
+        AZURE_CLIENT_SECRET="${INPUT_SECRET}"
+        export AZURE_CLIENT_SECRET
+        log_info "AZURE_CLIENT_SECRET set"
+        APP_EXISTS=true
+      else
+        log_error "Cannot proceed without AZURE_CLIENT_SECRET"
+        exit 1
+      fi
+    else
+      log_error "Failed to select app registration"
+      exit 1
+    fi
+  elif [[ $REPLY == "2" ]]; then
     log_info "Creating Entra ID app registration..."
     echo ""
 
@@ -283,11 +317,14 @@ if [[ "${APP_EXISTS}" == "false" ]]; then
     log_warn "  AZURE_CLIENT_ID=xxx AZURE_CLIENT_SECRET=yyy $0"
     exit 0
   else
-    log_error "Entra ID app registration required. Please either:"
-    log_error "  1. Run this script again and choose 'Y' to create one"
-    log_error "  2. Create one manually with: ${SCRIPT_DIR}/60-entraid-user-setup.sh"
-    log_error "  3. Provide existing credentials: AZURE_CLIENT_ID=xxx AZURE_CLIENT_SECRET=yyy $0"
-    exit 1
+    # Option 3 or any other input - exit
+    log_info "Exiting. To proceed, set AZURE_CLIENT_ID and AZURE_CLIENT_SECRET:"
+    log_info "  export AZURE_CLIENT_ID=<your-client-id>"
+    log_info "  export AZURE_CLIENT_SECRET=<your-client-secret>"
+    log_info ""
+    log_info "Or run with:"
+    log_info "  AZURE_CLIENT_ID=xxx AZURE_CLIENT_SECRET=yyy $0"
+    exit 0
   fi
 fi
 

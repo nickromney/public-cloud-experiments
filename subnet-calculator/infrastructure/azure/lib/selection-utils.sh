@@ -281,3 +281,51 @@ select_app_service_plan() {
     return $?
   fi
 }
+
+# select_entra_app_registration - Specialized function for Entra ID app registration selection
+#
+# Usage:
+#   AZURE_CLIENT_ID=$(select_entra_app_registration)
+#
+# Returns the application (client) ID of the selected app registration
+#
+select_entra_app_registration() {
+  local -a items
+  local -a app_ids
+  local -a display_names
+
+  # Get app registrations (filter for web apps that might be SWA registrations)
+  while IFS=$'\t' read -r app_id display_name; do
+    app_ids+=("${app_id}")
+    display_names+=("${display_name}")
+    items+=("${display_name} (${app_id:0:8}...)")
+  done < <(az ad app list --query "[?web.redirectUris != null && web.redirectUris != \`[]\`].[appId,displayName]" -o tsv 2>/dev/null)
+
+  if [[ ${#items[@]} -eq 0 ]]; then
+    echo "ERROR: No Entra ID app registrations found with redirect URIs" >&2
+    return 1
+  elif [[ ${#items[@]} -eq 1 ]]; then
+    # Auto-select single app registration
+    echo "${app_ids[0]}"
+    return 0
+  else
+    # Multiple - prompt for selection
+    echo "" >/dev/tty
+    echo "Found ${#items[@]} Entra ID app registrations with redirect URIs:" >/dev/tty
+    local selected_name
+    selected_name=$(select_from_list "Enter app registration" "${items[@]}")
+
+    # Find the app_id corresponding to the selected display name
+    local i=0
+    for name in "${display_names[@]}"; do
+      if [[ "${name}" == "${selected_name}" ]]; then
+        echo "${app_ids[$i]}"
+        return 0
+      fi
+      ((i++))
+    done
+
+    echo "ERROR: Could not find app registration" >&2
+    return 1
+  fi
+}
