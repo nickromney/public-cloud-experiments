@@ -228,21 +228,57 @@ STORED_CLIENT_ID=$(az staticwebapp appsettings list --name "${STATIC_WEB_APP_NAM
 
 log_step "Ensuring Web redirect URI and logout URL are configured..."
 REDIRECT_URI="https://${SWA_HOSTNAME}/.auth/login/aad/callback"
-LOGOUT_URL="https://${SWA_HOSTNAME}/.auth/logout"
-APP_OBJECT_ID=$(az ad app show --id "${AZURE_CLIENT_ID}" --query id -o tsv)
-CURRENT_WEB_URIS=$(az ad app show --id "${AZURE_CLIENT_ID}" --query "web.redirectUris" -o tsv | tr '\n' ' ')
 
-if [[ "${CURRENT_WEB_URIS}" != *"${REDIRECT_URI}"* ]]; then
-  az rest --method PATCH \
-    --url "https://graph.microsoft.com/v1.0/applications/${APP_OBJECT_ID}" \
-    --headers 'Content-Type=application/json' \
-    --body "{\"web\":{\"redirectUris\":[\"${REDIRECT_URI}\"],\"logoutUrl\":\"${LOGOUT_URL}\",\"implicitGrantSettings\":{\"enableAccessTokenIssuance\":true,\"enableIdTokenIssuance\":true}},\"spa\":{\"redirectUris\":[]}}" \
-    --output none
-  log_info "Web redirect URI set to ${REDIRECT_URI}"
-  log_info "Front-channel logout URL set to ${LOGOUT_URL}"
+# Use custom domain for logout URL if provided, otherwise use default hostname
+# Entra ID only allows ONE logoutUrl, so we prioritize the custom domain
+if [[ -n "${CUSTOM_DOMAIN:-}" ]]; then
+  LOGOUT_URL="https://${CUSTOM_DOMAIN}/logged-out.html"
+  log_info "Using custom domain for logout URL: ${CUSTOM_DOMAIN}"
 else
-  log_info "Web redirect URI already configured"
+  LOGOUT_URL="https://${SWA_HOSTNAME}/.auth/logout"
+  log_info "Using default hostname for logout URL: ${SWA_HOSTNAME}"
 fi
+
+APP_OBJECT_ID=$(az ad app show --id "${AZURE_CLIENT_ID}" --query id -o tsv)
+
+# Get current redirect URIs and combine with new one, ensuring uniqueness
+REDIRECT_URIS=$(az ad app show \
+  --id "${AZURE_CLIENT_ID}" \
+  --query "web.redirectUris[]" -o tsv 2>/dev/null | cat)
+
+# Add new URI to list - use process substitution to avoid trailing newline issues
+mapfile -t URI_ARRAY < <(printf '%s\n%s\n' "${REDIRECT_URIS}" "${REDIRECT_URI}" | grep -v '^$' | sort -u)
+
+# Ensure we have at least one URI
+if [ ${#URI_ARRAY[@]} -eq 0 ]; then
+  log_error "No redirect URIs to configure"
+  exit 1
+fi
+
+# Build JSON array from URI_ARRAY
+URI_JSON=$(printf '"%s",' "${URI_ARRAY[@]}" | sed 's/,$//')
+
+# Update using Graph API - preserve all existing URIs
+az rest --method PATCH \
+  --url "https://graph.microsoft.com/v1.0/applications/${APP_OBJECT_ID}" \
+  --headers 'Content-Type=application/json' \
+  --body "{
+    \"web\": {
+      \"redirectUris\": [${URI_JSON}],
+      \"logoutUrl\": \"${LOGOUT_URL}\",
+      \"implicitGrantSettings\": {
+        \"enableAccessTokenIssuance\": true,
+        \"enableIdTokenIssuance\": true
+      }
+    }
+  }" \
+  --output none
+
+log_info "Web redirect URIs configured (${#URI_ARRAY[@]} total):"
+for uri in "${URI_ARRAY[@]}"; do
+  log_info "  - ${uri}"
+done
+log_info "Front-channel logout URL set to ${LOGOUT_URL}"
 
 log_step "Persisting captured configuration for diagnostics..."
 GENERATED_CONFIG="${GENERATED_DIR}/staticwebapp-entraid.${STATIC_WEB_APP_NAME}.metadata.json"

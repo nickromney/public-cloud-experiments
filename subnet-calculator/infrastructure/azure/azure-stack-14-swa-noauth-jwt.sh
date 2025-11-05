@@ -259,6 +259,7 @@ log_info "  Password: ${JWT_PASSWORD}"
 export FRONTEND=typescript
 export SWA_AUTH_ENABLED=false  # No SWA platform auth (Entra ID)
 export VITE_AUTH_ENABLED=true  # Enable JWT auth in frontend code
+export VITE_AUTH_METHOD=jwt    # Explicitly set JWT auth method
 export VITE_API_URL="https://${FUNC_CUSTOM_DOMAIN}"
 export VITE_JWT_USERNAME="${JWT_USERNAME}"
 export VITE_JWT_PASSWORD="${JWT_PASSWORD}"

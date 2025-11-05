@@ -139,10 +139,19 @@ DEPLOYMENT_TOKEN=$(az staticwebapp secrets list \
   --query properties.apiKey -o tsv)
 
 # Get Static Web App URL
-SWA_URL=$(az staticwebapp show \
+SWA_DEFAULT_HOSTNAME=$(az staticwebapp show \
   --name "${STATIC_WEB_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query defaultHostname -o tsv)
+
+# Use custom domain for display if provided, otherwise use default hostname
+if [[ -n "${CUSTOM_DOMAIN:-}" ]]; then
+  SWA_URL="${CUSTOM_DOMAIN}"
+  SWA_URL_DISPLAY="Custom domain: https://${SWA_URL} (default: https://${SWA_DEFAULT_HOSTNAME})"
+else
+  SWA_URL="${SWA_DEFAULT_HOSTNAME}"
+  SWA_URL_DISPLAY="https://${SWA_URL}"
+fi
 
 # Check if production environment already has a deployment
 PRODUCTION_STATUS=$(az staticwebapp environment list \
@@ -154,7 +163,7 @@ log_info "Configuration:"
 log_info "  Resource Group: ${RESOURCE_GROUP}"
 log_info "  Static Web App: ${STATIC_WEB_APP_NAME}"
 log_info "  Frontend: ${FRONTEND}"
-log_info "  Target URL: https://${SWA_URL}"
+log_info "  Target URL: ${SWA_URL_DISPLAY}"
 if [[ "${USE_APIM}" == "true" ]]; then
   log_info "  Using APIM: ${APIM_NAME}"
 fi
@@ -184,6 +193,9 @@ if [[ "${PRODUCTION_STATUS}" == "Ready" ]]; then
     log_info "Skipping deployment - using existing frontend"
     log_info ""
     log_info "Frontend URL: https://${SWA_URL}"
+    if [[ -n "${CUSTOM_DOMAIN:-}" ]]; then
+      log_info "Custom domain: https://${CUSTOM_DOMAIN}"
+    fi
     exit 0
   fi
 fi
@@ -376,7 +388,7 @@ log_info "========================================="
 log_info "Frontend deployed successfully!"
 log_info "========================================="
 log_info "Frontend: ${FRONTEND}"
-log_info "URL: https://${SWA_URL}"
+log_info "URL: ${SWA_URL_DISPLAY}"
 [[ -n "${API_URL}" ]] && log_info "API: ${API_URL}"
 log_info ""
 log_info "Visit your application at:"

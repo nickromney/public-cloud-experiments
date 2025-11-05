@@ -460,6 +460,7 @@ echo ""
 export STATIC_WEB_APP_NAME
 export AZURE_CLIENT_ID
 export AZURE_CLIENT_SECRET
+export CUSTOM_DOMAIN="${SWA_CUSTOM_DOMAIN}"  # Export custom domain for logout URL
 
 "${SCRIPT_DIR}/42-configure-entraid-swa.sh"
 
@@ -478,6 +479,7 @@ export SWA_AUTH_ENABLED=true   # Use SWA built-in Entra ID authentication (for s
 export VITE_AUTH_ENABLED=true  # Enable auth in frontend (to show user info via .auth/me)
 export VITE_AUTH_METHOD=entraid # Explicitly set auth method
 export VITE_API_URL=""         # Use SWA proxy to linked backend
+export CUSTOM_DOMAIN="${SWA_CUSTOM_DOMAIN}"  # Export custom domain for display
 export STATIC_WEB_APP_NAME
 export RESOURCE_GROUP
 
