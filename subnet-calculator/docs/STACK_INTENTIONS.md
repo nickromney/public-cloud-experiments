@@ -267,8 +267,8 @@ Planned implementation with Terraform
 
 - swa-04: TypeScript Vite + Container App (no auth) - port 4280 - WORKING
 - swa-05: TypeScript Vite + Azure Function (JWT) - port 4281 - PARTIAL
-  - Bruno CLI tests pass (manual token handling)
-  - Browser fails with "Invalid token" (auto-auth mechanism broken)
+- Bruno CLI tests pass (manual token handling)
+- Browser fails with "Invalid token" (auto-auth mechanism broken)
 - swa-06: TypeScript Vite + Container App (no auth) - port 4282 - WORKING
 
 ### Planned Implementations
@@ -298,10 +298,10 @@ Planned implementation with Terraform
 Each stack should demonstrate:
 
 1. Deployment method
-2. Networking configuration
-3. Authentication flow
-4. Security posture
-5. When to use (decision criteria)
+1. Networking configuration
+1. Authentication flow
+1. Security posture
+1. When to use (decision criteria)
 
 Tests should validate:
 
@@ -323,8 +323,8 @@ Impact: Cannot validate JWT auth pattern through browser UI, only through manual
 Recommended resolution:
 
 1. Investigate frontend JWT auto-handling with SWA proxy
-2. Or switch swa-05 to demonstrate SWA-layer JWT validation (not app-level)
-3. Or implement proper SWA route rules for JWT enforcement
+1. Or switch swa-05 to demonstrate SWA-layer JWT validation (not app-level)
+1. Or implement proper SWA route rules for JWT enforcement
 
 ## Next Steps
 

@@ -48,9 +48,9 @@ Lines 199-211 currently use:
 
 ```bash
 SWA_PRIVATE_IP=$(az network private-endpoint show \
-  --name "${PE_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --query "customDnsConfigs[0].ipAddresses[0]" -o tsv)
+ --name "${PE_NAME}" \
+ --resource-group "${RESOURCE_GROUP}" \
+ --query "customDnsConfigs[0].ipAddresses[0]" -o tsv)
 ```
 
 This returns empty because `customDnsConfigs` array is empty.
@@ -63,21 +63,21 @@ Replace lines 199-211 with:
 # Get private endpoint IP from DNS zone group (more reliable than customDnsConfigs)
 log_step "Retrieving SWA private IP from DNS zone group..."
 SWA_PRIVATE_IP=$(az network private-endpoint dns-zone-group show \
-  --name "default" \
-  --endpoint-name "${PE_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --query "privateDnsZoneConfigs[0].recordSets[0].ipAddresses[0]" -o tsv 2>/dev/null)
+ --name "default" \
+ --endpoint-name "${PE_NAME}" \
+ --resource-group "${RESOURCE_GROUP}" \
+ --query "privateDnsZoneConfigs[0].recordSets[0].ipAddresses[0]" -o tsv 2>/dev/null)
 
 if [[ -z "${SWA_PRIVATE_IP}" ]]; then
-  log_error "Could not retrieve private IP for SWA private endpoint"
-  log_error "Ensure DNS zone group is configured on the private endpoint"
-  log_error ""
-  log_error "Check DNS zone group:"
-  log_error "  az network private-endpoint dns-zone-group show \\"
-  log_error "    --name default \\"
-  log_error "    --endpoint-name ${PE_NAME} \\"
-  log_error "    --resource-group ${RESOURCE_GROUP}"
-  exit 1
+ log_error "Could not retrieve private IP for SWA private endpoint"
+ log_error "Ensure DNS zone group is configured on the private endpoint"
+ log_error ""
+ log_error "Check DNS zone group:"
+ log_error " az network private-endpoint dns-zone-group show \\"
+ log_error " --name default \\"
+ log_error " --endpoint-name ${PE_NAME} \\"
+ log_error " --resource-group ${RESOURCE_GROUP}"
+ exit 1
 fi
 ```
 
@@ -119,21 +119,21 @@ After line 183 (after getting `SWA_HOSTNAME`), add:
 # Private FQDN resolves via private DNS zone to private endpoint IP
 log_step "Constructing private FQDN for backend pool..."
 if [[ "${SWA_HOSTNAME}" =~ \.([0-9]+)\.azurestaticapps\.net$ ]]; then
-  SWA_REGION_NUMBER="${BASH_REMATCH[1]}"
-  # Transform: name.3.azurestaticapps.net -> name.privatelink.3.azurestaticapps.net
-  SWA_PRIVATE_FQDN=$(echo "${SWA_HOSTNAME}" | sed "s/\.${SWA_REGION_NUMBER}\.azurestaticapps\.net$/.privatelink.${SWA_REGION_NUMBER}.azurestaticapps.net/")
+ SWA_REGION_NUMBER="${BASH_REMATCH[1]}"
+ # Transform: name.3.azurestaticapps.net -> name.privatelink.3.azurestaticapps.net
+ SWA_PRIVATE_FQDN=$(echo "${SWA_HOSTNAME}" | sed "s/\.${SWA_REGION_NUMBER}\.azurestaticapps\.net$/.privatelink.${SWA_REGION_NUMBER}.azurestaticapps.net/")
 
-  log_info "SWA Hostname:     ${SWA_HOSTNAME}"
-  log_info "Region Number:    ${SWA_REGION_NUMBER}"
-  log_info "Private FQDN:     ${SWA_PRIVATE_FQDN}"
+ log_info "SWA Hostname: ${SWA_HOSTNAME}"
+ log_info "Region Number: ${SWA_REGION_NUMBER}"
+ log_info "Private FQDN: ${SWA_PRIVATE_FQDN}"
 else
-  log_error "Could not determine SWA region number from hostname: ${SWA_HOSTNAME}"
-  log_error "Expected format: <name>.<number>.azurestaticapps.net"
-  log_error ""
-  log_error "Example: delightful-field-0cd326e03.3.azurestaticapps.net"
-  log_error "  Region number: 3"
-  log_error "  Private FQDN: delightful-field-0cd326e03.privatelink.3.azurestaticapps.net"
-  exit 1
+ log_error "Could not determine SWA region number from hostname: ${SWA_HOSTNAME}"
+ log_error "Expected format: <name>.<number>.azurestaticapps.net"
+ log_error ""
+ log_error "Example: delightful-field-0cd326e03.3.azurestaticapps.net"
+ log_error " Region number: 3"
+ log_error " Private FQDN: delightful-field-0cd326e03.privatelink.3.azurestaticapps.net"
+ exit 1
 fi
 ```
 
@@ -151,8 +151,8 @@ Extract region number from SWA hostname and construct privatelink FQDN.
 Makes script region-agnostic (works with any *.N.azurestaticapps.net).
 
 Example:
-  Input:  delightful-field-0cd326e03.3.azurestaticapps.net
-  Output: delightful-field-0cd326e03.privatelink.3.azurestaticapps.net
+ Input: delightful-field-0cd326e03.3.azurestaticapps.net
+ Output: delightful-field-0cd326e03.privatelink.3.azurestaticapps.net
 
 This FQDN resolves to private endpoint IP via private DNS zone.
 
@@ -174,13 +174,13 @@ Related to: Application Gateway for SWA private endpoint
 Line 296 currently:
 
 ```bash
-  --servers "${SWA_PRIVATE_IP}" \
+ --servers "${SWA_PRIVATE_IP}" \
 ```
 
 Change to:
 
 ```bash
-  --servers "${SWA_PRIVATE_FQDN}" \
+ --servers "${SWA_PRIVATE_FQDN}" \
 ```
 
 ### Step 2: Change backend pool update to use FQDN
@@ -190,11 +190,11 @@ Lines 303-309 currently:
 ```bash
 log_step "Configuring backend pool with SWA hostname..."
 az network application-gateway address-pool update \
-  --gateway-name "${APPGW_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --name appGatewayBackendPool \
-  --servers "${SWA_PRIVATE_IP}" \
-  --output none
+ --gateway-name "${APPGW_NAME}" \
+ --resource-group "${RESOURCE_GROUP}" \
+ --name appGatewayBackendPool \
+ --servers "${SWA_PRIVATE_IP}" \
+ --output none
 ```
 
 Change to:
@@ -202,11 +202,11 @@ Change to:
 ```bash
 log_step "Configuring backend pool with SWA private FQDN..."
 az network application-gateway address-pool update \
-  --gateway-name "${APPGW_NAME}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --name appGatewayBackendPool \
-  --servers "${SWA_PRIVATE_FQDN}" \
-  --output none
+ --gateway-name "${APPGW_NAME}" \
+ --resource-group "${RESOURCE_GROUP}" \
+ --name appGatewayBackendPool \
+ --servers "${SWA_PRIVATE_FQDN}" \
+ --output none
 ```
 
 ### Step 3: Save file
@@ -246,13 +246,13 @@ Related to: Application Gateway for SWA private endpoint
 Line 288 currently:
 
 ```bash
-  --capacity 2 \
+ --capacity 2 \
 ```
 
 Change to:
 
 ```bash
-  --capacity 1 \
+ --capacity 1 \
 ```
 
 ### Step 2: Add comment explaining cost optimization
@@ -260,7 +260,7 @@ Change to:
 Before line 288, add comment:
 
 ```bash
-  --capacity 1 \  # Minimum capacity for v2 (cost optimization: ~$214/month)
+ --capacity 1 \ # Minimum capacity for v2 (cost optimization: ~$214/month)
 ```
 
 ### Step 3: Save file
@@ -295,13 +295,13 @@ Related to: Application Gateway for SWA private endpoint
 Line 321 currently:
 
 ```bash
-  --host-name "${SWA_HOSTNAME}" \
+ --host-name "${SWA_HOSTNAME}" \
 ```
 
 Change to:
 
 ```bash
-  --host-name "${CUSTOM_DOMAIN:-${SWA_HOSTNAME}}" \
+ --host-name "${CUSTOM_DOMAIN:-${SWA_HOSTNAME}}" \
 ```
 
 ### Step 2: Add explanation comment
@@ -351,9 +351,9 @@ Related to: Application Gateway for SWA private endpoint
 Lines 333-336 currently show only IP. Update to:
 
 ```bash
-log_info "Backend (SWA):        ${SWA_PRIVATE_FQDN}"
-log_info "Backend IP:           ${SWA_PRIVATE_IP}"
-log_info "Host Header:          ${CUSTOM_DOMAIN:-${SWA_HOSTNAME}}"
+log_info "Backend (SWA): ${SWA_PRIVATE_FQDN}"
+log_info "Backend IP: ${SWA_PRIVATE_IP}"
+log_info "Host Header: ${CUSTOM_DOMAIN:-${SWA_HOSTNAME}}"
 ```
 
 ### Step 2: Update architecture diagram
@@ -361,13 +361,13 @@ log_info "Host Header:          ${CUSTOM_DOMAIN:-${SWA_HOSTNAME}}"
 Line 339 currently:
 
 ```bash
-log_info "  Internet → ${PUBLIC_IP_ADDRESS}:80 → App Gateway → ${SWA_PRIVATE_IP}:443 → SWA"
+log_info " Internet → ${PUBLIC_IP_ADDRESS}:80 → App Gateway → ${SWA_PRIVATE_IP}:443 → SWA"
 ```
 
 Change to:
 
 ```bash
-log_info "  Internet → ${PUBLIC_IP_ADDRESS}:80 → App Gateway → ${SWA_PRIVATE_FQDN}:443 → SWA (${SWA_PRIVATE_IP})"
+log_info " Internet → ${PUBLIC_IP_ADDRESS}:80 → App Gateway → ${SWA_PRIVATE_FQDN}:443 → SWA (${SWA_PRIVATE_IP})"
 ```
 
 ### Step 3: Save file
@@ -474,11 +474,11 @@ cd subnet-calculator/infrastructure/azure
 Expected output sections:
 
 1. Configuration summary with region number and private FQDN
-2. Private IP retrieved from DNS zone group (10.100.0.21)
-3. Application Gateway creation (5-10 minutes)
-4. Backend pool configured with FQDN
-5. HTTP settings configured with custom domain
-6. Final summary with public IP and backend configuration
+1. Private IP retrieved from DNS zone group (10.100.0.21)
+1. Application Gateway creation (5-10 minutes)
+1. Backend pool configured with FQDN
+1. HTTP settings configured with custom domain
+1. Final summary with public IP and backend configuration
 
 ### Step 3: Verify backend health
 
@@ -486,9 +486,9 @@ After Application Gateway is created:
 
 ```bash
 az network application-gateway show-backend-health \
-  --name agw-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc \
-  --query "backendAddressPools[0].backendHttpSettingsCollection[0].servers[0].{Address:address, Health:health}" -o table
+ --name agw-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc \
+ --query "backendAddressPools[0].backendHttpSettingsCollection[0].servers[0].{Address:address, Health:health}" -o table
 ```
 
 Expected:
@@ -508,9 +508,9 @@ Get public IP:
 
 ```bash
 PUBLIC_IP=$(az network public-ip show \
-  --name pip-agw-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc \
-  --query ipAddress -o tsv)
+ --name pip-agw-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc \
+ --query ipAddress -o tsv)
 echo "Public IP: ${PUBLIC_IP}"
 ```
 
@@ -518,7 +518,7 @@ Test with curl:
 
 ```bash
 curl -v -H "Host: static-swa-private-endpoint.publiccloudexperiments.net" \
-  http://${PUBLIC_IP}/
+ http://${PUBLIC_IP}/
 ```
 
 Expected:
@@ -548,9 +548,9 @@ Application Gateway Test Results
 Date: $(date)
 
 1. Backend Health: [Healthy/Unhealthy]
-2. HTTP Access: [Success/Failed]
-3. DNS Resolution: [10.100.0.21/Failed]
-4. Public IP: ${PUBLIC_IP}
+1. HTTP Access: [Success/Failed]
+1. DNS Resolution: [10.100.0.21/Failed]
+1. Public IP: ${PUBLIC_IP}
 
 Notes:
 - Backend pool uses FQDN: delightful-field-0cd326e03.privatelink.3.azurestaticapps.net
@@ -582,13 +582,13 @@ cat /tmp/appgw-test-results.txt
 Check lines 560-569 in azure-stack-16-swa-private-endpoint.sh:
 
 ```bash
-    export STATIC_WEB_APP_NAME
-    export VNET_NAME
-    export APPGW_NAME
-    export LOCATION
+ export STATIC_WEB_APP_NAME
+ export VNET_NAME
+ export APPGW_NAME
+ export LOCATION
 
-    # Call the Application Gateway creation script
-    "${SCRIPT_DIR}/49-create-application-gateway.sh"
+ # Call the Application Gateway creation script
+ "${SCRIPT_DIR}/49-create-application-gateway.sh"
 ```
 
 ### Step 2: Add CUSTOM_DOMAIN export
@@ -596,14 +596,14 @@ Check lines 560-569 in azure-stack-16-swa-private-endpoint.sh:
 Before calling the script, ensure CUSTOM_DOMAIN is exported:
 
 ```bash
-    export STATIC_WEB_APP_NAME
-    export VNET_NAME
-    export APPGW_NAME
-    export LOCATION
-    export CUSTOM_DOMAIN  # For Host header in HTTP settings
+ export STATIC_WEB_APP_NAME
+ export VNET_NAME
+ export APPGW_NAME
+ export LOCATION
+ export CUSTOM_DOMAIN # For Host header in HTTP settings
 
-    # Call the Application Gateway creation script
-    "${SCRIPT_DIR}/49-create-application-gateway.sh"
+ # Call the Application Gateway creation script
+ "${SCRIPT_DIR}/49-create-application-gateway.sh"
 ```
 
 ### Step 3: Save file
@@ -639,14 +639,14 @@ If you already created the Application Gateway in Task 8, delete it first:
 
 ```bash
 az network application-gateway delete \
-  --name agw-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc \
-  --no-wait
+ --name agw-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc \
+ --no-wait
 
 az network public-ip delete \
-  --name pip-agw-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc \
-  --no-wait
+ --name pip-agw-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc \
+ --no-wait
 ```
 
 Wait 2-3 minutes for deletion to complete.
@@ -674,9 +674,9 @@ Check the summary output at the end. It should show:
 
 ```bash
 az network application-gateway show-backend-health \
-  --name agw-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc \
-  --query "backendAddressPools[0].backendHttpSettingsCollection[0].servers[0].{Address:address, Health:health}" -o table
+ --name agw-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc \
+ --query "backendAddressPools[0].backendHttpSettingsCollection[0].servers[0].{Address:address, Health:health}" -o table
 ```
 
 Expected: Health should be "Healthy"
@@ -684,21 +684,22 @@ Expected: Health should be "Healthy"
 ### Step 5: Test complete flow with Cloudflare
 
 1. Configure Cloudflare DNS:
-   - Type: CNAME
-   - Name: static-swa-private-endpoint
-   - Target: <public-ip> (or create A record)
-   - Proxy status: Proxied
-   - SSL/TLS mode: Flexible (Cloudflare HTTPS → AppGW HTTP)
 
-2. Visit <https://static-swa-private-endpoint.publiccloudexperiments.net>
+- Type: CNAME
+- Name: static-swa-private-endpoint
+- Target: <public-ip> (or create A record)
+- Proxy status: Proxied
+- SSL/TLS mode: Flexible (Cloudflare HTTPS → AppGW HTTP)
 
-3. Should redirect to Entra ID login
+1. Visit <https://static-swa-private-endpoint.publiccloudexperiments.net>
 
-4. After login, should land on SWA with valid session
+1. Should redirect to Entra ID login
 
-5. Verify /.auth/me returns user info
+1. After login, should land on SWA with valid session
 
-6. Test API proxy: Visit <https://static-swa-private-endpoint.publiccloudexperiments.net/api/v1/calculate>
+1. Verify /.auth/me returns user info
+
+1. Test API proxy: Visit <https://static-swa-private-endpoint.publiccloudexperiments.net/api/v1/calculate>
 
 ---
 
@@ -735,9 +736,9 @@ If not resolving:
 
 ```bash
 az network private-endpoint show \
-  --name pe-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc \
-  --query "{ProvisioningState:provisioningState, PrivateIP:customDnsConfigs[0].ipAddresses[0]}"
+ --name pe-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc \
+ --query "{ProvisioningState:provisioningState, PrivateIP:customDnsConfigs[0].ipAddresses[0]}"
 ```
 
 Should show: ProvisioningState: Succeeded
@@ -749,10 +750,10 @@ Application Gateway subnet needs to allow outbound to SWA private endpoint subne
 ```bash
 # Check if NSGs are blocking traffic
 az network vnet subnet show \
-  --name snet-appgateway \
-  --vnet-name vnet-subnet-calc-private \
-  --resource-group rg-subnet-calc \
-  --query "networkSecurityGroup"
+ --name snet-appgateway \
+ --vnet-name vnet-subnet-calc-private \
+ --resource-group rg-subnet-calc \
+ --query "networkSecurityGroup"
 ```
 
 If NSG is attached, verify outbound rules allow HTTPS (443) to 10.100.0.16/28
@@ -766,9 +767,9 @@ Application Gateway probes can take 60-120 seconds to stabilize. Wait 2-3 minute
 This means Application Gateway can't reach backend. Check:
 
 1. Backend pool has correct FQDN
-2. Private DNS zone resolves correctly
-3. SWA private endpoint is healthy
-4. HTTP settings use correct Host header
+1. Private DNS zone resolves correctly
+1. SWA private endpoint is healthy
+1. HTTP settings use correct Host header
 
 ## Entra ID Authentication Fails
 
@@ -778,10 +779,10 @@ Verify HTTP settings use custom domain:
 
 ```bash
 az network application-gateway http-settings show \
-  --gateway-name agw-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc \
-  --name appGatewayBackendHttpSettings \
-  --query "hostName" -o tsv
+ --gateway-name agw-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc \
+ --name appGatewayBackendHttpSettings \
+ --query "hostName" -o tsv
 ```
 
 Should return: static-swa-private-endpoint.publiccloudexperiments.net
@@ -802,9 +803,9 @@ Check capacity:
 
 ```bash
 az network application-gateway show \
-  --name agw-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc \
-  --query "{SKU:sku.name, Capacity:sku.capacity}" -o table
+ --name agw-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc \
+ --query "{SKU:sku.name, Capacity:sku.capacity}" -o table
 ```
 
 Should show: Capacity: 1
@@ -813,9 +814,9 @@ If higher, scale down:
 
 ```bash
 az network application-gateway update \
-  --name agw-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc \
-  --set sku.capacity=1
+ --name agw-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc \
+ --set sku.capacity=1
 ```
 
 ## Useful Commands
@@ -824,16 +825,16 @@ az network application-gateway update \
 
 ```bash
 az network application-gateway show-backend-health \
-  --name agw-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc
+ --name agw-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc
 ```
 
 ### View Application Gateway Details
 
 ```bash
 az network application-gateway show \
-  --name agw-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc
+ --name agw-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc
 ```
 
 ### Test from VM in VNet
@@ -841,7 +842,7 @@ az network application-gateway show \
 ```bash
 # SSH to VM in VNet
 curl -v -H "Host: static-swa-private-endpoint.publiccloudexperiments.net" \
-  https://delightful-field-0cd326e03.privatelink.3.azurestaticapps.net/
+ https://delightful-field-0cd326e03.privatelink.3.azurestaticapps.net/
 ```
 
 Should return SWA content or Entra ID redirect.
@@ -886,8 +887,8 @@ git push origin chore/20251030-app-gateway
 
 ```bash
 gh pr create \
-  --title "feat: Add Application Gateway for SWA private endpoint access" \
-  --body "$(cat <<'EOF'
+ --title "feat: Add Application Gateway for SWA private endpoint access" \
+ --body "$(cat <<'EOF'
 ## Summary
 
 Adds Application Gateway to provide public internet access to Azure Static Web App configured with private endpoint.
@@ -958,7 +959,7 @@ New resource: Application Gateway Standard_v2 (capacity 1)
 - Monthly: ~$214 (Gateway) + ~$3.65 (Public IP) = ~$218/month
 - Can be deleted if not needed (SWA returns to private-only access)
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+ Generated with [Claude Code](https://claude.com/claude-code)
 EOF
 )"
 
@@ -1005,12 +1006,12 @@ If issues occur after deployment:
 
 ```bash
 az network application-gateway delete \
-  --name agw-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc
+ --name agw-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc
 
 az network public-ip delete \
-  --name pip-agw-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc
+ --name pip-agw-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc
 ```
 
 Impact: SWA returns to private-only access

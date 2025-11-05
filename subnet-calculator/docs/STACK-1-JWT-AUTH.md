@@ -8,21 +8,21 @@ Stack 1 demonstrates a public Azure Static Web App calling a public Azure Functi
 
 ```text
 ┌─────────────────────────────────────┐
-│ User → Public Internet              │
+│ User → Public Internet │
 └──────────────┬──────────────────────┘
-               │
+ │
 ┌──────────────▼──────────────────────┐
-│ Azure Static Web App (Free/Std)     │
-│ - TypeScript Vite SPA               │
-│ - NO authentication on SWA          │
-│ - Calls Function via public URL     │
+│ Azure Static Web App (Free/Std) │
+│ - TypeScript Vite SPA │
+│ - NO authentication on SWA │
+│ - Calls Function via public URL │
 └──────────────┬──────────────────────┘
-               │ HTTPS (public internet)
+ │ HTTPS (public internet)
 ┌──────────────▼──────────────────────┐
-│ Azure Function App (Consumption)    │
-│ - Public endpoint                   │
+│ Azure Function App (Consumption) │
+│ - Public endpoint │
 │ - JWT authentication (Bearer token) │
-│ - Custom domain enabled             │
+│ - Custom domain enabled │
 └─────────────────────────────────────┘
 ```
 
@@ -46,8 +46,8 @@ Stack 1 demonstrates a public Azure Static Web App calling a public Azure Functi
 ### Prerequisites
 
 1. **DNS Access**: Ability to create CNAME records for both custom domains
-2. **Azure Subscription**: Active subscription with permissions to create resources
-3. **Tools**: Azure CLI, npm, jq, openssl
+1. **Azure Subscription**: Active subscription with permissions to create resources
+1. **Tools**: Azure CLI, npm, jq, openssl
 
 ### Quick Deploy
 
@@ -62,15 +62,15 @@ The script will pause twice for DNS configuration:
 
 1. **SWA Custom Domain**:
 
-   ```text
-   static-swa-no-auth.publiccloudexperiments.net → CNAME → <app-name>.azurestaticapps.net
-   ```
+ ```text
+ static-swa-no-auth.publiccloudexperiments.net → CNAME → <app-name>.azurestaticapps.net
+ ```
 
-2. **Function Custom Domain**:
+1. **Function Custom Domain**:
 
-   ```text
-   subnet-calc-fa-jwt-auth.publiccloudexperiments.net → CNAME → <func-name>.azurewebsites.net
-   ```
+ ```text
+ subnet-calc-fa-jwt-auth.publiccloudexperiments.net → CNAME → <func-name>.azurewebsites.net
+ ```
 
 ### Environment Variables (Optional)
 
@@ -113,8 +113,8 @@ username=demo&password=password123
 
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "bearer"
+ "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+ "token_type": "bearer"
 }
 ```
 
@@ -145,8 +145,8 @@ curl https://subnet-calc-fa-jwt-auth.publiccloudexperiments.net/api/v1/health
 
 ```bash
 curl -X POST https://subnet-calc-fa-jwt-auth.publiccloudexperiments.net/api/v1/auth/login \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=demo&password=password123"
+ -H "Content-Type: application/x-www-form-urlencoded" \
+ -d "username=demo&password=password123"
 
 # Should return JWT token
 ```
@@ -157,7 +157,7 @@ curl -X POST https://subnet-calc-fa-jwt-auth.publiccloudexperiments.net/api/v1/a
 TOKEN="<token-from-login>"
 
 curl https://subnet-calc-fa-jwt-auth.publiccloudexperiments.net/api/v1/ipv4/validate?address=192.168.1.1 \
-  -H "Authorization: Bearer ${TOKEN}"
+ -H "Authorization: Bearer ${TOKEN}"
 
 # Should return validation result
 ```
@@ -208,15 +208,15 @@ curl https://subnet-calc-fa-jwt-auth.publiccloudexperiments.net/api/v1/ipv4/vali
 
 ```json
 {
-  "routes": [
-    {
-      "route": "/*",
-      "allowedRoles": ["anonymous"]
-    }
-  ],
-  "navigationFallback": {
-    "rewrite": "/index.html"
-  }
+ "routes": [
+ {
+ "route": "/*",
+ "allowedRoles": ["anonymous"]
+ }
+ ],
+ "navigationFallback": {
+ "rewrite": "/index.html"
+ }
 }
 ```
 
@@ -244,8 +244,8 @@ CORS_ORIGINS=https://static-swa-no-auth.publiccloudexperiments.net
 **Solution**:
 
 1. Check token in browser localStorage
-2. Verify token not expired (check `exp` claim)
-3. Re-login to get fresh token
+1. Verify token not expired (check `exp` claim)
+1. Re-login to get fresh token
 
 ### Issue: CORS error
 
@@ -255,9 +255,9 @@ CORS_ORIGINS=https://static-swa-no-auth.publiccloudexperiments.net
 
 ```bash
 az functionapp config appsettings set \
-  --name func-subnet-calc-jwt \
-  --resource-group rg-subnet-calc \
-  --settings CORS_ORIGINS=https://static-swa-no-auth.publiccloudexperiments.net
+ --name func-subnet-calc-jwt \
+ --resource-group rg-subnet-calc \
+ --settings CORS_ORIGINS=https://static-swa-no-auth.publiccloudexperiments.net
 ```
 
 ### Issue: Custom domain not working
@@ -268,12 +268,12 @@ az functionapp config appsettings set \
 
 1. Verify DNS record:
 
-   ```bash
-   nslookup static-swa-no-auth.publiccloudexperiments.net
-   ```
+ ```bash
+ nslookup static-swa-no-auth.publiccloudexperiments.net
+ ```
 
-2. Wait for TLS certificate (can take 5-10 minutes)
-3. Check Azure Portal for validation status
+1. Wait for TLS certificate (can take 5-10 minutes)
+1. Check Azure Portal for validation status
 
 ### Issue: Function returns 500 Internal Server Error
 
@@ -287,9 +287,9 @@ JWT_SECRET=$(openssl rand -base64 32)
 
 # Update Function App
 az functionapp config appsettings set \
-  --name func-subnet-calc-jwt \
-  --resource-group rg-subnet-calc \
-  --settings JWT_SECRET_KEY="${JWT_SECRET}"
+ --name func-subnet-calc-jwt \
+ --resource-group rg-subnet-calc \
+ --settings JWT_SECRET_KEY="${JWT_SECRET}"
 ```
 
 ## Cost Breakdown

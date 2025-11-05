@@ -13,8 +13,8 @@ npm run swa -- start stack4-no-auth
 Access at: **<http://localhost:4280>**
 
 - SWA CLI automatically starts:
-  - Vite dev server (port 5173)
-  - Container App API (port 8000)
+- Vite dev server (port 5173)
+- Container App API (port 8000)
 
 ---
 
@@ -27,8 +27,8 @@ npm run swa -- start stack5-jwt
 Access at: **<http://localhost:4281>**
 
 - SWA CLI automatically starts:
-  - Vite dev server (port 5173)
-  - Azure Function API (port 7071) with `AUTH_METHOD=jwt`
+- Vite dev server (port 5173)
+- Azure Function API (port 7071) with `AUTH_METHOD=jwt`
 
 ---
 

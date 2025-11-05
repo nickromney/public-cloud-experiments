@@ -231,24 +231,138 @@ echo ""
 log_step "Step 0.5/12: Setting up Entra ID App Registration..."
 echo ""
 
-if [[ -z "${AZURE_CLIENT_ID:-}" ]]; then
-  log_info "No AZURE_CLIENT_ID provided"
-  log_info "Script can automatically:"
-  log_info " • Create Entra ID app registration"
-  log_info " • Configure redirect URIs for custom domain"
-  log_info " • Generate and store client secret in Key Vault"
-  log_info ""
+# Show where credentials are coming from (helps debug .env vs command-line)
+if [[ -n "${AZURE_CLIENT_ID:-}" ]]; then
+  log_info "AZURE_CLIENT_ID is set: ${AZURE_CLIENT_ID:0:8}... (source: .env or command-line)"
+else
+  log_info "AZURE_CLIENT_ID is not set"
+fi
+echo ""
 
-  # Allow skipping prompt in CI/CD or automation
-  if [[ -n "${AUTO_APPROVE:-}" ]]; then
-    log_info "AUTO_APPROVE set: proceeding without interactive prompt"
-    REPLY="Y"
+# Function to check if app registration exists and is valid
+check_app_registration() {
+  local app_id="$1"
+
+  if [[ -z "${app_id}" ]]; then
+    return 1
+  fi
+
+  if az ad app show --id "${app_id}" &>/dev/null; then
+    log_info "Found existing app registration: ${app_id}"
+    return 0
   else
-    read -p "Create app registration automatically? (Y/n) " -n 1 -r
+    log_warn "App ID provided but app registration not found: ${app_id}"
+    return 1
+  fi
+}
+
+# Check if we have valid credentials
+APP_EXISTS=false
+if [[ -n "${AZURE_CLIENT_ID:-}" ]]; then
+  if check_app_registration "${AZURE_CLIENT_ID}"; then
+    APP_EXISTS=true
+    log_info "App registration verified: ${AZURE_CLIENT_ID}"
+
+    # Validate and ensure secret is in Key Vault
+    export STATIC_WEB_APP_NAME
+    export CUSTOM_DOMAIN
+    export KEY_VAULT_NAME
+    export AZURE_CLIENT_ID
+
+    source "${SCRIPT_DIR}/52-setup-app-registration.sh"
+    log_info "App registration validated"
+  fi
+fi
+
+# If app doesn't exist or credentials not provided, offer options
+if [[ "${APP_EXISTS}" == "false" ]]; then
+  echo ""
+  log_warn "No valid Entra ID app registration found"
+  echo ""
+  log_info "Options:"
+  log_info "  1. Select an existing app registration"
+  log_info "  2. Create a new one automatically"
+  log_info "  3. Exit and set AZURE_CLIENT_ID manually"
+  echo ""
+
+  # Allow auto-approve in CI/CD (defaults to option 2: create new)
+  if [[ -n "${AUTO_APPROVE:-}" ]]; then
+    log_info "AUTO_APPROVE set: choosing option 2 (create new)"
+    log_warn "Note: AUTO_APPROVE defaults to creating new app registration (option 2)"
+    REPLY="2"
+  else
+    read -p "Choose option (1-3): " -r
     echo
   fi
 
-  if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+  if [[ $REPLY == "1" ]]; then
+    # Use the selection utility to pick existing app registration
+    source "${SCRIPT_DIR}/lib/selection-utils.sh"
+    SELECTED_APP_ID=$(select_entra_app_registration)
+
+    if [[ -n "${SELECTED_APP_ID}" ]]; then
+      AZURE_CLIENT_ID="${SELECTED_APP_ID}"
+      export AZURE_CLIENT_ID
+      log_info "Selected app registration: ${AZURE_CLIENT_ID}"
+
+      # Try to retrieve secret from Key Vault
+      log_info "Looking for client secret in Key Vault..."
+
+      # Find Key Vault in resource group (should exist from Step 0)
+      if [[ -n "${KEY_VAULT_NAME}" ]]; then
+        log_info "Using Key Vault: ${KEY_VAULT_NAME}"
+
+        # Try to get secret with standard naming pattern: {swa-name}-client-secret
+        SECRET_NAME="${STATIC_WEB_APP_NAME}-client-secret"
+        log_info "Checking for secret: ${SECRET_NAME}"
+
+        RETRIEVED_SECRET=$(az keyvault secret show \
+          --vault-name "${KEY_VAULT_NAME}" \
+          --name "${SECRET_NAME}" \
+          --query value -o tsv 2>/dev/null)
+
+        if [[ -n "${RETRIEVED_SECRET}" ]]; then
+          AZURE_CLIENT_SECRET="${RETRIEVED_SECRET}"
+          export AZURE_CLIENT_SECRET
+          log_info "✓ Retrieved AZURE_CLIENT_SECRET from Key Vault"
+          APP_EXISTS=true
+        else
+          log_warn "Secret '${SECRET_NAME}' not found in Key Vault"
+          log_info "You can provide it manually or it will be stored after validation"
+          echo ""
+          read -r -p "Enter AZURE_CLIENT_SECRET (or press Enter to skip): " INPUT_SECRET
+
+          if [[ -n "${INPUT_SECRET}" ]]; then
+            AZURE_CLIENT_SECRET="${INPUT_SECRET}"
+            export AZURE_CLIENT_SECRET
+            log_info "AZURE_CLIENT_SECRET set"
+
+            # Store in Key Vault for future use
+            log_info "Storing secret in Key Vault for future use..."
+            az keyvault secret set \
+              --vault-name "${KEY_VAULT_NAME}" \
+              --name "${SECRET_NAME}" \
+              --value "${AZURE_CLIENT_SECRET}" \
+              --output none
+
+            APP_EXISTS=true
+          else
+            log_error "Cannot proceed without AZURE_CLIENT_SECRET"
+            exit 1
+          fi
+        fi
+      else
+        log_error "KEY_VAULT_NAME not set (should have been set in Step 0)"
+        exit 1
+      fi
+    else
+      log_error "Failed to select app registration"
+      exit 1
+    fi
+  elif [[ $REPLY == "2" ]]; then
+    # Create new app registration automatically
+    log_info "Creating Entra ID app registration..."
+
     export STATIC_WEB_APP_NAME
     export CUSTOM_DOMAIN
     export KEY_VAULT_NAME
@@ -257,32 +371,27 @@ if [[ -z "${AZURE_CLIENT_ID:-}" ]]; then
 
     log_info "App registration created: ${AZURE_CLIENT_ID}"
     log_info "Secret stored in Key Vault as: ${STATIC_WEB_APP_NAME}-client-secret"
+    APP_EXISTS=true
   else
-    log_error "App registration required to continue"
-    log_error ""
-    log_error "Options:"
-    log_error " 1. Re-run with AZURE_CLIENT_ID=xxx"
-    log_error " 2. Run script 52 manually:"
-    log_error "    STATIC_WEB_APP_NAME=\"${STATIC_WEB_APP_NAME}\" \\"
-    log_error "    CUSTOM_DOMAIN=\"${CUSTOM_DOMAIN}\" \\"
-    log_error "    KEY_VAULT_NAME=\"${KEY_VAULT_NAME}\" \\"
-    log_error "    ./52-setup-app-registration.sh"
+    # Option 3 or any other input - exit
+    log_info "User chose to exit. To proceed, set AZURE_CLIENT_ID environment variable:"
+    log_info "  export AZURE_CLIENT_ID=<your-client-id>"
+    log_info ""
+    log_info "Or run with:"
+    log_info "  AZURE_CLIENT_ID=xxx $0"
+    log_info ""
+    log_info "The client secret will be retrieved from Key Vault automatically."
     exit 1
   fi
-else
-  log_info "Using provided AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}"
-  log_info "Validating app registration and ensuring secret in Key Vault..."
-
-  export STATIC_WEB_APP_NAME
-  export CUSTOM_DOMAIN
-  export KEY_VAULT_NAME
-  export AZURE_CLIENT_ID
-
-  source "${SCRIPT_DIR}/52-setup-app-registration.sh"
-
-  log_info "App registration validated"
 fi
 
+# At this point, we should have AZURE_CLIENT_ID set
+if [[ -z "${AZURE_CLIENT_ID:-}" ]]; then
+  log_error "AZURE_CLIENT_ID is required but not set"
+  exit 1
+fi
+
+readonly AZURE_CLIENT_ID
 echo ""
 
 # Step 1: Create VNet Infrastructure

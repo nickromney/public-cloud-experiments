@@ -27,27 +27,27 @@
 **Steps:**
 
 1. Configure SWA with Entra ID credentials
-2. Set up authentication provider in SWA
-3. Configure allowed redirect URIs
+1. Set up authentication provider in SWA
+1. Configure allowed redirect URIs
 
 **Commands:**
 
 ```bash
 # Set Entra ID configuration on SWA
 az staticwebapp appsettings set \
-  --name swa-subnet-calc-entraid-linked \
-  --resource-group rg-subnet-calc \
-  --setting-names \
-    AZURE_CLIENT_ID="370b8618-a252-442e-9941-c47a9f7da89e" \
-    AZURE_CLIENT_SECRET="<your-secret>"
+ --name swa-subnet-calc-entraid-linked \
+ --resource-group rg-subnet-calc \
+ --setting-names \
+ AZURE_CLIENT_ID="370b8618-a252-442e-9941-c47a9f7da89e" \
+ AZURE_CLIENT_SECRET="<your-secret>"
 
 # Configure auth provider
 az staticwebapp authproviders create \
-  --name swa-subnet-calc-entraid-linked \
-  --resource-group rg-subnet-calc \
-  --provider aad \
-  --client-id "370b8618-a252-442e-9941-c47a9f7da89e" \
-  --client-secret "<your-secret>"
+ --name swa-subnet-calc-entraid-linked \
+ --resource-group rg-subnet-calc \
+ --provider aad \
+ --client-id "370b8618-a252-442e-9941-c47a9f7da89e" \
+ --client-secret "<your-secret>"
 ```
 
 ### Phase 2: Update Frontend for Entra ID
@@ -55,8 +55,8 @@ az staticwebapp authproviders create \
 **Changes needed:**
 
 1. Enable `VITE_AUTH_ENABLED=true` at build time
-2. Frontend will display Entra ID login flow
-3. SWA will inject authentication headers via `/api` proxy
+1. Frontend will display Entra ID login flow
+1. SWA will inject authentication headers via `/api` proxy
 
 **Build command:**
 
@@ -75,18 +75,18 @@ export VITE_AUTH_ENABLED="true"
 **Test scenarios:**
 
 1. Unauthenticated access → redirects to Entra ID login
-2. After login → shows authenticated user info
-3. API calls include authentication via SWA proxy
-4. Protected endpoints return 401 if auth missing
+1. After login → shows authenticated user info
+1. API calls include authentication via SWA proxy
+1. Protected endpoints return 401 if auth missing
 
 **Bruno CLI test collection:**
 
 - New collection: `swa-entraid-authenticated`
 - Tests:
-  - Health check (authenticated)
-  - Subnet calculations (authenticated)
-  - Verify auth headers from SWA
-  - Test 401 responses for missing auth
+- Health check (authenticated)
+- Subnet calculations (authenticated)
+- Verify auth headers from SWA
+- Test 401 responses for missing auth
 
 ### Phase 4: Document Flow
 
@@ -101,16 +101,16 @@ export VITE_AUTH_ENABLED="true"
 
 ```text
 User
-  ↓
+ ↓
 Entra ID Login (SWA handles)
-  ↓
+ ↓
 SWA (4000s)
-  ├─ Frontend (TypeScript)
-  │   └─ User info displayed
-  │
-  └─ /api proxy → Function App (8090)
-      └─ Auth headers injected by SWA
-      └─ Returns data
+ ├─ Frontend (TypeScript)
+ │ └─ User info displayed
+ │
+ └─ /api proxy → Function App (8090)
+ └─ Auth headers injected by SWA
+ └─ Returns data
 ```
 
 ## Success Criteria
@@ -127,9 +127,9 @@ SWA (4000s)
 Once Entra ID works on SWA-04:
 
 1. **SWA-01**: Container App + no auth (public)
-2. **SWA-02**: Azure Function + JWT auth (app-level)
-3. **SWA-03**: Container App + SWA auth (simple)
-4. **SWA-04**: Azure Function + SWA Entra ID (current) ← Working toward this
+1. **SWA-02**: Azure Function + JWT auth (app-level)
+1. **SWA-03**: Container App + SWA auth (simple)
+1. **SWA-04**: Azure Function + SWA Entra ID (current) ← Working toward this
 
 ## Notes
 

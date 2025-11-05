@@ -209,61 +209,61 @@ name: Test
 on: [push, pull_request]
 
 jobs:
-  test-backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+ test-backend:
+ runs-on: ubuntu-latest
+ steps:
+ - uses: actions/checkout@v4
+ - uses: astral-sh/setup-uv@v5
 
-      # Test Azure Function API
-      - name: Test Azure Function
-        run: |
-          cd api-fastapi-azure-function
-          uv run pytest -v
+ # Test Azure Function API
+ - name: Test Azure Function
+ run: |
+ cd api-fastapi-azure-function
+ uv run pytest -v
 
-      # Test Container App API
-      - name: Test Container App
-        run: |
-          cd api-fastapi-container-app
-          uv run pytest -v
+ # Test Container App API
+ - name: Test Container App
+ run: |
+ cd api-fastapi-container-app
+ uv run pytest -v
 
-  test-frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+ test-frontend:
+ runs-on: ubuntu-latest
+ steps:
+ - uses: actions/checkout@v4
+ - uses: astral-sh/setup-uv@v5
 
-      # Test Flask Frontend
-      - name: Install Playwright
-        run: |
-          cd frontend-python-flask
-          uv run playwright install --with-deps chromium
+ # Test Flask Frontend
+ - name: Install Playwright
+ run: |
+ cd frontend-python-flask
+ uv run playwright install --with-deps chromium
 
-      - name: Start services
-        run: podman-compose up -d
+ - name: Start services
+ run: podman-compose up -d
 
-      - name: Test Flask Frontend
-        run: |
-          cd frontend-python-flask
-          uv run pytest test_frontend.py --base-url=http://localhost:8000 -v
+ - name: Test Flask Frontend
+ run: |
+ cd frontend-python-flask
+ uv run pytest test_frontend.py --base-url=http://localhost:8000 -v
 
-      - name: Test Static Frontend
-        run: |
-          cd frontend-html-static
-          uv run pytest test_frontend.py --base-url=http://localhost:8001 -v
+ - name: Test Static Frontend
+ run: |
+ cd frontend-html-static
+ uv run pytest test_frontend.py --base-url=http://localhost:8001 -v
 ```
 
 ## Test Coverage Summary
 
-| Component          | Test Type | Count   | Authentication  |
+| Component | Test Type | Count | Authentication |
 | ------------------ | --------- | ------- | --------------- |
-| Azure Function API | Unit      | 30      | N/A             |
-| Azure Function API | Endpoint  | 17      | None (default)  |
-| Container App API  | Unit      | 60      | N/A             |
-| Container App API  | Endpoint  | 18      | JWT (automated) |
-| Flask Frontend     | E2E       | 20      | N/A             |
-| Static Frontend    | E2E       | 23      | N/A             |
-| **Total**          |           | **168** |                 |
+| Azure Function API | Unit | 30 | N/A |
+| Azure Function API | Endpoint | 17 | None (default) |
+| Container App API | Unit | 60 | N/A |
+| Container App API | Endpoint | 18 | JWT (automated) |
+| Flask Frontend | E2E | 20 | N/A |
+| Static Frontend | E2E | 23 | N/A |
+| **Total** | | **168** | |
 
 ## Troubleshooting
 
@@ -279,7 +279,7 @@ Make sure services are running:
 
 ```bash
 podman-compose up -d
-podman ps  # Check all containers are running
+podman ps # Check all containers are running
 ```
 
 ### JWT token errors
@@ -287,7 +287,7 @@ podman ps  # Check all containers are running
 The test script automatically handles JWT authentication. If it fails:
 
 1. Check API is running: `curl http://localhost:8090/api/v1/health`
-2. Verify credentials in compose.yml match `demo:password123`
+1. Verify credentials in compose.yml match `demo:password123`
 
 ### Tests timeout
 
@@ -307,7 +307,7 @@ Bruno CLI provides comprehensive API testing across all deployment stacks. Tests
 
 - Azure Function API (port 7071) with JWT authentication
 - Container App API (port 7080) without authentication
-- Status: ✓ All tests passing (6 requests)
+- Status: All tests passing (6 requests)
 
 **Compose Stacks (8000s ports):**
 
@@ -315,14 +315,14 @@ Bruno CLI provides comprehensive API testing across all deployment stacks. Tests
 - compose-02: Static HTML + Container App (no auth) - port 8001
 - compose-03: Flask + Container App (no auth) - port 8002
 - compose-04: TypeScript Vite + Container App (no auth) - port 8003
-- Status: ✓ All tests passing (13 requests)
+- Status: All tests passing (13 requests)
 
 **SWA Stacks (4000s ports):**
 
 - swa-04: TypeScript Vite + Container App (no auth) - port 4280
 - swa-05: TypeScript Vite + Azure Function (JWT auth) - port 4281
 - swa-06: TypeScript Vite + Container App (Entra ID at SWA layer) - port 4282
-- Status: ✓ All tests passing (9 requests)
+- Status: All tests passing (9 requests)
 
 ### Running Bruno Tests
 
@@ -346,17 +346,17 @@ make test-bruno-swa-full
 
 | Stack Type | Tests | Requests | Status |
 | --- | --- | --- | --- |
-| Direct Launches | 2 | 6 | ✓ PASS |
-| Compose Stacks | 4 | 13 | ✓ PASS |
-| SWA Stacks | 3 | 9 | ✓ PASS |
-| **Total Bruno Tests** | **9** | **28** | **✓ ALL PASS** |
+| Direct Launches | 2 | 6 | PASS |
+| Compose Stacks | 4 | 13 | PASS |
+| SWA Stacks | 3 | 9 | PASS |
+| **Total Bruno Tests** | **9** | **28** | **ALL PASS** |
 
 ## Best Practices
 
 1. **Always run unit tests before endpoint tests** - Unit tests are faster and catch issues early
-2. **Use smoke tests for quick verification** - Run `./test_endpoints.sh` without `--detailed`
-3. **Run Playwright tests in headless mode for CI** - Default behavior, faster
-4. **Use headed mode for debugging** - Add `--headed` flag to see browser
-5. **Test one stack at a time during development** - Use `podman-compose up api-fastapi-azure-function frontend-python-flask`
-6. **Use Bruno CLI for integration testing** - Full stack testing with proper authentication flows
-7. **Run `make test-bruno-*-full` for complete validation** - Includes setup, testing, and cleanup
+1. **Use smoke tests for quick verification** - Run `./test_endpoints.sh` without `--detailed`
+1. **Run Playwright tests in headless mode for CI** - Default behavior, faster
+1. **Use headed mode for debugging** - Add `--headed` flag to see browser
+1. **Test one stack at a time during development** - Use `podman-compose up api-fastapi-azure-function frontend-python-flask`
+1. **Use Bruno CLI for integration testing** - Full stack testing with proper authentication flows
+1. **Run `make test-bruno-*-full` for complete validation** - Includes setup, testing, and cleanup

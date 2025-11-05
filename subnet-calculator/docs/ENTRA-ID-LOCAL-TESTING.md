@@ -18,8 +18,8 @@ This appears to be a legitimate tool for testing Entra ID integration locally wi
 If the above tool doesn't work:
 
 1. **Mock JWT tokens** - Create tokens that mimic Entra ID structure
-2. **Azure AD B2C Free Tier** - Use actual Azure service (limited free tier)
-3. **MSAL test environment** - Microsoft Authentication Library has test modes
-4. **Local OIDC provider** - Tools like Keycloak or ORY Hydra
+1. **Azure AD B2C Free Tier** - Use actual Azure service (limited free tier)
+1. **MSAL test environment** - Microsoft Authentication Library has test modes
+1. **Local OIDC provider** - Tools like Keycloak or ORY Hydra
 
 We'll evaluate these when we get to Part 10.

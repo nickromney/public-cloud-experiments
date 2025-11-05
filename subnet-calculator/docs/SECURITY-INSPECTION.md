@@ -103,8 +103,8 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vIiwiZXhwIjoxNzA...",
-  "token_type": "bearer"
+ "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vIiwiZXhwIjoxNzA...",
+ "token_type": "bearer"
 }
 ```
 
@@ -133,9 +133,9 @@ echo $TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq
 
 # Output:
 {
-  "sub": "demo",
-  "exp": 1707123456,
-  "iat": 1707119856
+ "sub": "demo",
+ "exp": 1707123456,
+ "iat": 1707119856
 }
 ```
 
@@ -197,11 +197,11 @@ Content-Type: application/json
 Set-Cookie: StaticWebAppsAuthCookie=<opaque-value>; HttpOnly; SameSite=Lax
 
 {
-  "clientPrincipal": {
-    "userId": "demo@example.com",
-    "userRoles": ["authenticated"],
-    "claims": [...]
-  }
+ "clientPrincipal": {
+ "userId": "demo@example.com",
+ "userRoles": ["authenticated"],
+ "claims": [...]
+ }
 }
 ```
 
@@ -264,16 +264,16 @@ x-ms-client-principal-name: Demo User
 
 ```text
 Browser → API → Validates JWT → Returns data
-          ↑
-          Backend must validate every request
+ ↑
+ Backend must validate every request
 ```
 
 **Stack 6 (Platform-Level):**
 
 ```text
 Browser → SWA → Validates auth → Injects headers → API → Trusts SWA → Returns data
-          ↑
-          Single validation point
+ ↑
+ Single validation point
 ```
 
 ### Production Differences
@@ -370,8 +370,8 @@ curl -v http://localhost:4280/api/v1/health
 
 # Stack 5 - JWT auth
 TOKEN=$(curl -s -X POST http://localhost:4281/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"demo","password":"password123"}' | jq -r '.access_token')
+ -H "Content-Type: application/json" \
+ -d '{"username":"demo","password":"password123"}' | jq -r '.access_token')
 curl -v -H "Authorization: Bearer $TOKEN" http://localhost:4281/api/v1/health
 
 # Stack 6 - Cookie auth
@@ -384,11 +384,11 @@ curl -v -b cookies.txt http://localhost:4282/api/v1/health
 ## Next Steps
 
 1. **Start a stack:** `make start-stack4` (or stack5/stack6)
-2. **Open Bruno GUI:** Load `bruno-collections/`
-3. **Select environment:** Choose "local" from dropdown (top-right)
-4. **Run requests:** Click through each request in the collection
-5. **Inspect traffic:** Check Headers, Cookies, Auth, Timeline tabs
-6. **Compare stacks:** Run different stacks and compare security models
+1. **Open Bruno GUI:** Load `bruno-collections/`
+1. **Select environment:** Choose "local" from dropdown (top-right)
+1. **Run requests:** Click through each request in the collection
+1. **Inspect traffic:** Check Headers, Cookies, Auth, Timeline tabs
+1. **Compare stacks:** Run different stacks and compare security models
 
 For automated testing, use:
 

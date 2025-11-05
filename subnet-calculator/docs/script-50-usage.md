@@ -60,51 +60,51 @@ FORCE_CERT_REGEN=true \
 ### Phase 1: Validation
 
 1. Check Azure CLI authentication
-2. Verify OpenSSL availability
-3. Validate resource group exists
-4. Detect Application Gateway
-5. Detect custom domain
+1. Verify OpenSSL availability
+1. Validate resource group exists
+1. Detect Application Gateway
+1. Detect custom domain
 
 ### Phase 2: Key Vault Setup (Idempotent)
 
 1. Search for existing Key Vault in resource group
-2. If none exist: Create new Key Vault with random suffix
-3. If multiple exist: Require `KEY_VAULT_NAME` environment variable
-4. Verify Key Vault is accessible
+1. If none exist: Create new Key Vault with random suffix
+1. If multiple exist: Require `KEY_VAULT_NAME` environment variable
+1. Verify Key Vault is accessible
 
 ### Phase 3: Certificate Management (Idempotent)
 
 1. Check if certificate secret exists in Key Vault
-2. If exists: Show expiration date, prompt to update
-3. If `FORCE_CERT_REGEN=true`: Skip prompt
-4. Generate self-signed certificate (RSA 2048-bit, 365 days validity)
-5. Export as PFX with random password
-6. Upload to Key Vault as JSON secret
+1. If exists: Show expiration date, prompt to update
+1. If `FORCE_CERT_REGEN=true`: Skip prompt
+1. Generate self-signed certificate (RSA 2048-bit, 365 days validity)
+1. Export as PFX with random password
+1. Upload to Key Vault as JSON secret
 
 ### Phase 4: Managed Identity (Idempotent)
 
 1. Check if system-assigned identity enabled
-2. If not: Enable system-assigned managed identity
-3. Check if RBAC role assignment exists
-4. If not: Assign "Key Vault Secrets User" role
-5. Wait 30 seconds for RBAC propagation
+1. If not: Enable system-assigned managed identity
+1. Check if RBAC role assignment exists
+1. If not: Assign "Key Vault Secrets User" role
+1. Wait 30 seconds for RBAC propagation
 
 ### Phase 5: HTTPS Listener (Idempotent)
 
 1. Check if HTTPS listener already exists
-2. If exists: Skip configuration
-3. Delete HTTP/80 listener and frontend port
-4. Create HTTPS/443 frontend port
-5. Add SSL certificate from Key Vault (versionless URI)
-6. Create HTTPS listener
-7. Update routing rule to use HTTPS listener
+1. If exists: Skip configuration
+1. Delete HTTP/80 listener and frontend port
+1. Create HTTPS/443 frontend port
+1. Add SSL certificate from Key Vault (versionless URI)
+1. Create HTTPS listener
+1. Update routing rule to use HTTPS listener
 
 ### Phase 6: Summary
 
 1. Display configuration details
-2. Show public IP address
-3. Provide testing commands
-4. Show Cloudflare configuration steps
+1. Show public IP address
+1. Provide testing commands
+1. Show Cloudflare configuration steps
 
 ## Idempotency
 
@@ -122,9 +122,9 @@ Script is safe to run multiple times:
 
 ```bash
 PUBLIC_IP=$(az network public-ip show \
-  --name pip-agw-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc \
-  --query ipAddress -o tsv)
+ --name pip-agw-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc \
+ --query ipAddress -o tsv)
 
 curl -k -v -H "Host: your-domain.com" https://${PUBLIC_IP}/
 ```
@@ -134,10 +134,10 @@ Expected: HTTP 302 redirect or 200 response (self-signed cert warning is normal)
 ### 2. Configure Cloudflare
 
 1. Log into Cloudflare dashboard
-2. Navigate to SSL/TLS settings
-3. Change mode from "Flexible" to "Full"
-4. Verify DNS record is proxied (orange cloud)
-5. Wait ~30 seconds for propagation
+1. Navigate to SSL/TLS settings
+1. Change mode from "Flexible" to "Full"
+1. Verify DNS record is proxied (orange cloud)
+1. Wait ~30 seconds for propagation
 
 ### 3. Verify End-to-End HTTPS
 
@@ -151,8 +151,8 @@ Expected: No certificate warnings, HTTP 302 or 200
 
 ```bash
 az network application-gateway show-backend-health \
-  --name agw-swa-subnet-calc-private-endpoint \
-  --resource-group rg-subnet-calc
+ --name agw-swa-subnet-calc-private-endpoint \
+ --resource-group rg-subnet-calc
 ```
 
 Expected: Backend status "Healthy"
@@ -170,9 +170,9 @@ FORCE_CERT_REGEN=true \
 Script will:
 
 1. Generate new certificate
-2. Upload to Key Vault (new version)
-3. Application Gateway automatically picks up new version (versionless URI)
-4. No downtime required
+1. Upload to Key Vault (new version)
+1. Application Gateway automatically picks up new version (versionless URI)
+1. No downtime required
 
 ## Cost Impact
 

@@ -47,25 +47,25 @@ cd subnet-calculator/api-fastapi-container-app
 ```text
 api-fastapi-container-app/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py              # FastAPI app entry point (no Azure Functions)
-│   ├── config.py            # Environment config (copy from api-fastapi-azure-function)
-│   ├── auth.py              # Authentication utilities (copy)
-│   ├── routers/
-│   │   ├── __init__.py
-│   │   ├── health.py        # Health check endpoints
-│   │   └── subnets.py       # Subnet calculation endpoints
-│   └── models/
-│       ├── __init__.py
-│       └── subnet.py        # Pydantic models
+│ ├── __init__.py
+│ ├── main.py # FastAPI app entry point (no Azure Functions)
+│ ├── config.py # Environment config (copy from api-fastapi-azure-function)
+│ ├── auth.py # Authentication utilities (copy)
+│ ├── routers/
+│ │ ├── __init__.py
+│ │ ├── health.py # Health check endpoints
+│ │ └── subnets.py # Subnet calculation endpoints
+│ └── models/
+│ ├── __init__.py
+│ └── subnet.py # Pydantic models
 ├── tests/
-│   ├── __init__.py
-│   ├── test_auth.py
-│   ├── test_subnets.py
-│   └── test_health.py
-├── Dockerfile               # Multi-stage build for production
-├── docker-compose.yml       # Local development
-├── pyproject.toml           # uv dependencies
+│ ├── __init__.py
+│ ├── test_auth.py
+│ ├── test_subnets.py
+│ └── test_health.py
+├── Dockerfile # Multi-stage build for production
+├── docker-compose.yml # Local development
+├── pyproject.toml # uv dependencies
 ├── .dockerignore
 └── README.md
 ```
@@ -86,12 +86,12 @@ import time
 
 # Create FastAPI app
 app = FastAPI(
-    title="Subnet Calculator API",
-    description="IPv4 and IPv6 subnet calculator",
-    version="1.0.0",
-    docs_url="/docs",           # Swagger UI
-    redoc_url="/redoc",         # ReDoc
-    openapi_url="/openapi.json" # OpenAPI spec (for APIM import)
+ title="Subnet Calculator API",
+ description="IPv4 and IPv6 subnet calculator",
+ version="1.0.0",
+ docs_url="/docs", # Swagger UI
+ redoc_url="/redoc", # ReDoc
+ openapi_url="/openapi.json" # OpenAPI spec (for APIM import)
 )
 
 # Include routers
@@ -101,38 +101,38 @@ app.include_router(subnets.router)
 # Middleware for authentication and logging
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    """Handle authentication based on AUTH_METHOD."""
-    settings = get_settings()
+ """Handle authentication based on AUTH_METHOD."""
+ settings = get_settings()
 
-    # Skip auth for health and docs endpoints
-    if request.url.path in ["/health", "/docs", "/redoc", "/openapi.json"]:
-        return await call_next(request)
+ # Skip auth for health and docs endpoints
+ if request.url.path in ["/health", "/docs", "/redoc", "/openapi.json"]:
+ return await call_next(request)
 
-    # API key authentication via middleware
-    if settings.auth_method == AuthMethod.API_KEY:
-        api_key = request.headers.get("X-API-Key")
-        if not verify_api_key(api_key):
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Invalid or missing API key"}
-            )
+ # API key authentication via middleware
+ if settings.auth_method == AuthMethod.API_KEY:
+ api_key = request.headers.get("X-API-Key")
+ if not verify_api_key(api_key):
+ return JSONResponse(
+ status_code=401,
+ content={"detail": "Invalid or missing API key"}
+ )
 
-    # JWT, Azure SWA, APIM - handled by dependencies
-    # Pass through to let get_current_user dependency handle it
+ # JWT, Azure SWA, APIM - handled by dependencies
+ # Pass through to let get_current_user dependency handle it
 
-    response = await call_next(request)
-    return response
+ response = await call_next(request)
+ return response
 
 # Root endpoint
 @app.get("/")
 async def root():
-    """Root endpoint with API information."""
-    return {
-        "name": "Subnet Calculator API",
-        "version": "1.0.0",
-        "docs": "/docs",
-        "openapi": "/openapi.json"
-    }
+ """Root endpoint with API information."""
+ return {
+ "name": "Subnet Calculator API",
+ "version": "1.0.0",
+ "docs": "/docs",
+ "openapi": "/openapi.json"
+ }
 ```
 
 **app/routers/health.py**:
@@ -146,8 +146,8 @@ router = APIRouter(prefix="", tags=["health"])
 
 @router.get("/health")
 async def health_check():
-    """Health check endpoint (no authentication required)."""
-    return {"status": "healthy"}
+ """Health check endpoint (no authentication required)."""
+ return {"status": "healthy"}
 ```
 
 This is the starting point for a pure FastAPI implementation.

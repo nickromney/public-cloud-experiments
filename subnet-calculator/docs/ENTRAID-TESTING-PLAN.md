@@ -8,37 +8,37 @@ This document outlines the approach for testing Entra ID authentication with Azu
 
 ```text
 ┌────────────────────────────────────────┐
-│ User in Browser                        │
+│ User in Browser │
 │ Visit: https://swa-xxx.azurestaticapps.net│
 └─────────────┬──────────────────────────┘
-              │
-              │ User not authenticated
-              ▼
+ │
+ │ User not authenticated
+ ▼
 ┌────────────────────────────────────────┐
-│ Entra ID Login Flow                    │
-│ 1. SWA redirects to Entra ID           │
-│ 2. User enters credentials             │
-│ 3. Entra ID redirects back with token  │
-│ 4. SWA creates session cookie          │
+│ Entra ID Login Flow │
+│ 1. SWA redirects to Entra ID │
+│ 2. User enters credentials │
+│ 3. Entra ID redirects back with token │
+│ 4. SWA creates session cookie │
 └─────────────┬──────────────────────────┘
-              │
-              │ User authenticated
-              ▼
+ │
+ │ User authenticated
+ ▼
 ┌────────────────────────────────────────┐
-│ TypeScript Vite Frontend (SWA)         │
-│ - Rendered by SWA                      │
-│ - Authenticated user                   │
-│ - Has session cookie (HttpOnly)        │
+│ TypeScript Vite Frontend (SWA) │
+│ - Rendered by SWA │
+│ - Authenticated user │
+│ - Has session cookie (HttpOnly) │
 └─────────────┬──────────────────────────┘
-              │
-              │ /api/* requests
-              │ (via SWA proxy)
-              ▼
+ │
+ │ /api/* requests
+ │ (via SWA proxy)
+ ▼
 ┌────────────────────────────────────────┐
-│ Azure Function App                     │
+│ Azure Function App │
 │ - IP restricted (SWA service tag only) │
-│ - Linked backend (private)             │
-│ - Backend trusts SWA proxy headers     │
+│ - Linked backend (private) │
+│ - Backend trusts SWA proxy headers │
 │ - Returns x-ms-client-principal header │
 └────────────────────────────────────────┘
 ```
@@ -79,24 +79,27 @@ We will deploy to Azure and test against real Entra ID rather than trying to sim
 **Steps:**
 
 1. **Create App Registration**
-   - Portal: Azure Active Directory → App registrations
-   - Click "New registration"
-   - Name: `subnet-calc-entraid`
-   - Supported account types: Single tenant (default)
-   - Click "Register"
 
-2. **Note These Values**
-   - Application (client) ID - shown on Overview page
-   - Directory (tenant) ID - shown on Overview page
-   - These will be used in deployment script
+- Portal: Azure Active Directory → App registrations
+- Click "New registration"
+- Name: `subnet-calc-entraid`
+- Supported account types: Single tenant (default)
+- Click "Register"
 
-3. **Create Client Secret**
-   - Go to "Certificates & secrets"
-   - Click "New client secret"
-   - Description: `swa-auth`
-   - Expires: 24 months
-   - Click "Add"
-   - **COPY THE SECRET VALUE IMMEDIATELY** (only shown once)
+1. **Note These Values**
+
+- Application (client) ID - shown on Overview page
+- Directory (tenant) ID - shown on Overview page
+- These will be used in deployment script
+
+1. **Create Client Secret**
+
+- Go to "Certificates & secrets"
+- Click "New client secret"
+- Description: `swa-auth`
+- Expires: 24 months
+- Click "Add"
+- **COPY THE SECRET VALUE IMMEDIATELY** (only shown once)
 
 ### Phase 2: Deploy Stack to Azure
 
@@ -126,19 +129,22 @@ export AZURE_CLIENT_SECRET="<your-client-secret>"
 ### Phase 3: Manual Testing (Browser)
 
 1. **Visit the SWA URL**
-   - Should redirect to Entra ID login
-   - Login with your Entra ID credentials
-   - Should redirect back to SWA app
 
-2. **Test Frontend**
-   - Verify page loads correctly
-   - Test calculator functionality
-   - Try subnet calculation
+- Should redirect to Entra ID login
+- Login with your Entra ID credentials
+- Should redirect back to SWA app
 
-3. **Browser DevTools**
-   - Check Network tab
-   - Verify `/api/*` calls succeed
-   - Check response headers for `x-ms-client-principal` (indicates SWA proxy)
+1. **Test Frontend**
+
+- Verify page loads correctly
+- Test calculator functionality
+- Try subnet calculation
+
+1. **Browser DevTools**
+
+- Check Network tab
+- Verify `/api/*` calls succeed
+- Check response headers for `x-ms-client-principal` (indicates SWA proxy)
 
 ### Phase 4: Automated Testing (Bruno CLI)
 
@@ -152,10 +158,10 @@ export AZURE_CLIENT_SECRET="<your-client-secret>"
 
 ```text
 swa-entraid/
-  ├── Login Flow (if needed for token)
-  ├── Health Check (with auth)
-  ├── Subnet Info (with auth)
-  └── 401 Validation (attempt without auth)
+ ├── Login Flow (if needed for token)
+ ├── Health Check (with auth)
+ ├── Subnet Info (with auth)
+ └── 401 Validation (attempt without auth)
 ```
 
 **Token Handling:**
@@ -163,8 +169,8 @@ swa-entraid/
 Since SWA handles authentication via cookies (not Bearer tokens), Bruno tests will need to:
 
 1. Access SWA frontend (which sets cookies)
-2. Make subsequent API calls with cookies preserved
-3. Validate successful responses
+1. Make subsequent API calls with cookies preserved
+1. Validate successful responses
 
 **Alternative Approach:**
 
@@ -236,11 +242,11 @@ Document:
 ## Next Steps
 
 1. Create Entra ID app registration in Azure Portal
-2. Export Client ID and Secret
-3. Run deployment script
-4. Verify browser access
-5. Create Bruno CLI tests
-6. Document findings
+1. Export Client ID and Secret
+1. Run deployment script
+1. Verify browser access
+1. Create Bruno CLI tests
+1. Document findings
 
 ## References
 

@@ -134,7 +134,11 @@ teardown() {
 
 @test "Stack 16: Handles missing AZURE_CLIENT_ID gracefully" {
   # Script provides helpful info when AZURE_CLIENT_ID not provided
-  run bash -c "grep 'No AZURE_CLIENT_ID provided' azure-stack-16-swa-private-endpoint.sh"
+  run bash -c "grep 'No valid Entra ID app registration found' azure-stack-16-swa-private-endpoint.sh"
+  assert_success
+
+  # Script offers three options
+  run bash -c "grep 'Select an existing app registration' azure-stack-16-swa-private-endpoint.sh"
   assert_success
 
   # Script can auto-create via script 52

