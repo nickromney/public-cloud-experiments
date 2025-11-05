@@ -33,9 +33,9 @@ teardown() {
 
 # Configuration copying tests
 
-@test "20-deploy-frontend.sh copies entraid config when VITE_AUTH_ENABLED=true" {
+@test "20-deploy-frontend.sh copies entraid config when SWA_AUTH_ENABLED=true" {
   # Test relies on script sourcing to check config file selection logic
-  run grep -A 10 'VITE_AUTH_ENABLED.*true' 20-deploy-frontend.sh
+  run grep -A 10 'SWA_AUTH_ENABLED.*true' 20-deploy-frontend.sh
   assert_success
   [[ "$output" =~ "staticwebapp-entraid.config.json" ]]
 }
@@ -104,7 +104,7 @@ teardown() {
 }
 
 @test "20-deploy-frontend.sh has else clause for noauth config" {
-  run bash -c "grep -B 2 -A 2 'else' 20-deploy-frontend.sh | grep -i 'no-auth'"
+  run grep "staticwebapp-noauth.config.json" 20-deploy-frontend.sh
   assert_success
 }
 

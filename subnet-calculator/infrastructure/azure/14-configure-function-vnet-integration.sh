@@ -132,7 +132,7 @@ if [[ "${CHECK_MODE}" == "true" ]]; then
 
   # Check if function exists
   log_step "Checking Function App..."
-  if ! az functionapp show \
+  if ! az webapp show \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
     log_error "Function App ${FUNCTION_APP_NAME} not found in resource group ${RESOURCE_GROUP}"
@@ -140,12 +140,12 @@ if [[ "${CHECK_MODE}" == "true" ]]; then
   fi
 
   # Get function details
-  FUNCTION_URL=$(az functionapp show \
+  FUNCTION_URL=$(az webapp show \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
     --query "defaultHostName" -o tsv)
 
-  PLAN_ID=$(az functionapp show \
+  PLAN_ID=$(az webapp show \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
     --query "appServicePlanId" \
@@ -219,13 +219,13 @@ if [[ "${CHECK_MODE}" == "true" ]]; then
 
   # Check outbound IP addresses
   log_step "Checking Outbound IP Addresses..."
-  OUTBOUND_IPS=$(az functionapp show \
+  OUTBOUND_IPS=$(az webapp show \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
     --query "outboundIpAddresses" \
     -o tsv 2>/dev/null || echo "")
 
-  POSSIBLE_OUTBOUND_IPS=$(az functionapp show \
+  POSSIBLE_OUTBOUND_IPS=$(az webapp show \
     --name "${FUNCTION_APP_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
     --query "possibleOutboundIpAddresses" \
@@ -302,7 +302,7 @@ log_info ""
 
 # Step 1: Verify Function App exists
 log_step "Verifying Function App exists..."
-if ! az functionapp show \
+if ! az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
   log_error "Function App ${FUNCTION_APP_NAME} not found in resource group ${RESOURCE_GROUP}"
@@ -316,7 +316,7 @@ fi
 
 # Step 2: Verify Function is on App Service Plan (not Consumption)
 log_step "Verifying Function is on App Service Plan..."
-PLAN_ID=$(az functionapp show \
+PLAN_ID=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "appServicePlanId" \
@@ -358,7 +358,7 @@ if [[ "${PLAN_TIER,,}" == *"dynamic"* ]] || [[ "${PLAN_SKU,,}" == "y1" ]]; then
 fi
 
 # Step 3: Get Function location
-FUNCTION_LOCATION=$(az functionapp show \
+FUNCTION_LOCATION=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "location" \
@@ -589,7 +589,7 @@ log_info "  WEBSITE_VNET_ROUTE_ALL: ${FINAL_ROUTE_ALL:-not set}"
 
 # Step 13: Test Function still responds
 log_step "Testing Function still responds..."
-HOSTNAME=$(az functionapp show \
+HOSTNAME=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "defaultHostName" -o tsv)

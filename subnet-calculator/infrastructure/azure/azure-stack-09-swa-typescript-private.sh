@@ -171,7 +171,7 @@ az functionapp update \
   --set publicNetworkAccess=Disabled \
   --output none
 
-FUNC_ID=$(az functionapp show --name "${FUNCTION_APP_NAME}" \
+FUNC_ID=$(az webapp show --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" --query id -o tsv)
 
 az network private-endpoint create \

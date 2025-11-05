@@ -1,0 +1,72 @@
+<policies>
+    <inbound>
+        <base />
+        <!-- Check if request is from Application Gateway private subnet -->
+        <choose>
+            <when condition="@(context.Request.Headers.GetValueOrDefault("X-Forwarded-For","").StartsWith("10.100.0"))">
+                <!-- Request from AppGW - skip subscription key validation -->
+                <!-- Subscription key check is skipped for AppGW subnet via policy structure -->
+            </when>
+            <otherwise>
+                <!-- External request - validate subscription key -->
+                <check-header name="Ocp-Apim-Subscription-Key" failed-check-httpcode="401" failed-check-error-message="Subscription key required" ignore-case="false">
+                    <value>@(context.Subscription.Key)</value>
+                </check-header>
+            </otherwise>
+        </choose>
+
+        <!-- Rate limiting: 100 requests per minute -->
+        <rate-limit-by-key calls="100"
+                           renewal-period="60"
+                           counter-key="@(context.Request.IpAddress)" />
+
+        <!-- CORS policy for frontend access -->
+        <!-- Note: Traffic comes through AppGW (10.100.0.0/24), not directly from browsers -->
+        <!-- CORS is restrictive since API is only accessed via AppGW path-based routing -->
+        <cors allow-credentials="false">
+            <allowed-origins>
+                <origin>https://static-swa-private-endpoint.publiccloudexperiments.net</origin>
+                <origin>https://lively-beach-0aedf4b03.3.azurestaticapps.net</origin>
+            </allowed-origins>
+            <allowed-methods>
+                <method>GET</method>
+                <method>POST</method>
+                <method>OPTIONS</method>
+            </allowed-methods>
+            <allowed-headers>
+                <header>Content-Type</header>
+                <header>Authorization</header>
+            </allowed-headers>
+        </cors>
+
+        <!-- Path handling:
+             AppGW sends: /api/v1/health (from client request)
+             APIM API path: /func-private-endpoint
+             But requests come WITHOUT the API path prefix when using AppGW routing
+             So we need to ensure the path is preserved as-is to reach the Function App
+             The Function App expects: /api/v1/health
+        -->
+        <!-- No path rewriting needed - AppGW sends the original path -->
+
+        <!-- Forward Authorization header (JWT token) to Function App -->
+        <set-header name="Authorization" exists-action="override">
+            <value>@(context.Request.Headers.GetValueOrDefault("Authorization", ""))</value>
+        </set-header>
+
+        <!-- Add headers for Function App JWT authentication -->
+        <set-header name="X-Forwarded-Host" exists-action="override">
+            <value>@(context.Request.Headers.GetValueOrDefault("X-Forwarded-Host", context.Request.Url.Host))</value>
+        </set-header>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <!-- Remove internal headers from response -->
+        <set-header name="X-Forwarded-Host" exists-action="delete" />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

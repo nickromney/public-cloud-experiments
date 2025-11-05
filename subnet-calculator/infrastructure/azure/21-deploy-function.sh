@@ -76,7 +76,7 @@ fi
 readonly DISABLE_AUTH="${DISABLE_AUTH:-false}"
 
 # Check if Function App exists
-if ! az functionapp show \
+if ! az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
   log_error "Function App ${FUNCTION_APP_NAME} not found"
@@ -97,7 +97,7 @@ log_info "  Source: ${FUNCTION_DIR}"
 log_info "  Authentication: $(if [[ "${DISABLE_AUTH}" == "true" ]]; then echo "Disabled"; else echo "Enabled (JWT)"; fi)"
 
 # Get Function App URL
-FUNCTION_URL=$(az functionapp show \
+FUNCTION_URL=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "defaultHostName" -o tsv)

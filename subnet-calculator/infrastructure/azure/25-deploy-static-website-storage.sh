@@ -128,7 +128,7 @@ if [[ -z "${API_URL}" ]]; then
     FUNCTION_APP_NAME=$(az functionapp list --resource-group "${RESOURCE_GROUP}" --query "[0].name" -o tsv)
 
     # Try to get hostname from function app
-    FUNC_HOSTNAME=$(az functionapp show \
+    FUNC_HOSTNAME=$(az webapp show \
       --name "${FUNCTION_APP_NAME}" \
       --resource-group "${RESOURCE_GROUP}" \
       --query "defaultHostName" -o tsv 2>/dev/null || echo "")

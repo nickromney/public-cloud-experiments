@@ -235,7 +235,7 @@ log_info ""
 log_step "Step 8/12: Configure APIM backend"
 
 # Get Function URL
-FUNCTION_URL=$(az functionapp show \
+FUNCTION_URL=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "defaultHostName" -o tsv)

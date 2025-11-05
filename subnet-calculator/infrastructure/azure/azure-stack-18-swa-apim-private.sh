@@ -261,7 +261,7 @@ log_info ""
 # Step 6: Configure APIM backend (import Function OpenAPI)
 log_step "Step 9/16: Configure APIM backend"
 
-FUNCTION_URL=$(az functionapp show \
+FUNCTION_URL=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "defaultHostName" -o tsv)

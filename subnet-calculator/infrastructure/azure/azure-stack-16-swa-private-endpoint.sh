@@ -321,7 +321,7 @@ echo ""
 
 # Check if Function App was newly created or already existed
 FUNCTION_APP_EXISTED=false
-if az functionapp show \
+if az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
   FUNCTION_APP_EXISTED=true
@@ -457,7 +457,7 @@ echo ""
 log_step "Step 9/12: Linking Function App to SWA..."
 echo ""
 
-FUNC_RESOURCE_ID=$(az functionapp show \
+FUNC_RESOURCE_ID=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query id -o tsv)

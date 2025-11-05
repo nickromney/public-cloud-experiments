@@ -176,7 +176,7 @@ export LOCATION
 
 # Check if Function App was newly created or already existed
 FUNCTION_APP_EXISTED=false
-if az functionapp show \
+if az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
   FUNCTION_APP_EXISTED=true
@@ -294,7 +294,7 @@ echo ""
 log_step "Step 6/6: Configuring Function App custom domain..."
 echo ""
 
-FUNC_DEFAULT_HOSTNAME=$(az functionapp show \
+FUNC_DEFAULT_HOSTNAME=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "defaultHostName" -o tsv)
@@ -308,7 +308,7 @@ if [[ -z "${FUNC_DEFAULT_HOSTNAME}" ]]; then
 fi
 
 # Get custom domain verification ID for TXT record
-VERIFICATION_ID=$(az functionapp show \
+VERIFICATION_ID=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "customDomainVerificationId" -o tsv)

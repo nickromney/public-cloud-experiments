@@ -146,7 +146,7 @@ log_info "Static Web App found"
 
 # Verify Function App exists
 log_step "Verifying Function App exists..."
-if ! az functionapp show \
+if ! az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
   log_error "Function App ${FUNCTION_APP_NAME} not found in ${RESOURCE_GROUP}"
@@ -155,13 +155,13 @@ fi
 log_info "Function App found"
 
 # Get Function App resource ID and actual location
-FUNCTION_APP_ID=$(az functionapp show \
+FUNCTION_APP_ID=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query id -o tsv)
 
 # Get the actual Function App location (not mapped region)
-FUNCTION_APP_LOCATION=$(az functionapp show \
+FUNCTION_APP_LOCATION=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query location -o tsv)
@@ -232,7 +232,7 @@ SWA_HOSTNAME=$(az staticwebapp show \
   --query defaultHostname -o tsv)
 
 # Get Function App URL
-FUNC_HOSTNAME=$(az functionapp show \
+FUNC_HOSTNAME=$(az webapp show \
   --name "${FUNCTION_APP_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --query "defaultHostName" -o tsv 2>/dev/null || echo "")

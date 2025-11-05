@@ -98,7 +98,7 @@ teardown() {
 }
 
 @test "21-deploy-function.sh validates FUNCTION_APP_NAME exists" {
-  run grep "az functionapp show" 21-deploy-function.sh
+  run grep "az webapp show" 21-deploy-function.sh
   assert_success
 }
 
