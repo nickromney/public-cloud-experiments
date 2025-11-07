@@ -57,12 +57,6 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
     }
   }
 
-  const handleClear = () => {
-    setIpAddress('')
-    setResults(null)
-    setError(null)
-  }
-
   const handleExampleClick = (address: string) => {
     setIpAddress(address)
   }
