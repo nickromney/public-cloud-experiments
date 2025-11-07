@@ -73,11 +73,11 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
     <>
       {/* Top Bar - Fixed Position */}
       <div className="top-bar">
-        <button type="button" onClick={onToggleTheme}>
-          <span>{theme === 'dark' ? '☀️' : '🌙'}</span> Toggle Theme
+        <button id="theme-switcher" type="button" onClick={onToggleTheme}>
+          <span id="theme-icon">{theme === 'dark' ? '☀️' : '🌙'}</span> Toggle Theme
         </button>
         {isAuthenticated && user && (
-          <div className="user-info">
+          <div id="user-info" className="user-info">
             <span>Welcome, {user.name}</span>
             <button type="button" onClick={logout}>
               Logout
@@ -94,8 +94,8 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
       <main className="container">
         {/* Header */}
         <header>
-          <h1>IPv4 & IPv6 Subnet Calculator</h1>
-          <p>{APP_CONFIG.stackName}</p>
+          <h1>IPv4 Subnet Calculator</h1>
+          <p id="stack-description">{APP_CONFIG.stackName}</p>
         </header>
 
         {/* API Status */}
@@ -110,14 +110,14 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
           </div>
         )}
         {apiError && (
-          <div className="alert alert-error" role="alert">
+          <div id="api-status" className="alert alert-error" role="alert">
             <strong>API Offline:</strong> {apiError}
           </div>
         )}
 
         {/* Input Form */}
         <section>
-          <form onSubmit={handleSubmit}>
+          <form id="lookup-form" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="ip-address">IP Address or CIDR Range</label>
               <div className="form-row">
@@ -142,17 +142,17 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
             </div>
 
             {/* Example Buttons */}
-            <div className="example-buttons">
-              <button type="button" className="secondary outline" onClick={() => handleExampleClick('10.0.0.0/24')}>
+            <div id="example-buttons" className="example-buttons">
+              <button type="button" className="secondary outline example-btn btn-rfc1918" onClick={() => handleExampleClick('10.0.0.0/24')}>
                 RFC1918: 10.0.0.0/24
               </button>
-              <button type="button" className="outline" onClick={() => handleExampleClick('100.64.0.1')}>
+              <button type="button" className="outline example-btn btn-rfc6598" onClick={() => handleExampleClick('100.64.0.1')}>
                 RFC6598: 100.64.0.1
               </button>
-              <button type="button" className="contrast outline" onClick={() => handleExampleClick('8.8.8.8')}>
+              <button type="button" className="contrast outline example-btn btn-public" onClick={() => handleExampleClick('8.8.8.8')}>
                 Public: 8.8.8.8
               </button>
-              <button type="button" className="secondary" onClick={() => handleExampleClick('104.16.1.1')}>
+              <button type="button" className="secondary example-btn btn-cloudflare" onClick={() => handleExampleClick('104.16.1.1')}>
                 Cloudflare: 104.16.1.1
               </button>
             </div>
@@ -161,25 +161,25 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
 
         {/* Loading */}
         {isLoading && (
-          <div className="loading-center" role="status">
-            <div aria-busy="true">Loading...</div>
+          <div id="loading" style={{ display: 'block', textAlign: 'center', margin: '2rem 0' }} role="status">
+            <div aria-busy="true"></div>
           </div>
         )}
 
         {/* Error */}
         {error && (
-          <div className="alert alert-error" role="alert">
+          <div id="error" className="alert alert-error" role="alert">
             <strong>Error:</strong> {error}
           </div>
         )}
 
         {/* Results */}
         {results && (
-          <section data-testid="results">
+          <section id="results" style={{ display: 'block' }}>
             <h2>Results</h2>
-
-            {/* Validation */}
-            {results.results.validate && (
+            <div id="results-content">
+              {/* Validation */}
+              {results.results.validate && (
               <article>
                 <h3>Validation</h3>
                 <table>
@@ -375,6 +375,7 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
                 </table>
               </details>
             </article>
+            </div>
           </section>
         )}
       </main>

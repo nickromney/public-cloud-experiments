@@ -5,7 +5,7 @@ import { AuthProvider } from './auth/AuthContext'
 import { msalConfig } from './auth/msalConfig'
 import { SubnetCalculator } from './components/SubnetCalculator'
 import { APP_CONFIG } from './config'
-import './App.css'
+import '../../shared-frontend/src/styles.css'
 
 // Initialize MSAL instance only if using MSAL auth
 const msalInstance =

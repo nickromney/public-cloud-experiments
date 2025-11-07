@@ -3,6 +3,9 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# Upgrade npm to latest version
+RUN npm install -g npm@latest
+
 # Build arguments for Vite environment variables
 ARG VITE_API_URL=http://localhost:7071
 ARG VITE_AUTH_METHOD=none
@@ -17,14 +20,17 @@ ENV VITE_AZURE_CLIENT_ID=$VITE_AZURE_CLIENT_ID
 ENV VITE_AZURE_TENANT_ID=$VITE_AZURE_TENANT_ID
 ENV VITE_AZURE_REDIRECT_URI=$VITE_AZURE_REDIRECT_URI
 
+# Copy shared-frontend package first
+COPY ./shared-frontend /shared-frontend
+
 # Copy package files for dependency installation
-COPY package.json package-lock.json ./
+COPY ./frontend-react/package.json ./frontend-react/package-lock.json ./
 
 # Install dependencies (uses lock file for reproducible builds)
 RUN npm ci
 
 # Copy source code
-COPY . .
+COPY ./frontend-react .
 
 # Build application (Vite will embed environment variables)
 RUN npm run build
@@ -36,7 +42,7 @@ FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY ./frontend-react/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
 EXPOSE 80

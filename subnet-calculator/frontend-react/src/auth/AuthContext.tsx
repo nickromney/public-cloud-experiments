@@ -63,11 +63,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (accounts && accounts.length > 0) {
               setIsAuthenticated(true)
               const account = accounts[0]
-              setUser({
-                name: account.name || account.username,
-                email: account.username,
-                username: account.username,
-              })
+              if (account) {
+                setUser({
+                  name: account.name || account.username,
+                  email: account.username,
+                  username: account.username,
+                })
+              }
             }
             break
           }

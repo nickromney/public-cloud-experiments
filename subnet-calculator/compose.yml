@@ -138,8 +138,8 @@ services:
 
   frontend-typescript-vite:
     build:
-      context: ./frontend-typescript-vite
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./frontend-typescript-vite/Dockerfile
       args:
         - VITE_AUTH_ENABLED=false
         - VITE_API_URL=http://localhost:8090
@@ -157,8 +157,8 @@ services:
 
   frontend-typescript-vite-jwt:
     build:
-      context: ./frontend-typescript-vite
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./frontend-typescript-vite/Dockerfile
       args:
         - VITE_AUTH_ENABLED=true
         - VITE_JWT_USERNAME=demo
@@ -179,8 +179,8 @@ services:
 
   frontend-react:
     build:
-      context: ./frontend-react
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./frontend-react/Dockerfile
       args:
         - VITE_API_URL=http://localhost:8090
         - VITE_AUTH_METHOD=none
@@ -197,8 +197,8 @@ services:
 
   frontend-react-msal:
     build:
-      context: ./frontend-react
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./frontend-react/Dockerfile
       args:
         - VITE_API_URL=http://localhost:8080
         - VITE_AUTH_METHOD=msal

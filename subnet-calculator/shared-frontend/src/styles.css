@@ -1,16 +1,23 @@
-/* Minimal custom styles for subnet calculator - matches TypeScript Vite frontend */
+/* Shared styles for subnet calculator frontends */
 
 /* Top bar for theme switcher and user info */
 .top-bar {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  left: auto;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   align-items: flex-end;
   z-index: 1000;
+}
+
+/* Theme switcher button */
+.top-bar button {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
 }
 
 /* User info display */
@@ -54,7 +61,7 @@ header {
   min-width: auto;
 }
 
-/* Example buttons - use Pico CSS button styles */
+/* Example buttons */
 .example-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -113,6 +120,14 @@ html[data-theme="dark"] .alert-error {
   color: #fca5a5;
 }
 
+/* Code elements in alerts */
+.alert code {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.85rem;
+}
+
 /* Loading spinner center */
 .loading-center {
   text-align: center;
@@ -135,7 +150,7 @@ html[data-theme="dark"] .alert-error {
     flex-direction: column;
   }
 
-  .example-btn {
+  .example-buttons button {
     width: 100%;
   }
 }

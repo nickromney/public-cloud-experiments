@@ -2,7 +2,7 @@
  * Main application entry point
  */
 
-import './style.css'
+import '../../shared-frontend/src/styles.css'
 import { apiClient } from './api'
 import { getAuthMethod, getStackDescription } from './config'
 import { getCurrentUser } from './entraid-auth'
@@ -48,12 +48,16 @@ async function handleSubmit(event: Event): Promise<void> {
   const form = event.target as HTMLFormElement
   const formData = new FormData(form)
   const address = formData.get('address') as string
-  const mode = formData.get('mode') as string
+  const mode = (formData.get('mode') as string) || 'Standard'
 
   if (!address) {
     showError('Address is required')
     return
   }
+
+  // Validate mode is a valid CloudMode
+  const validModes = ['Standard', 'AWS', 'Azure', 'OCI']
+  const cloudMode = validModes.includes(mode) ? mode : 'Standard'
 
   // Start performance timing
   const overallRequestTimestamp = new Date().toISOString()
@@ -62,7 +66,10 @@ async function handleSubmit(event: Event): Promise<void> {
   showLoading()
 
   try {
-    const { results, timing } = await apiClient.performLookup(address, mode)
+    const { results, timing } = await apiClient.performLookup(
+      address,
+      cloudMode as 'Standard' | 'AWS' | 'Azure' | 'OCI'
+    )
 
     // End performance timing
     const overallResponseTimestamp = new Date().toISOString()
@@ -75,8 +82,8 @@ async function handleSubmit(event: Event): Promise<void> {
       overallRequestTimestamp,
       overallResponseTimestamp,
       address,
-      mode,
-      apiCalls: timing,
+      mode: cloudMode,
+      apiCalls: timing.apiCalls,
     }
 
     renderResults(results, timingInfo)

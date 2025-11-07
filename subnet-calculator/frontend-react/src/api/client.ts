@@ -3,6 +3,8 @@
  * Supports both IPv4 and IPv6 lookups with performance timing
  */
 
+import type { IApiClient } from '@subnet-calculator/shared-frontend/api'
+import { getApiPrefix, handleFetchError, isIpv6, parseJsonResponse } from '@subnet-calculator/shared-frontend/api'
 import { APP_CONFIG } from '../config'
 import type {
   ApiCallTiming,
@@ -15,7 +17,7 @@ import type {
   ValidateResponse,
 } from '../types'
 
-class ApiClient {
+class ApiClient implements IApiClient {
   private baseUrl: string
 
   constructor(baseUrl: string) {
@@ -24,51 +26,6 @@ class ApiClient {
 
   getBaseUrl(): string {
     return this.baseUrl
-  }
-
-  /**
-   * Safely parse JSON response with proper error handling
-   */
-  private async parseJsonResponse<T>(response: Response): Promise<T> {
-    const contentType = response.headers.get('content-type')
-    if (!contentType || !contentType.includes('application/json')) {
-      throw new Error('API did not return JSON response. It may still be starting up.')
-    }
-
-    try {
-      return await response.json()
-    } catch (_error) {
-      throw new Error('Failed to parse API response. The API may be starting up or in an error state.')
-    }
-  }
-
-  /**
-   * Handle fetch errors with user-friendly messages
-   */
-  private handleFetchError(error: unknown): never {
-    if (error instanceof Error) {
-      if (error.name === 'TimeoutError' || error.name === 'AbortError') {
-        throw new Error('API request timed out. The API may be starting up or unavailable.')
-      }
-      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        throw new Error('Unable to connect to API. Please ensure the backend is running.')
-      }
-    }
-    throw error
-  }
-
-  /**
-   * Detect if address is IPv6
-   */
-  private isIpv6(address: string): boolean {
-    return address.includes(':')
-  }
-
-  /**
-   * Get API path prefix based on IP version
-   */
-  private getApiPrefix(address: string): string {
-    return this.isIpv6(address) ? '/api/v1/ipv6' : '/api/v1/ipv4'
   }
 
   async checkHealth(): Promise<HealthResponse> {
@@ -81,15 +38,15 @@ class ApiClient {
         throw new Error(`API returned HTTP ${response.status}: ${response.statusText}`)
       }
 
-      return this.parseJsonResponse<HealthResponse>(response)
+      return parseJsonResponse<HealthResponse>(response)
     } catch (error) {
-      return this.handleFetchError(error)
+      return handleFetchError(error)
     }
   }
 
   async validateAddress(address: string): Promise<ValidateResponse> {
     try {
-      const apiPrefix = this.getApiPrefix(address)
+      const apiPrefix = getApiPrefix(address)
       const response = await fetch(`${this.baseUrl}${apiPrefix}/validate`, {
         method: 'POST',
         headers: {
@@ -104,9 +61,9 @@ class ApiClient {
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
 
-      return this.parseJsonResponse<ValidateResponse>(response)
+      return parseJsonResponse<ValidateResponse>(response)
     } catch (error) {
-      return this.handleFetchError(error)
+      return handleFetchError(error)
     }
   }
 
@@ -126,15 +83,15 @@ class ApiClient {
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
 
-      return this.parseJsonResponse<PrivateCheckResponse>(response)
+      return parseJsonResponse<PrivateCheckResponse>(response)
     } catch (error) {
-      return this.handleFetchError(error)
+      return handleFetchError(error)
     }
   }
 
   async checkCloudflare(address: string): Promise<CloudflareCheckResponse> {
     try {
-      const apiPrefix = this.getApiPrefix(address)
+      const apiPrefix = getApiPrefix(address)
       const response = await fetch(`${this.baseUrl}${apiPrefix}/check-cloudflare`, {
         method: 'POST',
         headers: {
@@ -149,15 +106,15 @@ class ApiClient {
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
 
-      return this.parseJsonResponse<CloudflareCheckResponse>(response)
+      return parseJsonResponse<CloudflareCheckResponse>(response)
     } catch (error) {
-      return this.handleFetchError(error)
+      return handleFetchError(error)
     }
   }
 
   async getSubnetInfo(network: string, mode: CloudMode): Promise<SubnetInfoResponse> {
     try {
-      const apiPrefix = this.getApiPrefix(network)
+      const apiPrefix = getApiPrefix(network)
       const response = await fetch(`${this.baseUrl}${apiPrefix}/subnet-info`, {
         method: 'POST',
         headers: {
@@ -172,9 +129,9 @@ class ApiClient {
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
 
-      return this.parseJsonResponse<SubnetInfoResponse>(response)
+      return parseJsonResponse<SubnetInfoResponse>(response)
     } catch (error) {
-      return this.handleFetchError(error)
+      return handleFetchError(error)
     }
   }
 
@@ -186,7 +143,7 @@ class ApiClient {
     const apiCalls: ApiCallTiming[] = []
     const results: LookupResult['results'] = {}
 
-    const isIpv6 = this.isIpv6(address)
+    const isV6 = isIpv6(address)
 
     // 1. Validate address
     const validateStart = performance.now()
@@ -201,7 +158,7 @@ class ApiClient {
     })
 
     // 2. Check if RFC1918 (private) - IPv4 only
-    if (!isIpv6) {
+    if (!isV6) {
       const privateStart = performance.now()
       const privateRequestTime = new Date().toISOString()
       results.private = await this.checkPrivate(address)

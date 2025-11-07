@@ -1,3 +1,4 @@
+import { resolve } from 'path'
 import { defineConfig } from 'vite'
 
 // https://vitejs.dev/config/
@@ -15,5 +16,13 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+  },
+  resolve: {
+    alias: {
+      // Order matters - specific paths before general path
+      '@subnet-calculator/shared-frontend/api': resolve(__dirname, '../shared-frontend/src/api/index.ts'),
+      '@subnet-calculator/shared-frontend/types': resolve(__dirname, '../shared-frontend/src/types/index.ts'),
+      '@subnet-calculator/shared-frontend': resolve(__dirname, '../shared-frontend/src/index.ts'),
+    },
   },
 })

@@ -2,18 +2,22 @@
  * API client for subnet calculator
  */
 
+import type { IApiClient } from '@subnet-calculator/shared-frontend/api'
+import { handleFetchError, isIpv6, parseJsonResponse } from '@subnet-calculator/shared-frontend/api'
+import type { CloudMode } from '@subnet-calculator/shared-frontend/types'
 import { TokenManager } from './auth'
 import { API_CONFIG } from './config'
 import type {
   ApiResults,
   CloudflareCheckResponse,
   HealthResponse,
+  LookupResult,
   PrivateCheckResponse,
   SubnetInfoResponse,
   ValidateResponse,
 } from './types'
 
-class ApiClient {
+class ApiClient implements IApiClient {
   private baseUrl: string
   private tokenManager: TokenManager | null
 
@@ -32,37 +36,6 @@ class ApiClient {
     return this.baseUrl
   }
 
-  /**
-   * Safely parse JSON response with proper error handling
-   */
-  private async parseJsonResponse<T>(response: Response): Promise<T> {
-    const contentType = response.headers.get('content-type')
-    if (!contentType || !contentType.includes('application/json')) {
-      throw new Error('API did not return JSON response. It may still be starting up.')
-    }
-
-    try {
-      return await response.json()
-    } catch (error) {
-      throw new Error('Failed to parse API response. The API may be starting up or in an error state.')
-    }
-  }
-
-  /**
-   * Handle fetch errors with user-friendly messages
-   */
-  private handleFetchError(error: unknown): never {
-    if (error instanceof Error) {
-      if (error.name === 'TimeoutError' || error.name === 'AbortError') {
-        throw new Error('API request timed out. The API may be starting up or unavailable.')
-      }
-      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        throw new Error('Unable to connect to API. Please ensure the backend is running.')
-      }
-    }
-    throw error
-  }
-
   async checkHealth(): Promise<HealthResponse> {
     try {
       // Get auth headers if enabled
@@ -79,9 +52,9 @@ class ApiClient {
         throw new Error(`API returned HTTP ${response.status}: ${response.statusText}`)
       }
 
-      return this.parseJsonResponse<HealthResponse>(response)
+      return parseJsonResponse<HealthResponse>(response)
     } catch (error) {
-      return this.handleFetchError(error)
+      return handleFetchError(error)
     }
   }
 
@@ -101,13 +74,13 @@ class ApiClient {
       })
 
       if (!response.ok) {
-        const error = await this.parseJsonResponse<{ detail?: string }>(response).catch((): { detail?: string } => ({}))
+        const error = await parseJsonResponse<{ detail?: string }>(response).catch((): { detail?: string } => ({}))
         throw new Error(error.detail || `Validation failed (HTTP ${response.status})`)
       }
 
-      return this.parseJsonResponse<ValidateResponse>(response)
+      return parseJsonResponse<ValidateResponse>(response)
     } catch (error) {
-      return this.handleFetchError(error)
+      return handleFetchError(error)
     }
   }
 
@@ -127,13 +100,13 @@ class ApiClient {
       })
 
       if (!response.ok) {
-        const error = await this.parseJsonResponse<{ detail?: string }>(response).catch((): { detail?: string } => ({}))
+        const error = await parseJsonResponse<{ detail?: string }>(response).catch((): { detail?: string } => ({}))
         throw new Error(error.detail || `Private check failed (HTTP ${response.status})`)
       }
 
-      return this.parseJsonResponse<PrivateCheckResponse>(response)
+      return parseJsonResponse<PrivateCheckResponse>(response)
     } catch (error) {
-      return this.handleFetchError(error)
+      return handleFetchError(error)
     }
   }
 
@@ -153,17 +126,17 @@ class ApiClient {
       })
 
       if (!response.ok) {
-        const error = await this.parseJsonResponse<{ detail?: string }>(response).catch((): { detail?: string } => ({}))
+        const error = await parseJsonResponse<{ detail?: string }>(response).catch((): { detail?: string } => ({}))
         throw new Error(error.detail || `Cloudflare check failed (HTTP ${response.status})`)
       }
 
-      return this.parseJsonResponse<CloudflareCheckResponse>(response)
+      return parseJsonResponse<CloudflareCheckResponse>(response)
     } catch (error) {
-      return this.handleFetchError(error)
+      return handleFetchError(error)
     }
   }
 
-  async getSubnetInfo(network: string, mode: string): Promise<SubnetInfoResponse> {
+  async getSubnetInfo(network: string, mode: CloudMode): Promise<SubnetInfoResponse> {
     try {
       // Get auth headers if enabled
       const authHeaders = this.tokenManager ? await this.tokenManager.getAuthHeaders() : {}
@@ -179,82 +152,91 @@ class ApiClient {
       })
 
       if (!response.ok) {
-        const error = await this.parseJsonResponse<{ detail?: string }>(response).catch((): { detail?: string } => ({}))
+        const error = await parseJsonResponse<{ detail?: string }>(response).catch((): { detail?: string } => ({}))
         throw new Error(error.detail || `Subnet info failed (HTTP ${response.status})`)
       }
 
-      return this.parseJsonResponse<SubnetInfoResponse>(response)
+      return parseJsonResponse<SubnetInfoResponse>(response)
     } catch (error) {
-      return this.handleFetchError(error)
+      return handleFetchError(error)
     }
   }
 
-  async performLookup(
-    address: string,
-    mode: string
-  ): Promise<{
-    results: ApiResults
-    timing: Array<{ call: string; requestTime: string; responseTime: string; duration: number }>
-  }> {
+  async performLookup(address: string, mode: CloudMode): Promise<LookupResult> {
+    const overallStart = performance.now()
+    const apiCalls: LookupResult['timing']['apiCalls'] = []
     const results: ApiResults = {}
-    const timing: Array<{ call: string; requestTime: string; responseTime: string; duration: number }> = []
 
-    // Validate
+    const isV6 = isIpv6(address)
+
+    // 1. Validate address
     const validateStart = performance.now()
     const validateRequestTime = new Date().toISOString()
     results.validate = await this.validateAddress(address)
-    const validateResponseTime = new Date().toISOString()
-    timing.push({
+    const validateDuration = performance.now() - validateStart
+    apiCalls.push({
       call: 'validate',
       requestTime: validateRequestTime,
-      responseTime: validateResponseTime,
-      duration: performance.now() - validateStart,
+      responseTime: new Date().toISOString(),
+      duration: Math.round(validateDuration),
     })
 
-    // Check if private
-    try {
-      const privateStart = performance.now()
-      const privateRequestTime = new Date().toISOString()
-      results.private = await this.checkPrivate(address)
-      const privateResponseTime = new Date().toISOString()
-      timing.push({
-        call: 'checkPrivate',
-        requestTime: privateRequestTime,
-        responseTime: privateResponseTime,
-        duration: performance.now() - privateStart,
-      })
-    } catch (e) {
-      // IPv6 addresses don't support this endpoint
-      console.log('Private check skipped:', e)
+    // 2. Check if RFC1918 (private) - IPv4 only
+    if (!isV6) {
+      try {
+        const privateStart = performance.now()
+        const privateRequestTime = new Date().toISOString()
+        results.private = await this.checkPrivate(address)
+        const privateDuration = performance.now() - privateStart
+        apiCalls.push({
+          call: 'checkPrivate',
+          requestTime: privateRequestTime,
+          responseTime: new Date().toISOString(),
+          duration: Math.round(privateDuration),
+        })
+      } catch (e) {
+        // IPv6 addresses don't support this endpoint
+        console.log('Private check skipped:', e)
+      }
     }
 
-    // Check if Cloudflare
+    // 3. Check if Cloudflare
     const cloudflareStart = performance.now()
     const cloudflareRequestTime = new Date().toISOString()
     results.cloudflare = await this.checkCloudflare(address)
-    const cloudflareResponseTime = new Date().toISOString()
-    timing.push({
+    const cloudflareDuration = performance.now() - cloudflareStart
+    apiCalls.push({
       call: 'checkCloudflare',
       requestTime: cloudflareRequestTime,
-      responseTime: cloudflareResponseTime,
-      duration: performance.now() - cloudflareStart,
+      responseTime: new Date().toISOString(),
+      duration: Math.round(cloudflareDuration),
     })
 
-    // Get subnet info if it's a network
+    // 4. Get subnet info if it's a network
     if (results.validate.type === 'network') {
       const subnetStart = performance.now()
       const subnetRequestTime = new Date().toISOString()
       results.subnet = await this.getSubnetInfo(address, mode)
-      const subnetResponseTime = new Date().toISOString()
-      timing.push({
-        call: 'getSubnetInfo',
+      const subnetDuration = performance.now() - subnetStart
+      apiCalls.push({
+        call: 'subnetInfo',
         requestTime: subnetRequestTime,
-        responseTime: subnetResponseTime,
-        duration: performance.now() - subnetStart,
+        responseTime: new Date().toISOString(),
+        duration: Math.round(subnetDuration),
       })
     }
 
-    return { results, timing }
+    const overallDuration = performance.now() - overallStart
+
+    return {
+      results,
+      timing: {
+        overallDuration: Math.round(overallDuration),
+        renderingDuration: 0, // Will be calculated by UI
+        totalDuration: Math.round(overallDuration),
+        apiCalls,
+      },
+    }
   }
 }
 
