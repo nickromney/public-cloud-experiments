@@ -1,8 +1,10 @@
+import base64
+import json
 import os
 from datetime import datetime, timedelta
 
 import requests
-from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask import Flask, jsonify, redirect, render_template, request, send_from_directory
 from flask_session import Session
 
 from auth import init_auth
@@ -19,8 +21,18 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 Session(app)
 
-# Initialize Entra ID authentication (optional - only if env vars are set)
-auth = init_auth(app)
+# Detect authentication method: Easy Auth (Azure) or MSAL (local)
+# WEBSITE_HOSTNAME is set by Azure App Service and Container Apps
+USE_EASY_AUTH = bool(os.getenv("WEBSITE_HOSTNAME"))
+
+if USE_EASY_AUTH:
+    # Running in Azure with Easy Auth - platform handles authentication
+    print("Using Azure Easy Auth (platform-level authentication)")
+    auth = None
+else:
+    # Running locally or without Easy Auth - use MSAL library
+    print("Using MSAL library (application-level authentication)")
+    auth = init_auth(app)
 
 # API base URL - configurable via environment variable
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:7071/api/v1")
@@ -35,6 +47,76 @@ JWT_PASSWORD = os.getenv("JWT_PASSWORD")
 # Token cache (in-memory, resets on restart)
 _jwt_token = None
 _jwt_token_expires = None
+
+
+def get_user_info() -> dict | None:
+    """
+    Get authenticated user information from either Easy Auth or MSAL.
+    Works in both Azure (Easy Auth) and local (MSAL) environments.
+
+    Returns:
+        dict with user info (name, email, etc.) or None if not authenticated
+    """
+    if USE_EASY_AUTH:
+        # Azure Easy Auth - read from injected headers
+        principal_b64 = request.headers.get("X-MS-CLIENT-PRINCIPAL")
+        if not principal_b64:
+            return None
+
+        try:
+            # Decode base64-encoded JSON principal
+            principal_json = base64.b64decode(principal_b64)
+            principal = json.loads(principal_json)
+
+            # Extract user information from claims
+            claims = {claim["typ"]: claim["val"] for claim in principal.get("claims", [])}
+
+            return {
+                "name": claims.get("name") or claims.get("preferred_username", "User"),
+                "email": claims.get("email") or claims.get("preferred_username"),
+                "id": principal.get("userId"),
+                "provider": principal.get("identityProvider"),
+                "claims": claims,
+            }
+        except Exception as e:
+            print(f"Error decoding Easy Auth principal: {e}")
+            return None
+    else:
+        # MSAL library - read from session
+        return auth.get_user() if auth else None
+
+
+def is_authenticated() -> bool:
+    """
+    Check if user is authenticated in either Easy Auth or MSAL.
+
+    Returns:
+        True if user is authenticated, False otherwise
+    """
+    if USE_EASY_AUTH:
+        # Easy Auth - check for principal header
+        return bool(request.headers.get("X-MS-CLIENT-PRINCIPAL"))
+    else:
+        # MSAL library - check session
+        return auth.is_authenticated() if auth else False
+
+
+def require_authentication():
+    """
+    Enforce authentication requirement.
+    Redirects to login if user is not authenticated.
+
+    Returns:
+        Redirect to login page if not authenticated, None otherwise
+    """
+    if not is_authenticated():
+        if USE_EASY_AUTH:
+            # Easy Auth - redirect to platform login
+            return redirect("/.auth/login/aad")
+        else:
+            # MSAL - use library login
+            return auth.login() if auth else None
+    return None
 
 
 def get_jwt_token() -> str | None:
@@ -255,14 +337,15 @@ def favicon_ico():
 @app.route("/", methods=["GET", "POST"])
 def index():
     """Main page - handles both GET and traditional form POST (no-JS fallback)"""
-    # Apply authentication if configured
-    if auth and auth.is_authenticated() is False:
-        return auth.login()
+    # Apply authentication if configured (works with both Easy Auth and MSAL)
+    auth_redirect = require_authentication()
+    if auth_redirect:
+        return auth_redirect
 
     # Get API health status for display
     api_health = get_api_health()
-    # Get user info if authenticated
-    user_info = auth.get_user() if auth else None
+    # Get user info (works with both Easy Auth and MSAL)
+    user_info = get_user_info()
 
     if request.method == "POST":
         # Traditional form submission (no JavaScript)
@@ -347,6 +430,22 @@ def lookup():
         )
     except Exception as e:
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
+
+@app.route("/logout")
+def logout():
+    """
+    Logout route that works with both Easy Auth and MSAL.
+    Redirects to appropriate logout endpoint based on environment.
+    """
+    if USE_EASY_AUTH:
+        # Easy Auth - redirect to platform logout
+        return redirect("/.auth/logout")
+    else:
+        # MSAL - use library logout
+        if auth:
+            return auth.logout()
+        return redirect("/")
 
 
 if __name__ == "__main__":

@@ -24,6 +24,10 @@ A modern web frontend for the IP Subnet Calculator API with IPv4 and IPv6 suppor
 - **Theme Switcher**: Toggle between dark mode (default) and light mode with preference saved
 - **Mobile Responsive**: Works seamlessly on phones, tablets, and desktops
 - **Modern UI**: Clean, responsive design using Pico CSS
+- **Hybrid Authentication**:
+  - **Azure deployment**: Uses Easy Auth (platform-level, zero code)
+  - **Local development**: Uses MSAL library (application-level)
+  - Automatic environment detection - single codebase for both
 - **Progressive Enhancement**:
   - Works without JavaScript (server-side rendering fallback)
   - Readable without CSS (semantic HTML structure)
@@ -70,6 +74,36 @@ uv run gunicorn --bind 0.0.0.0:8000 --workers 4 app:app
 ```
 
 ## Configuration
+
+### Authentication
+
+The Flask app uses **hybrid authentication** - automatically detecting the environment:
+
+**Azure Deployment (Easy Auth)**:
+
+- Authentication handled by Azure platform (Web App or Container Apps)
+- No environment variables needed for auth
+- Zero code changes required
+- See [EASY-AUTH-SETUP.md](EASY-AUTH-SETUP.md) for setup guide
+
+**Local Development (MSAL)**:
+
+- Authentication handled by MSAL library in code
+- Requires environment variables:
+
+```bash
+export AZURE_CLIENT_ID="your-client-id"
+export AZURE_CLIENT_SECRET="your-client-secret"
+export AZURE_TENANT_ID="your-tenant-id"
+export REDIRECT_URI="http://localhost:5000/auth/callback"
+```
+
+**Optional authentication**:
+
+- If auth env vars are not set, the app runs without authentication
+- Useful for local testing without Entra ID setup
+
+### API Configuration
 
 The API base URL can be configured via environment variable:
 
