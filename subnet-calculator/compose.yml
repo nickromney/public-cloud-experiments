@@ -9,6 +9,8 @@
 #   - frontend-python-flask-container-app: Flask frontend (connects to Container App backend)
 #   - frontend-typescript-vite: TypeScript + Vite SPA (connects to Container App backend, no auth)
 #   - frontend-typescript-vite-jwt: TypeScript + Vite SPA (connects to Azure Function backend, JWT auth)
+#   - frontend-react: React SPA (connects to Container App backend, no auth)
+#   - frontend-react-msal: React SPA (connects to Azure Function backend, MSAL local)
 #
 # Usage:
 #   podman-compose up                           # Start all services
@@ -17,6 +19,8 @@
 #   podman-compose up api-fastapi-azure-function frontend-python-flask                # local-stack-03
 #   podman-compose up api-fastapi-container-app frontend-typescript-vite              # local-stack-04
 #   podman-compose up api-fastapi-azure-function frontend-typescript-vite-jwt         # local-stack-05
+#   podman-compose up api-fastapi-container-app frontend-react                        # local-stack-06
+#   podman-compose up api-fastapi-azure-function frontend-react-msal                  # local-stack-07 (requires MSAL config)
 #
 # Access:
 #   local-stack-01 - Static HTML + Container App (no auth):
@@ -36,6 +40,13 @@
 #     - Vite SPA: http://localhost:3001
 #     - API docs: http://localhost:8080/api/v1/docs
 #     - JWT: Automatic authentication (demo / password123)
+#   local-stack-06 - React + Container App (no auth):
+#     - React SPA: http://localhost:8004
+#     - API docs: http://localhost:8090/api/v1/docs
+#   local-stack-07 - React + Azure Function (MSAL local):
+#     - React SPA: http://localhost:3002
+#     - API docs: http://localhost:8080/api/v1/docs
+#     - Auth: MSAL (requires Azure AD app registration)
 services:
   api-fastapi-azure-function:
     build:
@@ -88,6 +99,10 @@ services:
       # No authentication for local development (static frontend doesn't implement JWT)
       # For JWT auth testing, use the standalone api-fastapi-container-app/compose.yml
       - AUTH_METHOD=none
+      # CORS origins for all frontends (container and local dev)
+      # Container ports: 8001-8004 (static, flask, typescript, react)
+      # Local dev ports: 3000-3002 (react/typescript dev), 5000 (flask dev), 5173-5174 (vite dev servers)
+      - CORS_ORIGINS=http://localhost:8001,http://localhost:8002,http://localhost:8003,http://localhost:8004,http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5000,http://localhost:5173,http://localhost:5174
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
       interval: 10s
@@ -123,8 +138,8 @@ services:
 
   frontend-typescript-vite:
     build:
-      context: ./frontend-typescript-vite
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./frontend-typescript-vite/Dockerfile
       args:
         - VITE_AUTH_ENABLED=false
         - VITE_API_URL=http://localhost:8090
@@ -142,8 +157,8 @@ services:
 
   frontend-typescript-vite-jwt:
     build:
-      context: ./frontend-typescript-vite
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./frontend-typescript-vite/Dockerfile
       args:
         - VITE_AUTH_ENABLED=true
         - VITE_JWT_USERNAME=demo
@@ -158,6 +173,46 @@ services:
       - VITE_JWT_USERNAME=demo
       - VITE_JWT_PASSWORD=password123
       - VITE_API_URL=http://localhost:8080
+    depends_on:
+      api-fastapi-azure-function:
+        condition: service_healthy
+
+  frontend-react:
+    build:
+      context: .
+      dockerfile: ./frontend-react/Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8090
+        - VITE_AUTH_METHOD=none
+    platform: linux/amd64
+    image: subnet-calculator-frontend-react:latest
+    ports:
+      - "8004:80"
+    environment:
+      - VITE_API_URL=http://localhost:8090
+      - VITE_AUTH_METHOD=none
+    depends_on:
+      api-fastapi-container-app:
+        condition: service_healthy
+
+  frontend-react-msal:
+    build:
+      context: .
+      dockerfile: ./frontend-react/Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8080
+        - VITE_AUTH_METHOD=msal
+        # Note: MSAL requires Azure AD app registration
+        # Set these via environment variables or .env file:
+        # - VITE_AZURE_CLIENT_ID=your-client-id
+        # - VITE_AZURE_TENANT_ID=your-tenant-id
+    platform: linux/amd64
+    image: subnet-calculator-frontend-react-msal:latest
+    ports:
+      - "3002:80"
+    environment:
+      - VITE_API_URL=http://localhost:8080
+      - VITE_AUTH_METHOD=msal
     depends_on:
       api-fastapi-azure-function:
         condition: service_healthy

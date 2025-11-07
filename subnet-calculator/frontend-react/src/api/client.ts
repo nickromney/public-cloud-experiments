@@ -1,35 +1,27 @@
 /**
- * API client for subnet calculator
+ * API Client for subnet calculator
+ * Supports both IPv4 and IPv6 lookups with performance timing
  */
 
 import type { IApiClient } from '@subnet-calculator/shared-frontend/api'
-import { handleFetchError, isIpv6, parseJsonResponse } from '@subnet-calculator/shared-frontend/api'
-import type { CloudMode } from '@subnet-calculator/shared-frontend/types'
-import { TokenManager } from './auth'
-import { API_CONFIG } from './config'
+import { getApiPrefix, handleFetchError, isIpv6, parseJsonResponse } from '@subnet-calculator/shared-frontend/api'
+import { APP_CONFIG } from '../config'
 import type {
-  ApiResults,
+  ApiCallTiming,
   CloudflareCheckResponse,
+  CloudMode,
   HealthResponse,
   LookupResult,
   PrivateCheckResponse,
   SubnetInfoResponse,
   ValidateResponse,
-} from './types'
+} from '../types'
 
 class ApiClient implements IApiClient {
   private baseUrl: string
-  private tokenManager: TokenManager | null
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl
-
-    // Initialize TokenManager if auth is enabled
-    if (API_CONFIG.auth.enabled) {
-      this.tokenManager = new TokenManager(baseUrl, API_CONFIG.auth.username, API_CONFIG.auth.password)
-    } else {
-      this.tokenManager = null
-    }
   }
 
   getBaseUrl(): string {
@@ -38,13 +30,7 @@ class ApiClient implements IApiClient {
 
   async checkHealth(): Promise<HealthResponse> {
     try {
-      // Get auth headers if enabled
-      const authHeaders = this.tokenManager ? await this.tokenManager.getAuthHeaders() : {}
-
-      const response = await fetch(`${this.baseUrl}${API_CONFIG.paths.health}`, {
-        headers: {
-          ...authHeaders,
-        },
+      const response = await fetch(`${this.baseUrl}/api/v1/health`, {
         signal: AbortSignal.timeout(5000), // 5 second timeout
       })
 
@@ -60,22 +46,19 @@ class ApiClient implements IApiClient {
 
   async validateAddress(address: string): Promise<ValidateResponse> {
     try {
-      // Get auth headers if enabled
-      const authHeaders = this.tokenManager ? await this.tokenManager.getAuthHeaders() : {}
-
-      const response = await fetch(`${this.baseUrl}${API_CONFIG.paths.validate}`, {
+      const apiPrefix = getApiPrefix(address)
+      const response = await fetch(`${this.baseUrl}${apiPrefix}/validate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders,
         },
         body: JSON.stringify({ address }),
         signal: AbortSignal.timeout(10000), // 10 second timeout
       })
 
       if (!response.ok) {
-        const error = await parseJsonResponse<{ detail?: string }>(response).catch((): { detail?: string } => ({}))
-        throw new Error(error.detail || `Validation failed (HTTP ${response.status})`)
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }))
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
 
       return parseJsonResponse<ValidateResponse>(response)
@@ -86,22 +69,18 @@ class ApiClient implements IApiClient {
 
   async checkPrivate(address: string): Promise<PrivateCheckResponse> {
     try {
-      // Get auth headers if enabled
-      const authHeaders = this.tokenManager ? await this.tokenManager.getAuthHeaders() : {}
-
-      const response = await fetch(`${this.baseUrl}${API_CONFIG.paths.checkPrivate}`, {
+      const response = await fetch(`${this.baseUrl}/api/v1/ipv4/check-private`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders,
         },
         body: JSON.stringify({ address }),
         signal: AbortSignal.timeout(10000),
       })
 
       if (!response.ok) {
-        const error = await parseJsonResponse<{ detail?: string }>(response).catch((): { detail?: string } => ({}))
-        throw new Error(error.detail || `Private check failed (HTTP ${response.status})`)
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }))
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
 
       return parseJsonResponse<PrivateCheckResponse>(response)
@@ -112,22 +91,19 @@ class ApiClient implements IApiClient {
 
   async checkCloudflare(address: string): Promise<CloudflareCheckResponse> {
     try {
-      // Get auth headers if enabled
-      const authHeaders = this.tokenManager ? await this.tokenManager.getAuthHeaders() : {}
-
-      const response = await fetch(`${this.baseUrl}${API_CONFIG.paths.checkCloudflare}`, {
+      const apiPrefix = getApiPrefix(address)
+      const response = await fetch(`${this.baseUrl}${apiPrefix}/check-cloudflare`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders,
         },
         body: JSON.stringify({ address }),
         signal: AbortSignal.timeout(10000),
       })
 
       if (!response.ok) {
-        const error = await parseJsonResponse<{ detail?: string }>(response).catch((): { detail?: string } => ({}))
-        throw new Error(error.detail || `Cloudflare check failed (HTTP ${response.status})`)
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }))
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
 
       return parseJsonResponse<CloudflareCheckResponse>(response)
@@ -138,22 +114,19 @@ class ApiClient implements IApiClient {
 
   async getSubnetInfo(network: string, mode: CloudMode): Promise<SubnetInfoResponse> {
     try {
-      // Get auth headers if enabled
-      const authHeaders = this.tokenManager ? await this.tokenManager.getAuthHeaders() : {}
-
-      const response = await fetch(`${this.baseUrl}${API_CONFIG.paths.subnetInfo}`, {
+      const apiPrefix = getApiPrefix(network)
+      const response = await fetch(`${this.baseUrl}${apiPrefix}/subnet-info`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...authHeaders,
         },
         body: JSON.stringify({ network, mode }),
         signal: AbortSignal.timeout(10000),
       })
 
       if (!response.ok) {
-        const error = await parseJsonResponse<{ detail?: string }>(response).catch((): { detail?: string } => ({}))
-        throw new Error(error.detail || `Subnet info failed (HTTP ${response.status})`)
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }))
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
 
       return parseJsonResponse<SubnetInfoResponse>(response)
@@ -162,10 +135,13 @@ class ApiClient implements IApiClient {
     }
   }
 
+  /**
+   * Perform complete lookup with timing information
+   */
   async performLookup(address: string, mode: CloudMode): Promise<LookupResult> {
     const overallStart = performance.now()
-    const apiCalls: LookupResult['timing']['apiCalls'] = []
-    const results: ApiResults = {}
+    const apiCalls: ApiCallTiming[] = []
+    const results: LookupResult['results'] = {}
 
     const isV6 = isIpv6(address)
 
@@ -183,21 +159,16 @@ class ApiClient implements IApiClient {
 
     // 2. Check if RFC1918 (private) - IPv4 only
     if (!isV6) {
-      try {
-        const privateStart = performance.now()
-        const privateRequestTime = new Date().toISOString()
-        results.private = await this.checkPrivate(address)
-        const privateDuration = performance.now() - privateStart
-        apiCalls.push({
-          call: 'checkPrivate',
-          requestTime: privateRequestTime,
-          responseTime: new Date().toISOString(),
-          duration: Math.round(privateDuration),
-        })
-      } catch (e) {
-        // IPv6 addresses don't support this endpoint
-        console.log('Private check skipped:', e)
-      }
+      const privateStart = performance.now()
+      const privateRequestTime = new Date().toISOString()
+      results.private = await this.checkPrivate(address)
+      const privateDuration = performance.now() - privateStart
+      apiCalls.push({
+        call: 'checkPrivate',
+        requestTime: privateRequestTime,
+        responseTime: new Date().toISOString(),
+        duration: Math.round(privateDuration),
+      })
     }
 
     // 3. Check if Cloudflare
@@ -240,4 +211,5 @@ class ApiClient implements IApiClient {
   }
 }
 
-export const apiClient = new ApiClient(API_CONFIG.baseUrl)
+// Export singleton instance
+export const apiClient = new ApiClient(APP_CONFIG.apiBaseUrl)

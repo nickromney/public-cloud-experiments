@@ -1,5 +1,5 @@
 /**
- * Type definitions for TypeScript frontend
+ * Type definitions for React frontend
  * Re-exports from shared package for backwards compatibility
  */
 
@@ -14,4 +14,5 @@ export type {
   ApiCallTiming,
   PerformanceTiming,
   LookupResult,
+  UserInfo,
 } from '@subnet-calculator/shared-frontend'

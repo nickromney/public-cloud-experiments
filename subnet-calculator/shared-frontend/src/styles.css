@@ -1,4 +1,4 @@
-/* Minimal custom styles for subnet calculator */
+/* Shared styles for subnet calculator frontends */
 
 /* Top bar for theme switcher and user info */
 .top-bar {
@@ -13,7 +13,7 @@
 }
 
 /* Theme switcher button */
-#theme-switcher {
+.top-bar button {
   padding: 0.5rem 1rem;
   border-radius: 4px;
   font-size: 0.875rem;
@@ -21,38 +21,14 @@
 }
 
 /* User info display */
-#user-info {
+.user-info {
   background: var(--pico-card-background-color);
   border: 1px solid var(--pico-muted-border-color);
   border-radius: 4px;
   padding: 0.5rem 1rem;
-}
-
-.user-display {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.user-icon {
-  font-size: 1.2rem;
-}
-
-.user-name {
-  font-weight: 500;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.logout-btn,
-.login-btn {
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  cursor: pointer;
-  margin-left: 0.5rem;
 }
 
 /* Layout */
@@ -93,38 +69,9 @@ header {
   margin-top: 0.5rem;
 }
 
-.example-btn {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.9rem;
-  border-radius: 4px;
-  border: 1px solid;
-  cursor: pointer;
-  background: #f0f0f0;
-}
-
-.example-btn:hover {
-  background: #e0e0e0;
-}
-
-.btn-rfc1918 {
-  border-color: #9333ea;
-  color: #9333ea;
-}
-.btn-rfc6598 {
-  border-color: #ea580c;
-  color: #ea580c;
-}
-.btn-public {
-  border-color: #16a34a;
-  color: #16a34a;
-}
-.btn-cloudflare {
-  border-color: #0284c7;
-  color: #0284c7;
-}
-.btn-network {
-  border-color: #7c3aed;
-  color: #7c3aed;
+.example-buttons button {
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
 }
 
 /* Alerts */
@@ -148,12 +95,6 @@ html[data-theme="light"] .alert-success {
   color: #065f46;
 }
 
-html[data-theme="light"] .alert-warning {
-  background: #fef3c7;
-  border-color: #f59e0b;
-  color: #92400e;
-}
-
 html[data-theme="light"] .alert-error {
   background: #fee2e2;
   border-color: #ef4444;
@@ -173,22 +114,13 @@ html[data-theme="dark"] .alert-success {
   color: #6ee7b7;
 }
 
-html[data-theme="dark"] .alert-warning {
-  background: rgba(245, 158, 11, 0.15);
-  border-color: #f59e0b;
-  color: #fbbf24;
-}
-
 html[data-theme="dark"] .alert-error {
   background: rgba(239, 68, 68, 0.15);
   border-color: #ef4444;
   color: #fca5a5;
 }
 
-.alert a {
-  text-decoration: underline;
-}
-
+/* Code elements in alerts */
 .alert code {
   background: rgba(0, 0, 0, 0.2);
   padding: 0.1rem 0.3rem;
@@ -196,52 +128,10 @@ html[data-theme="dark"] .alert-error {
   font-size: 0.85rem;
 }
 
-/* Utility classes */
-.hidden {
-  display: none !important;
-}
-
-.text-center {
+/* Loading spinner center */
+.loading-center {
   text-align: center;
-}
-
-/* Loading spinner */
-.spinner {
-  display: inline-block;
-  width: 2rem;
-  height: 2rem;
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #3498db;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-/* Table highlight */
-tr.highlight {
-  background-color: rgba(59, 130, 246, 0.15);
-}
-
-html[data-theme="light"] tr.highlight {
-  background-color: #dbeafe;
-}
-
-/* Results section */
-.results-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  background: var(--pico-card-background-color);
-  border-bottom: 1px solid var(--pico-muted-border-color);
+  margin: 2rem 0;
 }
 
 /* Responsive */
@@ -256,10 +146,12 @@ html[data-theme="light"] tr.highlight {
     width: 100%;
   }
 
-  .results-header {
+  .example-buttons {
     flex-direction: column;
-    gap: 0.5rem;
-    align-items: flex-start;
+  }
+
+  .example-buttons button {
+    width: 100%;
   }
 }
 
@@ -267,12 +159,4 @@ html[data-theme="light"] tr.highlight {
 .performance-timing {
   background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(33, 150, 243, 0.1) 100%);
   border-left: 4px solid var(--pico-primary);
-}
-
-.performance-timing h3 {
-  margin-bottom: 1rem;
-}
-
-.performance-timing table {
-  margin-bottom: 0.5rem;
 }
