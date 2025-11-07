@@ -2,10 +2,10 @@
 
 /* Top bar for theme switcher and user info */
 .top-bar {
-  position: fixed !important;
-  top: 1rem !important;
-  right: 1rem !important;
-  left: auto !important;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  left: auto;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;

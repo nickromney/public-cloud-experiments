@@ -82,4 +82,4 @@ export interface UserInfo {
   username?: string
 }
 
-export type CloudMode = 'standard' | 'simple' | 'expert'
+export type CloudMode = 'Standard' | 'AWS' | 'Azure' | 'OCI'

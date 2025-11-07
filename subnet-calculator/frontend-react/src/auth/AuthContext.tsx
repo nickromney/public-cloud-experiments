@@ -33,9 +33,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const authMethod = APP_CONFIG.auth.method
 
-  // MSAL hooks (only used when authMethod === 'msal')
-  const { instance, accounts } =
-    authMethod === 'msal' ? useMsal() : { instance: null, accounts: [] }
+  // MSAL hooks - must always call hooks unconditionally (React rules)
+  // When not using MSAL, instance will be null but hook must still be called
+  const msalResult = useMsal()
+  const instance = authMethod === 'msal' ? msalResult.instance : null
+  const accounts = authMethod === 'msal' ? msalResult.accounts : []
 
   // Initialize authentication based on method
   useEffect(() => {
@@ -81,8 +83,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
             break
           }
-
-          case 'none':
           default:
             // No authentication
             setIsAuthenticated(true) // Allow access without auth
@@ -111,8 +111,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           instance.loginRedirect(loginRequest)
         }
         break
-
-      case 'none':
       default:
         // No-op
         break
@@ -131,8 +129,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           instance.logoutRedirect()
         }
         break
-
-      case 'none':
       default:
         // No-op
         break

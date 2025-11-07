@@ -4,11 +4,11 @@
  * Uses Pico CSS with minimal inline styles
  */
 
-import { useState, useEffect } from 'react'
-import { useAuth } from '../auth/AuthContext'
+import { useEffect, useState } from 'react'
 import { apiClient } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
 import { APP_CONFIG } from '../config'
-import type { CloudMode, LookupResult, HealthResponse } from '../types'
+import type { CloudMode, HealthResponse, LookupResult } from '../types'
 
 interface SubnetCalculatorProps {
   theme: 'light' | 'dark'
@@ -19,7 +19,7 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
   const { user, isAuthenticated, isLoading: authLoading, login, logout } = useAuth()
 
   const [ipAddress, setIpAddress] = useState('')
-  const [cloudMode, setCloudMode] = useState<CloudMode>('standard')
+  const [cloudMode, setCloudMode] = useState<CloudMode>('Azure')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [results, setResults] = useState<LookupResult | null>(null)
@@ -100,9 +100,14 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
 
         {/* API Status */}
         {apiHealth && (
-          <div className="alert alert-success" role="status">
-            <strong>API Connected:</strong> {apiHealth.service} v{apiHealth.version}
-          </div>
+          <output className="alert alert-success" data-testid="api-status">
+            <strong>API Status:</strong> healthy | <strong>Backend:</strong> {apiHealth.service} |{' '}
+            <strong>Version:</strong> {apiHealth.version}
+            <br />
+            <small>
+              Frontend: <code>{window.location.origin}/</code> | Backend: <code>{apiClient.getBaseUrl()}</code>
+            </small>
+          </output>
         )}
         {apiError && (
           <div className="alert alert-error" role="alert">
@@ -124,14 +129,11 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
                   placeholder="e.g., 192.168.1.1 or 10.0.0.0/24"
                   required
                 />
-                <select
-                  id="cloud-mode"
-                  value={cloudMode}
-                  onChange={e => setCloudMode(e.target.value as CloudMode)}
-                >
-                  <option value="standard">Standard</option>
-                  <option value="simple">Simple</option>
-                  <option value="expert">Expert</option>
+                <select id="cloud-mode" value={cloudMode} onChange={e => setCloudMode(e.target.value as CloudMode)}>
+                  <option value="Standard">Standard</option>
+                  <option value="AWS">AWS</option>
+                  <option value="Azure">Azure</option>
+                  <option value="OCI">OCI</option>
                 </select>
                 <button type="submit" disabled={isLoading || !ipAddress}>
                   Lookup
@@ -144,14 +146,14 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
               <button type="button" className="secondary outline" onClick={() => handleExampleClick('10.0.0.0/24')}>
                 RFC1918: 10.0.0.0/24
               </button>
-              <button type="button" className="outline" onClick={() => handleExampleClick('8.8.8.8')}>
+              <button type="button" className="outline" onClick={() => handleExampleClick('100.64.0.1')}>
+                RFC6598: 100.64.0.1
+              </button>
+              <button type="button" className="contrast outline" onClick={() => handleExampleClick('8.8.8.8')}>
                 Public: 8.8.8.8
               </button>
-              <button type="button" className="contrast outline" onClick={() => handleExampleClick('104.16.1.1')}>
+              <button type="button" className="secondary" onClick={() => handleExampleClick('104.16.1.1')}>
                 Cloudflare: 104.16.1.1
-              </button>
-              <button type="button" className="secondary" onClick={() => handleExampleClick('2001:db8::/32')}>
-                IPv6: 2001:db8::/32
               </button>
             </div>
           </form>
@@ -159,9 +161,9 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
 
         {/* Loading */}
         {isLoading && (
-          <div className="loading-center" role="status">
+          <output className="loading-center">
             <div aria-busy="true">Loading...</div>
-          </div>
+          </output>
         )}
 
         {/* Error */}
@@ -183,19 +185,27 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
                 <table>
                   <tbody>
                     <tr>
-                      <td><strong>Valid</strong></td>
+                      <td>
+                        <strong>Valid</strong>
+                      </td>
                       <td>{results.results.validate.valid ? 'Yes' : 'No'}</td>
                     </tr>
                     <tr>
-                      <td><strong>Type</strong></td>
+                      <td>
+                        <strong>Type</strong>
+                      </td>
                       <td>{results.results.validate.type}</td>
                     </tr>
                     <tr>
-                      <td><strong>Address</strong></td>
+                      <td>
+                        <strong>Address</strong>
+                      </td>
                       <td>{results.results.validate.address}</td>
                     </tr>
                     <tr>
-                      <td><strong>IP Version</strong></td>
+                      <td>
+                        <strong>IP Version</strong>
+                      </td>
                       <td>{results.results.validate.is_ipv6 ? 'IPv6' : 'IPv4'}</td>
                     </tr>
                   </tbody>
@@ -210,12 +220,16 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
                 <table>
                   <tbody>
                     <tr>
-                      <td><strong>Is RFC1918</strong></td>
+                      <td>
+                        <strong>Is RFC1918</strong>
+                      </td>
                       <td>{results.results.private.is_rfc1918 ? 'Yes' : 'No'}</td>
                     </tr>
                     {results.results.private.matched_rfc1918_range && (
                       <tr>
-                        <td><strong>Matched Range</strong></td>
+                        <td>
+                          <strong>Matched Range</strong>
+                        </td>
                         <td>{results.results.private.matched_rfc1918_range}</td>
                       </tr>
                     )}
@@ -231,13 +245,17 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
                 <table>
                   <tbody>
                     <tr>
-                      <td><strong>Is Cloudflare</strong></td>
+                      <td>
+                        <strong>Is Cloudflare</strong>
+                      </td>
                       <td>{results.results.cloudflare.is_cloudflare ? 'Yes' : 'No'}</td>
                     </tr>
                     {results.results.cloudflare.matched_ranges &&
                       results.results.cloudflare.matched_ranges.length > 0 && (
                         <tr>
-                          <td><strong>Matched Ranges</strong></td>
+                          <td>
+                            <strong>Matched Ranges</strong>
+                          </td>
                           <td>{results.results.cloudflare.matched_ranges.join(', ')}</td>
                         </tr>
                       )}
@@ -253,41 +271,59 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
                 <table>
                   <tbody>
                     <tr>
-                      <td><strong>Network</strong></td>
+                      <td>
+                        <strong>Network</strong>
+                      </td>
                       <td>{results.results.subnet.network}</td>
                     </tr>
                     <tr>
-                      <td><strong>Network Address</strong></td>
+                      <td>
+                        <strong>Network Address</strong>
+                      </td>
                       <td>{results.results.subnet.network_address}</td>
                     </tr>
                     {results.results.subnet.broadcast_address && (
                       <tr>
-                        <td><strong>Broadcast Address</strong></td>
+                        <td>
+                          <strong>Broadcast Address</strong>
+                        </td>
                         <td>{results.results.subnet.broadcast_address}</td>
                       </tr>
                     )}
                     <tr>
-                      <td><strong>Netmask</strong></td>
+                      <td>
+                        <strong>Netmask</strong>
+                      </td>
                       <td>{results.results.subnet.netmask}</td>
                     </tr>
                     <tr>
-                      <td><strong>Prefix Length</strong></td>
+                      <td>
+                        <strong>Prefix Length</strong>
+                      </td>
                       <td>/{results.results.subnet.prefix_length}</td>
                     </tr>
                     <tr>
-                      <td><strong>Total Addresses</strong></td>
+                      <td>
+                        <strong>Total Addresses</strong>
+                      </td>
                       <td>{results.results.subnet.total_addresses.toLocaleString()}</td>
                     </tr>
                     <tr>
-                      <td><strong>Usable Addresses</strong></td>
+                      <td>
+                        <strong>Usable Addresses</strong>
+                      </td>
                       <td>{results.results.subnet.usable_addresses.toLocaleString()}</td>
                     </tr>
                     <tr>
-                      <td><strong>First Usable IP</strong></td>
+                      <td>
+                        <strong>First Usable IP</strong>
+                      </td>
                       <td>{results.results.subnet.first_usable_ip}</td>
                     </tr>
                     <tr>
-                      <td><strong>Last Usable IP</strong></td>
+                      <td>
+                        <strong>Last Usable IP</strong>
+                      </td>
                       <td>{results.results.subnet.last_usable_ip}</td>
                     </tr>
                   </tbody>
@@ -301,7 +337,9 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
               <table>
                 <tbody>
                   <tr>
-                    <td><strong>Total Response Time</strong></td>
+                    <td>
+                      <strong>Total Response Time</strong>
+                    </td>
                     <td>
                       <strong>{results.timing.totalDuration}ms</strong> (
                       {(results.timing.totalDuration / 1000).toFixed(3)}s)
@@ -326,7 +364,9 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
                     {results.timing.apiCalls.map((call, index) => (
                       <tr key={`${call.call}-${index}`}>
                         <td>{call.call}</td>
-                        <td><strong>{call.duration}ms</strong></td>
+                        <td>
+                          <strong>{call.duration}ms</strong>
+                        </td>
                         <td>{new Date(call.requestTime).toLocaleString()}</td>
                         <td>{new Date(call.responseTime).toLocaleString()}</td>
                       </tr>

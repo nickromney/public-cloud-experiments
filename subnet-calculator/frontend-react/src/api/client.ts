@@ -37,7 +37,7 @@ class ApiClient {
 
     try {
       return await response.json()
-    } catch (error) {
+    } catch (_error) {
       throw new Error('Failed to parse API response. The API may be starting up or in an error state.')
     }
   }
