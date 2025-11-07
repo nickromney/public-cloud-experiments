@@ -98,25 +98,15 @@ export function getAppConfig(): AppConfig {
 
   // API Base URL priority: Runtime > Window > Environment > Default (relative for SWA)
   const apiBaseUrl =
-    window.RUNTIME_CONFIG?.API_BASE_URL ||
-    import.meta.env.VITE_API_URL ||
-    (isAzureSWA() ? '' : 'http://localhost:7071')
+    window.RUNTIME_CONFIG?.API_BASE_URL || import.meta.env.VITE_API_URL || (isAzureSWA() ? '' : 'http://localhost:7071')
 
   // MSAL configuration (only used when authMethod === 'msal')
-  const clientId =
-    window.RUNTIME_CONFIG?.AZURE_CLIENT_ID ||
-    import.meta.env.VITE_AZURE_CLIENT_ID ||
-    ''
+  const clientId = window.RUNTIME_CONFIG?.AZURE_CLIENT_ID || import.meta.env.VITE_AZURE_CLIENT_ID || ''
 
-  const tenantId =
-    window.RUNTIME_CONFIG?.AZURE_TENANT_ID ||
-    import.meta.env.VITE_AZURE_TENANT_ID ||
-    'common'
+  const tenantId = window.RUNTIME_CONFIG?.AZURE_TENANT_ID || import.meta.env.VITE_AZURE_TENANT_ID || 'common'
 
   const redirectUri =
-    window.RUNTIME_CONFIG?.AZURE_REDIRECT_URI ||
-    import.meta.env.VITE_AZURE_REDIRECT_URI ||
-    window.location.origin
+    window.RUNTIME_CONFIG?.AZURE_REDIRECT_URI || import.meta.env.VITE_AZURE_REDIRECT_URI || window.location.origin
 
   // Determine stack name for display
   let stackName = 'React + TypeScript + Vite'

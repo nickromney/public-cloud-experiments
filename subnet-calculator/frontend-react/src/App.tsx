@@ -1,34 +1,51 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { PublicClientApplication } from '@azure/msal-browser'
+import { MsalProvider } from '@azure/msal-react'
+import { useEffect, useState } from 'react'
+import { AuthProvider } from './auth/AuthContext'
+import { msalConfig } from './auth/msalConfig'
+import { SubnetCalculator } from './components/SubnetCalculator'
+import { APP_CONFIG } from './config'
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+// Initialize MSAL instance only if using MSAL auth
+const msalInstance =
+  APP_CONFIG.auth.method === 'msal' && APP_CONFIG.auth.clientId ? new PublicClientApplication(msalConfig) : null
 
+function App() {
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
+
+  // Load theme preference from localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
+    if (savedTheme) {
+      setTheme(savedTheme)
+      document.documentElement.setAttribute('data-theme', savedTheme)
+    }
+  }, [])
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(newTheme)
+    localStorage.setItem('theme', newTheme)
+    document.documentElement.setAttribute('data-theme', newTheme)
+  }
+
+  // Wrap with MsalProvider only if using MSAL
+  if (APP_CONFIG.auth.method === 'msal' && msalInstance) {
+    return (
+      <MsalProvider instance={msalInstance}>
+        <AuthProvider>
+          <SubnetCalculator theme={theme} onToggleTheme={toggleTheme} />
+        </AuthProvider>
+      </MsalProvider>
+    )
+  }
+
+  // For Easy Auth, SWA, or no auth - use AuthProvider directly
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <AuthProvider>
+      <SubnetCalculator theme={theme} onToggleTheme={toggleTheme} />
+    </AuthProvider>
   )
 }
 

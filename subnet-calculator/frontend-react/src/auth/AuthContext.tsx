@@ -8,15 +8,11 @@
  */
 
 import { useMsal } from '@azure/msal-react'
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import type React from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { APP_CONFIG } from '../config'
 import type { UserInfo } from '../types'
-import {
-  easyAuthLogin,
-  easyAuthLogout,
-  getEasyAuthUser,
-  isEasyAuthAuthenticated,
-} from './easyAuthProvider'
+import { easyAuthLogin, easyAuthLogout, getEasyAuthUser, isEasyAuthAuthenticated } from './easyAuthProvider'
 import { loginRequest } from './msalConfig'
 
 interface AuthContextType {
@@ -38,7 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authMethod = APP_CONFIG.auth.method
 
   // MSAL hooks (only used when authMethod === 'msal')
-  const { instance, accounts, inProgress } = authMethod === 'msal' ? useMsal() : { instance: null, accounts: [], inProgress: 'none' }
+  const { instance, accounts, inProgress } =
+    authMethod === 'msal' ? useMsal() : { instance: null, accounts: [], inProgress: 'none' }
 
   // Initialize authentication based on method
   useEffect(() => {

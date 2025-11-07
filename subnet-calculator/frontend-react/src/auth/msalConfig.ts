@@ -3,7 +3,7 @@
  * Used when AUTH_METHOD === 'msal'
  */
 
-import { Configuration, LogLevel } from '@azure/msal-browser'
+import { type Configuration, LogLevel } from '@azure/msal-browser'
 import { APP_CONFIG } from '../config'
 
 /**
