@@ -26,12 +26,13 @@ resource "azurerm_resource_group" "this" {
 }
 
 data "azurerm_resource_group" "this" {
-  name = var.resource_group_name
+  count = var.create_resource_group ? 0 : 1
+  name  = var.resource_group_name
 }
 
 locals {
   rg_name = var.resource_group_name
-  rg_loc  = data.azurerm_resource_group.this.location
+  rg_loc  = var.create_resource_group ? azurerm_resource_group.this[0].location : data.azurerm_resource_group.this[0].location
 }
 
 # -----------------------------------------------------------------------------
