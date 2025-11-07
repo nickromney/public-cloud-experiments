@@ -34,8 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authMethod = APP_CONFIG.auth.method
 
   // MSAL hooks (only used when authMethod === 'msal')
-  const { instance, accounts, inProgress } =
-    authMethod === 'msal' ? useMsal() : { instance: null, accounts: [], inProgress: 'none' }
+  const { instance, accounts } =
+    authMethod === 'msal' ? useMsal() : { instance: null, accounts: [] }
 
   // Initialize authentication based on method
   useEffect(() => {
