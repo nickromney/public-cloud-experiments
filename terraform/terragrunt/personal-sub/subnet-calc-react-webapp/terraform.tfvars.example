@@ -1,0 +1,35 @@
+# Copy to terraform.tfvars and update the placeholders before running terragrunt.
+
+web_app = {
+  plan_sku        = "P1v3"
+  runtime_version = "18-lts"
+  api_base_url    = ""
+  always_on       = true
+  app_settings = {
+    STACK_NAME = "Subnet Calculator React (Easy Auth)"
+  }
+  easy_auth = {
+    client_id      = "00000000-0000-0000-0000-000000000000"
+    client_secret  = "<paste-client-secret>"
+    issuer         = "https://login.microsoftonline.com/<tenant-id>/v2.0"
+    allowed_audiences = [
+      "api://subnet-calculator-react"
+    ]
+    login_parameters = {}
+  }
+}
+
+function_app = {
+  plan_sku             = "P1v3"
+  runtime              = "python"
+  runtime_version      = "3.11"
+  run_from_package     = true
+  storage_account_name = ""
+  cors_allowed_origins = [
+    "https://web-cloud-exp-dev-react.azurewebsites.net",
+    "https://localhost:4173"
+  ]
+  app_settings = {
+    AUTH_METHOD = "none"
+  }
+}
