@@ -114,13 +114,13 @@ This will:
 For each DNS record, Terragrunt runs:
 
 ```bash
-terragrunt import 'module.cloudflare_dns_record.records["<key>"]' '<zone_id>/<record_id>'
+terragrunt import 'cloudflare_dns_record.records["<key>"]' '<zone_id>/<record_id>'
 ```
 
 Example:
 
 ```bash
-terragrunt import 'module.cloudflare_dns_record.records["www"]' 'd338fed554857c1081ad974209c5ef23/abc123def456'
+terragrunt import 'cloudflare_dns_record.records["www"]' 'd338fed554857c1081ad974209c5ef23/abc123def456'
 ```
 
 ### Step 5: Verify State
@@ -133,7 +133,7 @@ make plan
 
 **Expected output:**
 
-```
+```text
 No changes. Your infrastructure matches the configuration.
 ```
 
@@ -187,7 +187,7 @@ Cloudflare DNS records use the format: `<zone_id>/<record_id>`
 - Module: `module.cloudflare_dns_record`
 - Resource type: `records`
 - Key: Record name (e.g., "www", "@", "api")
-- Full address: `module.cloudflare_dns_record.records["www"]`
+- Full address: `cloudflare_dns_record.records["www"]`
 
 ## Troubleshooting
 
@@ -251,7 +251,7 @@ RECORD_ID="abc123def456789"
 
 # Import the record
 terragrunt import \
-  'module.cloudflare_dns_record.records["www"]' \
+  'cloudflare_dns_record.records["www"]' \
   "$ZONE_ID/$RECORD_ID"
 ```
 
@@ -280,13 +280,13 @@ After successful import, your Terraform state contains:
 
 ```bash
 terragrunt state list
-terragrunt state show 'module.cloudflare_dns_record.records["www"]'
+terragrunt state show 'cloudflare_dns_record.records["www"]'
 ```
 
 **To remove a record from state (without deleting):**
 
 ```bash
-terragrunt state rm 'module.cloudflare_dns_record.records["www"]'
+terragrunt state rm 'cloudflare_dns_record.records["www"]'
 ```
 
 ## Best Practices

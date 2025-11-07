@@ -68,12 +68,6 @@ if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
   exit 1
 fi
 
-if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
-  error "CLOUDFLARE_ACCOUNT_ID is not set"
-  error "Run: eval \"\$(./setup-cloudflare-env.sh)\""
-  exit 1
-fi
-
 info "Fetching zone information for: $ZONE_NAME"
 
 # Get zone ID

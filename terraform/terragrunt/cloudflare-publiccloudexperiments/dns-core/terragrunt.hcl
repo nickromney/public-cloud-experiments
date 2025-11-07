@@ -6,7 +6,6 @@ terraform {
   source = "../../modules/cloudflare-site"
 }
 
-# Pass account_id from environment variable
-inputs = {
-  account_id = get_env("CLOUDFLARE_ACCOUNT_ID", "")
-}
+# Records and zone_name are defined in terraform.tfvars
+# Zone ID is also defined in terraform.tfvars
+inputs = {}

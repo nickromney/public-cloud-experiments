@@ -185,9 +185,9 @@ The `import-to-terraform` target uses the `import-to-terraform.sh` script which:
 
 **Import Resource Addressing:**
 
-- Terraform resource: `module.cloudflare_dns_record.records["<key>"]`
+- Terraform resource: `cloudflare_dns_record.records["<key>"]`
 - Cloudflare import ID: `<zone_id>/<record_id>`
-- Example: `terragrunt import 'module.cloudflare_dns_record.records["www"]' 'd338fed554857c1081ad974209c5ef23/abc123def456'`
+- Example: `terragrunt import 'cloudflare_dns_record.records["www"]' 'd338fed554857c1081ad974209c5ef23/abc123def456'`
 
 ### Using with Other Zones
 
