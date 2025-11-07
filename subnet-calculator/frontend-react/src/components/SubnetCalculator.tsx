@@ -120,42 +120,29 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
         <section>
           <form onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="ip-address">
-                IP Address or CIDR Range
+              <label htmlFor="ip-address">IP Address or CIDR Range</label>
+              <div className="form-row">
                 <input
                   type="text"
                   id="ip-address"
-                  placeholder="e.g., 192.168.1.1, 10.0.0.0/24, or 2001:db8::/32"
                   value={ipAddress}
                   onChange={e => setIpAddress(e.target.value)}
+                  placeholder="e.g., 192.168.1.1 or 10.0.0.0/24"
                   required
                 />
-              </label>
-            </div>
-
-            <div className="form-row">
-              <input
-                type="text"
-                value={ipAddress}
-                onChange={e => setIpAddress(e.target.value)}
-                placeholder="e.g., 192.168.1.1 or 10.0.0.0/24"
-                required
-              />
-              <select
-                id="cloud-mode"
-                value={cloudMode}
-                onChange={e => setCloudMode(e.target.value as CloudMode)}
-              >
-                <option value="standard">Standard</option>
-                <option value="simple">Simple</option>
-                <option value="expert">Expert</option>
-              </select>
-              <button type="submit" disabled={isLoading || !ipAddress}>
-                {isLoading ? 'Looking up...' : 'Lookup'}
-              </button>
-              <button type="button" onClick={handleClear} disabled={!ipAddress && !results}>
-                Clear
-              </button>
+                <select
+                  id="cloud-mode"
+                  value={cloudMode}
+                  onChange={e => setCloudMode(e.target.value as CloudMode)}
+                >
+                  <option value="standard">Standard</option>
+                  <option value="simple">Simple</option>
+                  <option value="expert">Expert</option>
+                </select>
+                <button type="submit" disabled={isLoading || !ipAddress}>
+                  Lookup
+                </button>
+              </div>
             </div>
 
             {/* Example Buttons */}
