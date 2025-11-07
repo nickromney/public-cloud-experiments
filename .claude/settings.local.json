@@ -293,7 +293,8 @@
       "Bash(SWA_NAME=\"swa-subnet-calc-entraid-linked\")",
       "Bash(if [ -f \"$file\" ])",
       "Bash(then)",
-      "Bash(swa deploy:*)"
+      "Bash(swa deploy:*)",
+      "WebFetch(domain:picocss.com)"
     ],
     "deny": [],
     "ask": []
