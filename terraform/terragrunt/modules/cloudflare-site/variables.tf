@@ -3,6 +3,11 @@ variable "zone_name" {
   type        = string
 }
 
+variable "zone_id" {
+  description = "Cloudflare zone ID."
+  type        = string
+}
+
 variable "records" {
   description = "Map of DNS records to create, keyed by logical name."
   type = map(object({

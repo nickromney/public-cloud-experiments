@@ -1,5 +1,5 @@
 data "cloudflare_zone" "selected" {
-  name = var.zone_name
+  zone_id = var.zone_id
 }
 
 resource "cloudflare_dns_record" "records" {
@@ -8,7 +8,7 @@ resource "cloudflare_dns_record" "records" {
   zone_id = data.cloudflare_zone.selected.id
   name    = each.key
   type    = each.value.type
-  value   = each.value.value
+  content = each.value.value
 
   ttl      = try(each.value.ttl, null)
   proxied  = try(each.value.proxied, null)
