@@ -110,58 +110,121 @@ def get_api_health() -> dict | None:
 
 def perform_lookup(address: str, mode: str = "Standard") -> dict:
     """
-    Perform IP address lookup against the API
+    Perform IP address lookup against the API (supports both IPv4 and IPv6)
     Raises requests.HTTPError for 4xx errors (bad input)
     Raises requests.RequestException for connection/server errors
+    Returns dict with 'results' and 'timing' keys
     """
+    import time
+
     results = {}
+    timing = []
+
+    # Helper to detect IPv6
+    def is_ipv6(addr: str) -> bool:
+        return ":" in addr
+
+    # Determine API prefix based on address type
+    ip_version = "ipv6" if is_ipv6(address) else "ipv4"
 
     try:
         # Get authentication headers (empty dict if no JWT configured)
         headers = get_auth_headers()
 
+        # Track overall timing
+        overall_start = time.time()
+
         # 1. Validate the address
+        validate_start = time.time()
+        validate_request_time = datetime.now().isoformat()
         validate_response = requests.post(
-            f"{API_BASE_URL}/ipv4/validate",
+            f"{API_BASE_URL}/{ip_version}/validate",
             json={"address": address},
             headers=headers,
             timeout=5,
         )
         validate_response.raise_for_status()
         results["validate"] = validate_response.json()
+        validate_duration = (time.time() - validate_start) * 1000  # ms
+        timing.append({
+            "call": "validate",
+            "requestTime": validate_request_time,
+            "responseTime": datetime.now().isoformat(),
+            "duration": round(validate_duration, 2)
+        })
 
-        # 2. Check if RFC1918 (private)
-        private_response = requests.post(
-            f"{API_BASE_URL}/ipv4/check-private",
-            json={"address": address},
-            headers=headers,
-            timeout=5,
-        )
-        private_response.raise_for_status()
-        results["private"] = private_response.json()
+        # 2. Check if RFC1918 (private) - IPv4 only
+        if ip_version == "ipv4":
+            private_start = time.time()
+            private_request_time = datetime.now().isoformat()
+            private_response = requests.post(
+                f"{API_BASE_URL}/ipv4/check-private",
+                json={"address": address},
+                headers=headers,
+                timeout=5,
+            )
+            private_response.raise_for_status()
+            results["private"] = private_response.json()
+            private_duration = (time.time() - private_start) * 1000  # ms
+            timing.append({
+                "call": "checkPrivate",
+                "requestTime": private_request_time,
+                "responseTime": datetime.now().isoformat(),
+                "duration": round(private_duration, 2)
+            })
 
         # 3. Check if Cloudflare
+        cloudflare_start = time.time()
+        cloudflare_request_time = datetime.now().isoformat()
         cloudflare_response = requests.post(
-            f"{API_BASE_URL}/ipv4/check-cloudflare",
+            f"{API_BASE_URL}/{ip_version}/check-cloudflare",
             json={"address": address},
             headers=headers,
             timeout=5,
         )
         cloudflare_response.raise_for_status()
         results["cloudflare"] = cloudflare_response.json()
+        cloudflare_duration = (time.time() - cloudflare_start) * 1000  # ms
+        timing.append({
+            "call": "checkCloudflare",
+            "requestTime": cloudflare_request_time,
+            "responseTime": datetime.now().isoformat(),
+            "duration": round(cloudflare_duration, 2)
+        })
 
         # 4. Get subnet info if it's a network
         if results["validate"].get("type") == "network":
+            subnet_start = time.time()
+            subnet_request_time = datetime.now().isoformat()
             subnet_response = requests.post(
-                f"{API_BASE_URL}/ipv4/subnet-info",
+                f"{API_BASE_URL}/{ip_version}/subnet-info",
                 json={"network": address, "mode": mode},
                 headers=headers,
                 timeout=5,
             )
             subnet_response.raise_for_status()
             results["subnet"] = subnet_response.json()
+            subnet_duration = (time.time() - subnet_start) * 1000  # ms
+            timing.append({
+                "call": "subnetInfo",
+                "requestTime": subnet_request_time,
+                "responseTime": datetime.now().isoformat(),
+                "duration": round(subnet_duration, 2)
+            })
 
-        return results
+        # Calculate overall timing
+        overall_duration = (time.time() - overall_start) * 1000  # ms
+
+        return {
+            "results": results,
+            "timing": {
+                "overallStart": overall_start,
+                "overallDuration": round(overall_duration, 2),
+                "renderingDuration": 0,  # Will be calculated on client side if needed
+                "totalDuration": round(overall_duration, 2),
+                "apiCalls": timing
+            }
+        }
 
     except requests.HTTPError as e:
         # 4xx errors are client errors (bad input), not API unavailability
@@ -213,10 +276,11 @@ def index():
 
         # Call lookup and render results on same page
         try:
-            results = perform_lookup(address, mode)
+            lookup_data = perform_lookup(address, mode)
             return render_template(
                 "index.html",
-                results=results,
+                results=lookup_data["results"],
+                timing=lookup_data["timing"],
                 address=address,
                 mode=mode,
                 api_health=api_health,
@@ -262,8 +326,8 @@ def lookup():
         return jsonify({"error": "Address is required"}), 400
 
     try:
-        results = perform_lookup(address, mode)
-        return jsonify(results)
+        lookup_data = perform_lookup(address, mode)
+        return jsonify(lookup_data)
 
     except ValueError as e:
         # Bad input (4xx error) - return validation error

@@ -3,14 +3,14 @@
 This test suite implements the canonical frontend test specification.
 See: subnet-calculator/docs/TEST_SPECIFICATION.md
 
-Total: 32 tests (includes progressive enhancement tests)
+Total: 35 tests (includes progressive enhancement + IPv6 support tests)
 """
 
 from playwright.sync_api import Page, expect
 
 
 class TestFrontend:
-    """Frontend tests using Playwright - all 32 canonical tests"""
+    """Frontend tests using Playwright - all 35 tests (32 canonical + 3 IPv6)"""
 
     # Group 0: Essential Resources (1 test)
 
@@ -31,7 +31,7 @@ class TestFrontend:
     def test_01_page_loads(self, page: Page, base_url: str):
         """Test 01: Verify the page loads and displays the main heading"""
         page.goto(base_url)
-        expect(page.locator("h1")).to_contain_text("IPv4 Subnet Calculator")
+        expect(page.locator("h1")).to_contain_text("IP Subnet Calculator")
 
     def test_02_form_elements_present(self, page: Page, base_url: str):
         """Test 02: Verify all required form elements exist and are visible"""
@@ -78,7 +78,7 @@ class TestFrontend:
         input_field = page.locator("#ip-address")
         placeholder = input_field.get_attribute("placeholder")
         assert placeholder is not None
-        assert "192.168" in placeholder or "10.0.0.0" in placeholder
+        assert "192.168" in placeholder or "10.0.0.0" in placeholder or "2001:db8" in placeholder
 
     def test_05_semantic_html_structure(self, page: Page, base_url: str):
         """Test 05: Verify page uses proper semantic HTML elements"""
@@ -144,11 +144,16 @@ class TestFrontend:
         """Test 10: Verify all example buttons exist"""
         page.goto(base_url)
 
-        # Check all example buttons
+        # Check all example buttons (IPv4)
         expect(page.locator(".btn-rfc1918")).to_be_visible()
         expect(page.locator(".btn-rfc6598")).to_be_visible()
         expect(page.locator(".btn-public")).to_be_visible()
-        expect(page.locator(".btn-cloudflare")).to_be_visible()
+
+        # IPv6 button
+        expect(page.locator(".btn-ipv6")).to_be_visible()
+
+        # Cloudflare buttons (both IPv4 and IPv6)
+        expect(page.locator(".btn-cloudflare").first).to_be_visible()
 
     # Group 4: Responsive Layout (3 tests)
 
@@ -431,3 +436,38 @@ class TestFrontend:
         # There are 2 noscript tags: one in <head> for CSS, one in <body> for warning
         noscript_content = page.locator("noscript")
         expect(noscript_content).to_have_count(2)
+
+    # Group 11: IPv6 Support (3 tests)
+
+    def test_33_ipv6_address_validation(self, page: Page, base_url: str):
+        """Test 33: Verify IPv6 addresses pass validation"""
+        page.goto(base_url)
+
+        # Test IPv6 address
+        page.fill("#ip-address", "2001:db8::1")
+
+        # Validation error should not be visible
+        error = page.locator("#validation-error")
+        expect(error).not_to_be_visible()
+
+    def test_34_ipv6_cidr_validation(self, page: Page, base_url: str):
+        """Test 34: Verify IPv6 CIDR notation passes validation"""
+        page.goto(base_url)
+
+        # Test IPv6 CIDR
+        page.fill("#ip-address", "2001:db8::/32")
+
+        # Validation error should not be visible
+        error = page.locator("#validation-error")
+        expect(error).not_to_be_visible()
+
+    def test_35_ipv6_example_button_works(self, page: Page, base_url: str):
+        """Test 35: Verify IPv6 example button populates input"""
+        page.goto(base_url)
+
+        # Click IPv6 example button
+        page.click("text=IPv6: 2001:db8::/32")
+
+        # Input should be populated with IPv6 address
+        input_value = page.input_value("#ip-address")
+        assert input_value == "2001:db8::/32"
