@@ -100,14 +100,14 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
 
         {/* API Status */}
         {apiHealth && (
-          <output className="alert alert-success" data-testid="api-status">
+          <div id="api-status" className="alert alert-success">
             <strong>API Status:</strong> healthy | <strong>Backend:</strong> {apiHealth.service} |{' '}
             <strong>Version:</strong> {apiHealth.version}
             <br />
             <small>
               Frontend: <code>{window.location.origin}/</code> | Backend: <code>{apiClient.getBaseUrl()}</code>
             </small>
-          </output>
+          </div>
         )}
         {apiError && (
           <div className="alert alert-error" role="alert">
@@ -161,9 +161,9 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
 
         {/* Loading */}
         {isLoading && (
-          <output className="loading-center">
+          <div className="loading-center" role="status">
             <div aria-busy="true">Loading...</div>
-          </output>
+          </div>
         )}
 
         {/* Error */}
