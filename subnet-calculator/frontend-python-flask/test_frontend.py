@@ -466,7 +466,7 @@ class TestFrontend:
         page.goto(base_url)
 
         # Click IPv6 example button
-        page.click("text=IPv6: 2001:db8::/32")
+        page.click(".btn-ipv6")
 
         # Input should be populated with IPv6 address
         input_value = page.input_value("#ip-address")

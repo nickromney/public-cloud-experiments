@@ -1,6 +1,8 @@
 import base64
 import json
+import logging
 import os
+import time
 from datetime import datetime, timedelta
 
 import requests
@@ -78,8 +80,8 @@ def get_user_info() -> dict | None:
                 "provider": principal.get("identityProvider"),
                 "claims": claims,
             }
-        except Exception as e:
-            print(f"Error decoding Easy Auth principal: {e}")
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
+            logging.error(f"Error decoding Easy Auth principal: {type(e).__name__}: {e}")
             return None
     else:
         # MSAL library - read from session
@@ -197,8 +199,6 @@ def perform_lookup(address: str, mode: str = "Standard") -> dict:
     Raises requests.RequestException for connection/server errors
     Returns dict with 'results' and 'timing' keys
     """
-    import time
-
     results = {}
     timing = []
 
@@ -232,7 +232,7 @@ def perform_lookup(address: str, mode: str = "Standard") -> dict:
             "call": "validate",
             "requestTime": validate_request_time,
             "responseTime": datetime.now().isoformat(),
-            "duration": round(validate_duration, 2)
+            "duration": round(validate_duration, 0)
         })
 
         # 2. Check if RFC1918 (private) - IPv4 only
@@ -252,7 +252,7 @@ def perform_lookup(address: str, mode: str = "Standard") -> dict:
                 "call": "checkPrivate",
                 "requestTime": private_request_time,
                 "responseTime": datetime.now().isoformat(),
-                "duration": round(private_duration, 2)
+                "duration": round(private_duration, 0)
             })
 
         # 3. Check if Cloudflare
@@ -271,7 +271,7 @@ def perform_lookup(address: str, mode: str = "Standard") -> dict:
             "call": "checkCloudflare",
             "requestTime": cloudflare_request_time,
             "responseTime": datetime.now().isoformat(),
-            "duration": round(cloudflare_duration, 2)
+            "duration": round(cloudflare_duration, 0)
         })
 
         # 4. Get subnet info if it's a network
@@ -291,7 +291,7 @@ def perform_lookup(address: str, mode: str = "Standard") -> dict:
                 "call": "subnetInfo",
                 "requestTime": subnet_request_time,
                 "responseTime": datetime.now().isoformat(),
-                "duration": round(subnet_duration, 2)
+                "duration": round(subnet_duration, 0)
             })
 
         # Calculate overall timing
@@ -300,10 +300,9 @@ def perform_lookup(address: str, mode: str = "Standard") -> dict:
         return {
             "results": results,
             "timing": {
-                "overallStart": overall_start,
-                "overallDuration": round(overall_duration, 2),
+                "overallDuration": round(overall_duration, 0),
                 "renderingDuration": 0,  # Will be calculated on client side if needed
-                "totalDuration": round(overall_duration, 2),
+                "totalDuration": round(overall_duration, 0),
                 "apiCalls": timing
             }
         }
