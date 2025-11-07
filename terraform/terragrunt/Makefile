@@ -34,7 +34,18 @@ help: ## Show this help message
 setup: ## Run setup script to configure environment (idempotent)
 	@./setup-env.sh
 	@echo ""
-	@echo "$(YELLOW)Note: You still need to export the variables shown above$(NC)"
+	@echo "$(YELLOW)Note: You still need to export the variables shown above.$(NC)"
+	@echo "$(YELLOW)If you use direnv, copy those exports into $(PWD)/.envrc and run 'direnv allow'.$(NC)"
+ifneq (,$(shell command -v az 2>/dev/null))
+	@echo ""
+	@echo "Detected Azure CLI. Available resource groups:"
+	@az group list --query "[].{name:name,location:location}" -o table
+	@echo ""
+	@echo "You can populate TF_BACKEND_RG with one of the names above."
+else
+	@echo ""
+	@echo "$(YELLOW)Azure CLI not detected; skipping resource group listing.$(NC)"
+endif
 
 .PHONY: check-terragrunt
 check-terragrunt: ## Check if terragrunt is installed
