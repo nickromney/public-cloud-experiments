@@ -55,7 +55,9 @@ readonly LOCATION="${LOCATION:-uksouth}"
 readonly FUNCTION_APP_PLAN_NAME="${FUNCTION_APP_PLAN_NAME:-plan-subnet-calc-private}"
 readonly FUNCTION_APP_PLAN_SKU="${FUNCTION_APP_PLAN_SKU:-P0V3}"
 readonly FUNCTION_APP_NAME="${FUNCTION_APP_NAME:-func-subnet-calc-private-endpoint}"
-readonly FUNCTION_STORAGE_TAG="purpose=func-subnet-calc-private-endpoint"
+readonly FUNCTION_STORAGE_TAG_NAME="purpose"
+readonly FUNCTION_STORAGE_TAG_VALUE="func-subnet-calc-private-endpoint"
+readonly FUNCTION_STORAGE_TAG="${FUNCTION_STORAGE_TAG_NAME}=${FUNCTION_STORAGE_TAG_VALUE}"
 readonly FUNCTION_STORAGE_PREFIX="${FUNCTION_STORAGE_PREFIX:-stfuncprivateep}"
 readonly WEB_APP_PLAN_NAME="${WEB_APP_PLAN_NAME:-plan-subnet-calc-web}"
 readonly WEB_APP_PLAN_SKU="${WEB_APP_PLAN_SKU:-S1}"
@@ -133,7 +135,7 @@ log_step "Ensuring Function App exists..."
 # Attempt to reuse tagged storage account
 STORAGE_ACCOUNT_NAME=$(az storage account list \
   --resource-group "${RESOURCE_GROUP}" \
-  --query "[?tags.purpose=='${FUNCTION_STORAGE_TAG#purpose=}'].name | [0]" -o tsv)
+  --query "[?tags.${FUNCTION_STORAGE_TAG_NAME}=='${FUNCTION_STORAGE_TAG_VALUE}'].name | [0]" -o tsv)
 if [[ -z "${STORAGE_ACCOUNT_NAME}" ]]; then
   STORAGE_ACCOUNT_NAME="${FUNCTION_STORAGE_PREFIX}$(openssl rand -hex 3)"
 fi

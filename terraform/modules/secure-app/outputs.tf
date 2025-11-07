@@ -35,7 +35,7 @@ output "apim_name" {
 
 output "apim_private_ip" {
   description = "Private IP address allocated to API Management."
-  value       = azurerm_api_management.this.private_ip_addresses[0]
+  value       = try(azurerm_api_management.this.private_ip_addresses[0], null)
 }
 
 output "web_app_identity_principal_id" {

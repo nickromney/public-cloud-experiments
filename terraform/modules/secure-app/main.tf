@@ -328,8 +328,8 @@ resource "azurerm_api_management_backend" "function" {
   url                 = "https://${azurerm_linux_function_app.this.default_hostname}"
   resource_id         = azurerm_linux_function_app.this.id
   tls {
-    validate_certificate_chain = false
-    validate_certificate_name  = false
+    validate_certificate_chain = true
+    validate_certificate_name  = true
   }
 }
 
@@ -367,8 +367,10 @@ resource "azuread_application" "apim_api" {
     description          = "Invoke the APIM-protected API"
     display_name         = "Invoke"
     enabled              = true
-    id                   = uuidv5("6ba7b811-9dad-11d1-80b4-00c04fd430c8", "${var.project_name}-${var.environment}-invoke-role")
-    value                = "invoke"
+    # Generate deterministic UUID using DNS namespace (RFC 4122 Appendix C)
+    # Ensures consistent role ID across terraform apply runs for same project/environment
+    id    = uuidv5("6ba7b811-9dad-11d1-80b4-00c04fd430c8", "${var.project_name}-${var.environment}-invoke-role")
+    value = "invoke"
   }
 }
 
