@@ -36,7 +36,7 @@ log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 # Resolve directories
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-FRONTEND_DIR="${PROJECT_ROOT}/frontend-typescript-vite"
+FRONTEND_DIR="${FRONTEND_DIR:-${PROJECT_ROOT}/frontend-typescript-vite}"
 
 # Ensure Azure CLI session
 if ! az account show &>/dev/null; then
@@ -65,6 +65,7 @@ readonly APP_SERVICE_NAME="${APP_SERVICE_NAME:-web-subnet-calc-private}"
 readonly APP_SERVICE_PLAN_NAME="${APP_SERVICE_PLAN_NAME:-plan-subnet-calc-web}"
 readonly API_BASE_URL="${API_BASE_URL:-https://apim-subnet-calc-05845.azure-api.net/api/subnet-calc}"
 readonly STACK_NAME="${STACK_NAME:-Subnet Calculator}"
+readonly NODE_VERSION="${NODE_VERSION:-20}"
 
 log_info "Configuration:"
 log_info "  Resource Group:        ${RESOURCE_GROUP}"
@@ -87,15 +88,21 @@ fi
 
 # Create app if missing
 if ! az webapp show --name "${APP_SERVICE_NAME}" --resource-group "${RESOURCE_GROUP}" &>/dev/null; then
-  log_info "Creating App Service ${APP_SERVICE_NAME} on plan ${APP_SERVICE_PLAN_NAME} (Node 18 LTS)..."
+  log_info "Creating App Service ${APP_SERVICE_NAME} on plan ${APP_SERVICE_PLAN_NAME} (Node ${NODE_VERSION} LTS)..."
   az webapp create \
     --name "${APP_SERVICE_NAME}" \
     --resource-group "${RESOURCE_GROUP}" \
     --plan "${APP_SERVICE_PLAN_NAME}" \
-    --runtime "NODE|18-lts" \
+    --runtime "NODE|${NODE_VERSION}-lts" \
     --output none
 else
   log_info "App Service ${APP_SERVICE_NAME} already exists – will update deployment."
+  log_info "Ensuring runtime version is set to Node ${NODE_VERSION} LTS..."
+  az webapp config set \
+    --name "${APP_SERVICE_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --linux-fx-version "NODE|${NODE_VERSION}-lts" \
+    --output none
 fi
 
 # Build the frontend
@@ -193,7 +200,7 @@ az webapp config appsettings set \
     API_BASE_URL="${API_BASE_URL}" \
     STACK_NAME="${STACK_NAME}" \
     SCM_DO_BUILD_DURING_DEPLOYMENT=false \
-    WEBSITE_NODE_DEFAULT_VERSION="~18" \
+    WEBSITE_NODE_DEFAULT_VERSION="~${NODE_VERSION}" \
   --output none
 
 # Ensure site listens via npm start

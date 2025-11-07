@@ -15,15 +15,15 @@ repos:
     rev: v1.96.1
     hooks:
       - id: terraform_fmt
-        exclude: ^terraform/claranet-tfwrapper/
+        exclude: ^terraform/(claranet-tfwrapper|terragrunt/modules)/
       - id: terraform_validate
-        exclude: ^terraform/claranet-tfwrapper/
+        exclude: ^terraform/(claranet-tfwrapper|terragrunt/modules)/
       - id: terraform_tflint
-        exclude: ^terraform/claranet-tfwrapper/
+        exclude: ^terraform/(claranet-tfwrapper|terragrunt/modules)/
         args:
           - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
       - id: terraform_trivy
-        exclude: ^terraform/claranet-tfwrapper/
+        exclude: ^terraform/(claranet-tfwrapper|terragrunt/modules)/
 
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks

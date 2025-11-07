@@ -1,0 +1,24 @@
+# DNS records managed by this stack.
+
+records = {
+  "@" = {
+    type    = "A"
+    value   = "203.0.113.10"
+    proxied = true
+    ttl     = 300
+    comment = "Primary apex record"
+  }
+
+  "www" = {
+    type    = "CNAME"
+    value   = "app.publiccloudexperiments.net"
+    proxied = true
+  }
+
+  "_sip._tls" = {
+    type     = "SRV"
+    value    = "1 443 sipdir.online.lync.com"
+    priority = 10
+    ttl      = 3600
+  }
+}
