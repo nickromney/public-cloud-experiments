@@ -46,6 +46,10 @@ provider "azurerm" {
   # Disable auto-registration for Pluralsight sandbox (limited permissions)
   resource_provider_registrations = "none"
 }
+
+provider "azuread" {
+  tenant_id = "${get_env("ARM_TENANT_ID", "")}"
+}
 EOF
 }
 
@@ -61,6 +65,10 @@ terraform {
     azurerm = {
       source  = "hashicorp/azurerm"
       version = "~> 4.40"
+    }
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 2.47"
     }
   }
 }

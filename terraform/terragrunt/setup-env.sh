@@ -9,6 +9,61 @@
 #
 set -euo pipefail
 
+# ---------------------------------------------------------------------------
+# Selection helpers (borrowed from subnet-calculator selection utilities)
+# ---------------------------------------------------------------------------
+
+select_from_list() {
+  local prompt="$1"
+  shift
+  local items=("$@")
+  local count=${#items[@]}
+
+  if [[ "${count}" -eq 0 ]]; then
+    return 1
+  fi
+
+  local i=1
+  for item in "${items[@]}"; do
+    echo "  ${i}. ${item}" >/dev/tty
+    ((i++))
+  done
+  echo "" >/dev/tty
+
+  local selection
+  while true; do
+    read -r -p "${prompt} (1-${count}) or name: " selection
+
+    if [[ -z "${selection}" ]]; then
+      echo "Selection is required" >&2
+      continue
+    fi
+
+    if [[ "${selection}" =~ ^[0-9]+$ ]]; then
+      if [[ "${selection}" -ge 1 && "${selection}" -le "${count}" ]]; then
+        local selected_item="${items[$((selection - 1))]}"
+        local selected_name
+        selected_name=$(echo "${selected_item}" | awk '{print $1}')
+        printf "%s" "${selected_name}"
+        return 0
+      else
+        echo "Invalid selection. Enter a number between 1 and ${count}" >&2
+        continue
+      fi
+    else
+      for item in "${items[@]}"; do
+        local item_name
+        item_name=$(echo "${item}" | awk '{print $1}')
+        if [[ "${item_name}" == "${selection}" ]]; then
+          printf "%s" "${selection}"
+          return 0
+        fi
+      done
+      echo "Invalid selection '${selection}'. Enter number (1-${count}) or exact name" >&2
+    fi
+  done
+}
+
 # Parse arguments
 RESOURCE_GROUP=""
 while [[ $# -gt 0 ]]; do
@@ -139,9 +194,11 @@ if [[ -z "${RESOURCE_GROUP}" ]]; then
   else
     # Multiple resource groups - show list
     echo "Available resource groups:"
-    az group list --query "[].[name,location]" -o tsv | awk '{printf "  - %s (%s)\n", $1, $2}'
-    echo ""
-    read -r -p "Enter resource group name for state storage: " RESOURCE_GROUP
+    declare -a rg_items=()
+    while IFS=$'\t' read -r name location; do
+      rg_items+=("${name} (${location})")
+    done < <(az group list --query "[].[name,location]" -o tsv)
+    RESOURCE_GROUP=$(select_from_list "Select resource group for state storage" "${rg_items[@]}")
   fi
 fi
 
@@ -176,52 +233,28 @@ fi
 
 # Auto-detect storage if not set
 if [[ -z "${TF_BACKEND_SA:-}" ]]; then
-  # Check for storage accounts matching our pattern (sttfstate*)
-  TFSTATE_ACCOUNTS=$(az storage account list --resource-group "${TF_BACKEND_RG}" --query "[?starts_with(name, 'sttfstate')].name" -o tsv)
-  TFSTATE_COUNT=$(echo "${TFSTATE_ACCOUNTS}" | grep -c "^sttfstate" || true)
+  mapfile -t TFSTATE_ROWS < <(az storage account list \
+    --resource-group "${TF_BACKEND_RG}" \
+    --query "[?tags.purpose=='terraform-state'].[name,location]" \
+    -o tsv)
+
+  TFSTATE_COUNT=${#TFSTATE_ROWS[@]}
 
   if [[ "${TFSTATE_COUNT}" -eq 1 ]]; then
-    # Found exactly one matching storage account
-    TF_BACKEND_SA=$(echo "${TFSTATE_ACCOUNTS}" | head -n 1)
+    IFS=$'\t' read -r TF_BACKEND_SA _ <<<"${TFSTATE_ROWS[0]}"
     TF_BACKEND_CONTAINER="terraform-states"
-
-    echo "✓ Found terraform state storage account: ${TF_BACKEND_SA}"
-
-    # Check if container exists
-    if az storage container show --name "${TF_BACKEND_CONTAINER}" --account-name "${TF_BACKEND_SA}" --auth-mode login &>/dev/null 2>&1; then
-      echo "✓ Container exists: ${TF_BACKEND_CONTAINER}"
-      echo ""
-      read -r -p "Use this storage account? (Y/n): " use_storage
-      use_storage=${use_storage:-y}
-      if [[ ! "${use_storage}" =~ ^[Yy]$ ]]; then
-        unset TF_BACKEND_SA TF_BACKEND_CONTAINER
-      fi
-    else
-      echo "→ Creating container: ${TF_BACKEND_CONTAINER}"
-      az storage container create \
-        --name "${TF_BACKEND_CONTAINER}" \
-        --account-name "${TF_BACKEND_SA}" \
-        --auth-mode login
-    fi
+    echo "✓ Found terraform state storage account: ${TF_BACKEND_SA} (tag purpose=terraform-state)"
   elif [[ "${TFSTATE_COUNT}" -gt 1 ]]; then
-    # Multiple matching accounts - let user choose
-    echo "Found ${TFSTATE_COUNT} terraform state storage accounts:"
-    echo "${TFSTATE_ACCOUNTS}" | awk '{printf "  - %s\n", $1}'
-    echo ""
-    read -r -p "Enter storage account name: " TF_BACKEND_SA
+    echo "Found ${TFSTATE_COUNT} storage accounts tagged purpose=terraform-state:"
+    declare -a sa_items=()
+    for row in "${TFSTATE_ROWS[@]}"; do
+      IFS=$'\t' read -r name location <<<"${row}"
+      sa_items+=("${name} (${location})")
+    done
+    TF_BACKEND_SA=$(select_from_list "Select storage account" "${sa_items[@]}")
     TF_BACKEND_CONTAINER="terraform-states"
-
-    # Ensure container exists
-    if ! az storage container show --name "${TF_BACKEND_CONTAINER}" --account-name "${TF_BACKEND_SA}" --auth-mode login &>/dev/null 2>&1; then
-      echo "→ Creating container: ${TF_BACKEND_CONTAINER}"
-      az storage container create \
-        --name "${TF_BACKEND_CONTAINER}" \
-        --account-name "${TF_BACKEND_SA}" \
-        --auth-mode login
-    fi
   else
-    # No matching storage accounts - create one
-    echo "No terraform state storage account found. Creating one..."
+    echo "No storage account tagged purpose=terraform-state found. Creating one..."
 
     TF_BACKEND_SA="sttfstate$(date +%Y%m%d%H%M)"
     TF_BACKEND_CONTAINER="terraform-states"
@@ -246,6 +279,54 @@ if [[ -z "${TF_BACKEND_SA:-}" ]]; then
 
     echo "✓ Storage created successfully"
   fi
+
+  # Ensure container exists for selected storage account
+  if [[ -n "${TF_BACKEND_SA:-}" ]]; then
+    if ! az storage container show --name "${TF_BACKEND_CONTAINER}" --account-name "${TF_BACKEND_SA}" --auth-mode login &>/dev/null 2>&1; then
+      echo "→ Creating container: ${TF_BACKEND_CONTAINER}"
+      az storage container create \
+        --name "${TF_BACKEND_CONTAINER}" \
+        --account-name "${TF_BACKEND_SA}" \
+        --auth-mode login
+    fi
+  fi
+fi
+
+# Check data-plane RBAC on storage account
+STORAGE_SCOPE=$(az storage account show --name "${TF_BACKEND_SA}" --resource-group "${TF_BACKEND_RG}" --query id -o tsv)
+CURRENT_OBJECT_ID=$(az ad signed-in-user show --query id -o tsv 2>/dev/null || true)
+
+if [[ -n "${CURRENT_OBJECT_ID}" ]]; then
+  ROLE_MATCH=$(az role assignment list \
+    --assignee "${CURRENT_OBJECT_ID}" \
+    --scope "${STORAGE_SCOPE}" \
+    --query "[?roleDefinitionName=='Storage Blob Data Contributor' || roleDefinitionName=='Storage Blob Data Owner' || roleDefinitionName=='Owner'].roleDefinitionName" \
+    -o tsv)
+
+  if [[ -n "${ROLE_MATCH}" ]]; then
+    echo "✓ Storage data-plane role detected for current identity: ${ROLE_MATCH}"
+  else
+    echo "⚠️  Current identity is missing Storage Blob Data permissions on ${TF_BACKEND_SA}."
+    read -r -p "Grant Storage Blob Data Contributor role to this identity now? (y/N): " grant_role
+    grant_role=${grant_role:-n}
+    if [[ "${grant_role}" =~ ^[Yy]$ ]]; then
+      echo "→ Assigning Storage Blob Data Contributor role..."
+      az role assignment create \
+        --role "Storage Blob Data Contributor" \
+        --assignee "${CURRENT_OBJECT_ID}" \
+        --scope "${STORAGE_SCOPE}" \
+        --only-show-errors >/dev/null
+      echo "✓ Role assignment requested. Propagation can take up to a minute."
+    else
+      echo "    Skipped automatic role assignment."
+      echo "    You can run:"
+      echo "      az role assignment create --role \"Storage Blob Data Contributor\" \\"
+      echo "        --assignee ${CURRENT_OBJECT_ID} --scope ${STORAGE_SCOPE}"
+      echo ""
+    fi
+  fi
+else
+  echo "⚠️  Unable to resolve signed-in user object ID (skipping storage RBAC check)."
 fi
 
 # Configure terraform.tfvars
@@ -273,7 +354,7 @@ echo ""
 echo "✓ Configuration complete!"
 echo ""
 echo "================================================================"
-echo "Copy and paste these commands into your shell:"
+echo "Copy and paste these commands into your shell (bash or zsh):"
 echo "================================================================"
 echo ""
 echo "export ARM_SUBSCRIPTION_ID='${ARM_SUBSCRIPTION_ID}'"
@@ -284,7 +365,20 @@ echo "export TF_BACKEND_CONTAINER='${TF_BACKEND_CONTAINER}'"
 echo ""
 echo "================================================================"
 echo ""
-echo "Or add them to your shell profile (~/.zshrc or ~/.bashrc)"
+echo "Or add them to your shell profile:"
+echo "  • Bash: ~/.bashrc"
+echo "  • Zsh:  ~/.zshrc"
+echo ""
+echo "NuShell equivalent (add to ~/.config/nushell/env.nu):"
+echo "================================================================"
+echo ""
+echo "let-env ARM_SUBSCRIPTION_ID '${ARM_SUBSCRIPTION_ID}'"
+echo "let-env ARM_TENANT_ID '${ARM_TENANT_ID}'"
+echo "let-env TF_BACKEND_RG '${TF_BACKEND_RG}'"
+echo "let-env TF_BACKEND_SA '${TF_BACKEND_SA}'"
+echo "let-env TF_BACKEND_CONTAINER '${TF_BACKEND_CONTAINER}'"
+echo ""
+echo "================================================================"
 echo ""
 echo "Next steps:"
 echo "  1. Run the export commands above"
