@@ -10,7 +10,8 @@ resource "cloudflare_dns_record" "records" {
   type    = each.value.type
   content = each.value.value
 
-  ttl      = try(each.value.ttl, null)
+  # TTL must be 1 (automatic) for proxied records, otherwise use provided value or null
+  ttl      = try(each.value.proxied, false) == true ? 1 : try(each.value.ttl, null)
   proxied  = try(each.value.proxied, null)
   priority = try(each.value.priority, null)
   comment  = try(each.value.comment, null)
