@@ -1,0 +1,45 @@
+# Network configuration
+vnet_cidr = "10.120.0.0/22"
+
+subnets = {
+  web_integration_cidr   = "10.120.0.0/24"
+  private_endpoints_cidr = "10.120.1.0/24"
+  apim_cidr              = "10.120.2.0/24"
+}
+
+# Web App configuration
+web_app = {
+  name                    = ""           # Auto-generated if empty
+  plan_sku                = "P1v3"       # P0v3, P1v3, P2v3, etc
+  runtime_version         = "18-lts"     # Node.js version
+  api_base_url            = ""           # Set after APIM deployment
+  always_on               = true
+  cloudflare_only         = false        # Set true to restrict to Cloudflare IPs only
+  enable_private_endpoint = false
+  app_settings = {
+    "STACK_NAME" = "Subnet Calculator (Internal APIM)"
+  }
+}
+
+# Function App configuration
+function_app = {
+  name                    = ""           # Auto-generated if empty
+  plan_sku                = "P1v3"       # P0v3, P1v3, P2v3, S1, S2, etc
+  runtime                 = "python"     # python, node, dotnet-isolated
+  runtime_version         = "3.11"       # Python: 3.9, 3.10, 3.11
+  run_from_package        = true
+  storage_account_name    = ""           # Auto-generated if empty
+  enable_private_endpoint = true
+  app_settings            = {}
+}
+
+# API Management configuration
+apim = {
+  name            = ""                                          # Auto-generated if empty
+  sku_name        = "Developer_1"                               # Developer_1, Basic_1, Standard_1, Premium_1
+  publisher_name  = "Subnet Calculator"
+  publisher_email = "ops@publiccloudexperiments.net"           # Change to your email
+  api_path        = "api/subnet-calc"                          # Path prefix for API
+  identifier_uri  = ""                                         # Auto-generated if empty
+  policy_xml      = null                                       # Custom policy XML (optional)
+}

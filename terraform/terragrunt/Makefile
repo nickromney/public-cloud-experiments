@@ -25,10 +25,10 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Examples:"
-	@echo "  make setup           # Configure Azure backend"
-	@echo "  make app-a-init      # Initialize pluralsight/app-a"
-	@echo "  make app-a-plan      # Plan pluralsight/app-a"
-	@echo "  make app-a-apply     # Apply pluralsight/app-a"
+	@echo "  make setup                   # Configure Azure backend"
+	@echo "  make app-a-init              # Initialize ps-az-sbx/app-a"
+	@echo "  make subnet-calc-apim-init   # Initialize personal-sub/subnet-calc-internal-apim"
+	@echo "  make subnet-calc-apim-plan   # Plan subnet calculator deployment"
 
 .PHONY: setup
 setup: ## Run setup script to configure environment (idempotent)
@@ -159,6 +159,32 @@ app-a-clean: ## Clean ps-az-sbx/app-a cached files
 	@cd ps-az-sbx/app-a && rm -rf .terraform .terragrunt-cache
 	@echo "$(GREEN)✓ Cleaned ps-az-sbx/app-a$(NC)"
 
+# Personal subscription subnet-calc-internal-apim targets
+.PHONY: subnet-calc-apim-init
+subnet-calc-apim-init: check-terragrunt check-env ## Initialize personal-sub/subnet-calc-internal-apim
+	@cd personal-sub/subnet-calc-internal-apim && terragrunt init -upgrade
+
+.PHONY: subnet-calc-apim-plan
+subnet-calc-apim-plan: check-terragrunt check-env ## Plan personal-sub/subnet-calc-internal-apim
+	@cd personal-sub/subnet-calc-internal-apim && terragrunt init -upgrade && terragrunt plan
+
+.PHONY: subnet-calc-apim-apply
+subnet-calc-apim-apply: check-terragrunt check-env ## Apply personal-sub/subnet-calc-internal-apim
+	@cd personal-sub/subnet-calc-internal-apim && terragrunt init -upgrade && terragrunt apply
+
+.PHONY: subnet-calc-apim-destroy
+subnet-calc-apim-destroy: check-terragrunt check-env ## Destroy personal-sub/subnet-calc-internal-apim
+	@cd personal-sub/subnet-calc-internal-apim && terragrunt destroy
+
+.PHONY: subnet-calc-apim-output
+subnet-calc-apim-output: check-terragrunt check-env ## Show outputs for personal-sub/subnet-calc-internal-apim
+	@cd personal-sub/subnet-calc-internal-apim && terragrunt output
+
+.PHONY: subnet-calc-apim-clean
+subnet-calc-apim-clean: ## Clean personal-sub/subnet-calc-internal-apim cached files
+	@cd personal-sub/subnet-calc-internal-apim && rm -rf .terraform .terragrunt-cache
+	@echo "$(GREEN)✓ Cleaned personal-sub/subnet-calc-internal-apim$(NC)"
+
 # Format and validate
 .PHONY: fmt format
 fmt format: check-tofu ## Format all Terraform files
@@ -201,11 +227,13 @@ quality: fmt-check lint ## Run all quality checks
 
 .PHONY: validate
 validate: check-terragrunt ## Validate all Terraform configurations
-	@echo "Validating Terraform configurations..."
+	@echo "Validating ps-az-sbx/app-a..."
 	@cd ps-az-sbx/app-a && terragrunt init -upgrade && terragrunt validate
-	@echo "$(GREEN)✓ Valid$(NC)"
+	@echo "Validating personal-sub/subnet-calc-internal-apim..."
+	@cd personal-sub/subnet-calc-internal-apim && terragrunt init -upgrade && terragrunt validate
+	@echo "$(GREEN)✓ All configurations valid$(NC)"
 
 # Clean all
 .PHONY: clean
-clean: app-a-clean ## Clean all cached files
+clean: app-a-clean subnet-calc-apim-clean ## Clean all cached files
 	@echo "$(GREEN)✓ All cleaned$(NC)"
