@@ -98,14 +98,74 @@ For scenarios where build-time config isn't suitable, inject runtime config:
 
 ### Azure Web App with Easy Auth
 
-1. Deploy React app to Azure Web App
-2. Enable Easy Auth in Azure Portal (App Service Authentication)
-3. Configure Entra ID provider
-4. No code changes needed - auto-detects Easy Auth from hostname
+You have **two deployment options** for Azure Web App:
+
+#### Option 1: Zip Deployment (Simpler - No Containers)
+
+Azure Web App has built-in static hosting that works perfectly with React SPAs:
+
+```bash
+# Build the app
+npm run build
+
+# Deploy the dist folder as a zip
+cd dist
+zip -r ../dist.zip .
+cd ..
+
+# Deploy to Azure Web App
+az webapp deploy \
+  --resource-group rg-app \
+  --name app-react \
+  --src-path dist.zip \
+  --type zip
+```
+
+**Advantages:**
+
+- No container knowledge required
+- Azure provides the web server automatically
+- Handles SPA routing out of the box
+- Easy Auth works identically
+- Simpler for teams new to containers
+
+**Setup Easy Auth:**
+
+1. Go to Azure Portal → App Service → Authentication
+2. Add Identity Provider → Microsoft Entra ID
+3. Done! Auto-detects from `*.azurewebsites.net` hostname
+
+#### Option 2: Container Deployment (More Control)
+
+Use the Docker image for full environment control:
+
+```bash
+# Build Docker image
+docker build -t subnet-calculator-react .
+
+# Push to Azure Container Registry
+az acr build --registry myacr --image subnet-calculator-react:latest .
+
+# Create Web App with container
+az webapp create \
+  --resource-group rg-app \
+  --name app-react \
+  --plan asp-linux \
+  --deployment-container-image-name myacr.azurecr.io/subnet-calculator-react:latest
+```
+
+**Advantages:**
+
+- Same image runs locally, CI/CD, and production
+- Full control over nginx configuration
+- Works identically on Web App, Container Apps, AKS
+
+**Setup Easy Auth:**
+Same as Option 1 - configure via Azure Portal
 
 ### Azure Container Apps with Easy Auth
 
-1. Deploy React app to Azure Container Apps
+1. Deploy React app to Azure Container Apps (container only)
 2. Enable Easy Auth via `az containerapp auth update`
 3. No code changes needed - auto-detects Easy Auth from hostname
 
