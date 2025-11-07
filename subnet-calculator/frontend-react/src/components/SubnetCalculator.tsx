@@ -1,13 +1,14 @@
 /**
  * Main Subnet Calculator Component
  * Handles the complete subnet calculator UI and logic
+ * Uses Pico CSS with minimal inline styles
  */
 
-import { useEffect, useState } from 'react'
-import { apiClient } from '../api/client'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../auth/AuthContext'
+import { apiClient } from '../api/client'
 import { APP_CONFIG } from '../config'
-import type { CloudMode, HealthResponse, LookupResult } from '../types'
+import type { CloudMode, LookupResult, HealthResponse } from '../types'
 
 interface SubnetCalculatorProps {
   theme: 'light' | 'dark'
@@ -68,7 +69,7 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
 
   if (authLoading) {
     return (
-      <div className="container" style={{ textAlign: 'center', padding: '2rem' }}>
+      <div className="container loading-center">
         <div aria-busy="true">Loading...</div>
       </div>
     )
@@ -76,30 +77,21 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
 
   return (
     <>
-      {/* Top Bar */}
-      <div
-        className="top-bar"
-        style={{
-          padding: '1rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          borderBottom: '1px solid var(--pico-border-color)',
-        }}
-      >
-        <button type="button" onClick={onToggleTheme} style={{ minWidth: 'auto' }}>
+      {/* Top Bar - Fixed Position */}
+      <div className="top-bar">
+        <button type="button" onClick={onToggleTheme}>
           <span>{theme === 'dark' ? '☀️' : '🌙'}</span> Toggle Theme
         </button>
         {isAuthenticated && user && (
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div className="user-info">
             <span>Welcome, {user.name}</span>
-            <button type="button" onClick={logout} style={{ minWidth: 'auto' }}>
+            <button type="button" onClick={logout}>
               Logout
             </button>
           </div>
         )}
         {!isAuthenticated && APP_CONFIG.auth.method !== 'none' && (
-          <button type="button" onClick={login} style={{ minWidth: 'auto' }}>
+          <button type="button" onClick={login}>
             Login
           </button>
         )}
@@ -107,25 +99,25 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
 
       <main className="container">
         {/* Header */}
-        <header style={{ textAlign: 'center', marginTop: '2rem' }}>
+        <header>
           <h1>IPv4 & IPv6 Subnet Calculator</h1>
           <p>{APP_CONFIG.stackName}</p>
         </header>
 
         {/* API Status */}
         {apiHealth && (
-          <div className="alert" role="status" style={{ marginTop: '2rem' }}>
-            API Connected: {apiHealth.service} v{apiHealth.version}
+          <div className="alert alert-success" role="status">
+            <strong>API Connected:</strong> {apiHealth.service} v{apiHealth.version}
           </div>
         )}
         {apiError && (
-          <div className="alert" role="alert" style={{ marginTop: '2rem', backgroundColor: 'var(--pico-del-color)' }}>
-            API Offline: {apiError}
+          <div className="alert alert-error" role="alert">
+            <strong>API Offline:</strong> {apiError}
           </div>
         )}
 
         {/* Input Form */}
-        <section style={{ marginTop: '2rem' }}>
+        <section>
           <form onSubmit={handleSubmit}>
             <div>
               <label htmlFor="ip-address">
@@ -141,58 +133,43 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
               </label>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-              <select id="cloud-mode" value={cloudMode} onChange={e => setCloudMode(e.target.value as CloudMode)}>
+            <div className="form-row">
+              <input
+                type="text"
+                value={ipAddress}
+                onChange={e => setIpAddress(e.target.value)}
+                placeholder="e.g., 192.168.1.1 or 10.0.0.0/24"
+                required
+              />
+              <select
+                id="cloud-mode"
+                value={cloudMode}
+                onChange={e => setCloudMode(e.target.value as CloudMode)}
+              >
                 <option value="standard">Standard</option>
                 <option value="simple">Simple</option>
                 <option value="expert">Expert</option>
               </select>
-
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button type="submit" disabled={isLoading || !ipAddress}>
-                  {isLoading ? 'Looking up...' : 'Lookup'}
-                </button>
-                <button type="button" onClick={handleClear} disabled={!ipAddress && !results}>
-                  Clear
-                </button>
-              </div>
+              <button type="submit" disabled={isLoading || !ipAddress}>
+                {isLoading ? 'Looking up...' : 'Lookup'}
+              </button>
+              <button type="button" onClick={handleClear} disabled={!ipAddress && !results}>
+                Clear
+              </button>
             </div>
 
             {/* Example Buttons */}
-            <div
-              className="example-buttons"
-              style={{ marginTop: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}
-            >
-              <button
-                type="button"
-                className="btn-rfc1918"
-                onClick={() => handleExampleClick('10.0.0.0/24')}
-                style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
-              >
+            <div className="example-buttons">
+              <button type="button" className="example-btn btn-rfc1918" onClick={() => handleExampleClick('10.0.0.0/24')}>
                 RFC1918: 10.0.0.0/24
               </button>
-              <button
-                type="button"
-                className="btn-public"
-                onClick={() => handleExampleClick('8.8.8.8')}
-                style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
-              >
+              <button type="button" className="example-btn btn-public" onClick={() => handleExampleClick('8.8.8.8')}>
                 Public: 8.8.8.8
               </button>
-              <button
-                type="button"
-                className="btn-cloudflare"
-                onClick={() => handleExampleClick('104.16.1.1')}
-                style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
-              >
+              <button type="button" className="example-btn btn-cloudflare" onClick={() => handleExampleClick('104.16.1.1')}>
                 Cloudflare: 104.16.1.1
               </button>
-              <button
-                type="button"
-                className="btn-ipv6"
-                onClick={() => handleExampleClick('2001:db8::/32')}
-                style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
-              >
+              <button type="button" className="example-btn btn-ipv6" onClick={() => handleExampleClick('2001:db8::/32')}>
                 IPv6: 2001:db8::/32
               </button>
             </div>
@@ -201,21 +178,21 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
 
         {/* Loading */}
         {isLoading && (
-          <div style={{ textAlign: 'center', margin: '2rem 0' }} role="status">
+          <div className="loading-center" role="status">
             <div aria-busy="true">Loading...</div>
           </div>
         )}
 
         {/* Error */}
         {error && (
-          <div className="alert" role="alert" style={{ marginTop: '2rem', backgroundColor: 'var(--pico-del-color)' }}>
+          <div className="alert alert-error" role="alert">
             <strong>Error:</strong> {error}
           </div>
         )}
 
         {/* Results */}
         {results && (
-          <section data-testid="results" style={{ marginTop: '2rem' }}>
+          <section data-testid="results">
             <h2>Results</h2>
 
             {/* Validation */}
@@ -225,27 +202,19 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
                 <table>
                   <tbody>
                     <tr>
-                      <td>
-                        <strong>Valid</strong>
-                      </td>
+                      <td><strong>Valid</strong></td>
                       <td>{results.results.validate.valid ? 'Yes' : 'No'}</td>
                     </tr>
                     <tr>
-                      <td>
-                        <strong>Type</strong>
-                      </td>
+                      <td><strong>Type</strong></td>
                       <td>{results.results.validate.type}</td>
                     </tr>
                     <tr>
-                      <td>
-                        <strong>Address</strong>
-                      </td>
+                      <td><strong>Address</strong></td>
                       <td>{results.results.validate.address}</td>
                     </tr>
                     <tr>
-                      <td>
-                        <strong>IP Version</strong>
-                      </td>
+                      <td><strong>IP Version</strong></td>
                       <td>{results.results.validate.is_ipv6 ? 'IPv6' : 'IPv4'}</td>
                     </tr>
                   </tbody>
@@ -260,16 +229,12 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
                 <table>
                   <tbody>
                     <tr>
-                      <td>
-                        <strong>Is RFC1918</strong>
-                      </td>
+                      <td><strong>Is RFC1918</strong></td>
                       <td>{results.results.private.is_rfc1918 ? 'Yes' : 'No'}</td>
                     </tr>
                     {results.results.private.matched_rfc1918_range && (
                       <tr>
-                        <td>
-                          <strong>Matched Range</strong>
-                        </td>
+                        <td><strong>Matched Range</strong></td>
                         <td>{results.results.private.matched_rfc1918_range}</td>
                       </tr>
                     )}
@@ -285,17 +250,13 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
                 <table>
                   <tbody>
                     <tr>
-                      <td>
-                        <strong>Is Cloudflare</strong>
-                      </td>
+                      <td><strong>Is Cloudflare</strong></td>
                       <td>{results.results.cloudflare.is_cloudflare ? 'Yes' : 'No'}</td>
                     </tr>
                     {results.results.cloudflare.matched_ranges &&
                       results.results.cloudflare.matched_ranges.length > 0 && (
                         <tr>
-                          <td>
-                            <strong>Matched Ranges</strong>
-                          </td>
+                          <td><strong>Matched Ranges</strong></td>
                           <td>{results.results.cloudflare.matched_ranges.join(', ')}</td>
                         </tr>
                       )}
@@ -311,59 +272,41 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
                 <table>
                   <tbody>
                     <tr>
-                      <td>
-                        <strong>Network</strong>
-                      </td>
+                      <td><strong>Network</strong></td>
                       <td>{results.results.subnet.network}</td>
                     </tr>
                     <tr>
-                      <td>
-                        <strong>Network Address</strong>
-                      </td>
+                      <td><strong>Network Address</strong></td>
                       <td>{results.results.subnet.network_address}</td>
                     </tr>
                     {results.results.subnet.broadcast_address && (
                       <tr>
-                        <td>
-                          <strong>Broadcast Address</strong>
-                        </td>
+                        <td><strong>Broadcast Address</strong></td>
                         <td>{results.results.subnet.broadcast_address}</td>
                       </tr>
                     )}
                     <tr>
-                      <td>
-                        <strong>Netmask</strong>
-                      </td>
+                      <td><strong>Netmask</strong></td>
                       <td>{results.results.subnet.netmask}</td>
                     </tr>
                     <tr>
-                      <td>
-                        <strong>Prefix Length</strong>
-                      </td>
+                      <td><strong>Prefix Length</strong></td>
                       <td>/{results.results.subnet.prefix_length}</td>
                     </tr>
                     <tr>
-                      <td>
-                        <strong>Total Addresses</strong>
-                      </td>
+                      <td><strong>Total Addresses</strong></td>
                       <td>{results.results.subnet.total_addresses.toLocaleString()}</td>
                     </tr>
                     <tr>
-                      <td>
-                        <strong>Usable Addresses</strong>
-                      </td>
+                      <td><strong>Usable Addresses</strong></td>
                       <td>{results.results.subnet.usable_addresses.toLocaleString()}</td>
                     </tr>
                     <tr>
-                      <td>
-                        <strong>First Usable IP</strong>
-                      </td>
+                      <td><strong>First Usable IP</strong></td>
                       <td>{results.results.subnet.first_usable_ip}</td>
                     </tr>
                     <tr>
-                      <td>
-                        <strong>Last Usable IP</strong>
-                      </td>
+                      <td><strong>Last Usable IP</strong></td>
                       <td>{results.results.subnet.last_usable_ip}</td>
                     </tr>
                   </tbody>
@@ -372,14 +315,12 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
             )}
 
             {/* Performance Timing */}
-            <article>
+            <article className="performance-timing">
               <h3>Performance Timing</h3>
               <table>
                 <tbody>
                   <tr>
-                    <td>
-                      <strong>Total Response Time</strong>
-                    </td>
+                    <td><strong>Total Response Time</strong></td>
                     <td>
                       <strong>{results.timing.totalDuration}ms</strong> (
                       {(results.timing.totalDuration / 1000).toFixed(3)}s)
@@ -389,7 +330,7 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
               </table>
 
               {/* API Call Details */}
-              <details style={{ marginTop: '1rem' }}>
+              <details>
                 <summary>API Call Details</summary>
                 <table>
                   <thead>
@@ -402,13 +343,11 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
                   </thead>
                   <tbody>
                     {results.timing.apiCalls.map((call, index) => (
-                      <tr key={index}>
+                      <tr key={`${call.call}-${index}`}>
                         <td>{call.call}</td>
-                        <td>
-                          <strong>{call.duration}ms</strong>
-                        </td>
-                        <td style={{ fontSize: '0.875rem' }}>{new Date(call.requestTime).toLocaleString()}</td>
-                        <td style={{ fontSize: '0.875rem' }}>{new Date(call.responseTime).toLocaleString()}</td>
+                        <td><strong>{call.duration}ms</strong></td>
+                        <td>{new Date(call.requestTime).toLocaleString()}</td>
+                        <td>{new Date(call.responseTime).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -1,38 +1,169 @@
-/* Subnet Calculator Styles */
+/* Minimal custom styles for subnet calculator - matches TypeScript Vite frontend */
 
+/* Top bar for theme switcher and user info */
 .top-bar {
-  padding: 1rem;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid var(--pico-border-color);
-  background-color: var(--pico-background-color);
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-end;
+  z-index: 1000;
 }
 
-.example-buttons {
-  margin-top: 1rem;
+/* User info display */
+.user-info {
+  background: var(--pico-card-background-color);
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.example-buttons button {
-  font-size: 0.875rem;
-  padding: 0.5rem 1rem;
+/* Layout */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .top-bar {
+/* Header spacing */
+header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+/* Form layout */
+.form-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.form-row input[type="text"] {
+  flex: 1;
+  min-width: 200px;
+}
+
+.form-row select,
+.form-row button {
+  min-width: auto;
+}
+
+/* Example buttons */
+.example-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.example-btn {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+  border-radius: 4px;
+  border: 1px solid;
+  cursor: pointer;
+}
+
+.btn-rfc1918 {
+  border-color: #9333ea;
+  color: #9333ea;
+}
+
+.btn-public {
+  border-color: #16a34a;
+  color: #16a34a;
+}
+
+.btn-cloudflare {
+  border-color: #0284c7;
+  color: #0284c7;
+}
+
+.btn-ipv6 {
+  border-color: #7c3aed;
+  color: #7c3aed;
+}
+
+/* Alerts */
+.alert {
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  border-left: 4px solid;
+}
+
+/* Light theme alerts */
+html[data-theme="light"] .alert-info {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+
+html[data-theme="light"] .alert-success {
+  background: #d1fae5;
+  border-color: #10b981;
+  color: #065f46;
+}
+
+html[data-theme="light"] .alert-error {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
+/* Dark theme alerts */
+html[data-theme="dark"] .alert-info {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: #93c5fd;
+}
+
+html[data-theme="dark"] .alert-success {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+
+html[data-theme="dark"] .alert-error {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+
+/* Loading spinner center */
+.loading-center {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .form-row {
     flex-direction: column;
-    gap: 0.5rem;
+  }
+
+  .form-row input[type="text"],
+  .form-row select,
+  .form-row button {
+    width: 100%;
   }
 
   .example-buttons {
     flex-direction: column;
   }
 
-  .example-buttons button {
+  .example-btn {
     width: 100%;
   }
+}
+
+/* Performance timing styles */
+.performance-timing {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(33, 150, 243, 0.1) 100%);
+  border-left: 4px solid var(--pico-primary);
 }
