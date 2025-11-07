@@ -141,16 +141,16 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
 
             {/* Example Buttons */}
             <div className="example-buttons">
-              <button type="button" className="example-btn btn-rfc1918" onClick={() => handleExampleClick('10.0.0.0/24')}>
+              <button type="button" className="secondary outline" onClick={() => handleExampleClick('10.0.0.0/24')}>
                 RFC1918: 10.0.0.0/24
               </button>
-              <button type="button" className="example-btn btn-public" onClick={() => handleExampleClick('8.8.8.8')}>
+              <button type="button" className="secondary outline" onClick={() => handleExampleClick('8.8.8.8')}>
                 Public: 8.8.8.8
               </button>
-              <button type="button" className="example-btn btn-cloudflare" onClick={() => handleExampleClick('104.16.1.1')}>
+              <button type="button" className="secondary outline" onClick={() => handleExampleClick('104.16.1.1')}>
                 Cloudflare: 104.16.1.1
               </button>
-              <button type="button" className="example-btn btn-ipv6" onClick={() => handleExampleClick('2001:db8::/32')}>
+              <button type="button" className="secondary outline" onClick={() => handleExampleClick('2001:db8::/32')}>
                 IPv6: 2001:db8::/32
               </button>
             </div>
