@@ -99,6 +99,10 @@ services:
       # No authentication for local development (static frontend doesn't implement JWT)
       # For JWT auth testing, use the standalone api-fastapi-container-app/compose.yml
       - AUTH_METHOD=none
+      # CORS origins for all frontends (container and local dev)
+      # Container ports: 8001-8004 (static, flask, typescript, react)
+      # Local dev ports: 3000-3002 (react/typescript dev), 5000 (flask dev), 5173-5174 (vite dev servers)
+      - CORS_ORIGINS=http://localhost:8001,http://localhost:8002,http://localhost:8003,http://localhost:8004,http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5000,http://localhost:5173,http://localhost:5174
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
       interval: 10s
