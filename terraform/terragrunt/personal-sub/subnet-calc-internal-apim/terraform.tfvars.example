@@ -16,7 +16,6 @@ web_app = {
   always_on               = true
   cloudflare_only         = false        # Set true to restrict to Cloudflare IPs only
   enable_private_endpoint = false
-  storage_account_name    = ""           # Auto-generated if empty
   app_settings = {
     "STACK_NAME" = "Subnet Calculator (Internal APIM)"
   }

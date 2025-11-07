@@ -259,14 +259,8 @@ resource "azurerm_private_endpoint" "function" {
   }
 }
 
-resource "azurerm_private_dns_zone_virtual_network_link" "function_pe" {
-  count                 = var.function_app.enable_private_endpoint ? 1 : 0
-  name                  = "link-${var.project_name}-function-pe"
-  resource_group_name   = local.rg_name
-  private_dns_zone_name = azurerm_private_dns_zone.webapps[0].name
-  virtual_network_id    = azurerm_virtual_network.this.id
-  registration_enabled  = false
-}
+# Note: VNet link for privatelink.azurewebsites.net is created once at line 179
+# A single VNet link provides DNS resolution for all private endpoints in that VNet
 # -----------------------------------------------------------------------------
 # API Management
 # -----------------------------------------------------------------------------
