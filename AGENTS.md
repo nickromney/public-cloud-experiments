@@ -2,7 +2,10 @@
 
 ## Project Structure & Module Organization
 
-`subnet-calculator/` hosts the flagship IPv4/IPv6 stacks: FastAPI backends in `api-fastapi-azure-function/` and `api-fastapi-container-app/`, plus Flask, static HTML, and Vite frontends (shared UI logic in `shared-frontend/`). Terraform work lives in `terraform/claranet-tfwrapper/`, `terraform/terragrunt/`, and `terraform/modules/`, each with a scoped Makefile and README. Personal-subscription resources must live in UK South unless explicitly justified—Terragrunt stacks default to `PERSONAL_SUB_REGION=uksouth` and expect CAF-style naming (`rg-<workload>-<env>`, e.g., `rg-subnet-calc-webapp`). Keep `scripts/`, `cloud-networking/`, and `blog/` self-contained and document changes in `README.md`.
+- `subnet-calculator/` hosts the flagship IPv4/IPv6 stacks with FastAPI backends in `api-fastapi-azure-function/` and `api-fastapi-container-app/`, plus Flask, static HTML, and Vite frontends (shared UI logic in `shared-frontend/`).
+- Terraform work lives in `terraform/claranet-tfwrapper/`, `terraform/terragrunt/`, and `terraform/modules/`, each with a scoped Makefile and README.
+- Personal-subscription resources must live in UK South unless explicitly justified. Terragrunt stacks default to `PERSONAL_SUB_REGION=uksouth` and expect CAF-style naming (`rg-<workload>-<env>`, e.g., `rg-subnet-calc-webapp`).
+- Keep `scripts/`, `cloud-networking/`, and `blog/` self-contained and document changes in `README.md`.
 
 ## Build, Test, and Development Commands
 

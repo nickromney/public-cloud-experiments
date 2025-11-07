@@ -8,6 +8,7 @@ locals {
   web_app_name          = var.web_app.name != "" ? var.web_app.name : "web-${var.project_name}-${var.environment}-react"
   function_app_name     = var.function_app.name != "" ? var.function_app.name : "func-${var.project_name}-${var.environment}-api"
   easy_auth_secret_name = var.web_app.easy_auth != null ? try(var.web_app.easy_auth.client_secret_setting_name, "MICROSOFT_PROVIDER_AUTHENTICATION_SECRET") : null
+  computed_api_base_url = var.web_app.api_base_url != "" ? var.web_app.api_base_url : "https://${azurerm_linux_function_app.api.default_hostname}/api/v1"
 }
 
 # -----------------------------------------------------------------------------
@@ -137,7 +138,7 @@ resource "azurerm_linux_web_app" "react" {
     "WEBSITE_RUN_FROM_PACKAGE"       = "0"
     "WEBSITE_NODE_DEFAULT_VERSION"   = "~${var.web_app.runtime_version}"
     "SCM_DO_BUILD_DURING_DEPLOYMENT" = "false"
-    "API_BASE_URL"                   = var.web_app.api_base_url != "" ? var.web_app.api_base_url : "https://${azurerm_linux_function_app.api.default_hostname}/api/v1"
+    "API_BASE_URL"                   = local.computed_api_base_url
     },
     (var.web_app.easy_auth != null && try(var.web_app.easy_auth.client_secret, "") != "" ? {
       (local.easy_auth_secret_name) = var.web_app.easy_auth.client_secret
@@ -158,7 +159,7 @@ resource "azurerm_linux_web_app" "react" {
 
       active_directory_v2 {
         client_id                  = auth_settings_v2.value.client_id
-        client_secret_setting_name = try(auth_settings_v2.value.client_secret_setting_name, local.easy_auth_secret_name != null ? local.easy_auth_secret_name : "MICROSOFT_PROVIDER_AUTHENTICATION_SECRET")
+        client_secret_setting_name = try(auth_settings_v2.value.client_secret_setting_name, local.easy_auth_secret_name)
         tenant_auth_endpoint       = try(auth_settings_v2.value.issuer, "https://login.microsoftonline.com/${try(auth_settings_v2.value.tenant_id, var.tenant_id)}/v2.0")
         allowed_audiences          = try(auth_settings_v2.value.allowed_audiences, [])
         login_parameters           = try(auth_settings_v2.value.login_parameters, {})

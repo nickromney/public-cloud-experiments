@@ -16,7 +16,8 @@ records = {
   }
 
   "_sip._tls" = {
-    type     = "SRV"
+    type  = "SRV"
+    # SRV record format for Cloudflare: "weight port target" (priority specified separately)
     value    = "1 443 sipdir.online.lync.com"
     priority = 10
     ttl      = 3600

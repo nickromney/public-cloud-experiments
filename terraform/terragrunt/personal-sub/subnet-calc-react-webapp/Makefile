@@ -27,10 +27,6 @@ ifeq ($(firstword $(MAKECMDGOALS)),unlock)
   ifndef LOCK
     LOCK :=
   endif
-endif
-
-ifeq ($(firstword $(MAKECMDGOALS)),unlock)
-  EXTRA_GOALS := $(filter-out unlock,$(MAKECMDGOALS))
   ifneq ($(EXTRA_GOALS),)
     .PHONY: $(EXTRA_GOALS)
 $(EXTRA_GOALS):
