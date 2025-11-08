@@ -38,7 +38,6 @@ terraform {
 
 provider "cloudflare" {
   api_token = "${get_env("CLOUDFLARE_API_TOKEN", "")}"
-  account_id = "${get_env("CLOUDFLARE_ACCOUNT_ID", "")}"
 }
 EOF
 }

@@ -3,10 +3,9 @@ include "root" {
 }
 
 terraform {
-  source = "../../../modules/cloudflare-site"
+  source = "../../modules/cloudflare-site"
 }
 
-inputs = {
-  zone_name = "publiccloudexperiments.net"
-  records   = {}
-}
+# Records and zone_name are defined in terraform.tfvars
+# Zone ID is also defined in terraform.tfvars
+inputs = {}
