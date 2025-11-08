@@ -146,10 +146,11 @@ deploy-frontend:
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@API_BASE_URL=$(API_BASE_URL) $(STACK_DIR)/build-deployment-zip.sh $(STACK_DIR)/react-app.zip
 	@echo "Deploying to Azure App Service (Oryx build enabled)..." && \
-		$(AZ) webapp deployment source config-zip \
+		$(AZ) webapp deploy \
 			--resource-group $(RESOURCE_GROUP) \
 			--name $(WEB_APP_NAME) \
-			--src $(STACK_DIR)/react-app.zip && \
+			--src-path $(STACK_DIR)/react-app.zip \
+			--type zip && \
 		rm -f $(STACK_DIR)/react-app.zip && \
 		echo "✅ Frontend deployed successfully" && \
 		echo "🌐 Web App URL: https://$(WEB_APP_NAME).azurewebsites.net"
