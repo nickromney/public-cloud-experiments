@@ -66,6 +66,7 @@ export function isAzureSWA(): boolean {
 export function getAuthMethod(): AuthConfig['method'] {
   // Check runtime config first (injected by deployment scripts)
   if (window.RUNTIME_CONFIG?.AUTH_METHOD) {
+    console.log('Using runtime config AUTH_METHOD:', window.RUNTIME_CONFIG.AUTH_METHOD)
     return window.RUNTIME_CONFIG.AUTH_METHOD
   }
 
@@ -148,5 +149,25 @@ export function getAppConfig(): AppConfig {
   }
 }
 
-// Export singleton config instance
-export const APP_CONFIG = getAppConfig()
+// Export lazy-loaded singleton config instance
+// This ensures RUNTIME_CONFIG is available before evaluation
+let _cachedConfig: AppConfig | null = null
+
+export function getConfig(): AppConfig {
+  if (!_cachedConfig) {
+    _cachedConfig = getAppConfig()
+    console.log('APP_CONFIG initialized:', {
+      authMethod: _cachedConfig.auth.method,
+      apiBaseUrl: _cachedConfig.apiBaseUrl,
+      runtimeConfigAvailable: !!window.RUNTIME_CONFIG,
+    })
+  }
+  return _cachedConfig
+}
+
+// For backward compatibility
+export const APP_CONFIG = new Proxy({} as AppConfig, {
+  get(_target, prop) {
+    return getConfig()[prop as keyof AppConfig]
+  },
+})
