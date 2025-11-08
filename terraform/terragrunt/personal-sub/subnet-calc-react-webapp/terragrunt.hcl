@@ -1,6 +1,6 @@
-# Personal Subscription - React Web App + Function (Easy Auth)
-# Deploys: Azure App Service Plan + Linux Web App (React SPA) + Azure Function backend
-# Auth: Azure AD Easy Auth configured via auth_settings_v2
+# Personal Subscription - React Web App + Function App
+# Deploys: React SPA on App Service + FastAPI Function App backend
+# Auth: None (public access)
 
 include "root" {
   path   = find_in_parent_folders("root.hcl")
@@ -14,11 +14,12 @@ locals {
 
 inputs = {
   location     = local.preferred_region
-  project_name = local.root_vars.project_name
+  project_name = "subnetcalc"
   environment  = local.root_vars.environment
 
-  resource_group_name   = "rg-subnet-calc-webapp"
-  create_resource_group = true
+  # Use existing resource group
+  resource_group_name   = "rg-subnet-calc"
+  create_resource_group = false
 
   tenant_id = get_env("ARM_TENANT_ID", "")
 
@@ -28,5 +29,5 @@ inputs = {
     workload    = "subnet-calculator-react-webapp"
   }
 
-  # Remaining inputs (web_app, function_app, etc.) are defined in terraform.tfvars
+  # web_app and function_app defined in terraform.tfvars
 }
