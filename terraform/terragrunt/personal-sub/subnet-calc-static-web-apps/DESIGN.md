@@ -14,10 +14,10 @@ stacks = {
 
     swa = {
       # Static Web App configuration
-      sku               = "Standard"
-      custom_domain     = "example.com"
-      network_access    = "Enabled"  # or "Disabled" for private endpoint
-      linked_backend_id = null        # or reference to function_app
+      sku            = "Standard"
+      custom_domain  = "example.com"
+      network_access = "Enabled"  # or "Disabled" for private endpoint
+      # Note: auth_enabled, auth_provider, allowed_roles are planned features
     }
 
     function_app = {

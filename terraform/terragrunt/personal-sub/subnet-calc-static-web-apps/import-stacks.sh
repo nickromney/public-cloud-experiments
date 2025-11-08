@@ -3,6 +3,11 @@
 # Import existing Azure resources into stack-based Terraform configuration
 # Maps existing Azure resource names to logical stack keys
 #
+# To run this script, either:
+#   chmod +x import-stacks.sh && ./import-stacks.sh
+# or run it explicitly with:
+#   bash import-stacks.sh
+#
 set -euo pipefail
 
 # Colors

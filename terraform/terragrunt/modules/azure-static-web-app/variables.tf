@@ -45,6 +45,7 @@ variable "stacks" {
       network_access = optional(string, "Enabled") # Enabled or Disabled
 
       # Authentication configuration
+      # NOTE: These fields are planned for future implementation and are currently unused
       auth_enabled  = optional(bool, false)
       auth_provider = optional(string) # azuread, github, etc.
       allowed_roles = optional(list(string), [])

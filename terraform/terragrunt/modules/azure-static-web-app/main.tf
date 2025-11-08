@@ -31,7 +31,7 @@ locals {
 
   storage_names = {
     for k, v in local.stacks_with_functions : k => (
-      v.resource_names != null ? v.resource_names.storage : "st${var.project_name}${k}${try(random_string.storage_suffix[k].result, "xxxxx")}"
+      v.resource_names != null ? v.resource_names.storage : "st${var.project_name}${k}${random_string.storage_suffix[k].result}"
     )
   }
 
@@ -43,26 +43,27 @@ locals {
     )
   }
 
+  # Common function app settings (same for all auth methods)
+  common_function_app_settings = {
+    FUNCTIONS_WORKER_RUNTIME       = "python"
+    AzureWebJobsFeatureFlags       = "EnableWorkerIndexing"
+    ENABLE_ORYX_BUILD              = "true"
+    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+  }
+
+  # Auth-specific settings (currently none, but allows for future differences)
+  auth_specific_settings = {
+    jwt  = {}
+    swa  = {}
+    none = {}
+  }
+
   # Default app settings per auth method
   default_app_settings = {
-    jwt = {
-      FUNCTIONS_WORKER_RUNTIME       = "python"
-      AzureWebJobsFeatureFlags       = "EnableWorkerIndexing"
-      ENABLE_ORYX_BUILD              = "true"
-      SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
-    }
-    swa = {
-      FUNCTIONS_WORKER_RUNTIME       = "python"
-      AzureWebJobsFeatureFlags       = "EnableWorkerIndexing"
-      ENABLE_ORYX_BUILD              = "true"
-      SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
-    }
-    none = {
-      FUNCTIONS_WORKER_RUNTIME       = "python"
-      AzureWebJobsFeatureFlags       = "EnableWorkerIndexing"
-      ENABLE_ORYX_BUILD              = "true"
-      SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
-    }
+    for method in ["jwt", "swa", "none"] : method => merge(
+      local.common_function_app_settings,
+      local.auth_specific_settings[method]
+    )
   }
 
   # Merge default and custom app settings

@@ -443,11 +443,11 @@ else
   echo "Copy and paste these commands into your shell (bash or zsh):"
   echo "================================================================"
   echo ""
-  echo "export ARM_SUBSCRIPTION_ID=${ARM_SUBSCRIPTION_ID}"
-  echo "export ARM_TENANT_ID=${ARM_TENANT_ID}"
-  echo "export TF_BACKEND_RG=${TF_BACKEND_RG}"
-  echo "export TF_BACKEND_SA=${TF_BACKEND_SA}"
-  echo "export TF_BACKEND_CONTAINER=${TF_BACKEND_CONTAINER}"
+  echo "export ARM_SUBSCRIPTION_ID=\"${ARM_SUBSCRIPTION_ID}\""
+  echo "export ARM_TENANT_ID=\"${ARM_TENANT_ID}\""
+  echo "export TF_BACKEND_RG=\"${TF_BACKEND_RG}\""
+  echo "export TF_BACKEND_SA=\"${TF_BACKEND_SA}\""
+  echo "export TF_BACKEND_CONTAINER=\"${TF_BACKEND_CONTAINER}\""
   echo ""
   echo "================================================================"
   echo ""
@@ -472,7 +472,10 @@ else
   echo "  3. make check-env               # Verify variables are set"
   if [[ "${RG_COUNT}" -gt 1 ]]; then
     echo "  4. Edit terraform.tfvars if needed (set workload resource group)"
+    echo "  5. make init                   # Initialize Terragrunt"
+    echo "  6. make plan                   # Plan deployment"
+  else
+    echo "  4. make init                   # Initialize Terragrunt"
+    echo "  5. make plan                   # Plan deployment"
   fi
-  echo "  $(if [[ "${RG_COUNT}" -gt 1 ]]; then echo "5"; else echo "4"; fi). make init                   # Initialize Terragrunt"
-  echo "  $(if [[ "${RG_COUNT}" -gt 1 ]]; then echo "6"; else echo "5"; fi). make plan                   # Plan deployment"
 fi
