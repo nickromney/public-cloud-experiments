@@ -1,8 +1,8 @@
 .DEFAULT_GOAL := help
 
 # Paths
-STACK_DIR := $(shell pwd)
-REPO_ROOT := $(abspath $(STACK_DIR)/../../../..)
+STACK_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+REPO_ROOT := $(abspath $(STACK_DIR)../../../..)
 FRONTEND_REACT_DIR := $(REPO_ROOT)/subnet-calculator/frontend-react
 API_FUNCTION_DIR := $(REPO_ROOT)/subnet-calculator/api-fastapi-azure-function
 
@@ -83,11 +83,11 @@ plan:
 
 apply:
 	@echo "Applying Terragrunt changes..."
-	PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) apply -auto-approve
+	PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) apply
 
 destroy:
 	@echo "Destroying infrastructure..."
-	PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) destroy -auto-approve
+	PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) destroy
 
 validate:
 	@echo "Validating Terraform configuration..."
@@ -142,7 +142,7 @@ deploy-frontend:
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "Deploying React Frontend: $(WEB_APP_NAME)"
 	@echo "API Base URL: $(API_BASE_URL)"
-	@echo "Auth Method: JWT (demo/password123)"
+	@echo "Auth Method: JWT (see terraform.tfvars for credentials)"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@cd $(FRONTEND_REACT_DIR) && \
 		echo "Installing dependencies..." && \
@@ -150,7 +150,7 @@ deploy-frontend:
 		echo "Building React app with API_BASE_URL=$(API_BASE_URL) and AUTH_METHOD=jwt..." && \
 		VITE_API_BASE_URL=$(API_BASE_URL) VITE_AUTH_METHOD=jwt npm run build && \
 		echo "Creating deployment package..." && \
-		zip -r react-app.zip dist package.json package-lock.json server.js node_modules -x "*/test-results/*" -x "*/playwright-report/*" && \
+		zip -r react-app.zip dist package.json package-lock.json server.js -x "*/test-results/*" -x "*/playwright-report/*" && \
 		echo "Deploying to Azure App Service..." && \
 		$(AZ) webapp deploy \
 			--resource-group $(RESOURCE_GROUP) \
@@ -194,6 +194,18 @@ test-endpoints:
 	fi
 	@echo "Testing endpoints..."
 	@echo "API Health: $(API_BASE_URL)/health"
-	@curl -s -o /dev/null -w "Status: %{http_code}\n" "$(API_BASE_URL)/health" || echo "❌ API unreachable"
+	@status=$$(curl -s -o /dev/null -w "%{http_code}" "$(API_BASE_URL)/health"); \
+	if [ "$$status" -eq 200 ]; then \
+		echo "✅ Status: $$status"; \
+	else \
+		echo "❌ API unreachable (Status: $$status)"; \
+		exit 1; \
+	fi
 	@echo "Web App: https://$(WEB_APP_NAME).azurewebsites.net"
-	@curl -s -o /dev/null -w "Status: %{http_code}\n" "https://$(WEB_APP_NAME).azurewebsites.net" || echo "❌ Web App unreachable"
+	@status=$$(curl -s -o /dev/null -w "%{http_code}" "https://$(WEB_APP_NAME).azurewebsites.net"); \
+	if [ "$$status" -eq 200 ]; then \
+		echo "✅ Status: $$status"; \
+	else \
+		echo "❌ Web App unreachable (Status: $$status)"; \
+		exit 1; \
+	fi

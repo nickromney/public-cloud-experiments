@@ -13,7 +13,11 @@ app.use(express.static(path.join(__dirname, 'dist')));
 
 // All routes should serve the index.html file (for client-side routing)
 app.use((_req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'), (err) => {
+    if (err) {
+      res.status(500).send('Error loading application');
+    }
+  });
 });
 
 app.listen(port, () => {
