@@ -150,9 +150,9 @@ resource "azurerm_storage_account" "this" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
 
-  # Match existing configuration (import scenario)
-  min_tls_version                 = "TLS1_0" # Match existing (will upgrade later)
-  allow_nested_items_to_be_public = false    # Match existing
+  # Security settings
+  min_tls_version                 = "TLS1_2" # Minimum recommended by Azure
+  allow_nested_items_to_be_public = false
 
   tags = var.tags
 }
