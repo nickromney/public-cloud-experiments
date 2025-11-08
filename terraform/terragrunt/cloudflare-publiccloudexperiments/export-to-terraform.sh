@@ -179,6 +179,7 @@ case "$OUTPUT_FORMAT" in
     echo "# SSL Mode: $SSL_MODE"
     echo ""
     echo "zone_name = \"$ZONE_NAME\""
+    echo "zone_id   = \"$ZONE_ID\""
     echo ""
     echo "records = {"
 
