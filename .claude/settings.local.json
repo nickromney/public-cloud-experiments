@@ -299,7 +299,9 @@
       "Bash(source .env.sh)",
       "Bash(terraform fmt:*)",
       "Bash(npm run lint:check:*)",
-      "Bash(/tmp/token.json)"
+      "Bash(/tmp/token.json)",
+      "Bash(PERSONAL_SUB_REGION=uksouth terragrunt apply:*)",
+      "Bash(az functionapp:*)"
     ],
     "deny": [],
     "ask": []
