@@ -26,6 +26,19 @@ variable "tags" {
 variable "stacks" {
   description = "Application stacks - each defines a complete deployment topology"
   type = map(object({
+    # Optional resource names for import scenarios
+    # When provided, uses these exact Azure names instead of generating new ones
+    resource_names = optional(object({
+      swa          = string
+      function_app = string
+      plan         = string
+      storage      = string
+    }))
+
+    # Optional location overrides (for multi-region import scenarios)
+    swa_location          = optional(string)
+    function_app_location = optional(string)
+
     swa = object({
       sku            = string                      # Standard, Free
       custom_domain  = optional(string)            # Custom domain for SWA

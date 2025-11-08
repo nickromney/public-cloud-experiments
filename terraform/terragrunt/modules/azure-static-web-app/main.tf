@@ -9,20 +9,30 @@ locals {
   }
 
   # Generate resource names from stack keys
+  # If resource_names provided (import scenario), use those exact names
+  # Otherwise generate new names based on project_name and stack key
   swa_names = {
-    for k, v in var.stacks : k => "swa-${var.project_name}-${k}"
+    for k, v in var.stacks : k => (
+      v.resource_names != null ? v.resource_names.swa : "swa-${var.project_name}-${k}"
+    )
   }
 
   function_names = {
-    for k, v in local.stacks_with_functions : k => "func-${var.project_name}-${k}"
+    for k, v in local.stacks_with_functions : k => (
+      v.resource_names != null ? v.resource_names.function_app : "func-${var.project_name}-${k}"
+    )
   }
 
   plan_names = {
-    for k, v in local.stacks_with_functions : k => "asp-${var.project_name}-${k}"
+    for k, v in local.stacks_with_functions : k => (
+      v.resource_names != null ? v.resource_names.plan : "asp-${var.project_name}-${k}"
+    )
   }
 
   storage_names = {
-    for k, v in local.stacks_with_functions : k => "st${var.project_name}${k}${random_string.storage_suffix[k].result}"
+    for k, v in local.stacks_with_functions : k => (
+      v.resource_names != null ? v.resource_names.storage : "st${var.project_name}${k}${try(random_string.storage_suffix[k].result, "xxxxx")}"
+    )
   }
 
   # Determine always_on based on plan SKU if not explicitly set
@@ -69,8 +79,12 @@ locals {
 }
 
 # Random suffix for storage account names (globally unique)
+# Only needed when generating new names (not using resource_names from import)
 resource "random_string" "storage_suffix" {
-  for_each = local.stacks_with_functions
+  for_each = {
+    for k, v in local.stacks_with_functions : k => v
+    if v.resource_names == null
+  }
 
   length  = 5
   special = false
@@ -83,7 +97,7 @@ resource "azurerm_static_web_app" "this" {
 
   name                = local.swa_names[each.key]
   resource_group_name = var.resource_group_name
-  location            = var.location
+  location            = each.value.swa_location != null ? each.value.swa_location : var.location
 
   sku_tier = each.value.swa.sku
   sku_size = each.value.swa.sku
@@ -102,7 +116,12 @@ resource "azurerm_static_web_app_custom_domain" "this" {
 
   static_web_app_id = azurerm_static_web_app.this[each.key].id
   domain_name       = each.value.swa.custom_domain
-  validation_type   = "cname-delegation"
+  validation_type   = "dns-txt-token"
+
+  # Ignore validation fields after initial creation (API doesn't return them)
+  lifecycle {
+    ignore_changes = [validation_type, validation_token]
+  }
 }
 
 # App Service Plans (only for stacks with function apps)
@@ -111,7 +130,7 @@ resource "azurerm_service_plan" "this" {
 
   name                = local.plan_names[each.key]
   resource_group_name = var.resource_group_name
-  location            = var.location
+  location            = each.value.function_app_location != null ? each.value.function_app_location : var.location
 
   os_type  = "Linux"
   sku_name = each.value.function_app.plan_sku
@@ -125,10 +144,14 @@ resource "azurerm_storage_account" "this" {
 
   name                = local.storage_names[each.key]
   resource_group_name = var.resource_group_name
-  location            = var.location
+  location            = each.value.function_app_location != null ? each.value.function_app_location : var.location
 
   account_tier             = "Standard"
   account_replication_type = "LRS"
+
+  # Match existing configuration (import scenario)
+  min_tls_version                 = "TLS1_0" # Match existing (will upgrade later)
+  allow_nested_items_to_be_public = false    # Match existing
 
   tags = var.tags
 }
@@ -139,7 +162,7 @@ resource "azurerm_linux_function_app" "this" {
 
   name                = local.function_names[each.key]
   resource_group_name = var.resource_group_name
-  location            = var.location
+  location            = each.value.function_app_location != null ? each.value.function_app_location : var.location
 
   service_plan_id            = azurerm_service_plan.this[each.key].id
   storage_account_name       = azurerm_storage_account.this[each.key].name

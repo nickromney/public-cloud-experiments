@@ -14,10 +14,12 @@ terraform {
 locals {
   root_vars        = include.root.locals
   preferred_region = get_env("PERSONAL_SUB_REGION", "uksouth")
+  # Override to match existing resources (westeurope)
+  actual_region    = "westeurope"
 }
 
 inputs = {
-  location            = local.preferred_region
+  location            = local.actual_region
   resource_group_name = "rg-subnet-calc"
   project_name        = "subnetcalc"
 
