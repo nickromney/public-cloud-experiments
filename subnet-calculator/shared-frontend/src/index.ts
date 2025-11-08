@@ -21,3 +21,6 @@ export type {
 // Export API utilities and interface
 export type { IApiClient } from './api'
 export { isIpv6, getApiPrefix, handleFetchError, parseJsonResponse } from './api'
+
+// Export authentication utilities
+export { TokenManager } from './auth'

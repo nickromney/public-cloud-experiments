@@ -297,7 +297,9 @@
       "WebFetch(domain:picocss.com)",
       "Bash(az appservice plan list:*)",
       "Bash(source .env.sh)",
-      "Bash(terraform fmt:*)"
+      "Bash(terraform fmt:*)",
+      "Bash(npm run lint:check:*)",
+      "Bash(/tmp/token.json)"
     ],
     "deny": [],
     "ask": []

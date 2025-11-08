@@ -13,19 +13,23 @@ declare global {
   interface Window {
     RUNTIME_CONFIG?: {
       API_BASE_URL?: string
-      AUTH_METHOD?: 'none' | 'easyauth' | 'msal' | 'entraid-swa'
+      AUTH_METHOD?: 'none' | 'easyauth' | 'msal' | 'entraid-swa' | 'jwt'
       AZURE_CLIENT_ID?: string
       AZURE_TENANT_ID?: string
       AZURE_REDIRECT_URI?: string
+      JWT_USERNAME?: string
+      JWT_PASSWORD?: string
     }
   }
 }
 
 export interface AuthConfig {
-  method: 'none' | 'easyauth' | 'msal' | 'entraid-swa'
+  method: 'none' | 'easyauth' | 'msal' | 'entraid-swa' | 'jwt'
   clientId?: string
   tenantId?: string
   redirectUri?: string
+  jwtUsername?: string
+  jwtPassword?: string
 }
 
 export interface AppConfig {
@@ -80,6 +84,12 @@ export function getAuthMethod(): AuthConfig['method'] {
     return 'easyauth'
   }
 
+  // Check if JWT credentials are available
+  const jwtUsername = import.meta.env.VITE_JWT_USERNAME
+  if (jwtUsername) {
+    return 'jwt'
+  }
+
   // Check if MSAL config is available for local development
   const clientId = import.meta.env.VITE_AZURE_CLIENT_ID
   if (clientId) {
@@ -108,6 +118,10 @@ export function getAppConfig(): AppConfig {
   const redirectUri =
     window.RUNTIME_CONFIG?.AZURE_REDIRECT_URI || import.meta.env.VITE_AZURE_REDIRECT_URI || window.location.origin
 
+  // JWT configuration (only used when authMethod === 'jwt')
+  const jwtUsername = import.meta.env.VITE_JWT_USERNAME || ''
+  const jwtPassword = import.meta.env.VITE_JWT_PASSWORD || ''
+
   // Determine stack name for display
   let stackName = 'React + TypeScript + Vite'
   if (authMethod === 'easyauth') {
@@ -116,6 +130,8 @@ export function getAppConfig(): AppConfig {
     stackName += ' + Static Web Apps (Entra ID)'
   } else if (authMethod === 'msal') {
     stackName += ' (MSAL Local Dev)'
+  } else if (authMethod === 'jwt') {
+    stackName += ' + Azure Function (JWT)'
   }
 
   return {
@@ -125,6 +141,8 @@ export function getAppConfig(): AppConfig {
       clientId,
       tenantId,
       redirectUri,
+      jwtUsername,
+      jwtPassword,
     },
     stackName,
   }

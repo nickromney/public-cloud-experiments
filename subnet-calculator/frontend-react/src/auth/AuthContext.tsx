@@ -8,11 +8,12 @@
  */
 
 import { useMsal } from '@azure/msal-react'
+import type { UserInfo } from '@subnet-calculator/shared-frontend'
 import type React from 'react'
 import { createContext, useContext, useEffect, useState } from 'react'
 import { APP_CONFIG } from '../config'
-import type { UserInfo } from '../types'
 import { easyAuthLogin, easyAuthLogout, getEasyAuthUser, isEasyAuthAuthenticated } from './easyAuthProvider'
+import { JwtAuthProvider, useJwtAuth } from './jwtAuthProvider'
 import { loginRequest } from './msalConfig'
 
 interface AuthContextType {
@@ -27,6 +28,41 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const authMethod = APP_CONFIG.auth.method
+
+  // For JWT auth, use the specialized JWT provider
+  if (authMethod === 'jwt') {
+    return (
+      <JwtAuthProvider>
+        <JwtAuthBridge>{children}</JwtAuthBridge>
+      </JwtAuthProvider>
+    )
+  }
+
+  // For other auth methods, use the standard flow
+  return <StandardAuthProvider>{children}</StandardAuthProvider>
+}
+
+// Bridge component to adapt JWT context to standard Auth context
+function JwtAuthBridge({ children }: { children: React.ReactNode }) {
+  const jwtAuth = useJwtAuth()
+
+  const value: AuthContextType = {
+    isAuthenticated: jwtAuth.isAuthenticated,
+    isLoading: jwtAuth.isLoading,
+    user: jwtAuth.user,
+    login: () => {
+      jwtAuth.login().catch(console.error)
+    },
+    logout: jwtAuth.logout,
+    authMethod: 'jwt',
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+// Standard auth provider for Easy Auth, MSAL, SWA, and none
+function StandardAuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [user, setUser] = useState<UserInfo | null>(null)
