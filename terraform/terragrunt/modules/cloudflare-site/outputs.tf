@@ -1,6 +1,6 @@
 output "zone_id" {
   description = "Cloudflare zone ID managed by this module."
-  value       = data.cloudflare_zone.selected.id
+  value       = var.zone_id
 }
 
 output "record_ids" {

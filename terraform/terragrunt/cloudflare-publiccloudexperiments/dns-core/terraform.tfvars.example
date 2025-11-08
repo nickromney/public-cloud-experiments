@@ -1,11 +1,14 @@
 # DNS records managed by this stack.
 
+zone_name = "publiccloudexperiments.net"
+zone_id   = "d338fed554857c1081ad974209c5ef23"
+
 records = {
   "@" = {
     type    = "A"
     value   = "203.0.113.10"
     proxied = true
-    ttl     = 300
+    # ttl is automatically set to 1 (automatic) for proxied records
     comment = "Primary apex record"
   }
 
