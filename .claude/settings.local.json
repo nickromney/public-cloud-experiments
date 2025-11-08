@@ -294,7 +294,10 @@
       "Bash(if [ -f \"$file\" ])",
       "Bash(then)",
       "Bash(swa deploy:*)",
-      "WebFetch(domain:picocss.com)"
+      "WebFetch(domain:picocss.com)",
+      "Bash(az appservice plan list:*)",
+      "Bash(source .env.sh)",
+      "Bash(terraform fmt:*)"
     ],
     "deny": [],
     "ask": []
