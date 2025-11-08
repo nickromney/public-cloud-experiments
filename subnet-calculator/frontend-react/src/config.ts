@@ -119,8 +119,8 @@ export function getAppConfig(): AppConfig {
     window.RUNTIME_CONFIG?.AZURE_REDIRECT_URI || import.meta.env.VITE_AZURE_REDIRECT_URI || window.location.origin
 
   // JWT configuration (only used when authMethod === 'jwt')
-  const jwtUsername = import.meta.env.VITE_JWT_USERNAME || ''
-  const jwtPassword = import.meta.env.VITE_JWT_PASSWORD || ''
+  const jwtUsername = window.RUNTIME_CONFIG?.JWT_USERNAME || import.meta.env.VITE_JWT_USERNAME || ''
+  const jwtPassword = window.RUNTIME_CONFIG?.JWT_PASSWORD || import.meta.env.VITE_JWT_PASSWORD || ''
 
   // Determine stack name for display
   let stackName = 'React + TypeScript + Vite'

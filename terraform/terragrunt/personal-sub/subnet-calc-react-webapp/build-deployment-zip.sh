@@ -40,8 +40,33 @@ cp -r "$FRONTEND_REACT_DIR"/* "$TEMP_DIR/"
 mkdir -p "$TEMP_DIR/shared-frontend"
 cp -r "$SHARED_FRONTEND_DIR"/* "$TEMP_DIR/shared-frontend/"
 
-# Clean up unnecessary files
+# Fix paths - shared-frontend is now a subdirectory instead of sibling
 cd "$TEMP_DIR"
+
+# Fix package.json file: dependency path
+sed -i.bak 's|"file:../shared-frontend"|"file:./shared-frontend"|g' package.json
+rm -f package.json.bak
+
+# Fix package-lock.json as well
+sed -i.bak 's|"file:../shared-frontend"|"file:./shared-frontend"|g' package-lock.json
+rm -f package-lock.json.bak
+
+# Fix tsconfig paths
+sed -i.bak 's|"../shared-frontend/tsconfig.json"|"./shared-frontend/tsconfig.json"|g' tsconfig.app.json
+sed -i.bak 's|"../shared-frontend/|"./shared-frontend/|g' tsconfig.app.json
+sed -i.bak 's|{ "path": "../shared-frontend" }|{ "path": "./shared-frontend" }|g' tsconfig.app.json
+rm -f tsconfig.app.json.bak
+
+# Fix CSS import paths in source files (../../shared-frontend -> ../shared-frontend)
+# Handle both single and double quotes
+find src -type f \( -name "*.tsx" -o -name "*.ts" \) -exec sed -i.bak "s|'../../shared-frontend/|'../shared-frontend/|g; s|\"../../shared-frontend/|\"../shared-frontend/|g" {} \;
+find src -type f -name "*.bak" -delete
+
+# Fix vite.config.ts alias paths
+sed -i.bak "s|'../shared-frontend/|'./shared-frontend/|g" vite.config.ts
+rm -f vite.config.ts.bak
+
+# Clean up unnecessary files
 rm -rf node_modules .git test-results playwright-report .ruff_cache __pycache__
 rm -rf shared-frontend/node_modules shared-frontend/.git shared-frontend/coverage
 
