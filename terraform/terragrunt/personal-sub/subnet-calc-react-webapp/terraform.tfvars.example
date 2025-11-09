@@ -33,10 +33,12 @@ function_app = {
   app_settings = {
     # JWT Authentication Configuration
     AUTH_METHOD                     = "jwt"
+    # WARNING: Change this secret for any deployment! For production, use Azure Key Vault (see PASSWORD-HASH-ESCAPING.md)
     JWT_SECRET_KEY                  = "dev-secret-key-minimum-32-characters-long-for-security"
     JWT_ALGORITHM                   = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES = "30"
 
+    # WARNING: These are DEMO credentials only (demo/password123, admin/securepass). DO NOT use in production! For production, use Azure Key Vault.
     # Argon2 hashed passwords (demo=password123, admin=securepass)
     # IMPORTANT: Use SINGLE $ in Terraform tfvars (no escaping needed)
     # The same hash in Docker Compose requires $$ escaping
@@ -44,7 +46,7 @@ function_app = {
 
     # Azure Function configuration
     AzureWebJobsFeatureFlags = "EnableWorkerIndexing"
-    # NOTE: Do NOT set ENABLE_ORYX_BUILD, WEBSITE_RUN_FROM_PACKAGE, or SCM_DO_BUILD_DURING_DEPLOYMENT
-    # Let Azure automatically build dependencies during zip deployment
+    # NOTE: Do NOT set ENABLE_ORYX_BUILD or WEBSITE_RUN_FROM_PACKAGE
+    # SCM_DO_BUILD_DURING_DEPLOYMENT is set to true in Terraform (main.tf:113) to enable remote builds
   }
 }

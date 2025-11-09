@@ -20,6 +20,15 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 echo "Copying Function App files..."
 cd "$FUNCTION_APP_DIR"
 
+# Verify all required files exist before copying
+REQUIRED_FILES=("auth.py" "config.py" "function_app.py" "host.json" "requirements.txt")
+for file in "${REQUIRED_FILES[@]}"; do
+  if [ ! -f "$file" ]; then
+    echo "Error: Required file not found: $file"
+    exit 1
+  fi
+done
+
 # Copy only necessary files for Azure Function deployment
 cp -r \
   auth.py \
