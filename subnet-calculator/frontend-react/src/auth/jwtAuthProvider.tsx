@@ -26,10 +26,15 @@ export function JwtAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Extract config values to avoid Proxy in dependency array
+  const apiBaseUrl = APP_CONFIG.apiBaseUrl
+  const jwtUsername = APP_CONFIG.auth.jwtUsername || ''
+  const jwtPassword = APP_CONFIG.auth.jwtPassword || ''
+
   // Initialize TokenManager with useMemo to prevent recreation on every render
   const tokenManager = useMemo(
-    () => new TokenManager(APP_CONFIG.apiBaseUrl, APP_CONFIG.auth.jwtUsername || '', APP_CONFIG.auth.jwtPassword || ''),
-    [APP_CONFIG.apiBaseUrl, APP_CONFIG.auth.jwtUsername, APP_CONFIG.auth.jwtPassword]
+    () => new TokenManager(apiBaseUrl, jwtUsername, jwtPassword),
+    [apiBaseUrl, jwtUsername, jwtPassword]
   )
 
   // Check authentication on mount

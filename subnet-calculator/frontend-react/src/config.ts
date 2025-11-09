@@ -165,6 +165,15 @@ export function getConfig(): AppConfig {
       import.meta.env.VITE_API_URL ||
       (isAzureSWA() ? '' : 'http://localhost:7071')
 
+    // Determine stack name suffix based on auth method
+    const authSuffix = {
+      jwt: ' + JWT',
+      easyauth: ' + Easy Auth',
+      'entraid-swa': ' + SWA',
+      msal: '',
+      none: '',
+    }[authMethod] || ''
+
     _cachedConfig = {
       apiBaseUrl,
       auth: {
@@ -175,10 +184,8 @@ export function getConfig(): AppConfig {
         jwtUsername: window.RUNTIME_CONFIG?.JWT_USERNAME || import.meta.env.VITE_JWT_USERNAME || '',
         jwtPassword: window.RUNTIME_CONFIG?.JWT_PASSWORD || import.meta.env.VITE_JWT_PASSWORD || '',
       },
-      stackName: `React + TypeScript + Vite${authMethod === 'jwt' ? ' + JWT' : authMethod === 'easyauth' ? ' + Easy Auth' : authMethod === 'entraid-swa' ? ' + SWA' : ''}`,
+      stackName: `React + TypeScript + Vite${authSuffix}`,
     }
-
-    // Config initialized successfully
   }
   return _cachedConfig
 }

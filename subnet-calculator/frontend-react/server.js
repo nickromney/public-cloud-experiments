@@ -37,14 +37,10 @@ app.use((_req, res) => {
   let html = fs.readFileSync(indexPath, 'utf8');
 
   // Inject runtime config as inline script BEFORE other scripts
+  // Use JSON.stringify to properly escape values and prevent XSS
   const configScript = `
     <script>
-      window.RUNTIME_CONFIG = {
-        API_BASE_URL: '${runtimeConfig.apiBaseUrl}',
-        AUTH_METHOD: '${runtimeConfig.authMethod}',
-        JWT_USERNAME: '${runtimeConfig.jwtUsername}',
-        JWT_PASSWORD: '${runtimeConfig.jwtPassword}'
-      };
+      window.RUNTIME_CONFIG = ${JSON.stringify(runtimeConfig)};
     </script>`;
 
   // Insert before closing </head> tag
