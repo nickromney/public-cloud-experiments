@@ -19,8 +19,8 @@ output "function_app_hostname" {
 }
 
 output "function_app_api_base_url" {
-  description = "Base URL (including /api/v1) used by the frontend."
-  value       = "https://${azurerm_linux_function_app.api.default_hostname}/api/v1"
+  description = "Base URL (WITHOUT /api/v1 suffix) - API client adds version paths."
+  value       = "https://${azurerm_linux_function_app.api.default_hostname}"
 }
 
 output "web_app_name" {

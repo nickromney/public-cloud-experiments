@@ -41,7 +41,9 @@ app.use((_req, res) => {
     <script>
       window.RUNTIME_CONFIG = {
         API_BASE_URL: '${runtimeConfig.apiBaseUrl}',
-        AUTH_METHOD: '${runtimeConfig.authMethod}'
+        AUTH_METHOD: '${runtimeConfig.authMethod}',
+        JWT_USERNAME: '${runtimeConfig.jwtUsername}',
+        JWT_PASSWORD: '${runtimeConfig.jwtPassword}'
       };
     </script>`;
 
