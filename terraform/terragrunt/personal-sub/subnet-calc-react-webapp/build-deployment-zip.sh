@@ -22,7 +22,7 @@ npm run build
 echo "Building frontend-react..."
 cd "$FRONTEND_REACT_DIR"
 npm install
-VITE_API_BASE_URL="${API_BASE_URL:-https://func-subnet-calc-react-api.azurewebsites.net/api/v1}" \
+VITE_API_BASE_URL="${API_BASE_URL:-https://func-subnet-calc-react-api.azurewebsites.net}" \
 VITE_AUTH_METHOD=jwt \
 VITE_JWT_USERNAME=demo \
 VITE_JWT_PASSWORD=password123 \
