@@ -118,16 +118,15 @@ deploy-function:
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "Deploying Function App: $(FUNCTION_APP_NAME)"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@cd $(API_FUNCTION_DIR) && \
-		echo "Creating deployment package..." && \
-		rm -rf .python_packages function-app.zip && \
-		zip -r function-app.zip . -x "*.git*" -x "*__pycache__*" -x "*.pyc" -x "tests/*" -x ".pytest_cache/*" -x ".venv/*" -x ".ruff_cache/*" && \
-		echo "Deploying to Azure..." && \
+	@$(STACK_DIR)/build-function-zip.sh $(STACK_DIR)/function-app.zip
+	@echo "Deploying to Azure..." && \
 		$(AZ) functionapp deployment source config-zip \
 			--resource-group $(RESOURCE_GROUP) \
 			--name $(FUNCTION_APP_NAME) \
-			--src function-app.zip && \
-		rm -f function-app.zip && \
+			--src $(STACK_DIR)/function-app.zip \
+			--build-remote true \
+			--timeout 600 && \
+		rm -f $(STACK_DIR)/function-app.zip && \
 		echo "✅ Function App deployed successfully"
 
 deploy-frontend:

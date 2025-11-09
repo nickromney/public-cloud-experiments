@@ -33,6 +33,29 @@ locals {
 }
 
 # -----------------------------------------------------------------------------
+# Application Insights & Log Analytics
+# -----------------------------------------------------------------------------
+
+resource "azurerm_log_analytics_workspace" "this" {
+  name                = "log-${var.project_name}-${var.environment}"
+  location            = local.rg_loc
+  resource_group_name = local.rg_name
+  sku                 = "PerGB2018"
+  retention_in_days   = try(var.observability.log_retention_days, 30)
+  tags                = local.common_tags
+}
+
+resource "azurerm_application_insights" "this" {
+  name                = "appi-${var.project_name}-${var.environment}"
+  location            = local.rg_loc
+  resource_group_name = local.rg_name
+  workspace_id        = azurerm_log_analytics_workspace.this.id
+  application_type    = "web"
+  retention_in_days   = try(var.observability.app_insights_retention_days, 90)
+  tags                = local.common_tags
+}
+
+# -----------------------------------------------------------------------------
 # Function App (FastAPI backend)
 # -----------------------------------------------------------------------------
 
@@ -85,9 +108,11 @@ resource "azurerm_linux_function_app" "api" {
   }
 
   app_settings = merge({
-    "FUNCTIONS_WORKER_RUNTIME"    = var.function_app.runtime == "dotnet-isolated" ? "dotnet-isolated" : var.function_app.runtime
-    "WEBSITE_RUN_FROM_PACKAGE"    = var.function_app.run_from_package ? "1" : "0"
-    "FUNCTIONS_EXTENSION_VERSION" = "~4"
+    "FUNCTIONS_WORKER_RUNTIME"              = var.function_app.runtime == "dotnet-isolated" ? "dotnet-isolated" : var.function_app.runtime
+    "FUNCTIONS_EXTENSION_VERSION"           = "~4"
+    "SCM_DO_BUILD_DURING_DEPLOYMENT"        = "true"
+    "APPINSIGHTS_INSTRUMENTATIONKEY"        = azurerm_application_insights.this.instrumentation_key
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.this.connection_string
   }, try(var.function_app.app_settings, {}))
 
   identity {
@@ -135,10 +160,12 @@ resource "azurerm_linux_web_app" "react" {
   }
 
   app_settings = merge({
-    "WEBSITE_RUN_FROM_PACKAGE"       = "0"
-    "WEBSITE_NODE_DEFAULT_VERSION"   = "~${var.web_app.runtime_version}"
-    "SCM_DO_BUILD_DURING_DEPLOYMENT" = "false"
-    "API_BASE_URL"                   = local.computed_api_base_url
+    "WEBSITE_RUN_FROM_PACKAGE"              = "0"
+    "WEBSITE_NODE_DEFAULT_VERSION"          = "~${var.web_app.runtime_version}"
+    "SCM_DO_BUILD_DURING_DEPLOYMENT"        = "false"
+    "API_BASE_URL"                          = local.computed_api_base_url
+    "APPINSIGHTS_INSTRUMENTATIONKEY"        = azurerm_application_insights.this.instrumentation_key
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.this.connection_string
     },
     (var.web_app.easy_auth != null && try(var.web_app.easy_auth.client_secret, "") != "" ? {
       (local.easy_auth_secret_name) = var.web_app.easy_auth.client_secret

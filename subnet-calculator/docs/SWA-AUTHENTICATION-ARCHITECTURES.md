@@ -19,8 +19,8 @@
 1. [Testing and Verification](#testing-and-verification)
 1. [Real-World Scenarios](#real-world-scenarios)
 1. [Troubleshooting](#troubleshooting)
-10. [Cost Analysis](#cost-analysis)
-11. [Key Learnings](#key-learnings)
+1. [Cost Analysis](#cost-analysis)
+1. [Key Learnings](#key-learnings)
 
 ---
 
@@ -1888,9 +1888,9 @@ export TENANT_ID=$(az account show --query tenantId -o tsv)
 1. Note the "Application (client) ID"
 1. Go to "Certificates & secrets" → "New client secret"
 1. Description: "SWA Secret"
-10. Expires: 24 months
-11. Click "Add"
-12. Copy the secret value immediately
+1. Expires: 24 months
+1. Click "Add"
+1. Copy the secret value immediately
 
 **Save Credentials:**
 

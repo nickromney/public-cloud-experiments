@@ -884,7 +884,7 @@ Following the brainstorming skill workflow, next steps:
 1. All tests pass (unit + integration)
 1. Documentation updated and accurate
 1. Backward compatibility maintained (env var still works)
-10. No secrets exposed in logs or output
+1. No secrets exposed in logs or output
 
 ## References
 
