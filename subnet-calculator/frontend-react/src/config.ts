@@ -61,22 +61,21 @@ export function isAzureSWA(): boolean {
 
 /**
  * Get authentication method based on environment
- * Priority: Runtime config > URL detection > Environment variables > Default
+ * Priority: Runtime config > Environment variables > URL detection > Default
  */
 export function getAuthMethod(): AuthConfig['method'] {
   // Check runtime config first (injected by deployment scripts)
   if (window.RUNTIME_CONFIG?.AUTH_METHOD) {
-    console.log('Using runtime config AUTH_METHOD:', window.RUNTIME_CONFIG.AUTH_METHOD)
     return window.RUNTIME_CONFIG.AUTH_METHOD
   }
 
-  // Check build-time environment variables
+  // Check build-time environment variables (takes precedence over hostname detection)
   const envAuthMethod = import.meta.env.VITE_AUTH_METHOD as AuthConfig['method'] | undefined
   if (envAuthMethod) {
     return envAuthMethod
   }
 
-  // Auto-detect based on hostname
+  // Auto-detect based on hostname (only if no explicit config)
   if (isAzureSWA()) {
     return 'entraid-swa'
   }
@@ -107,9 +106,12 @@ export function getAuthMethod(): AuthConfig['method'] {
 export function getAppConfig(): AppConfig {
   const authMethod = getAuthMethod()
 
-  // API Base URL priority: Runtime > Window > Environment > Default (relative for SWA)
+  // API Base URL priority: Runtime > Environment > Default (relative for SWA)
   const apiBaseUrl =
-    window.RUNTIME_CONFIG?.API_BASE_URL || import.meta.env.VITE_API_URL || (isAzureSWA() ? '' : 'http://localhost:7071')
+    window.RUNTIME_CONFIG?.API_BASE_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_API_URL ||
+    (isAzureSWA() ? '' : 'http://localhost:7071')
 
   // MSAL configuration (only used when authMethod === 'msal')
   const clientId = window.RUNTIME_CONFIG?.AZURE_CLIENT_ID || import.meta.env.VITE_AZURE_CLIENT_ID || ''
@@ -159,6 +161,7 @@ export function getConfig(): AppConfig {
 
     const apiBaseUrl =
       window.RUNTIME_CONFIG?.API_BASE_URL ||
+      import.meta.env.VITE_API_BASE_URL ||
       import.meta.env.VITE_API_URL ||
       (isAzureSWA() ? '' : 'http://localhost:7071')
 
