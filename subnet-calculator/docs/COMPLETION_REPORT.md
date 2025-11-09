@@ -132,7 +132,7 @@ All frontends implement these 10 test groups:
 1. **Button Functionality** (2 tests) - Clear button, accessible labels
 1. **API Error Handling** (6 tests) - Status panel, connection failures, timeouts, errors
 1. **Full API Integration** (2 tests) - Valid IP mocked, CIDR range mocked
-10. **Progressive Enhancement** (2 tests, Flask/Static only) - No-JS fallback, noscript warning
+1. **Progressive Enhancement** (2 tests, Flask/Static only) - No-JS fallback, noscript warning
 
 ---
 

@@ -74,3 +74,15 @@ variable "function_app" {
     app_settings                  = optional(map(string), {})
   })
 }
+
+variable "observability" {
+  description = "Observability configuration for Application Insights and Log Analytics."
+  type = object({
+    log_retention_days          = optional(number, 30)
+    app_insights_retention_days = optional(number, 90)
+  })
+  default = {
+    log_retention_days          = 30
+    app_insights_retention_days = 90
+  }
+}
