@@ -11,42 +11,43 @@ const port = process.env.PORT || 8080;
 
 // Read runtime configuration from environment variables
 const runtimeConfig = {
-  API_BASE_URL: process.env.API_BASE_URL || '',
-  AUTH_METHOD: process.env.AUTH_METHOD || '',
-  JWT_USERNAME: process.env.JWT_USERNAME || '',
-  JWT_PASSWORD: process.env.JWT_PASSWORD || '',
+  apiBaseUrl: process.env.API_BASE_URL || '',
+  authMethod: process.env.AUTH_METHOD || '',
+  jwtUsername: process.env.JWT_USERNAME || '',
+  jwtPassword: process.env.JWT_PASSWORD || '',
+  azureClientId: process.env.AZURE_CLIENT_ID || '',
+  azureTenantId: process.env.AZURE_TENANT_ID || '',
 };
 
 console.log('Runtime Configuration:', {
-  API_BASE_URL: runtimeConfig.API_BASE_URL,
-  AUTH_METHOD: runtimeConfig.AUTH_METHOD,
-  JWT_USERNAME: runtimeConfig.JWT_USERNAME ? '***' : '(not set)',
-  JWT_PASSWORD: runtimeConfig.JWT_PASSWORD ? '***' : '(not set)',
+  apiBaseUrl: runtimeConfig.apiBaseUrl,
+  authMethod: runtimeConfig.authMethod,
+  jwtUsername: runtimeConfig.jwtUsername ? '***' : '(not set)',
+  jwtPassword: runtimeConfig.jwtPassword ? '***' : '(not set)',
+  azureClientId: runtimeConfig.azureClientId ? '***' : '(not set)',
+  azureTenantId: runtimeConfig.azureTenantId || '(not set)',
 });
 
-// Read the index.html template once at startup
-const indexPath = path.join(__dirname, 'dist', 'index.html');
-let indexTemplate;
-try {
-  indexTemplate = fs.readFileSync(indexPath, 'utf-8');
-} catch (error) {
-  console.error('Failed to read index.html:', error);
-  process.exit(1);
-}
+// Serve static assets (CSS, JS, images) - but NOT index.html
+app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
 
-// Serve static assets (CSS, JS, images)
-app.use(express.static(path.join(__dirname, 'dist')));
-
-// All routes serve index.html with injected runtime config
+// SPA fallback - inject runtime config into index.html (Express 5 compatible)
 app.use((_req, res) => {
-  // Inject runtime configuration as a script tag before the closing </head>
+  const indexPath = path.join(__dirname, 'dist', 'index.html');
+  let html = fs.readFileSync(indexPath, 'utf8');
+
+  // Inject runtime config as inline script BEFORE other scripts
   const configScript = `
     <script>
-      window.RUNTIME_CONFIG = ${JSON.stringify(runtimeConfig)};
-    </script>
-  `;
+      window.RUNTIME_CONFIG = {
+        API_BASE_URL: '${runtimeConfig.apiBaseUrl}',
+        AUTH_METHOD: '${runtimeConfig.authMethod}'
+      };
+    </script>`;
 
-  const html = indexTemplate.replace('</head>', `${configScript}</head>`);
+  // Insert before closing </head> tag
+  html = html.replace('</head>', `${configScript}</head>`);
+
   res.send(html);
 });
 

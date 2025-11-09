@@ -5,7 +5,7 @@
 
 import { TokenManager, type UserInfo } from '@subnet-calculator/shared-frontend'
 import type React from 'react'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { APP_CONFIG } from '../config'
 
 interface JwtAuthContextType {
@@ -26,11 +26,10 @@ export function JwtAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Initialize TokenManager with config
-  const tokenManager = new TokenManager(
-    APP_CONFIG.apiBaseUrl,
-    APP_CONFIG.auth.jwtUsername || '',
-    APP_CONFIG.auth.jwtPassword || ''
+  // Initialize TokenManager with useMemo to prevent recreation on every render
+  const tokenManager = useMemo(
+    () => new TokenManager(APP_CONFIG.apiBaseUrl, APP_CONFIG.auth.jwtUsername || '', APP_CONFIG.auth.jwtPassword || ''),
+    [APP_CONFIG.apiBaseUrl, APP_CONFIG.auth.jwtUsername, APP_CONFIG.auth.jwtPassword]
   )
 
   // Check authentication on mount

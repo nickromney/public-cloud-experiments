@@ -150,17 +150,32 @@ export function getAppConfig(): AppConfig {
 }
 
 // Export lazy-loaded singleton config instance
-// This ensures RUNTIME_CONFIG is available before evaluation
 let _cachedConfig: AppConfig | null = null
 
 export function getConfig(): AppConfig {
   if (!_cachedConfig) {
-    _cachedConfig = getAppConfig()
-    console.log('APP_CONFIG initialized:', {
-      authMethod: _cachedConfig.auth.method,
-      apiBaseUrl: _cachedConfig.apiBaseUrl,
-      runtimeConfigAvailable: !!window.RUNTIME_CONFIG,
-    })
+    // Priority: window.RUNTIME_CONFIG (injected by server.js) > build-time env > defaults
+    const authMethod = (window.RUNTIME_CONFIG?.AUTH_METHOD || getAuthMethod()) as AuthConfig['method']
+
+    const apiBaseUrl =
+      window.RUNTIME_CONFIG?.API_BASE_URL ||
+      import.meta.env.VITE_API_URL ||
+      (isAzureSWA() ? '' : 'http://localhost:7071')
+
+    _cachedConfig = {
+      apiBaseUrl,
+      auth: {
+        method: authMethod,
+        clientId: window.RUNTIME_CONFIG?.AZURE_CLIENT_ID || import.meta.env.VITE_AZURE_CLIENT_ID || '',
+        tenantId: window.RUNTIME_CONFIG?.AZURE_TENANT_ID || import.meta.env.VITE_AZURE_TENANT_ID || 'common',
+        redirectUri: window.RUNTIME_CONFIG?.AZURE_REDIRECT_URI || import.meta.env.VITE_AZURE_REDIRECT_URI || window.location.origin,
+        jwtUsername: window.RUNTIME_CONFIG?.JWT_USERNAME || import.meta.env.VITE_JWT_USERNAME || '',
+        jwtPassword: window.RUNTIME_CONFIG?.JWT_PASSWORD || import.meta.env.VITE_JWT_PASSWORD || '',
+      },
+      stackName: `React + TypeScript + Vite${authMethod === 'jwt' ? ' + JWT' : authMethod === 'easyauth' ? ' + Easy Auth' : authMethod === 'entraid-swa' ? ' + SWA' : ''}`,
+    }
+
+    // Config initialized successfully
   }
   return _cachedConfig
 }
