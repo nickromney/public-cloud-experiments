@@ -4,6 +4,7 @@
  */
 
 import type { IApiClient } from '@subnet-calculator/shared-frontend/api'
+import { TokenManager } from '@subnet-calculator/shared-frontend'
 import { getApiPrefix, handleFetchError, isIpv6, parseJsonResponse } from '@subnet-calculator/shared-frontend/api'
 import { APP_CONFIG } from '../config'
 import type {
@@ -19,9 +20,29 @@ import type {
 
 class ApiClient implements IApiClient {
   private baseUrl: string
+  private tokenManager: TokenManager | null = null
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl
+
+    // Initialize token manager if JWT auth is configured
+    if (APP_CONFIG.auth.method === 'jwt') {
+      this.tokenManager = new TokenManager(
+        APP_CONFIG.apiBaseUrl,
+        APP_CONFIG.auth.jwtUsername || '',
+        APP_CONFIG.auth.jwtPassword || ''
+      )
+    }
+  }
+
+  /**
+   * Get authentication headers (Authorization bearer token for JWT)
+   */
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    if (!this.tokenManager) {
+      return {}
+    }
+    return await this.tokenManager.getAuthHeaders()
   }
 
   getBaseUrl(): string {
@@ -30,7 +51,9 @@ class ApiClient implements IApiClient {
 
   async checkHealth(): Promise<HealthResponse> {
     try {
+      const authHeaders = await this.getAuthHeaders()
       const response = await fetch(`${this.baseUrl}/api/v1/health`, {
+        headers: authHeaders,
         signal: AbortSignal.timeout(5000), // 5 second timeout
       })
 
@@ -47,10 +70,12 @@ class ApiClient implements IApiClient {
   async validateAddress(address: string): Promise<ValidateResponse> {
     try {
       const apiPrefix = getApiPrefix(address)
+      const authHeaders = await this.getAuthHeaders()
       const response = await fetch(`${this.baseUrl}${apiPrefix}/validate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders,
         },
         body: JSON.stringify({ address }),
         signal: AbortSignal.timeout(10000), // 10 second timeout
@@ -69,10 +94,12 @@ class ApiClient implements IApiClient {
 
   async checkPrivate(address: string): Promise<PrivateCheckResponse> {
     try {
+      const authHeaders = await this.getAuthHeaders()
       const response = await fetch(`${this.baseUrl}/api/v1/ipv4/check-private`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders,
         },
         body: JSON.stringify({ address }),
         signal: AbortSignal.timeout(10000),
@@ -92,10 +119,12 @@ class ApiClient implements IApiClient {
   async checkCloudflare(address: string): Promise<CloudflareCheckResponse> {
     try {
       const apiPrefix = getApiPrefix(address)
+      const authHeaders = await this.getAuthHeaders()
       const response = await fetch(`${this.baseUrl}${apiPrefix}/check-cloudflare`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders,
         },
         body: JSON.stringify({ address }),
         signal: AbortSignal.timeout(10000),
@@ -115,10 +144,12 @@ class ApiClient implements IApiClient {
   async getSubnetInfo(network: string, mode: CloudMode): Promise<SubnetInfoResponse> {
     try {
       const apiPrefix = getApiPrefix(network)
+      const authHeaders = await this.getAuthHeaders()
       const response = await fetch(`${this.baseUrl}${apiPrefix}/subnet-info`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders,
         },
         body: JSON.stringify({ network, mode }),
         signal: AbortSignal.timeout(10000),

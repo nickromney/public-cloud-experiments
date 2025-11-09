@@ -1,4 +1,5 @@
 import express from 'express';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -8,16 +9,44 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Serve static files from the dist directory
-app.use(express.static(path.join(__dirname, 'dist')));
+// Read runtime configuration from environment variables
+const runtimeConfig = {
+  apiBaseUrl: process.env.API_BASE_URL || '',
+  authMethod: process.env.AUTH_METHOD || '',
+  jwtUsername: process.env.JWT_USERNAME || '',
+  jwtPassword: process.env.JWT_PASSWORD || '',
+  azureClientId: process.env.AZURE_CLIENT_ID || '',
+  azureTenantId: process.env.AZURE_TENANT_ID || '',
+};
 
-// All routes should serve the index.html file (for client-side routing)
+console.log('Runtime Configuration:', {
+  apiBaseUrl: runtimeConfig.apiBaseUrl,
+  authMethod: runtimeConfig.authMethod,
+  jwtUsername: runtimeConfig.jwtUsername ? '***' : '(not set)',
+  jwtPassword: runtimeConfig.jwtPassword ? '***' : '(not set)',
+  azureClientId: runtimeConfig.azureClientId ? '***' : '(not set)',
+  azureTenantId: runtimeConfig.azureTenantId || '(not set)',
+});
+
+// Serve static assets (CSS, JS, images) - but NOT index.html
+app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
+
+// SPA fallback - inject runtime config into index.html (Express 5 compatible)
 app.use((_req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'), (err) => {
-    if (err) {
-      res.status(500).send('Error loading application');
-    }
-  });
+  const indexPath = path.join(__dirname, 'dist', 'index.html');
+  let html = fs.readFileSync(indexPath, 'utf8');
+
+  // Inject runtime config as inline script BEFORE other scripts
+  // Use JSON.stringify to properly escape values and prevent XSS
+  const configScript = `
+    <script>
+      window.RUNTIME_CONFIG = ${JSON.stringify(runtimeConfig)};
+    </script>`;
+
+  // Insert before closing </head> tag
+  html = html.replace('</head>', `${configScript}</head>`);
+
+  res.send(html);
 });
 
 app.listen(port, () => {

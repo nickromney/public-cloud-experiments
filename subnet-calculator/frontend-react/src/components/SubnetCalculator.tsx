@@ -143,16 +143,32 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
 
             {/* Example Buttons */}
             <div id="example-buttons" className="example-buttons">
-              <button type="button" className="secondary outline example-btn btn-rfc1918" onClick={() => handleExampleClick('10.0.0.0/24')}>
+              <button
+                type="button"
+                className="secondary outline example-btn btn-rfc1918"
+                onClick={() => handleExampleClick('10.0.0.0/24')}
+              >
                 RFC1918: 10.0.0.0/24
               </button>
-              <button type="button" className="outline example-btn btn-rfc6598" onClick={() => handleExampleClick('100.64.0.1')}>
+              <button
+                type="button"
+                className="outline example-btn btn-rfc6598"
+                onClick={() => handleExampleClick('100.64.0.1')}
+              >
                 RFC6598: 100.64.0.1
               </button>
-              <button type="button" className="contrast outline example-btn btn-public" onClick={() => handleExampleClick('8.8.8.8')}>
+              <button
+                type="button"
+                className="contrast outline example-btn btn-public"
+                onClick={() => handleExampleClick('8.8.8.8')}
+              >
                 Public: 8.8.8.8
               </button>
-              <button type="button" className="secondary example-btn btn-cloudflare" onClick={() => handleExampleClick('104.16.1.1')}>
+              <button
+                type="button"
+                className="secondary example-btn btn-cloudflare"
+                onClick={() => handleExampleClick('104.16.1.1')}
+              >
                 Cloudflare: 104.16.1.1
               </button>
             </div>
@@ -161,9 +177,9 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
 
         {/* Loading */}
         {isLoading && (
-          <div id="loading" style={{ display: 'block', textAlign: 'center', margin: '2rem 0' }} role="status">
+          <output id="loading" style={{ display: 'block', textAlign: 'center', margin: '2rem 0' }}>
             <div aria-busy="true"></div>
-          </div>
+          </output>
         )}
 
         {/* Error */}
@@ -180,201 +196,201 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
             <div id="results-content">
               {/* Validation */}
               {results.results.validate && (
-              <article>
-                <h3>Validation</h3>
-                <table>
-                  <tbody>
-                    <tr>
-                      <td>
-                        <strong>Valid</strong>
-                      </td>
-                      <td>{results.results.validate.valid ? 'Yes' : 'No'}</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <strong>Type</strong>
-                      </td>
-                      <td>{results.results.validate.type}</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <strong>Address</strong>
-                      </td>
-                      <td>{results.results.validate.address}</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <strong>IP Version</strong>
-                      </td>
-                      <td>{results.results.validate.is_ipv6 ? 'IPv6' : 'IPv4'}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </article>
-            )}
-
-            {/* Private Check (IPv4 only) */}
-            {results.results.private && (
-              <article>
-                <h3>RFC1918 Private Address Check</h3>
-                <table>
-                  <tbody>
-                    <tr>
-                      <td>
-                        <strong>Is RFC1918</strong>
-                      </td>
-                      <td>{results.results.private.is_rfc1918 ? 'Yes' : 'No'}</td>
-                    </tr>
-                    {results.results.private.matched_rfc1918_range && (
+                <article>
+                  <h3>Validation</h3>
+                  <table>
+                    <tbody>
                       <tr>
                         <td>
-                          <strong>Matched Range</strong>
+                          <strong>Valid</strong>
                         </td>
-                        <td>{results.results.private.matched_rfc1918_range}</td>
+                        <td>{results.results.validate.valid ? 'Yes' : 'No'}</td>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </article>
-            )}
+                      <tr>
+                        <td>
+                          <strong>Type</strong>
+                        </td>
+                        <td>{results.results.validate.type}</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <strong>Address</strong>
+                        </td>
+                        <td>{results.results.validate.address}</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <strong>IP Version</strong>
+                        </td>
+                        <td>{results.results.validate.is_ipv6 ? 'IPv6' : 'IPv4'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </article>
+              )}
 
-            {/* Cloudflare Check */}
-            {results.results.cloudflare && (
-              <article>
-                <h3>Cloudflare Check</h3>
-                <table>
-                  <tbody>
-                    <tr>
-                      <td>
-                        <strong>Is Cloudflare</strong>
-                      </td>
-                      <td>{results.results.cloudflare.is_cloudflare ? 'Yes' : 'No'}</td>
-                    </tr>
-                    {results.results.cloudflare.matched_ranges &&
-                      results.results.cloudflare.matched_ranges.length > 0 && (
+              {/* Private Check (IPv4 only) */}
+              {results.results.private && (
+                <article>
+                  <h3>RFC1918 Private Address Check</h3>
+                  <table>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <strong>Is RFC1918</strong>
+                        </td>
+                        <td>{results.results.private.is_rfc1918 ? 'Yes' : 'No'}</td>
+                      </tr>
+                      {results.results.private.matched_rfc1918_range && (
                         <tr>
                           <td>
-                            <strong>Matched Ranges</strong>
+                            <strong>Matched Range</strong>
                           </td>
-                          <td>{results.results.cloudflare.matched_ranges.join(', ')}</td>
+                          <td>{results.results.private.matched_rfc1918_range}</td>
                         </tr>
                       )}
-                  </tbody>
-                </table>
-              </article>
-            )}
+                    </tbody>
+                  </table>
+                </article>
+              )}
 
-            {/* Subnet Info */}
-            {results.results.subnet && (
-              <article>
-                <h3>Subnet Information</h3>
-                <table>
-                  <tbody>
-                    <tr>
-                      <td>
-                        <strong>Network</strong>
-                      </td>
-                      <td>{results.results.subnet.network}</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <strong>Network Address</strong>
-                      </td>
-                      <td>{results.results.subnet.network_address}</td>
-                    </tr>
-                    {results.results.subnet.broadcast_address && (
+              {/* Cloudflare Check */}
+              {results.results.cloudflare && (
+                <article>
+                  <h3>Cloudflare Check</h3>
+                  <table>
+                    <tbody>
                       <tr>
                         <td>
-                          <strong>Broadcast Address</strong>
+                          <strong>Is Cloudflare</strong>
                         </td>
-                        <td>{results.results.subnet.broadcast_address}</td>
+                        <td>{results.results.cloudflare.is_cloudflare ? 'Yes' : 'No'}</td>
                       </tr>
-                    )}
-                    <tr>
-                      <td>
-                        <strong>Netmask</strong>
-                      </td>
-                      <td>{results.results.subnet.netmask}</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <strong>Prefix Length</strong>
-                      </td>
-                      <td>/{results.results.subnet.prefix_length}</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <strong>Total Addresses</strong>
-                      </td>
-                      <td>{results.results.subnet.total_addresses.toLocaleString()}</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <strong>Usable Addresses</strong>
-                      </td>
-                      <td>{results.results.subnet.usable_addresses.toLocaleString()}</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <strong>First Usable IP</strong>
-                      </td>
-                      <td>{results.results.subnet.first_usable_ip}</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <strong>Last Usable IP</strong>
-                      </td>
-                      <td>{results.results.subnet.last_usable_ip}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </article>
-            )}
+                      {results.results.cloudflare.matched_ranges &&
+                        results.results.cloudflare.matched_ranges.length > 0 && (
+                          <tr>
+                            <td>
+                              <strong>Matched Ranges</strong>
+                            </td>
+                            <td>{results.results.cloudflare.matched_ranges.join(', ')}</td>
+                          </tr>
+                        )}
+                    </tbody>
+                  </table>
+                </article>
+              )}
 
-            {/* Performance Timing */}
-            <article className="performance-timing">
-              <h3>Performance Timing</h3>
-              <table>
-                <tbody>
-                  <tr>
-                    <td>
-                      <strong>Total Response Time</strong>
-                    </td>
-                    <td>
-                      <strong>{results.timing.totalDuration}ms</strong> (
-                      {(results.timing.totalDuration / 1000).toFixed(3)}s)
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* API Call Details */}
-              <details>
-                <summary>API Call Details</summary>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Call</th>
-                      <th>Duration</th>
-                      <th>Request Time (UTC)</th>
-                      <th>Response Time (UTC)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.timing.apiCalls.map((call, index) => (
-                      <tr key={`${call.call}-${index}`}>
-                        <td>{call.call}</td>
+              {/* Subnet Info */}
+              {results.results.subnet && (
+                <article>
+                  <h3>Subnet Information</h3>
+                  <table>
+                    <tbody>
+                      <tr>
                         <td>
-                          <strong>{call.duration}ms</strong>
+                          <strong>Network</strong>
                         </td>
-                        <td>{new Date(call.requestTime).toLocaleString()}</td>
-                        <td>{new Date(call.responseTime).toLocaleString()}</td>
+                        <td>{results.results.subnet.network}</td>
                       </tr>
-                    ))}
+                      <tr>
+                        <td>
+                          <strong>Network Address</strong>
+                        </td>
+                        <td>{results.results.subnet.network_address}</td>
+                      </tr>
+                      {results.results.subnet.broadcast_address && (
+                        <tr>
+                          <td>
+                            <strong>Broadcast Address</strong>
+                          </td>
+                          <td>{results.results.subnet.broadcast_address}</td>
+                        </tr>
+                      )}
+                      <tr>
+                        <td>
+                          <strong>Netmask</strong>
+                        </td>
+                        <td>{results.results.subnet.netmask}</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <strong>Prefix Length</strong>
+                        </td>
+                        <td>/{results.results.subnet.prefix_length}</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <strong>Total Addresses</strong>
+                        </td>
+                        <td>{results.results.subnet.total_addresses.toLocaleString()}</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <strong>Usable Addresses</strong>
+                        </td>
+                        <td>{results.results.subnet.usable_addresses.toLocaleString()}</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <strong>First Usable IP</strong>
+                        </td>
+                        <td>{results.results.subnet.first_usable_ip}</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <strong>Last Usable IP</strong>
+                        </td>
+                        <td>{results.results.subnet.last_usable_ip}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </article>
+              )}
+
+              {/* Performance Timing */}
+              <article className="performance-timing">
+                <h3>Performance Timing</h3>
+                <table>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <strong>Total Response Time</strong>
+                      </td>
+                      <td>
+                        <strong>{results.timing.totalDuration}ms</strong> (
+                        {(results.timing.totalDuration / 1000).toFixed(3)}s)
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
-              </details>
-            </article>
+
+                {/* API Call Details */}
+                <details>
+                  <summary>API Call Details</summary>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Call</th>
+                        <th>Duration</th>
+                        <th>Request Time (UTC)</th>
+                        <th>Response Time (UTC)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {results.timing.apiCalls.map((call, index) => (
+                        <tr key={`${call.call}-${index}`}>
+                          <td>{call.call}</td>
+                          <td>
+                            <strong>{call.duration}ms</strong>
+                          </td>
+                          <td>{new Date(call.requestTime).toLocaleString()}</td>
+                          <td>{new Date(call.responseTime).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </details>
+              </article>
             </div>
           </section>
         )}

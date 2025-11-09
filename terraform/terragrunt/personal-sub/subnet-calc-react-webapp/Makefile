@@ -142,22 +142,16 @@ deploy-frontend:
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "Deploying React Frontend: $(WEB_APP_NAME)"
 	@echo "API Base URL: $(API_BASE_URL)"
-	@echo "Auth Method: JWT (see terraform.tfvars for credentials)"
+	@echo "Auth Method: JWT (demo / password123)"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@cd $(FRONTEND_REACT_DIR) && \
-		echo "Installing dependencies..." && \
-		npm install && \
-		echo "Building React app with API_BASE_URL=$(API_BASE_URL) and AUTH_METHOD=jwt..." && \
-		VITE_API_BASE_URL=$(API_BASE_URL) VITE_AUTH_METHOD=jwt npm run build && \
-		echo "Creating deployment package..." && \
-		zip -r react-app.zip dist package.json package-lock.json server.js -x "*/test-results/*" -x "*/playwright-report/*" && \
-		echo "Deploying to Azure App Service..." && \
+	@API_BASE_URL=$(API_BASE_URL) $(STACK_DIR)/build-deployment-zip.sh $(STACK_DIR)/react-app.zip
+	@echo "Deploying to Azure App Service (Oryx build enabled)..." && \
 		$(AZ) webapp deploy \
 			--resource-group $(RESOURCE_GROUP) \
 			--name $(WEB_APP_NAME) \
-			--src-path react-app.zip \
+			--src-path $(STACK_DIR)/react-app.zip \
 			--type zip && \
-		rm -f react-app.zip && \
+		rm -f $(STACK_DIR)/react-app.zip && \
 		echo "✅ Frontend deployed successfully" && \
 		echo "🌐 Web App URL: https://$(WEB_APP_NAME).azurewebsites.net"
 

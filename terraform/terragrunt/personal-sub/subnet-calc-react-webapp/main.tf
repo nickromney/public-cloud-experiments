@@ -8,7 +8,7 @@ locals {
   web_app_name          = var.web_app.name != "" ? var.web_app.name : "web-${var.project_name}-${var.environment}-react"
   function_app_name     = var.function_app.name != "" ? var.function_app.name : "func-${var.project_name}-${var.environment}-api"
   easy_auth_secret_name = var.web_app.easy_auth != null ? try(var.web_app.easy_auth.client_secret_setting_name, "MICROSOFT_PROVIDER_AUTHENTICATION_SECRET") : null
-  computed_api_base_url = var.web_app.api_base_url != "" ? var.web_app.api_base_url : "https://${azurerm_linux_function_app.api.default_hostname}/api/v1"
+  computed_api_base_url = var.web_app.api_base_url != "" ? var.web_app.api_base_url : "https://${azurerm_linux_function_app.api.default_hostname}"
 }
 
 # -----------------------------------------------------------------------------

@@ -13,19 +13,23 @@ declare global {
   interface Window {
     RUNTIME_CONFIG?: {
       API_BASE_URL?: string
-      AUTH_METHOD?: 'none' | 'easyauth' | 'msal' | 'entraid-swa'
+      AUTH_METHOD?: 'none' | 'easyauth' | 'msal' | 'entraid-swa' | 'jwt'
       AZURE_CLIENT_ID?: string
       AZURE_TENANT_ID?: string
       AZURE_REDIRECT_URI?: string
+      JWT_USERNAME?: string
+      JWT_PASSWORD?: string
     }
   }
 }
 
 export interface AuthConfig {
-  method: 'none' | 'easyauth' | 'msal' | 'entraid-swa'
+  method: 'none' | 'easyauth' | 'msal' | 'entraid-swa' | 'jwt'
   clientId?: string
   tenantId?: string
   redirectUri?: string
+  jwtUsername?: string
+  jwtPassword?: string
 }
 
 export interface AppConfig {
@@ -57,7 +61,7 @@ export function isAzureSWA(): boolean {
 
 /**
  * Get authentication method based on environment
- * Priority: Runtime config > URL detection > Environment variables > Default
+ * Priority: Runtime config > Environment variables > URL detection > Default
  */
 export function getAuthMethod(): AuthConfig['method'] {
   // Check runtime config first (injected by deployment scripts)
@@ -65,19 +69,25 @@ export function getAuthMethod(): AuthConfig['method'] {
     return window.RUNTIME_CONFIG.AUTH_METHOD
   }
 
-  // Check build-time environment variables
+  // Check build-time environment variables (takes precedence over hostname detection)
   const envAuthMethod = import.meta.env.VITE_AUTH_METHOD as AuthConfig['method'] | undefined
   if (envAuthMethod) {
     return envAuthMethod
   }
 
-  // Auto-detect based on hostname
+  // Auto-detect based on hostname (only if no explicit config)
   if (isAzureSWA()) {
     return 'entraid-swa'
   }
 
   if (isAzureEasyAuth()) {
     return 'easyauth'
+  }
+
+  // Check if JWT credentials are available
+  const jwtUsername = import.meta.env.VITE_JWT_USERNAME
+  if (jwtUsername) {
+    return 'jwt'
   }
 
   // Check if MSAL config is available for local development
@@ -96,9 +106,12 @@ export function getAuthMethod(): AuthConfig['method'] {
 export function getAppConfig(): AppConfig {
   const authMethod = getAuthMethod()
 
-  // API Base URL priority: Runtime > Window > Environment > Default (relative for SWA)
+  // API Base URL priority: Runtime > Environment > Default (relative for SWA)
   const apiBaseUrl =
-    window.RUNTIME_CONFIG?.API_BASE_URL || import.meta.env.VITE_API_URL || (isAzureSWA() ? '' : 'http://localhost:7071')
+    window.RUNTIME_CONFIG?.API_BASE_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_API_URL ||
+    (isAzureSWA() ? '' : 'http://localhost:7071')
 
   // MSAL configuration (only used when authMethod === 'msal')
   const clientId = window.RUNTIME_CONFIG?.AZURE_CLIENT_ID || import.meta.env.VITE_AZURE_CLIENT_ID || ''
@@ -108,6 +121,10 @@ export function getAppConfig(): AppConfig {
   const redirectUri =
     window.RUNTIME_CONFIG?.AZURE_REDIRECT_URI || import.meta.env.VITE_AZURE_REDIRECT_URI || window.location.origin
 
+  // JWT configuration (only used when authMethod === 'jwt')
+  const jwtUsername = window.RUNTIME_CONFIG?.JWT_USERNAME || import.meta.env.VITE_JWT_USERNAME || ''
+  const jwtPassword = window.RUNTIME_CONFIG?.JWT_PASSWORD || import.meta.env.VITE_JWT_PASSWORD || ''
+
   // Determine stack name for display
   let stackName = 'React + TypeScript + Vite'
   if (authMethod === 'easyauth') {
@@ -116,6 +133,8 @@ export function getAppConfig(): AppConfig {
     stackName += ' + Static Web Apps (Entra ID)'
   } else if (authMethod === 'msal') {
     stackName += ' (MSAL Local Dev)'
+  } else if (authMethod === 'jwt') {
+    stackName += ' + Azure Function (JWT)'
   }
 
   return {
@@ -125,10 +144,55 @@ export function getAppConfig(): AppConfig {
       clientId,
       tenantId,
       redirectUri,
+      jwtUsername,
+      jwtPassword,
     },
     stackName,
   }
 }
 
-// Export singleton config instance
-export const APP_CONFIG = getAppConfig()
+// Export lazy-loaded singleton config instance
+let _cachedConfig: AppConfig | null = null
+
+export function getConfig(): AppConfig {
+  if (!_cachedConfig) {
+    // Priority: window.RUNTIME_CONFIG (injected by server.js) > build-time env > defaults
+    const authMethod = (window.RUNTIME_CONFIG?.AUTH_METHOD || getAuthMethod()) as AuthConfig['method']
+
+    const apiBaseUrl =
+      window.RUNTIME_CONFIG?.API_BASE_URL ||
+      import.meta.env.VITE_API_BASE_URL ||
+      import.meta.env.VITE_API_URL ||
+      (isAzureSWA() ? '' : 'http://localhost:7071')
+
+    // Determine stack name suffix based on auth method
+    const authSuffix = {
+      jwt: ' + JWT',
+      easyauth: ' + Easy Auth',
+      'entraid-swa': ' + SWA',
+      msal: '',
+      none: '',
+    }[authMethod] || ''
+
+    _cachedConfig = {
+      apiBaseUrl,
+      auth: {
+        method: authMethod,
+        clientId: window.RUNTIME_CONFIG?.AZURE_CLIENT_ID || import.meta.env.VITE_AZURE_CLIENT_ID || '',
+        tenantId: window.RUNTIME_CONFIG?.AZURE_TENANT_ID || import.meta.env.VITE_AZURE_TENANT_ID || 'common',
+        redirectUri: window.RUNTIME_CONFIG?.AZURE_REDIRECT_URI || import.meta.env.VITE_AZURE_REDIRECT_URI || window.location.origin,
+        jwtUsername: window.RUNTIME_CONFIG?.JWT_USERNAME || import.meta.env.VITE_JWT_USERNAME || '',
+        jwtPassword: window.RUNTIME_CONFIG?.JWT_PASSWORD || import.meta.env.VITE_JWT_PASSWORD || '',
+      },
+      stackName: `React + TypeScript + Vite${authSuffix}`,
+    }
+  }
+  return _cachedConfig
+}
+
+// For backward compatibility
+export const APP_CONFIG = new Proxy({} as AppConfig, {
+  get(_target, prop) {
+    return getConfig()[prop as keyof AppConfig]
+  },
+})
