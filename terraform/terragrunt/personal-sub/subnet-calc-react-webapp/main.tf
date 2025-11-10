@@ -15,21 +15,47 @@ locals {
 # Resource Group
 # -----------------------------------------------------------------------------
 
+locals {
+  # Resource group maps: create new or reference existing
+  resource_groups_to_create = var.create_resource_group ? {
+    main = {
+      name     = var.resource_group_name
+      location = var.location
+    }
+  } : {}
+
+  resource_groups_existing = var.create_resource_group ? {} : {
+    main = {}
+  }
+
+  # Merge created and existing resource groups
+  resource_group_names = merge(
+    { for k, v in azurerm_resource_group.this : k => v.name },
+    { for k, v in data.azurerm_resource_group.this : k => v.name }
+  )
+
+  resource_group_locations = merge(
+    { for k, v in azurerm_resource_group.this : k => v.location },
+    { for k, v in data.azurerm_resource_group.this : k => v.location }
+  )
+
+  # Final values
+  rg_name = local.resource_group_names["main"]
+  rg_loc  = local.resource_group_locations["main"]
+}
+
 resource "azurerm_resource_group" "this" {
-  count    = var.create_resource_group ? 1 : 0
-  name     = var.resource_group_name
-  location = var.location
+  for_each = local.resource_groups_to_create
+
+  name     = each.value.name
+  location = each.value.location
   tags     = local.common_tags
 }
 
 data "azurerm_resource_group" "this" {
-  count = var.create_resource_group ? 0 : 1
-  name  = var.resource_group_name
-}
+  for_each = local.resource_groups_existing
 
-locals {
-  rg_name = var.resource_group_name
-  rg_loc  = var.create_resource_group ? azurerm_resource_group.this[0].location : data.azurerm_resource_group.this[0].location
+  name = var.resource_group_name
 }
 
 # -----------------------------------------------------------------------------

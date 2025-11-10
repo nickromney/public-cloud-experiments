@@ -18,42 +18,77 @@ locals {
 # Resource Group
 # -----------------------------------------------------------------------------
 
+locals {
+  # Resource group maps: create new or reference existing
+  resource_groups_to_create = var.create_resource_group ? {
+    main = {
+      name     = var.resource_group_name
+      location = var.location
+    }
+  } : {}
+
+  resource_groups_existing = var.create_resource_group ? {} : {
+    main = {}
+  }
+
+  # Merge created and existing resource groups
+  resource_group_names = merge(
+    { for k, v in azurerm_resource_group.this : k => v.name },
+    { for k, v in data.azurerm_resource_group.this : k => v.name }
+  )
+
+  resource_group_locations = merge(
+    { for k, v in azurerm_resource_group.this : k => v.location },
+    { for k, v in data.azurerm_resource_group.this : k => v.location }
+  )
+
+  # Final values
+  rg_name = local.resource_group_names["main"]
+  rg_loc  = local.resource_group_locations["main"]
+}
+
 resource "azurerm_resource_group" "this" {
-  count    = var.create_resource_group ? 1 : 0
-  name     = var.resource_group_name
-  location = var.location
+  for_each = local.resource_groups_to_create
+
+  name     = each.value.name
+  location = each.value.location
   tags     = local.common_tags
 }
 
 data "azurerm_resource_group" "this" {
-  count = var.create_resource_group ? 0 : 1
-  name  = var.resource_group_name
-}
+  for_each = local.resource_groups_existing
 
-locals {
-  rg_name = var.resource_group_name
-  rg_loc  = var.create_resource_group ? azurerm_resource_group.this[0].location : data.azurerm_resource_group.this[0].location
+  name = var.resource_group_name
 }
 
 # -----------------------------------------------------------------------------
 # Shared Observability (Data Sources)
 # -----------------------------------------------------------------------------
 
+locals {
+  # Observability maps: use existing or create new
+  observability_existing = var.observability.use_existing ? { enabled = true } : {}
+  observability_create   = var.observability.use_existing ? {} : { enabled = true }
+}
+
 data "azurerm_log_analytics_workspace" "shared" {
-  count               = var.observability.use_existing ? 1 : 0
+  for_each = local.observability_existing
+
   name                = var.observability.existing_log_analytics_name
   resource_group_name = var.observability.existing_resource_group_name
 }
 
 data "azurerm_application_insights" "shared" {
-  count               = var.observability.use_existing ? 1 : 0
+  for_each = local.observability_existing
+
   name                = var.observability.existing_app_insights_name
   resource_group_name = var.observability.existing_resource_group_name
 }
 
 # Create new resources if not using existing
 resource "azurerm_log_analytics_workspace" "this" {
-  count               = var.observability.use_existing ? 0 : 1
+  for_each = local.observability_create
+
   name                = "log-${var.project_name}-${var.environment}-apim"
   location            = local.rg_loc
   resource_group_name = local.rg_name
@@ -63,20 +98,40 @@ resource "azurerm_log_analytics_workspace" "this" {
 }
 
 resource "azurerm_application_insights" "this" {
-  count               = var.observability.use_existing ? 0 : 1
+  for_each = local.observability_create
+
   name                = "appi-${var.project_name}-${var.environment}-apim"
   location            = local.rg_loc
   resource_group_name = local.rg_name
-  workspace_id        = azurerm_log_analytics_workspace.this[0].id
+  workspace_id        = azurerm_log_analytics_workspace.this["enabled"].id
   application_type    = "web"
   retention_in_days   = try(var.observability.app_insights_retention_days, 90)
   tags                = local.common_tags
 }
 
 locals {
-  log_analytics_workspace_id = var.observability.use_existing ? data.azurerm_log_analytics_workspace.shared[0].id : azurerm_log_analytics_workspace.this[0].id
-  app_insights_key           = var.observability.use_existing ? data.azurerm_application_insights.shared[0].instrumentation_key : azurerm_application_insights.this[0].instrumentation_key
-  app_insights_connection    = var.observability.use_existing ? data.azurerm_application_insights.shared[0].connection_string : azurerm_application_insights.this[0].connection_string
+  # Merge existing and created observability resources
+  log_analytics_ids = merge(
+    { for k, v in data.azurerm_log_analytics_workspace.shared : k => v.id },
+    { for k, v in azurerm_log_analytics_workspace.this : k => v.id }
+  )
+  app_insights_keys = merge(
+    { for k, v in data.azurerm_application_insights.shared : k => v.instrumentation_key },
+    { for k, v in azurerm_application_insights.this : k => v.instrumentation_key }
+  )
+  app_insights_connections = merge(
+    { for k, v in data.azurerm_application_insights.shared : k => v.connection_string },
+    { for k, v in azurerm_application_insights.this : k => v.connection_string }
+  )
+  app_insights_ids = merge(
+    { for k, v in data.azurerm_application_insights.shared : k => v.id },
+    { for k, v in azurerm_application_insights.this : k => v.id }
+  )
+
+  log_analytics_workspace_id = local.log_analytics_ids["enabled"]
+  app_insights_key           = local.app_insights_keys["enabled"]
+  app_insights_connection    = local.app_insights_connections["enabled"]
+  app_insights_id            = local.app_insights_ids["enabled"]
 }
 
 # -----------------------------------------------------------------------------
@@ -98,7 +153,7 @@ module "apim" {
   public_network_access_enabled = true
 
   # Application Insights integration
-  app_insights_id                  = var.observability.use_existing ? data.azurerm_application_insights.shared[0].id : azurerm_application_insights.this[0].id
+  app_insights_id                  = local.app_insights_id
   app_insights_instrumentation_key = local.app_insights_key
 
   tags = local.common_tags
@@ -176,12 +231,18 @@ resource "azurerm_linux_function_app" "api" {
 # Network Security (Optional NSG Enforcement)
 # -----------------------------------------------------------------------------
 
+locals {
+  # Security enforcement map
+  enforce_security = var.security.enforce_apim_only_access ? { enabled = true } : {}
+}
+
 # APIM outbound IPs are available from the module output
 # No need for additional data source
 
 # NSG for Function App (when enforcement is enabled)
 resource "azurerm_network_security_group" "function_app" {
-  count               = var.security.enforce_apim_only_access ? 1 : 0
+  for_each = local.enforce_security
+
   name                = "nsg-${local.function_app_name}"
   location            = local.rg_loc
   resource_group_name = local.rg_name
@@ -190,7 +251,8 @@ resource "azurerm_network_security_group" "function_app" {
 
 # Allow APIM to access Function App (HTTPS)
 resource "azurerm_network_security_rule" "allow_apim_https" {
-  count                       = var.security.enforce_apim_only_access ? 1 : 0
+  for_each = local.enforce_security
+
   name                        = "AllowAPIMHttps"
   priority                    = 100
   direction                   = "Inbound"
@@ -201,12 +263,13 @@ resource "azurerm_network_security_rule" "allow_apim_https" {
   source_address_prefixes     = module.apim.public_ip_addresses
   destination_address_prefix  = "*"
   resource_group_name         = local.rg_name
-  network_security_group_name = azurerm_network_security_group.function_app[0].name
+  network_security_group_name = azurerm_network_security_group.function_app["enabled"].name
 }
 
 # Deny all other inbound traffic
 resource "azurerm_network_security_rule" "deny_all_inbound" {
-  count                       = var.security.enforce_apim_only_access ? 1 : 0
+  for_each = local.enforce_security
+
   name                        = "DenyAllInbound"
   priority                    = 4096
   direction                   = "Inbound"
@@ -217,13 +280,13 @@ resource "azurerm_network_security_rule" "deny_all_inbound" {
   source_address_prefix       = "*"
   destination_address_prefix  = "*"
   resource_group_name         = local.rg_name
-  network_security_group_name = azurerm_network_security_group.function_app[0].name
+  network_security_group_name = azurerm_network_security_group.function_app["enabled"].name
 }
 
 # Note: NSG association to Function App requires VNet integration
 # For App Service on shared infra, use IP restrictions instead
 resource "null_resource" "function_app_ip_restrictions" {
-  count = var.security.enforce_apim_only_access ? 1 : 0
+  for_each = local.enforce_security
 
   # Use Azure CLI to configure IP restrictions
   provisioner "local-exec" {
@@ -315,8 +378,13 @@ resource "azurerm_api_management_api_policy" "subnet_calc" {
 }
 
 # APIM Subscription (for subscription-based auth)
+locals {
+  subscription_enabled = var.apim.subscription_required ? { enabled = true } : {}
+}
+
 resource "azurerm_api_management_subscription" "subnet_calc" {
-  count               = var.apim.subscription_required ? 1 : 0
+  for_each = local.subscription_enabled
+
   api_management_name = module.apim.name
   resource_group_name = local.rg_name
   display_name        = "Subnet Calculator Web App Subscription"
@@ -360,7 +428,7 @@ resource "azurerm_linux_web_app" "react" {
   app_settings = merge({
     "API_BASE_URL" = local.computed_api_base_url
     # APIM subscription key (if required)
-    "APIM_SUBSCRIPTION_KEY" = var.apim.subscription_required ? azurerm_api_management_subscription.subnet_calc[0].primary_key : ""
+    "APIM_SUBSCRIPTION_KEY" = var.apim.subscription_required ? azurerm_api_management_subscription.subnet_calc["enabled"].primary_key : ""
     "STACK_NAME"            = "Subnet Calculator React (via APIM)"
     # Runtime configuration for Express server
     "AUTH_METHOD" = "none" # Web app doesn't authenticate - APIM does

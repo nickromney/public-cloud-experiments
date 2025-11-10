@@ -22,7 +22,7 @@ SCRIPTS_DIR ?= $(ROOT_DIR)deployment-scripts
 # Stack name mappings (short-name -> directory)
 # Format: <project>/<stack-alias>=<directory-path>
 # Note: Using spaces to separate entries for filter to work correctly
-STACK_MAP := subnet-calc/react-webapp=personal-sub/subnet-calc-react-webapp subnet-calc/react-apim=personal-sub/subnet-calc-react-webapp-apim subnet-calc/internal-apim=personal-sub/subnet-calc-internal-apim subnet-calc/static-web-apps=personal-sub/subnet-calc-static-web-apps
+STACK_MAP := subnet-calc/react-webapp=personal-sub/subnet-calc-react-webapp subnet-calc/react-apim=personal-sub/subnet-calc-react-webapp-apim subnet-calc/internal-apim=personal-sub/subnet-calc-internal-apim subnet-calc/static-web-apps=personal-sub/subnet-calc-static-web-apps subnet-calc/shared-components=personal-sub/subnet-calc-shared-components
 
 # Function to resolve stack directory from project and stack alias
 # Matches the exact key and extracts the value
