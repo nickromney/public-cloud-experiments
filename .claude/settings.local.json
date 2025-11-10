@@ -303,7 +303,8 @@
       "Bash(PERSONAL_SUB_REGION=uksouth terragrunt apply:*)",
       "Bash(az functionapp:*)",
       "Bash(tofu fmt:*)",
-      "Bash(terraform providers:*)"
+      "Bash(terraform providers:*)",
+      "WebFetch(domain:opentofu.org)"
     ],
     "deny": [],
     "ask": []

@@ -63,3 +63,8 @@ output "log_analytics_workspace_id" {
   description = "ID of the Log Analytics Workspace."
   value       = azurerm_log_analytics_workspace.this.id
 }
+
+output "resource_group_name" {
+  description = "Name of the resource group."
+  value       = local.rg_name
+}

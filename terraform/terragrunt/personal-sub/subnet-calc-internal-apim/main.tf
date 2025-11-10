@@ -18,21 +18,47 @@ locals {
 # Resource Group
 # -----------------------------------------------------------------------------
 
+locals {
+  # Resource group maps: create new or reference existing
+  resource_groups_to_create = var.create_resource_group ? {
+    main = {
+      name     = var.resource_group_name
+      location = var.location
+    }
+  } : {}
+
+  resource_groups_existing = var.create_resource_group ? {} : {
+    main = {}
+  }
+
+  # Merge created and existing resource groups
+  resource_group_names = merge(
+    { for k, v in azurerm_resource_group.this : k => v.name },
+    { for k, v in data.azurerm_resource_group.this : k => v.name }
+  )
+
+  resource_group_locations = merge(
+    { for k, v in azurerm_resource_group.this : k => v.location },
+    { for k, v in data.azurerm_resource_group.this : k => v.location }
+  )
+
+  # Final values
+  rg_name = local.resource_group_names["main"]
+  rg_loc  = local.resource_group_locations["main"]
+}
+
 resource "azurerm_resource_group" "this" {
-  count    = var.create_resource_group ? 1 : 0
-  name     = var.resource_group_name
-  location = var.location
+  for_each = local.resource_groups_to_create
+
+  name     = each.value.name
+  location = each.value.location
   tags     = local.common_tags
 }
 
 data "azurerm_resource_group" "this" {
-  count = var.create_resource_group ? 0 : 1
-  name  = var.resource_group_name
-}
+  for_each = local.resource_groups_existing
 
-locals {
-  rg_name = var.resource_group_name
-  rg_loc  = var.create_resource_group ? azurerm_resource_group.this[0].location : data.azurerm_resource_group.this[0].location
+  name = var.resource_group_name
 }
 
 # -----------------------------------------------------------------------------
@@ -145,7 +171,7 @@ resource "azurerm_linux_web_app" "web" {
     "WEBSITE_NODE_DEFAULT_VERSION"   = "~${var.web_app.runtime_version}"
     "SCM_DO_BUILD_DURING_DEPLOYMENT" = "false"
     "API_BASE_URL"                   = var.web_app.api_base_url
-  }, try(var.web_app.app_settings, {}))
+  }, var.web_app.app_settings)
 
   tags = local.common_tags
 }
@@ -155,8 +181,18 @@ resource "azurerm_app_service_virtual_network_swift_connection" "web" {
   subnet_id      = azurerm_subnet.web_integration.id
 }
 
+locals {
+  # Private endpoint maps
+  web_private_endpoint_enabled      = var.web_app.enable_private_endpoint ? { enabled = true } : {}
+  function_private_endpoint_enabled = var.function_app.enable_private_endpoint ? { enabled = true } : {}
+
+  # DNS zone enabled if either private endpoint is enabled
+  dns_zone_enabled = var.web_app.enable_private_endpoint || var.function_app.enable_private_endpoint ? { enabled = true } : {}
+}
+
 resource "azurerm_private_endpoint" "web" {
-  count               = var.web_app.enable_private_endpoint ? 1 : 0
+  for_each = local.web_private_endpoint_enabled
+
   name                = "pe-${azurerm_linux_web_app.web.name}"
   resource_group_name = local.rg_name
   location            = local.rg_loc
@@ -171,16 +207,18 @@ resource "azurerm_private_endpoint" "web" {
 }
 
 resource "azurerm_private_dns_zone" "webapps" {
-  count               = var.web_app.enable_private_endpoint || var.function_app.enable_private_endpoint ? 1 : 0
+  for_each = local.dns_zone_enabled
+
   name                = "privatelink.azurewebsites.net"
   resource_group_name = local.rg_name
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "webapps" {
-  count                 = var.web_app.enable_private_endpoint || var.function_app.enable_private_endpoint ? 1 : 0
+  for_each = local.dns_zone_enabled
+
   name                  = "link-${var.project_name}-webapps"
   resource_group_name   = local.rg_name
-  private_dns_zone_name = azurerm_private_dns_zone.webapps[0].name
+  private_dns_zone_name = azurerm_private_dns_zone.webapps["enabled"].name
   virtual_network_id    = azurerm_virtual_network.this.id
 }
 
@@ -239,13 +277,14 @@ resource "azurerm_linux_function_app" "this" {
   app_settings = merge({
     "FUNCTIONS_WORKER_RUNTIME" = var.function_app.runtime == "dotnet-isolated" ? "dotnet-isolated" : var.function_app.runtime
     "WEBSITE_RUN_FROM_PACKAGE" = var.function_app.run_from_package ? "1" : "0"
-  }, try(var.function_app.app_settings, {}))
+  }, var.function_app.app_settings)
 
   tags = local.common_tags
 }
 
 resource "azurerm_private_endpoint" "function" {
-  count               = var.function_app.enable_private_endpoint ? 1 : 0
+  for_each = local.function_private_endpoint_enabled
+
   name                = "pe-${azurerm_linux_function_app.this.name}"
   resource_group_name = local.rg_name
   location            = local.rg_loc
