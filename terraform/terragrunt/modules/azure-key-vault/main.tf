@@ -48,8 +48,8 @@ resource "azurerm_key_vault" "this" {
     content {
       bypass                     = network_acls.value.bypass
       default_action             = network_acls.value.default_action
-      ip_rules                   = try(network_acls.value.ip_rules, [])
-      virtual_network_subnet_ids = try(network_acls.value.virtual_network_subnet_ids, [])
+      ip_rules                   = network_acls.value.ip_rules
+      virtual_network_subnet_ids = network_acls.value.virtual_network_subnet_ids
     }
   }
 
@@ -61,13 +61,13 @@ resource "azurerm_key_vault_access_policy" "this" {
   for_each = var.enable_rbac_authorization ? {} : var.access_policies
 
   key_vault_id = azurerm_key_vault.this.id
-  tenant_id    = var.tenant_id
+  tenant_id    = local.tenant_id
   object_id    = each.value.object_id
 
-  key_permissions         = try(each.value.key_permissions, [])
-  secret_permissions      = try(each.value.secret_permissions, [])
-  certificate_permissions = try(each.value.certificate_permissions, [])
-  storage_permissions     = try(each.value.storage_permissions, [])
+  key_permissions         = each.value.key_permissions
+  secret_permissions      = each.value.secret_permissions
+  certificate_permissions = each.value.certificate_permissions
+  storage_permissions     = each.value.storage_permissions
 }
 
 # Diagnostic settings (optional)
