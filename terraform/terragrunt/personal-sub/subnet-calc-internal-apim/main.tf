@@ -265,20 +265,20 @@ resource "azurerm_private_endpoint" "function" {
 # API Management
 # -----------------------------------------------------------------------------
 
-resource "azurerm_api_management" "this" {
+module "apim" {
+  source = "../../modules/azure-apim"
+
   name                = var.apim.name != "" ? var.apim.name : "apim-${var.project_name}-${var.environment}"
-  resource_group_name = local.rg_name
   location            = local.rg_loc
+  resource_group_name = local.rg_name
+  publisher_name      = var.apim.publisher_name
+  publisher_email     = var.apim.publisher_email
+  sku_name            = var.apim.sku_name
 
-  sku_name                      = var.apim.sku_name
-  publisher_name                = var.apim.publisher_name
-  publisher_email               = var.apim.publisher_email
+  # Internal VNet integration
   virtual_network_type          = "Internal"
+  subnet_id                     = azurerm_subnet.apim.id
   public_network_access_enabled = false
-
-  virtual_network_configuration {
-    subnet_id = azurerm_subnet.apim.id
-  }
 
   tags = local.common_tags
 }
@@ -296,18 +296,18 @@ resource "azurerm_private_dns_zone_virtual_network_link" "apim" {
 }
 
 resource "azurerm_private_dns_a_record" "apim" {
-  depends_on          = [azurerm_api_management.this]
-  name                = azurerm_api_management.this.name
+  depends_on          = [module.apim]
+  name                = module.apim.name
   resource_group_name = local.rg_name
   zone_name           = azurerm_private_dns_zone.apim.name
   ttl                 = 300
-  records             = [azurerm_api_management.this.private_ip_addresses[0]]
+  records             = [module.apim.private_ip_addresses[0]]
 }
 
 resource "azurerm_api_management_api" "function_api" {
   name                = "api-${var.project_name}"
   resource_group_name = local.rg_name
-  api_management_name = azurerm_api_management.this.name
+  api_management_name = module.apim.name
   revision            = "1"
   display_name        = "Function API"
   path                = var.apim.api_path
@@ -317,7 +317,7 @@ resource "azurerm_api_management_api" "function_api" {
 resource "azurerm_api_management_backend" "function" {
   name                = "backend-${var.project_name}"
   resource_group_name = local.rg_name
-  api_management_name = azurerm_api_management.this.name
+  api_management_name = module.apim.name
   protocol            = "http"
   url                 = "https://${azurerm_linux_function_app.this.default_hostname}"
   resource_id         = azurerm_linux_function_app.this.id
@@ -330,7 +330,7 @@ resource "azurerm_api_management_backend" "function" {
 resource "azurerm_api_management_api_policy" "function_api" {
   api_name            = azurerm_api_management_api.function_api.name
   resource_group_name = local.rg_name
-  api_management_name = azurerm_api_management.this.name
+  api_management_name = module.apim.name
   xml_content = coalesce(var.apim.policy_xml, templatefile("${path.module}/templates/api-policy.xml.tftpl", {
     tenant_id     = var.tenant_id
     audience      = local.apim_audience
@@ -343,7 +343,7 @@ resource "azurerm_api_management_api_policy" "function_api" {
 # -----------------------------------------------------------------------------
 
 locals {
-  apim_identifier_uri = var.apim.identifier_uri != "" ? var.apim.identifier_uri : "api://${azurerm_api_management.this.name}"
+  apim_identifier_uri = var.apim.identifier_uri != "" ? var.apim.identifier_uri : "api://${module.apim.name}"
   apim_audience       = local.apim_identifier_uri
 }
 
