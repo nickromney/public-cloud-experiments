@@ -171,7 +171,7 @@ resource "azurerm_linux_web_app" "web" {
     "WEBSITE_NODE_DEFAULT_VERSION"   = "~${var.web_app.runtime_version}"
     "SCM_DO_BUILD_DURING_DEPLOYMENT" = "false"
     "API_BASE_URL"                   = var.web_app.api_base_url
-  }, try(var.web_app.app_settings, {}))
+  }, var.web_app.app_settings)
 
   tags = local.common_tags
 }
@@ -277,7 +277,7 @@ resource "azurerm_linux_function_app" "this" {
   app_settings = merge({
     "FUNCTIONS_WORKER_RUNTIME" = var.function_app.runtime == "dotnet-isolated" ? "dotnet-isolated" : var.function_app.runtime
     "WEBSITE_RUN_FROM_PACKAGE" = var.function_app.run_from_package ? "1" : "0"
-  }, try(var.function_app.app_settings, {}))
+  }, var.function_app.app_settings)
 
   tags = local.common_tags
 }

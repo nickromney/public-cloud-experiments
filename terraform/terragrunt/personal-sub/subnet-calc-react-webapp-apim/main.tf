@@ -93,7 +93,7 @@ resource "azurerm_log_analytics_workspace" "this" {
   location            = local.rg_loc
   resource_group_name = local.rg_name
   sku                 = "PerGB2018"
-  retention_in_days   = try(var.observability.log_retention_days, 30)
+  retention_in_days   = var.observability.log_retention_days
   tags                = local.common_tags
 }
 
@@ -105,7 +105,7 @@ resource "azurerm_application_insights" "this" {
   resource_group_name = local.rg_name
   workspace_id        = azurerm_log_analytics_workspace.this["enabled"].id
   application_type    = "web"
-  retention_in_days   = try(var.observability.app_insights_retention_days, 90)
+  retention_in_days   = var.observability.app_insights_retention_days
   tags                = local.common_tags
 }
 
@@ -204,7 +204,7 @@ resource "azurerm_linux_function_app" "api" {
     cors {
       allowed_origins = concat(
         [module.apim.gateway_url],
-        try(var.function_app.cors_allowed_origins, [])
+        var.function_app.cors_allowed_origins
       )
       support_credentials = false
     }
@@ -218,7 +218,7 @@ resource "azurerm_linux_function_app" "api" {
     "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
     # AUTH_METHOD=none - APIM handles all authentication
     "AUTH_METHOD" = "none"
-  }, try(var.function_app.app_settings, {}))
+  }, var.function_app.app_settings)
 
   identity {
     type = "SystemAssigned"
@@ -432,7 +432,7 @@ resource "azurerm_linux_web_app" "react" {
     "STACK_NAME"            = "Subnet Calculator React (via APIM)"
     # Runtime configuration for Express server
     "AUTH_METHOD" = "none" # Web app doesn't authenticate - APIM does
-  }, try(var.web_app.app_settings, {}))
+  }, var.web_app.app_settings)
 
   identity {
     type = "SystemAssigned"

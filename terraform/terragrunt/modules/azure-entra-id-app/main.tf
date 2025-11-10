@@ -48,10 +48,10 @@ resource "azuread_application" "this" {
         id                         = oauth2_permission_scope.value.id
         admin_consent_description  = oauth2_permission_scope.value.admin_consent_description
         admin_consent_display_name = oauth2_permission_scope.value.admin_consent_display_name
-        enabled                    = try(oauth2_permission_scope.value.enabled, true)
-        type                       = try(oauth2_permission_scope.value.type, "User")
-        user_consent_description   = try(oauth2_permission_scope.value.user_consent_description, oauth2_permission_scope.value.admin_consent_description)
-        user_consent_display_name  = try(oauth2_permission_scope.value.user_consent_display_name, oauth2_permission_scope.value.admin_consent_display_name)
+        enabled                    = oauth2_permission_scope.value.enabled
+        type                       = oauth2_permission_scope.value.type
+        user_consent_description   = coalesce(oauth2_permission_scope.value.user_consent_description, oauth2_permission_scope.value.admin_consent_description)
+        user_consent_display_name  = coalesce(oauth2_permission_scope.value.user_consent_display_name, oauth2_permission_scope.value.admin_consent_display_name)
         value                      = oauth2_permission_scope.value.value
       }
     }
@@ -65,7 +65,7 @@ resource "azuread_application" "this" {
       allowed_member_types = app_role.value.allowed_member_types
       description          = app_role.value.description
       display_name         = app_role.value.display_name
-      enabled              = try(app_role.value.enabled, true)
+      enabled              = app_role.value.enabled
       value                = app_role.value.value
     }
   }
