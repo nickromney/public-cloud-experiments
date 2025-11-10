@@ -1,3 +1,24 @@
+# Entra ID App Registration Outputs
+output "entra_id_app_client_id" {
+  description = "Application (client) ID of the Entra ID app registration."
+  value       = module.entra_id_app.application_id
+}
+
+output "entra_id_app_object_id" {
+  description = "Object ID of the Entra ID app registration."
+  value       = module.entra_id_app.object_id
+}
+
+output "entra_id_app_display_name" {
+  description = "Display name of the Entra ID app registration."
+  value       = module.entra_id_app.display_name
+}
+
+output "entra_id_app_service_principal_id" {
+  description = "Service principal object ID for the Entra ID app."
+  value       = module.entra_id_app.service_principal_id
+}
+
 # Web App Outputs
 output "web_app_hostname" {
   description = "Default hostname for the React frontend."

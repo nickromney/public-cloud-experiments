@@ -1,0 +1,95 @@
+variable "name" {
+  description = "Name of the Function App"
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9-]{2,60}$", var.name))
+    error_message = "Function App name must be 2-60 characters, lowercase alphanumeric and hyphens only"
+  }
+}
+
+variable "resource_group_name" {
+  description = "Name of the resource group"
+  type        = string
+}
+
+variable "location" {
+  description = "Azure region for the Function App"
+  type        = string
+}
+
+variable "plan_name" {
+  description = "Name of the App Service Plan"
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9-]{1,40}$", var.plan_name))
+    error_message = "Service plan name must be 1-40 characters, alphanumeric and hyphens only"
+  }
+}
+
+variable "plan_sku" {
+  description = "SKU for the App Service Plan (e.g., Y1, EP1, EP2, EP3)"
+  type        = string
+
+  validation {
+    condition     = can(regex("^(Y1|EP[1-3]|B[1-3]|S[1-3]|P[1-3]v[2-3])$", var.plan_sku))
+    error_message = "Plan SKU must be a valid Function App SKU (Y1, EP1-EP3, B1-B3, S1-S3, P1v2-P3v3)"
+  }
+}
+
+variable "runtime" {
+  description = "Function App runtime (python, node, dotnet-isolated)"
+  type        = string
+
+  validation {
+    condition     = contains(["python", "node", "dotnet-isolated"], var.runtime)
+    error_message = "Runtime must be python, node, or dotnet-isolated"
+  }
+}
+
+variable "runtime_version" {
+  description = "Runtime version (e.g., 3.11 for Python, 18 for Node, 8.0 for .NET)"
+  type        = string
+}
+
+variable "storage_account_name" {
+  description = "Storage account name (if empty, auto-generated from function app name)"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.storage_account_name == "" || can(regex("^[a-z0-9]{3,24}$", var.storage_account_name))
+    error_message = "Storage account name must be 3-24 characters, lowercase alphanumeric only"
+  }
+}
+
+variable "public_network_access_enabled" {
+  description = "Enable public network access to the Function App"
+  type        = bool
+  default     = true
+}
+
+variable "cors_allowed_origins" {
+  description = "List of allowed CORS origins"
+  type        = list(string)
+  default     = ["*"]
+}
+
+variable "cors_support_credentials" {
+  description = "Enable CORS credentials support"
+  type        = bool
+  default     = false
+}
+
+variable "app_settings" {
+  description = "Application settings for the Function App"
+  type        = map(string)
+  default     = {}
+}
+
+variable "tags" {
+  description = "Tags to apply to resources"
+  type        = map(string)
+  default     = {}
+}

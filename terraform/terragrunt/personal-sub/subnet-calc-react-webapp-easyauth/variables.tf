@@ -57,6 +57,15 @@ variable "tags" {
   default     = {}
 }
 
+variable "entra_id_app" {
+  description = "Entra ID App Registration configuration for Easy Auth (client_id generated automatically)"
+  type = object({
+    display_name     = string
+    sign_in_audience = optional(string, "AzureADMyOrg")
+    identifier_uris  = optional(list(string), [])
+  })
+}
+
 variable "web_app" {
   description = "Configuration for the React frontend hosted on App Service."
   type = object({
@@ -68,7 +77,7 @@ variable "web_app" {
     app_settings    = optional(map(string), {})
     easy_auth = optional(object({
       enabled                    = optional(bool, true)
-      client_id                  = string
+      client_id                  = optional(string, "") # Dynamically generated from Entra ID app
       client_secret_setting_name = optional(string, "")
       issuer                     = optional(string, "")
       tenant_id                  = optional(string, "")
