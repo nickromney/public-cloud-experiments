@@ -45,12 +45,26 @@ resource "azurerm_resource_group" "this" {
   name     = each.value.name
   location = each.value.location
   tags     = local.common_tags
+
+  lifecycle {
+    postcondition {
+      condition     = self.id != ""
+      error_message = "Resource group creation failed - no ID returned"
+    }
+  }
 }
 
 data "azurerm_resource_group" "this" {
   for_each = local.resource_groups_existing
 
   name = var.resource_group_name
+
+  lifecycle {
+    postcondition {
+      condition     = self.id != ""
+      error_message = "Resource group '${var.resource_group_name}' does not exist"
+    }
+  }
 }
 
 # -----------------------------------------------------------------------------
@@ -64,6 +78,18 @@ resource "azurerm_log_analytics_workspace" "this" {
   sku                 = "PerGB2018"
   retention_in_days   = var.log_retention_days
   tags                = local.common_tags
+
+  lifecycle {
+    precondition {
+      condition     = local.rg_name != ""
+      error_message = "Resource group name must be set before creating Log Analytics workspace"
+    }
+
+    postcondition {
+      condition     = self.id != "" && self.workspace_id != ""
+      error_message = "Log Analytics workspace creation failed"
+    }
+  }
 }
 
 # -----------------------------------------------------------------------------
@@ -100,6 +126,18 @@ module "key_vault" {
   log_analytics_workspace_id = null
 
   tags = local.common_tags
+
+  lifecycle {
+    precondition {
+      condition     = length(local.kv_name) <= 24
+      error_message = "Key Vault name '${local.kv_name}' exceeds 24 character limit (${length(local.kv_name)} chars)"
+    }
+
+    precondition {
+      condition     = local.rg_name != ""
+      error_message = "Resource group name must be set before creating Key Vault"
+    }
+  }
 }
 
 # Key Vault diagnostics - created separately to avoid circular dependency
