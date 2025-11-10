@@ -4,27 +4,27 @@
 
 output "apim_name" {
   description = "Name of the API Management instance"
-  value       = azurerm_api_management.this.name
+  value       = module.apim.name
 }
 
 output "apim_gateway_url" {
   description = "APIM Gateway URL (public endpoint)"
-  value       = azurerm_api_management.this.gateway_url
+  value       = module.apim.gateway_url
 }
 
 output "apim_portal_url" {
   description = "APIM Developer Portal URL"
-  value       = azurerm_api_management.this.developer_portal_url
+  value       = module.apim.developer_portal_url
 }
 
 output "apim_management_url" {
   description = "APIM Management API URL"
-  value       = azurerm_api_management.this.management_api_url
+  value       = module.apim.management_api_url
 }
 
 output "apim_api_url" {
   description = "Full API URL via APIM Gateway"
-  value       = "${azurerm_api_management.this.gateway_url}/${var.apim.api_path}"
+  value       = "${module.apim.gateway_url}/${var.apim.api_path}"
 }
 
 output "apim_subscription_key" {
@@ -41,7 +41,7 @@ output "apim_secondary_subscription_key" {
 
 output "apim_public_ip_addresses" {
   description = "APIM outbound public IP addresses (for NSG/firewall rules)"
-  value       = data.azurerm_api_management.outbound_ips.public_ip_addresses
+  value       = module.apim.public_ip_addresses
 }
 
 # -----------------------------------------------------------------------------
@@ -143,12 +143,12 @@ output "security_configuration" {
 output "test_commands" {
   description = "Commands to test the deployment"
   value = var.apim.subscription_required ? {
-    health_check_via_apim = "curl -H 'Ocp-Apim-Subscription-Key: <use-primary-key>' ${azurerm_api_management.this.gateway_url}/${var.apim.api_path}/api/v1/health"
+    health_check_via_apim = "curl -H 'Ocp-Apim-Subscription-Key: <use-primary-key>' ${module.apim.gateway_url}/${var.apim.api_path}/api/v1/health"
     get_subscription_key  = "terragrunt output -raw apim_subscription_key"
     test_web_app          = "curl https://${azurerm_linux_web_app.react.default_hostname}"
     function_app_direct   = var.security.enforce_apim_only_access ? "Direct access BLOCKED by IP restrictions" : "curl https://${azurerm_linux_function_app.api.default_hostname}/api/v1/health"
     } : {
-    health_check_via_apim = "curl ${azurerm_api_management.this.gateway_url}/${var.apim.api_path}/api/v1/health"
+    health_check_via_apim = "curl ${module.apim.gateway_url}/${var.apim.api_path}/api/v1/health"
     test_web_app          = "curl https://${azurerm_linux_web_app.react.default_hostname}"
     function_app_direct   = var.security.enforce_apim_only_access ? "Direct access BLOCKED by IP restrictions" : "curl https://${azurerm_linux_function_app.api.default_hostname}/api/v1/health"
   }
@@ -158,7 +158,7 @@ output "deployment_summary" {
   description = "Summary of deployed resources and configuration"
   value = {
     stack_name           = "Subnet Calculator React Web App with APIM"
-    apim_gateway         = azurerm_api_management.this.gateway_url
+    apim_gateway         = module.apim.gateway_url
     api_path             = "/${var.apim.api_path}"
     web_app_url          = "https://${azurerm_linux_web_app.react.default_hostname}"
     function_app_backend = "https://${azurerm_linux_function_app.api.default_hostname}"

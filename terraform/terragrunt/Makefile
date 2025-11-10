@@ -25,10 +25,11 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Examples:"
-	@echo "  make setup                   # Configure Azure backend"
-	@echo "  make app-a-init              # Initialize ps-az-sbx/app-a"
-	@echo "  make subnet-calc-apim-init   # Initialize personal-sub/subnet-calc-internal-apim"
-	@echo "  make subnet-calc-apim-plan   # Plan subnet calculator deployment"
+	@echo "  make setup                              # Configure Azure backend"
+	@echo "  make app-a-init                         # Initialize ps-az-sbx/app-a"
+	@echo "  make subnet-calc-react-webapp-plan      # Plan subnet-calc-react-webapp"
+	@echo "  make subnet-calc-react-webapp-apim-init # Initialize APIM stack"
+	@echo "  make subnet-calc-internal-apim-apply    # Deploy internal APIM"
 
 .PHONY: setup
 setup: ## Run setup script to configure environment (idempotent)
@@ -159,31 +160,78 @@ app-a-clean: ## Clean ps-az-sbx/app-a cached files
 	@cd ps-az-sbx/app-a && rm -rf .terraform .terragrunt-cache
 	@echo "$(GREEN)✓ Cleaned ps-az-sbx/app-a$(NC)"
 
-# Personal subscription subnet-calc-internal-apim targets
-.PHONY: subnet-calc-apim-init
-subnet-calc-apim-init: check-terragrunt check-env ## Initialize personal-sub/subnet-calc-internal-apim
-	@cd personal-sub/subnet-calc-internal-apim && terragrunt init -upgrade
+# Personal subscription targets (dynamic pattern for all stacks)
+# Usage: make <stack-name>-<action>
+# Examples:
+#   make subnet-calc-react-webapp-init
+#   make subnet-calc-react-webapp-apim-plan
+#   make subnet-calc-internal-apim-apply
 
-.PHONY: subnet-calc-apim-plan
-subnet-calc-apim-plan: check-terragrunt check-env ## Plan personal-sub/subnet-calc-internal-apim
-	@cd personal-sub/subnet-calc-internal-apim && terragrunt init -upgrade && terragrunt plan
+.PHONY: %-init
+%-init: check-terragrunt check-env ## Initialize personal-sub/<stack>
+	@if [ -d "personal-sub/$*" ]; then \
+		cd personal-sub/$* && terragrunt init -upgrade; \
+	else \
+		echo "$(YELLOW)❌ Stack 'personal-sub/$*' not found$(NC)"; \
+		exit 1; \
+	fi
 
-.PHONY: subnet-calc-apim-apply
-subnet-calc-apim-apply: check-terragrunt check-env ## Apply personal-sub/subnet-calc-internal-apim
-	@cd personal-sub/subnet-calc-internal-apim && terragrunt init -upgrade && terragrunt apply
+.PHONY: %-plan
+%-plan: check-terragrunt check-env ## Plan personal-sub/<stack>
+	@if [ -d "personal-sub/$*" ]; then \
+		cd personal-sub/$* && terragrunt init -upgrade && terragrunt plan; \
+	else \
+		echo "$(YELLOW)❌ Stack 'personal-sub/$*' not found$(NC)"; \
+		exit 1; \
+	fi
 
-.PHONY: subnet-calc-apim-destroy
-subnet-calc-apim-destroy: check-terragrunt check-env ## Destroy personal-sub/subnet-calc-internal-apim
-	@cd personal-sub/subnet-calc-internal-apim && terragrunt destroy
+.PHONY: %-apply
+%-apply: check-terragrunt check-env ## Apply personal-sub/<stack>
+	@if [ -d "personal-sub/$*" ]; then \
+		cd personal-sub/$* && terragrunt init -upgrade && terragrunt apply; \
+	else \
+		echo "$(YELLOW)❌ Stack 'personal-sub/$*' not found$(NC)"; \
+		exit 1; \
+	fi
 
-.PHONY: subnet-calc-apim-output
-subnet-calc-apim-output: check-terragrunt check-env ## Show outputs for personal-sub/subnet-calc-internal-apim
-	@cd personal-sub/subnet-calc-internal-apim && terragrunt output
+.PHONY: %-destroy
+%-destroy: check-terragrunt check-env ## Destroy personal-sub/<stack>
+	@if [ -d "personal-sub/$*" ]; then \
+		cd personal-sub/$* && terragrunt destroy; \
+	else \
+		echo "$(YELLOW)❌ Stack 'personal-sub/$*' not found$(NC)"; \
+		exit 1; \
+	fi
 
-.PHONY: subnet-calc-apim-clean
-subnet-calc-apim-clean: ## Clean personal-sub/subnet-calc-internal-apim cached files
-	@cd personal-sub/subnet-calc-internal-apim && rm -rf .terraform .terragrunt-cache
-	@echo "$(GREEN)✓ Cleaned personal-sub/subnet-calc-internal-apim$(NC)"
+.PHONY: %-output
+%-output: check-terragrunt check-env ## Show outputs for personal-sub/<stack>
+	@if [ -d "personal-sub/$*" ]; then \
+		cd personal-sub/$* && terragrunt output; \
+	else \
+		echo "$(YELLOW)❌ Stack 'personal-sub/$*' not found$(NC)"; \
+		exit 1; \
+	fi
+
+.PHONY: %-clean
+%-clean: ## Clean personal-sub/<stack> cached files
+	@if [ -d "personal-sub/$*" ]; then \
+		cd personal-sub/$* && rm -rf .terraform .terragrunt-cache; \
+		echo "$(GREEN)✓ Cleaned personal-sub/$*$(NC)"; \
+	else \
+		echo "$(YELLOW)❌ Stack 'personal-sub/$*' not found$(NC)"; \
+		exit 1; \
+	fi
+
+# Legacy aliases for backward compatibility
+.PHONY: subnet-calc-apim-init subnet-calc-apim-plan subnet-calc-apim-apply
+.PHONY: subnet-calc-apim-destroy subnet-calc-apim-output subnet-calc-apim-clean
+
+subnet-calc-apim-init: subnet-calc-internal-apim-init ## Alias: Initialize subnet-calc-internal-apim
+subnet-calc-apim-plan: subnet-calc-internal-apim-plan ## Alias: Plan subnet-calc-internal-apim
+subnet-calc-apim-apply: subnet-calc-internal-apim-apply ## Alias: Apply subnet-calc-internal-apim
+subnet-calc-apim-destroy: subnet-calc-internal-apim-destroy ## Alias: Destroy subnet-calc-internal-apim
+subnet-calc-apim-output: subnet-calc-internal-apim-output ## Alias: Show outputs for subnet-calc-internal-apim
+subnet-calc-apim-clean: subnet-calc-internal-apim-clean ## Alias: Clean subnet-calc-internal-apim
 
 # Format and validate
 .PHONY: fmt format
@@ -227,13 +275,19 @@ quality: fmt-check lint ## Run all quality checks
 
 .PHONY: validate
 validate: check-terragrunt ## Validate all Terraform configurations
-	@echo "Validating ps-az-sbx/app-a..."
-	@cd ps-az-sbx/app-a && terragrunt init -upgrade && terragrunt validate
-	@echo "Validating personal-sub/subnet-calc-internal-apim..."
-	@cd personal-sub/subnet-calc-internal-apim && terragrunt init -upgrade && terragrunt validate
+	@echo "$(YELLOW)Validating all stacks...$(NC)"
+	@for dir in $$(find ps-az-sbx personal-sub -name "terragrunt.hcl" -exec dirname {} \;); do \
+		echo "  → Validating $$dir"; \
+		(cd $$dir && terragrunt init -upgrade && terragrunt validate) || exit 1; \
+	done
 	@echo "$(GREEN)✓ All configurations valid$(NC)"
 
 # Clean all
 .PHONY: clean
-clean: app-a-clean subnet-calc-apim-clean ## Clean all cached files
+clean: ## Clean all cached files
+	@echo "$(YELLOW)Cleaning all stacks...$(NC)"
+	@for dir in $$(find ps-az-sbx personal-sub -name "terragrunt.hcl" -exec dirname {} \;); do \
+		echo "  → Cleaning $$dir"; \
+		(cd $$dir && rm -rf .terraform .terragrunt-cache); \
+	done
 	@echo "$(GREEN)✓ All cleaned$(NC)"

@@ -3,6 +3,7 @@
 # Paths
 STACK_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 REPO_ROOT := $(abspath $(STACK_DIR)../../../..)
+SCRIPTS_DIR := $(abspath $(STACK_DIR)../../deployment-scripts)
 FRONTEND_REACT_DIR := $(REPO_ROOT)/subnet-calculator/frontend-react
 API_FUNCTION_DIR := $(REPO_ROOT)/subnet-calculator/api-fastapi-azure-function
 
@@ -118,7 +119,7 @@ deploy-function:
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "Deploying Function App: $(FUNCTION_APP_NAME)"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@$(STACK_DIR)/build-function-zip.sh $(STACK_DIR)/function-app.zip
+	@$(SCRIPTS_DIR)/build-function-zip.sh $(STACK_DIR)/function-app.zip
 	@echo "Deploying to Azure..." && \
 		$(AZ) functionapp deployment source config-zip \
 			--resource-group $(RESOURCE_GROUP) \
@@ -143,7 +144,7 @@ deploy-frontend:
 	@echo "API Base URL: $(API_BASE_URL)"
 	@echo "Auth Method: JWT (demo / password123)"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@API_BASE_URL=$(API_BASE_URL) $(STACK_DIR)/build-deployment-zip.sh $(STACK_DIR)/react-app.zip
+	@API_BASE_URL=$(API_BASE_URL) $(SCRIPTS_DIR)/build-deployment-zip.sh $(STACK_DIR)/react-app.zip
 	@echo "Deploying to Azure App Service (Oryx build enabled)..." && \
 		$(AZ) webapp deploy \
 			--resource-group $(RESOURCE_GROUP) \

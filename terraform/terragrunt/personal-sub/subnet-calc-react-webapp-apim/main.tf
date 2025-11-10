@@ -11,7 +11,7 @@ locals {
   apim_name         = var.apim.name != "" ? var.apim.name : "apim-${var.project_name}-${var.environment}"
 
   # APIM gateway URL becomes the API base URL for the web app
-  computed_api_base_url = var.web_app.api_base_url != "" ? var.web_app.api_base_url : "${azurerm_api_management.this.gateway_url}/${var.apim.api_path}"
+  computed_api_base_url = var.web_app.api_base_url != "" ? var.web_app.api_base_url : "${module.apim.gateway_url}/${var.apim.api_path}"
 }
 
 # -----------------------------------------------------------------------------
@@ -83,76 +83,25 @@ locals {
 # API Management (Developer Tier)
 # -----------------------------------------------------------------------------
 
-resource "azurerm_api_management" "this" {
+module "apim" {
+  source = "../../modules/azure-apim"
+
   name                = local.apim_name
   location            = local.rg_loc
   resource_group_name = local.rg_name
   publisher_name      = var.apim.publisher_name
   publisher_email     = var.apim.publisher_email
+  sku_name            = var.apim.sku_name
 
-  sku_name = "Developer_1" # Developer tier: single deployment unit, no SLA
+  # Public access (Developer tier)
+  virtual_network_type          = "None"
+  public_network_access_enabled = true
 
-  # Virtual network integration disabled for simplicity
-  # Can be enabled later with internal/external mode
-  virtual_network_type = "None"
+  # Application Insights integration
+  app_insights_id                  = var.observability.use_existing ? data.azurerm_application_insights.shared[0].id : azurerm_application_insights.this[0].id
+  app_insights_instrumentation_key = local.app_insights_key
 
   tags = local.common_tags
-}
-
-# APIM Logger for Application Insights
-resource "azurerm_api_management_logger" "appinsights" {
-  name                = "apim-logger-appinsights"
-  api_management_name = azurerm_api_management.this.name
-  resource_group_name = local.rg_name
-  resource_id         = var.observability.use_existing ? data.azurerm_application_insights.shared[0].id : azurerm_application_insights.this[0].id
-
-  application_insights {
-    instrumentation_key = local.app_insights_key
-  }
-}
-
-# APIM Diagnostics Settings
-resource "azurerm_api_management_diagnostic" "this" {
-  identifier               = "applicationinsights"
-  api_management_name      = azurerm_api_management.this.name
-  resource_group_name      = local.rg_name
-  api_management_logger_id = azurerm_api_management_logger.appinsights.id
-
-  sampling_percentage       = 100.0
-  always_log_errors         = true
-  log_client_ip             = true
-  verbosity                 = "information"
-  http_correlation_protocol = "W3C"
-
-  frontend_request {
-    body_bytes = 1024
-    headers_to_log = [
-      "Ocp-Apim-Subscription-Key",
-      "User-Agent"
-    ]
-  }
-
-  frontend_response {
-    body_bytes = 1024
-    headers_to_log = [
-      "Content-Type"
-    ]
-  }
-
-  backend_request {
-    body_bytes = 1024
-    headers_to_log = [
-      "X-User-ID",
-      "X-User-Name"
-    ]
-  }
-
-  backend_response {
-    body_bytes = 1024
-    headers_to_log = [
-      "Content-Type"
-    ]
-  }
 }
 
 # -----------------------------------------------------------------------------
@@ -199,7 +148,7 @@ resource "azurerm_linux_function_app" "api" {
     # CORS configuration - allow APIM and local development
     cors {
       allowed_origins = concat(
-        [azurerm_api_management.this.gateway_url],
+        [module.apim.gateway_url],
         try(var.function_app.cors_allowed_origins, [])
       )
       support_credentials = false
@@ -227,12 +176,8 @@ resource "azurerm_linux_function_app" "api" {
 # Network Security (Optional NSG Enforcement)
 # -----------------------------------------------------------------------------
 
-# Get APIM outbound IP addresses
-data "azurerm_api_management" "outbound_ips" {
-  name                = azurerm_api_management.this.name
-  resource_group_name = local.rg_name
-  depends_on          = [azurerm_api_management.this]
-}
+# APIM outbound IPs are available from the module output
+# No need for additional data source
 
 # NSG for Function App (when enforcement is enabled)
 resource "azurerm_network_security_group" "function_app" {
@@ -253,7 +198,7 @@ resource "azurerm_network_security_rule" "allow_apim_https" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "443"
-  source_address_prefixes     = data.azurerm_api_management.outbound_ips.public_ip_addresses
+  source_address_prefixes     = module.apim.public_ip_addresses
   destination_address_prefix  = "*"
   resource_group_name         = local.rg_name
   network_security_group_name = azurerm_network_security_group.function_app[0].name
@@ -290,8 +235,8 @@ resource "null_resource" "function_app_ip_restrictions" {
         --rule-name "Allow all" || true
 
       # Add APIM IP addresses
-      ${join("\n      ", [for ip in data.azurerm_api_management.outbound_ips.public_ip_addresses :
-    "az functionapp config access-restriction add --name ${azurerm_linux_function_app.api.name} --resource-group ${local.rg_name} --rule-name 'AllowAPIM-${replace(ip, ".", "-")}' --action Allow --ip-address ${ip}/32 --priority ${100 + index(data.azurerm_api_management.outbound_ips.public_ip_addresses, ip)}"
+      ${join("\n      ", [for ip in module.apim.public_ip_addresses :
+    "az functionapp config access-restriction add --name ${azurerm_linux_function_app.api.name} --resource-group ${local.rg_name} --rule-name 'AllowAPIM-${replace(ip, ".", "-")}' --action Allow --ip-address ${ip}/32 --priority ${100 + index(module.apim.public_ip_addresses, ip)}"
 ])}
 
       # Deny all other traffic (default)
@@ -303,12 +248,12 @@ resource "null_resource" "function_app_ip_restrictions" {
 }
 
 triggers = {
-  apim_ips          = join(",", data.azurerm_api_management.outbound_ips.public_ip_addresses)
+  apim_ips          = join(",", module.apim.public_ip_addresses)
   function_app_name = azurerm_linux_function_app.api.name
   enforcement       = var.security.enforce_apim_only_access
 }
 
-depends_on = [azurerm_linux_function_app.api, azurerm_api_management.this]
+depends_on = [azurerm_linux_function_app.api, module.apim]
 }
 
 # -----------------------------------------------------------------------------
@@ -319,7 +264,7 @@ depends_on = [azurerm_linux_function_app.api, azurerm_api_management.this]
 resource "azurerm_api_management_backend" "function_app" {
   name                = "backend-${local.function_app_name}"
   resource_group_name = local.rg_name
-  api_management_name = azurerm_api_management.this.name
+  api_management_name = module.apim.name
   protocol            = "http"
   url                 = "https://${azurerm_linux_function_app.api.default_hostname}"
   description         = "Subnet Calculator Function App (AUTH_METHOD=none)"
@@ -336,7 +281,7 @@ resource "azurerm_api_management_backend" "function_app" {
 resource "azurerm_api_management_api" "subnet_calc" {
   name                = var.apim.api_path
   resource_group_name = local.rg_name
-  api_management_name = azurerm_api_management.this.name
+  api_management_name = module.apim.name
   revision            = "1"
   display_name        = var.apim.api_display_name
   path                = var.apim.api_path
@@ -359,7 +304,7 @@ resource "azurerm_api_management_api" "subnet_calc" {
 # APIM Policy (subscription-based authentication)
 resource "azurerm_api_management_api_policy" "subnet_calc" {
   api_name            = azurerm_api_management_api.subnet_calc.name
-  api_management_name = azurerm_api_management.this.name
+  api_management_name = module.apim.name
   resource_group_name = local.rg_name
 
   xml_content = var.apim.subscription_required ? templatefile("${path.module}/policies/inbound-subscription.xml", {
@@ -372,10 +317,10 @@ resource "azurerm_api_management_api_policy" "subnet_calc" {
 # APIM Subscription (for subscription-based auth)
 resource "azurerm_api_management_subscription" "subnet_calc" {
   count               = var.apim.subscription_required ? 1 : 0
-  api_management_name = azurerm_api_management.this.name
+  api_management_name = module.apim.name
   resource_group_name = local.rg_name
   display_name        = "Subnet Calculator Web App Subscription"
-  scope               = azurerm_api_management_api.subnet_calc.id
+  api_id              = azurerm_api_management_api.subnet_calc.id
   state               = "active"
   allow_tracing       = true
 }
