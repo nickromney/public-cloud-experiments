@@ -30,12 +30,12 @@ output "function_app_private_endpoint_ip" {
 
 output "apim_name" {
   description = "Name of the API Management instance."
-  value       = azurerm_api_management.this.name
+  value       = module.apim.name
 }
 
 output "apim_private_ip" {
   description = "Private IP address allocated to API Management."
-  value       = try(azurerm_api_management.this.private_ip_addresses[0], null)
+  value       = try(module.apim.private_ip_addresses[0], null)
 }
 
 output "web_app_identity_principal_id" {

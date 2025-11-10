@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+#
+# Mock terragrunt CLI for testing
+# Tracks commands and returns fixtures
+
+# Track command to file with directory context
+TERRAGRUNT_CALLS_FILE="${TERRAGRUNT_CALLS_FILE:-/tmp/terragrunt_calls_$$}"
+echo "DIR:$(pwd) ARGS:$*" >> "$TERRAGRUNT_CALLS_FILE"
+
+# Check if mock should fail
+if [[ "${MOCK_TERRAGRUNT_FAIL:-false}" == "true" ]]; then
+  echo "ERROR: Terragrunt command failed (mocked)" >&2
+  exit 1
+fi
+
+# Handle specific commands
+case "$1" in
+  init)
+    echo "Initializing the backend..."
+    echo "Initializing provider plugins..."
+    echo "OpenTofu has been successfully initialized!"
+    exit 0
+    ;;
+  plan)
+    echo "data.azurerm_resource_group.this: Reading..."
+    echo "data.azurerm_resource_group.this: Read complete"
+    echo "OpenTofu will perform the following actions:"
+    echo "Plan: 0 to add, 0 to change, 0 to destroy."
+    exit 0
+    ;;
+  apply)
+    echo "data.azurerm_resource_group.this: Reading..."
+    echo "data.azurerm_resource_group.this: Read complete"
+    echo "Apply complete! Resources: 0 added, 0 changed, 0 destroyed."
+    exit 0
+    ;;
+  destroy)
+    echo "OpenTofu will perform the following actions:"
+    echo "Plan: 0 to add, 0 to change, 3 to destroy."
+    echo "Destroy complete! Resources: 3 destroyed."
+    exit 0
+    ;;
+  validate)
+    echo "Success! The configuration is valid."
+    exit 0
+    ;;
+  output)
+    # Handle output -raw <name>
+    if [[ "$2" == "-raw" ]]; then
+      case "$3" in
+        function_app_name)
+          echo "func-test-app"
+          ;;
+        web_app_name)
+          echo "web-test-app"
+          ;;
+        apim_name)
+          echo "apim-test"
+          ;;
+        apim_gateway_url)
+          echo "https://apim-test.azure-api.net"
+          ;;
+        apim_api_url)
+          echo "https://apim-test.azure-api.net/subnet-calc"
+          ;;
+        apim_subscription_key)
+          echo "mock-subscription-key-123456"
+          ;;
+        *)
+          echo "mock-output-value"
+          ;;
+      esac
+    else
+      echo '{"mock": "output"}'
+    fi
+    exit 0
+    ;;
+  force-unlock)
+    echo "Terraform state has been successfully unlocked!"
+    exit 0
+    ;;
+  *)
+    # Default: return success
+    exit 0
+    ;;
+esac

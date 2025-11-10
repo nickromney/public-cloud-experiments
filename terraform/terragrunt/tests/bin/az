@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#
+# Mock az CLI for testing
+# Tracks commands and returns fixtures
+
+# Track command to file
+AZ_CALLS_FILE="${AZ_CALLS_FILE:-/tmp/az_calls_$$}"
+echo "$*" >> "$AZ_CALLS_FILE"
+
+# Check if mock should fail
+if [[ "${MOCK_AZ_FAIL:-false}" == "true" ]]; then
+  echo "ERROR: Azure CLI command failed (mocked)" >&2
+  exit 1
+fi
+
+# Handle specific commands
+case "$1 $2 $3" in
+  "functionapp deployment source"*)
+    echo "Getting scm site credentials for zip deployment..."
+    echo "Starting zip deployment. This operation can take a while to complete ..."
+    echo "Deployment endpoint responded with status code 202"
+    echo "{}}"
+    exit 0
+    ;;
+  "functionapp show "*)
+    echo '{"name":"func-test-app","state":"Running","defaultHostName":"func-test-app.azurewebsites.net"}'
+    exit 0
+    ;;
+  "webapp deploy "*)
+    echo "Deploying to Azure Web App..."
+    echo "{\"status\":\"success\"}"
+    exit 0
+    ;;
+  "webapp show "*)
+    echo '{"name":"web-test-app","state":"Running","defaultHostName":"web-test-app.azurewebsites.net"}'
+    exit 0
+    ;;
+  "apim show "*)
+    echo '{"name":"apim-test","provisioningState":"Succeeded","gatewayUrl":"https://apim-test.azure-api.net"}'
+    exit 0
+    ;;
+  *)
+    # Default: return empty success
+    echo '{}'
+    exit 0
+    ;;
+esac

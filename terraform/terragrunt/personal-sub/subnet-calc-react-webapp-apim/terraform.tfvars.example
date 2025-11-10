@@ -1,0 +1,182 @@
+# Subnet Calculator React Web App with APIM - Configuration Example
+# This stack deploys a complete APIM-fronted application:
+# - Azure API Management (Developer tier) for API gateway and auth
+# - Function App (AUTH_METHOD=none) protected by APIM
+# - React Web App configured to use APIM gateway URL
+# - Optional IP restrictions to enforce APIM-only access
+
+# NOTE: Copy this file to terraform.tfvars and customize for your deployment
+
+# -----------------------------------------------------------------------------
+# Observability Configuration (Shared Resources)
+# -----------------------------------------------------------------------------
+
+observability = {
+  # Use existing Application Insights and Log Analytics from another stack
+  use_existing = true
+  existing_resource_group_name = "rg-subnet-calc"
+  existing_log_analytics_name  = "log-subnetcalc-dev"
+  existing_app_insights_name   = "appi-subnetcalc-dev"
+
+  # Or create new resources (set use_existing = false)
+  # log_retention_days          = 30
+  # app_insights_retention_days = 90
+}
+
+# -----------------------------------------------------------------------------
+# API Management Configuration
+# -----------------------------------------------------------------------------
+
+apim = {
+  name            = "apim-subnet-calc"           # Auto-generated if empty
+  publisher_name  = "Subnet Calculator"
+  publisher_email = "your-email@example.com"     # REQUIRED: Change this!
+  sku_name        = "Developer_1"                # Developer tier (least expensive)
+
+  # API configuration
+  api_path                = "subnet-calc"       # URL path: /subnet-calc/api/v1/*
+  api_display_name        = "Subnet Calculator API"
+  subscription_required   = true                # Use subscription keys for auth
+  rate_limit_per_minute   = 100                 # Requests per minute per subscription
+}
+
+# -----------------------------------------------------------------------------
+# Function App Configuration (Backend)
+# -----------------------------------------------------------------------------
+
+function_app = {
+  name                          = "func-subnet-calc-apim"
+  plan_sku                      = "EP1"         # Elastic Premium
+  runtime                       = "python"
+  runtime_version               = "3.11"
+  storage_account_name          = ""            # Auto-generated if empty
+  public_network_access_enabled = true          # Must be true initially
+
+  # CORS for local development (APIM gateway is added automatically)
+  cors_allowed_origins = [
+    "http://localhost:5173",
+    "http://localhost:4173"
+  ]
+
+  # Function App settings (AUTH_METHOD=none is set automatically)
+  app_settings = {
+    AzureWebJobsFeatureFlags = "EnableWorkerIndexing"
+    # NOTE: Do NOT set ENABLE_ORYX_BUILD or WEBSITE_RUN_FROM_PACKAGE
+    # SCM_DO_BUILD_DURING_DEPLOYMENT is set to true in Terraform (main.tf:XXX) to enable remote builds
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Security Configuration
+# -----------------------------------------------------------------------------
+
+security = {
+  # IMPORTANT: Start with false, test APIM -> Function App connectivity, then enable
+  enforce_apim_only_access = false
+
+  # When enabled:
+  # - Function App IP restrictions added for APIM outbound IPs only
+  # - Direct access to Function App URLs will return 403 Forbidden
+  # - All traffic must go through APIM gateway
+
+  # Testing workflow:
+  # 1. Deploy with enforce_apim_only_access = false
+  # 2. Verify: curl https://apim-gateway/subnet-calc/api/v1/health (via APIM)
+  # 3. Verify: curl https://func-app/api/v1/health (direct access)
+  # 4. Enable: set enforce_apim_only_access = true and re-apply
+  # 5. Verify: Direct access now returns 403, APIM access still works
+}
+
+# -----------------------------------------------------------------------------
+# Web App Configuration (Frontend)
+# -----------------------------------------------------------------------------
+
+web_app = {
+  name            = "web-subnet-calc-apim"
+  plan_sku        = "B1"                    # Basic tier
+  runtime_version = "22-lts"                # Node.js 22 LTS
+  always_on       = true
+
+  # api_base_url is auto-computed from APIM gateway if empty
+  # Format: https://apim-gateway.azure-api.net/subnet-calc
+
+  app_settings = {
+    STACK_NAME = "Subnet Calculator React (via APIM)"
+    # APIM_SUBSCRIPTION_KEY will be set automatically from Terraform output
+    # No AUTH_METHOD needed - web app doesn't authenticate, APIM does
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Authentication Architecture
+# -----------------------------------------------------------------------------
+
+# CLIENT (React Web App)
+#   ↓ HTTP Request
+#   ↓ Header: Ocp-Apim-Subscription-Key: <subscription-key>
+#   ↓
+# APIM (Authentication Termination)
+#   ↓ Validates subscription key
+#   ↓ Applies rate limiting (100 req/min)
+#   ↓ Injects X-User-ID and X-User-Name headers
+#   ↓
+# FUNCTION APP (AUTH_METHOD=none)
+#   ↓ Reads X-User-ID from headers (if needed)
+#   ↓ No authentication - trusts APIM
+#   ↓
+# RESPONSE
+
+# Security Benefits:
+# 1. Single point of authentication (APIM)
+# 2. Rate limiting per subscription
+# 3. IP restrictions prevent bypass (when enforced)
+# 4. Centralized policy management
+# 5. Request/response transformation capabilities
+# 6. Monitoring and analytics via Application Insights
+
+# -----------------------------------------------------------------------------
+# Deployment Steps
+# -----------------------------------------------------------------------------
+
+# 1. Copy this file to terraform.tfvars and customize
+# 2. Update publisher_email to your email address
+# 3. Deploy infrastructure:
+#    make init
+#    make plan
+#    make apply
+#
+# 4. Deploy Function App code:
+#    make deploy-function
+#
+# 5. Deploy Web App code:
+#    make deploy-frontend
+#
+# 6. Test via APIM:
+#    # Get subscription key
+#    terragrunt output -raw apim_subscription_key
+#
+#    # Test health endpoint
+#    curl -H "Ocp-Apim-Subscription-Key: <key>" \
+#      https://<apim-gateway>/subnet-calc/api/v1/health
+#
+# 7. Enable IP restrictions (optional):
+#    # Update security.enforce_apim_only_access = true
+#    make apply
+#
+# 8. Verify direct access is blocked:
+#    curl https://<function-app>/api/v1/health
+#    # Should return 403 Forbidden
+
+# -----------------------------------------------------------------------------
+# Cost Estimation
+# -----------------------------------------------------------------------------
+
+# APIM Developer tier: ~$50/month (single unit, no SLA)
+# Function App EP1:    ~$146/month (744 hours)
+# Web App B1:          ~$13/month
+# Storage Account:     <$1/month
+# Application Insights: Pay-per-use (first 5GB free)
+# ---
+# Total (est.):        ~$210/month
+
+# NOTE: Developer tier is for dev/test only. Production requires Basic/Standard/Premium.
