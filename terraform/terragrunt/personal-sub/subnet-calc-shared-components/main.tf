@@ -126,18 +126,6 @@ module "key_vault" {
   log_analytics_workspace_id = null
 
   tags = local.common_tags
-
-  lifecycle {
-    precondition {
-      condition     = length(local.kv_name) <= 24
-      error_message = "Key Vault name '${local.kv_name}' exceeds 24 character limit (${length(local.kv_name)} chars)"
-    }
-
-    precondition {
-      condition     = local.rg_name != ""
-      error_message = "Resource group name must be set before creating Key Vault"
-    }
-  }
 }
 
 # Key Vault diagnostics - created separately to avoid circular dependency
