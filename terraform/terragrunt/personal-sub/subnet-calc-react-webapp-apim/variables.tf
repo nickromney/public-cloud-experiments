@@ -2,17 +2,32 @@ variable "environment" {
   description = "Environment name (e.g., dev, staging, prod)"
   type        = string
   default     = "dev"
+
+  validation {
+    condition     = contains(["dev", "stg", "prod", "pre", "np", "qa", "uat"], var.environment)
+    error_message = "Environment must be one of: dev, stg, prod, pre, np, qa, uat"
+  }
 }
 
 variable "project_name" {
   description = "Project name for resource naming"
   type        = string
   default     = "subnetcalc"
+
+  validation {
+    condition     = can(regex("^[a-z0-9-]{3,24}$", var.project_name))
+    error_message = "Project name must be 3-24 characters, lowercase alphanumeric and hyphens only"
+  }
 }
 
 variable "location" {
   description = "Azure region for resources"
   type        = string
+
+  validation {
+    condition     = contains(["uksouth", "ukwest", "eastus", "eastus2", "westeurope"], var.location)
+    error_message = "Location must be one of: uksouth, ukwest, eastus, eastus2, westeurope"
+  }
 }
 
 variable "resource_group_name" {

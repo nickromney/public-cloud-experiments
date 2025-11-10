@@ -1,21 +1,41 @@
 variable "project_name" {
   description = "Project short name used for resource naming."
   type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9-]{3,24}$", var.project_name))
+    error_message = "Project name must be 3-24 characters, lowercase alphanumeric and hyphens only"
+  }
 }
 
 variable "environment" {
   description = "Environment identifier (dev, prod, etc.)."
   type        = string
+
+  validation {
+    condition     = contains(["dev", "stg", "prod", "pre", "np", "qa", "uat"], var.environment)
+    error_message = "Environment must be one of: dev, stg, prod, pre, np, qa, uat"
+  }
 }
 
 variable "location" {
   description = "Azure region for resources."
   type        = string
+
+  validation {
+    condition     = contains(["uksouth", "ukwest", "eastus", "eastus2", "westeurope"], var.location)
+    error_message = "Location must be one of: uksouth, ukwest, eastus, eastus2, westeurope"
+  }
 }
 
 variable "tenant_id" {
   description = "Azure AD tenant ID used for managed identity token validation."
   type        = string
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.tenant_id))
+    error_message = "Tenant ID must be a valid UUID"
+  }
 }
 
 variable "resource_group_name" {
