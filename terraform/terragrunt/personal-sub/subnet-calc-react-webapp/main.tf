@@ -132,6 +132,7 @@ module "web_app" {
   plan_sku  = var.web_app.plan_sku
 
   runtime_version = var.web_app.runtime_version
+  startup_command = var.web_app.startup_command
   always_on       = var.web_app.always_on
 
   tenant_id = local.tenant_id
@@ -140,7 +141,7 @@ module "web_app" {
   app_settings = merge({
     "WEBSITE_RUN_FROM_PACKAGE"              = "0"
     "WEBSITE_NODE_DEFAULT_VERSION"          = "~${var.web_app.runtime_version}"
-    "SCM_DO_BUILD_DURING_DEPLOYMENT"        = "false"
+    "SCM_DO_BUILD_DURING_DEPLOYMENT"        = "true"
     "API_BASE_URL"                          = var.web_app.api_base_url != "" ? var.web_app.api_base_url : module.function_app.function_app_url
     "APPINSIGHTS_INSTRUMENTATIONKEY"        = azurerm_application_insights.this.instrumentation_key
     "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.this.connection_string

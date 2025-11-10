@@ -65,6 +65,7 @@ variable "web_app" {
     runtime_version = optional(string, "20-lts")
     api_base_url    = optional(string, "")
     always_on       = optional(bool, true)
+    startup_command = optional(string, "")
     app_settings    = optional(map(string), {})
     easy_auth = optional(object({
       enabled                    = optional(bool, true)

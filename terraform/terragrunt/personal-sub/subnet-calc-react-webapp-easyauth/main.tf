@@ -69,20 +69,20 @@ data "azurerm_resource_group" "this" {
 # Application Insights & Log Analytics
 # -----------------------------------------------------------------------------
 
-resource "azurerm_log_analytics_workspace" "this" {
-  name                = "log-${var.project_name}-${var.environment}"
-  location            = local.rg_loc
+# Reference shared Log Analytics Workspace from subnet-calc-shared-components
+# This provides centralized logging across all subnet calculator stacks
+data "azurerm_log_analytics_workspace" "shared" {
+  name                = "log-${var.project_name}-shared-${var.environment}"
   resource_group_name = local.rg_name
-  sku                 = "PerGB2018"
-  retention_in_days   = var.observability.log_retention_days
-  tags                = local.common_tags
 }
 
+# Create stack-specific Application Insights linked to shared LAW
+# Each stack gets its own App Insights for telemetry isolation
 resource "azurerm_application_insights" "this" {
-  name                = "appi-${var.project_name}-${var.environment}"
+  name                = "appi-${var.project_name}-easyauth-${var.environment}"
   location            = local.rg_loc
   resource_group_name = local.rg_name
-  workspace_id        = azurerm_log_analytics_workspace.this.id
+  workspace_id        = data.azurerm_log_analytics_workspace.shared.id
   application_type    = "web"
   retention_in_days   = var.observability.app_insights_retention_days
   tags                = local.common_tags
@@ -126,7 +126,7 @@ module "function_app" {
   resource_group_name = local.rg_name
   location            = local.rg_loc
 
-  plan_name = "plan-${var.project_name}-${var.environment}-func"
+  plan_name = "plan-${var.project_name}-${var.environment}-func-easyauth"
   plan_sku  = var.function_app.plan_sku
 
   runtime         = var.function_app.runtime
@@ -155,10 +155,11 @@ module "web_app" {
   resource_group_name = local.rg_name
   location            = local.rg_loc
 
-  plan_name = "plan-${var.project_name}-${var.environment}-web"
+  plan_name = "plan-${var.project_name}-${var.environment}-web-easyauth"
   plan_sku  = var.web_app.plan_sku
 
   runtime_version = var.web_app.runtime_version
+  startup_command = var.web_app.startup_command
   always_on       = var.web_app.always_on
 
   tenant_id = local.tenant_id
@@ -173,7 +174,7 @@ module "web_app" {
   app_settings = merge({
     "WEBSITE_RUN_FROM_PACKAGE"              = "0"
     "WEBSITE_NODE_DEFAULT_VERSION"          = "~${var.web_app.runtime_version}"
-    "SCM_DO_BUILD_DURING_DEPLOYMENT"        = "false"
+    "SCM_DO_BUILD_DURING_DEPLOYMENT"        = "true"
     "API_BASE_URL"                          = var.web_app.api_base_url != "" ? var.web_app.api_base_url : module.function_app.function_app_url
     "APPINSIGHTS_INSTRUMENTATIONKEY"        = azurerm_application_insights.this.instrumentation_key
     "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.this.connection_string

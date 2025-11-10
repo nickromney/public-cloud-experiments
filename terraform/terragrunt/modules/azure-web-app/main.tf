@@ -39,6 +39,7 @@ resource "azurerm_linux_web_app" "this" {
     always_on              = var.always_on
     vnet_route_all_enabled = false
     default_documents      = var.default_documents
+    app_command_line       = var.startup_command
 
     application_stack {
       node_version = var.runtime_version

@@ -49,6 +49,12 @@ variable "runtime_version" {
   }
 }
 
+variable "startup_command" {
+  description = "Startup command for the Web App (e.g., 'node server.js')"
+  type        = string
+  default     = ""
+}
+
 variable "always_on" {
   description = "Keep the app loaded even when there's no traffic"
   type        = bool

@@ -3,7 +3,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 FRONTEND_REACT_DIR="$REPO_ROOT/subnet-calculator/frontend-react"
 SHARED_FRONTEND_DIR="$REPO_ROOT/subnet-calculator/shared-frontend"
 OUTPUT_ZIP="${1:-$SCRIPT_DIR/react-app.zip}"
