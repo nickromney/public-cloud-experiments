@@ -89,6 +89,33 @@ resource "azurerm_application_insights" "this" {
 }
 
 # -----------------------------------------------------------------------------
+# Entra ID App Registration (for Easy Auth with Managed Identity)
+# -----------------------------------------------------------------------------
+
+module "entra_id_app" {
+  source = "../../modules/azure-entra-id-app"
+
+  display_name     = var.entra_id_app.display_name
+  sign_in_audience = var.entra_id_app.sign_in_audience
+
+  # Web redirect URIs for Easy Auth callback
+  web_redirect_uris = [
+    "https://${local.web_app_name}.azurewebsites.net/.auth/login/aad/callback"
+  ]
+
+  # Identifier URIs (audience) for token validation
+  identifier_uris = var.entra_id_app.identifier_uris
+
+  # No client secret needed - using managed identity
+  create_client_secret = false
+
+  # Microsoft Graph User.Read permission
+  add_microsoft_graph_user_read = true
+
+  tags = local.common_tags
+}
+
+# -----------------------------------------------------------------------------
 # Function App Module (FastAPI backend)
 # -----------------------------------------------------------------------------
 
@@ -135,7 +162,13 @@ module "web_app" {
   always_on       = var.web_app.always_on
 
   tenant_id = local.tenant_id
-  easy_auth = var.web_app.easy_auth
+  # Use dynamically created Entra ID app client_id
+  easy_auth = var.web_app.easy_auth != null ? merge(
+    var.web_app.easy_auth,
+    {
+      client_id = module.entra_id_app.application_id
+    }
+  ) : null
 
   app_settings = merge({
     "WEBSITE_RUN_FROM_PACKAGE"              = "0"
