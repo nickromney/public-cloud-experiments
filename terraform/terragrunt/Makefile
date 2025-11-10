@@ -17,22 +17,29 @@ AZ ?= az
 # Paths
 ROOT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 REPO_ROOT := $(abspath $(ROOT_DIR)../..)
-SCRIPTS_DIR := $(ROOT_DIR)deployment-scripts
+SCRIPTS_DIR ?= $(ROOT_DIR)deployment-scripts
 
 # Stack name mappings (short-name -> directory)
-# Format: <project>/<stack-alias> -> <directory-path>
-define STACK_MAP
-subnet-calc/react-webapp=personal-sub/subnet-calc-react-webapp
-subnet-calc/react-apim=personal-sub/subnet-calc-react-webapp-apim
-subnet-calc/internal-apim=personal-sub/subnet-calc-internal-apim
-endef
+# Format: <project>/<stack-alias>=<directory-path>
+# Note: Using spaces to separate entries for filter to work correctly
+STACK_MAP := subnet-calc/react-webapp=personal-sub/subnet-calc-react-webapp subnet-calc/react-apim=personal-sub/subnet-calc-react-webapp-apim subnet-calc/internal-apim=personal-sub/subnet-calc-internal-apim subnet-calc/static-web-apps=personal-sub/subnet-calc-static-web-apps
 
 # Function to resolve stack directory from project and stack alias
-get-stack-dir = $(strip $(foreach mapping,$(STACK_MAP),$(if $(findstring $(1)/$(2)=,$(mapping)),$(word 2,$(subst =, ,$(mapping))))))
+# Matches the exact key and extracts the value
+get-stack-dir = $(strip $(patsubst $(1)/$(2)=%,%,$(filter $(1)/$(2)=%,$(STACK_MAP))))
 
 # Configuration
-RESOURCE_GROUP := rg-subnet-calc
+RESOURCE_GROUP ?= rg-subnet-calc
 PERSONAL_SUB_REGION ?= uksouth
+
+# Resources with long provisioning/deletion times
+SLOW_PROVISION_RESOURCES := apim aks appgw application-gateway
+APIM_PROVISION_TIME := 37
+APIM_DESTROY_TIME := 15
+AKS_PROVISION_TIME := 10
+AKS_DESTROY_TIME := 10
+APPGW_PROVISION_TIME := 5
+APPGW_DESTROY_TIME := 5
 
 .PHONY: help
 
@@ -72,6 +79,7 @@ help:
 	@echo "  show resources                Show deployed resource names/URLs"
 	@echo "  get subscription-key          Display APIM subscription key"
 	@echo "  clean                         Remove Terragrunt cache"
+	@echo "  unlock <lock-id>              Force unlock Terraform state"
 	@echo ""
 	@echo "$(YELLOW)Examples:$(NC)"
 	@echo "  make subnet-calc react-apim init"
@@ -148,6 +156,12 @@ _route:
 		echo "  subnet-calc/internal-apim"; \
 		exit 1; \
 	fi; \
+	VALID_VERBS="init plan apply destroy validate output deploy test show get clean unlock"; \
+	echo "$$VALID_VERBS" | grep -qw "$(VERB)" || { \
+		echo "$(YELLOW)❌ Unknown verb: $(VERB)$(NC)"; \
+		echo "Run 'make help' for available verbs"; \
+		exit 1; \
+	}; \
 	$(MAKE) --no-print-directory _exec-$(VERB) STACK_DIR=$$STACK_DIR COMPONENT=$(COMPONENT)
 
 # Infrastructure lifecycle verbs
@@ -163,13 +177,30 @@ _exec-plan:
 
 _exec-apply:
 	@echo "$(YELLOW)Applying $(STACK_DIR)...$(NC)"
-	@if echo "$(STACK_DIR)" | grep -q "apim"; then \
-		echo "$(YELLOW)⏱️  Note: APIM provisioning takes ~37 minutes on first deployment$(NC)"; \
-	fi
+	@for resource in $(SLOW_PROVISION_RESOURCES); do \
+		if echo "$(STACK_DIR)" | grep -q "$$resource"; then \
+			case "$$resource" in \
+				apim) echo "$(YELLOW)⏱️  Note: APIM provisioning takes ~$(APIM_PROVISION_TIME) minutes on first deployment$(NC)" ;; \
+				aks) echo "$(YELLOW)⏱️  Note: AKS provisioning takes ~$(AKS_PROVISION_TIME) minutes$(NC)" ;; \
+				appgw|application-gateway) echo "$(YELLOW)⏱️  Note: Application Gateway provisioning takes ~$(APPGW_PROVISION_TIME) minutes$(NC)" ;; \
+			esac; \
+			break; \
+		fi; \
+	done
 	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) apply
 
 _exec-destroy:
 	@echo "$(YELLOW)⚠️  WARNING: Destroying $(STACK_DIR)$(NC)"
+	@for resource in $(SLOW_PROVISION_RESOURCES); do \
+		if echo "$(STACK_DIR)" | grep -q "$$resource"; then \
+			case "$$resource" in \
+				apim) echo "$(YELLOW)⏱️  Note: APIM deletion takes ~$(APIM_DESTROY_TIME) minutes$(NC)" ;; \
+				aks) echo "$(YELLOW)⏱️  Note: AKS deletion takes ~$(AKS_DESTROY_TIME) minutes$(NC)" ;; \
+				appgw|application-gateway) echo "$(YELLOW)⏱️  Note: Application Gateway deletion takes ~$(APPGW_DESTROY_TIME) minutes$(NC)" ;; \
+			esac; \
+			break; \
+		fi; \
+	done
 	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) destroy
 
 _exec-validate:
@@ -204,16 +235,16 @@ _deploy-function:
 	if [ -z "$$FUNCTION_APP_NAME" ]; then \
 		echo "$(YELLOW)❌ FUNCTION_APP_NAME not found. Run 'make $(PROJECT) $(STACK) apply' first.$(NC)"; \
 		exit 1; \
-	fi; \
-	echo "Function App: $$FUNCTION_APP_NAME"; \
-	$(SCRIPTS_DIR)/build-function-zip.sh $(ROOT_DIR)/function-app.zip; \
+	fi && \
+	echo "Function App: $$FUNCTION_APP_NAME" && \
+	$(SCRIPTS_DIR)/build-function-zip.sh $(ROOT_DIR)/function-app.zip && \
 	$(AZ) functionapp deployment source config-zip \
 		--resource-group $(RESOURCE_GROUP) \
 		--name $$FUNCTION_APP_NAME \
 		--src $(ROOT_DIR)/function-app.zip \
 		--build-remote true \
-		--timeout 600; \
-	rm -f $(ROOT_DIR)/function-app.zip; \
+		--timeout 600 && \
+	rm -f $(ROOT_DIR)/function-app.zip && \
 	echo "$(GREEN)✅ Function App deployed successfully$(NC)"
 
 .PHONY: _deploy-frontend
@@ -226,17 +257,17 @@ _deploy-frontend:
 	if [ -z "$$WEB_APP_NAME" ] || [ -z "$$API_BASE_URL" ]; then \
 		echo "$(YELLOW)❌ WEB_APP_NAME or API_BASE_URL not found. Run 'make $(PROJECT) $(STACK) apply' first.$(NC)"; \
 		exit 1; \
-	fi; \
-	echo "Web App: $$WEB_APP_NAME"; \
-	echo "API URL: $$API_BASE_URL"; \
-	API_BASE_URL=$$API_BASE_URL $(SCRIPTS_DIR)/build-deployment-zip.sh $(ROOT_DIR)/react-app.zip; \
+	fi && \
+	echo "Web App: $$WEB_APP_NAME" && \
+	echo "API URL: $$API_BASE_URL" && \
+	API_BASE_URL=$$API_BASE_URL $(SCRIPTS_DIR)/build-deployment-zip.sh $(ROOT_DIR)/react-app.zip && \
 	$(AZ) webapp deploy \
 		--resource-group $(RESOURCE_GROUP) \
 		--name $$WEB_APP_NAME \
 		--src-path $(ROOT_DIR)/react-app.zip \
-		--type zip; \
-	rm -f $(ROOT_DIR)/react-app.zip; \
-	echo "$(GREEN)✅ Frontend deployed successfully$(NC)"; \
+		--type zip && \
+	rm -f $(ROOT_DIR)/react-app.zip && \
+	echo "$(GREEN)✅ Frontend deployed successfully$(NC)" && \
 	echo "$(GREEN)🌐 Web App URL: https://$$WEB_APP_NAME.azurewebsites.net$(NC)"
 
 # Testing verbs
@@ -313,7 +344,7 @@ _test-endpoints:
 	fi
 
 # Utility verbs
-.PHONY: _exec-show _exec-get _exec-clean
+.PHONY: _exec-show _exec-get _exec-clean _exec-unlock
 
 _exec-show:
 	@if [ "$(COMPONENT)" = "resources" ]; then \
@@ -354,6 +385,16 @@ _exec-clean:
 	@echo "$(YELLOW)Cleaning $(STACK_DIR) cache...$(NC)"
 	@cd $(STACK_DIR) && rm -rf .terraform .terragrunt-cache
 	@echo "$(GREEN)✓ Cleaned $(STACK_DIR)$(NC)"
+
+_exec-unlock:
+	@if [ -z "$(COMPONENT)" ]; then \
+		echo "$(YELLOW)❌ Lock ID required$(NC)"; \
+		echo "Usage: make $(PROJECT) $(STACK) unlock <lock-id>"; \
+		echo "Example: make subnet-calc react-apim unlock abc123-def456-ghi789"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Force unlocking state with ID: $(COMPONENT)$(NC)"
+	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) force-unlock -force $(COMPONENT)
 
 # Suppress "Nothing to be done" messages for command arguments
 %:

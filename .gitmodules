@@ -1,0 +1,6 @@
+[submodule "terraform/terragrunt/tests/test_helper/bats-support"]
+	path = terraform/terragrunt/tests/test_helper/bats-support
+	url = https://github.com/bats-core/bats-support
+[submodule "terraform/terragrunt/tests/test_helper/bats-assert"]
+	path = terraform/terragrunt/tests/test_helper/bats-assert
+	url = https://github.com/bats-core/bats-assert
