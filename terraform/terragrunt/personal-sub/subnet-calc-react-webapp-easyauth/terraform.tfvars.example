@@ -1,5 +1,14 @@
 # Copy to terraform.tfvars and update the placeholders before running terragrunt.
 
+# Entra ID App Registration (created by Terraform, no manual portal configuration needed)
+entra_id_app = {
+  display_name     = "Subnet Calculator React Web App (Easy Auth)"
+  sign_in_audience = "AzureADMyOrg"
+  identifier_uris = [
+    "api://subnet-calculator-react-easyauth"
+  ]
+}
+
 web_app = {
   plan_sku        = "P1v3"
   runtime_version = "18-lts"

@@ -67,7 +67,7 @@ resource "azurerm_linux_web_app" "this" {
         allowed_audiences                    = auth_settings_v2.value.allowed_audiences
         login_parameters                     = auth_settings_v2.value.login_parameters
         client_secret_setting_name           = auth_settings_v2.value.client_secret_setting_name != "" ? auth_settings_v2.value.client_secret_setting_name : null
-        client_secret_certificate_thumbprint = auth_settings_v2.value.use_managed_identity ? null : null
+        client_secret_certificate_thumbprint = null
       }
     }
   }
