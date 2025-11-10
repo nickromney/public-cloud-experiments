@@ -420,10 +420,18 @@ secure-app-plan: check-env
 	@cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) plan
 
 secure-app-apply: check-env
-	@cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) apply
+	@if [ "$(AUTO_APPROVE)" = "1" ]; then \
+		cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) apply -auto-approve; \
+	else \
+		cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) apply; \
+	fi
 
 secure-app-destroy: check-env
-	@cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) destroy
+	@if [ "$(AUTO_APPROVE)" = "1" ]; then \
+		cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) destroy -auto-approve; \
+	else \
+		cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) destroy; \
+	fi
 
 secure-app-output: check-env
 	@cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) output

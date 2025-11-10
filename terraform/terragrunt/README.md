@@ -196,11 +196,11 @@ export TF_BACKEND_CONTAINER="terraform-states"
 NuShell equivalent (`~/.config/nushell/env.nu`):
 
 ```nushell
-let-env ARM_SUBSCRIPTION_ID "your-sub-id"
-let-env ARM_TENANT_ID "your-tenant-id"
-let-env TF_BACKEND_RG "your-backend-rg"
-let-env TF_BACKEND_SA "your-backend-sa"
-let-env TF_BACKEND_CONTAINER "terraform-states"
+$env.ARM_SUBSCRIPTION_ID = "your-sub-id"
+$env.ARM_TENANT_ID = "your-tenant-id"
+$env.TF_BACKEND_RG = "your-backend-rg"
+$env.TF_BACKEND_SA = "your-backend-sa"
+$env.TF_BACKEND_CONTAINER = "terraform-states"
 ```
 
 ## Testing Early
