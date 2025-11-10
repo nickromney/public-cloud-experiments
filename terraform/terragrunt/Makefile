@@ -97,6 +97,9 @@ help:
 	@echo "  make fmt                      Format all Terraform files"
 	@echo "  make lint                     Run tflint on all stacks"
 	@echo "  make test                     Run Terraform tests (.tftest.hcl)"
+	@echo "  make secure-app-plan          Plan secure-app/dev/uksouth stack"
+	@echo "  make secure-app-apply         Apply secure-app/dev/uksouth stack"
+	@echo "  make secure-app-destroy       Destroy secure-app/dev/uksouth stack"
 	@echo ""
 
 # Setup environment
@@ -393,6 +396,28 @@ _test-endpoints:
 	else \
 		echo "$(YELLOW)❌ Web App unreachable (Status: $$status)$(NC)"; \
 	fi
+
+# Secure App convenience verbs
+.PHONY: secure-app-init secure-app-plan secure-app-apply secure-app-destroy secure-app-output secure-app-clean
+
+secure-app-init: check-env
+	@cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) init -upgrade
+
+secure-app-plan: check-env
+	@cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) plan
+
+secure-app-apply: check-env
+	@cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) apply
+
+secure-app-destroy: check-env
+	@cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) destroy
+
+secure-app-output: check-env
+	@cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) output
+
+secure-app-clean:
+	@cd workloads/secure-app/envs/dev/uksouth && rm -rf .terraform .terragrunt-cache
+	@echo "$(GREEN)✓ Cleaned secure-app/dev/uksouth$(NC)"
 
 # Utility verbs
 .PHONY: _exec-show _exec-get _exec-clean _exec-unlock
