@@ -63,4 +63,5 @@ paths = [
 ]
 regexes = [
   '''var\.(subscription_id|tenant_id|client_id)''',  # Allow variable references
+  '''00000000-0000-0000-0000-000000000001''',  # Mock UUID for testing
 ]

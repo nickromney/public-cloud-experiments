@@ -23,8 +23,10 @@ variable "resource_group_name" {
 }
 
 variable "tenant_id" {
-  description = "Azure AD tenant ID"
+  description = "Azure AD tenant ID (defaults to current Azure CLI context if not specified)"
   type        = string
+  default     = null
+  nullable    = true
 }
 
 # -----------------------------------------------------------------------------

@@ -29,11 +29,13 @@ variable "location" {
 }
 
 variable "tenant_id" {
-  description = "Azure AD tenant ID used for Easy Auth configuration."
+  description = "Azure AD tenant ID used for Easy Auth configuration (defaults to current Azure CLI context if not specified)."
   type        = string
+  default     = null
+  nullable    = true
 
   validation {
-    condition     = can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.tenant_id))
+    condition     = var.tenant_id == null || can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.tenant_id))
     error_message = "Tenant ID must be a valid UUID"
   }
 }

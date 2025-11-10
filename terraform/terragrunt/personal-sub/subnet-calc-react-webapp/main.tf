@@ -1,4 +1,10 @@
+# Look up current Azure context when tenant_id not provided
+data "azurerm_client_config" "current" {}
+
 locals {
+  # Use provided tenant_id or fall back to current Azure context
+  tenant_id = coalesce(var.tenant_id, data.azurerm_client_config.current.tenant_id)
+
   common_tags = merge({
     environment = var.environment
     project     = var.project_name
@@ -95,13 +101,14 @@ resource "azurerm_service_plan" "function" {
 }
 
 resource "azurerm_storage_account" "function" {
-  name                     = var.function_app.storage_account_name != "" ? var.function_app.storage_account_name : lower(replace("st${var.project_name}${var.environment}func", "-", ""))
-  resource_group_name      = local.rg_name
-  location                 = local.rg_loc
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-  min_tls_version          = "TLS1_2"
-  tags                     = local.common_tags
+  name                       = var.function_app.storage_account_name != "" ? var.function_app.storage_account_name : lower(replace("st${var.project_name}${var.environment}func", "-", ""))
+  resource_group_name        = local.rg_name
+  location                   = local.rg_loc
+  account_tier               = "Standard"
+  account_replication_type   = "LRS"
+  min_tls_version            = "TLS1_2"
+  https_traffic_only_enabled = true
+  tags                       = local.common_tags
 }
 
 resource "azurerm_linux_function_app" "api" {
@@ -213,7 +220,7 @@ resource "azurerm_linux_web_app" "react" {
       active_directory_v2 {
         client_id                  = auth_settings_v2.value.client_id
         client_secret_setting_name = auth_settings_v2.value.client_secret_setting_name
-        tenant_auth_endpoint       = auth_settings_v2.value.issuer != "" ? auth_settings_v2.value.issuer : "https://login.microsoftonline.com/${coalesce(auth_settings_v2.value.tenant_id, var.tenant_id)}/v2.0"
+        tenant_auth_endpoint       = auth_settings_v2.value.issuer != "" ? auth_settings_v2.value.issuer : "https://login.microsoftonline.com/${coalesce(auth_settings_v2.value.tenant_id, local.tenant_id)}/v2.0"
         allowed_audiences          = auth_settings_v2.value.allowed_audiences
         login_parameters           = auth_settings_v2.value.login_parameters
       }

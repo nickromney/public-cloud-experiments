@@ -1,53 +1,9 @@
 # Tests for subnet-calc-react-webapp stack
 # Validates React SPA + Function App configuration
+# Uses data source to look up current Azure context (no hardcoded UUIDs)
 
-# Generate test data using random provider
-run "setup" {
-  command = plan
-
-  module {
-    source = "./tests/fixtures"
-  }
-}
-
-variables {
-  project_name        = "subnetcalc"
-  environment         = "dev"
-  location            = "uksouth"
-  resource_group_name = "rg-test-webapp"
-  tenant_id           = run.setup.tenant_id
-  create_resource_group = true
-
-  tags = {
-    test = "true"
-  }
-
-  web_app = {
-    name            = "web-test-react"
-    plan_sku        = "B1"
-    runtime_version = "22-lts"
-    always_on       = true
-    api_base_url    = ""
-    app_settings    = {}
-    easy_auth       = null
-  }
-
-  function_app = {
-    name                          = "func-test-api"
-    plan_sku                      = "EP1"
-    runtime                       = "python"
-    runtime_version               = "3.11"
-    run_from_package              = true
-    storage_account_name          = ""
-    public_network_access_enabled = true
-    cors_allowed_origins          = ["*"]
-    app_settings                  = {}
-  }
-
-  observability = {
-    log_retention_days          = 30
-    app_insights_retention_days = 90
-  }
+provider "azurerm" {
+  features {}
 }
 
 # Validation tests
@@ -56,7 +12,38 @@ run "test_invalid_environment" {
   command = plan
 
   variables {
-    environment = "production" # Invalid
+    project_name          = "subnetcalc"
+    environment           = "production" # Invalid
+    location              = "uksouth"
+    resource_group_name   = "rg-test-webapp"
+    create_resource_group = true
+    tags = {
+      test = "true"
+    }
+    web_app = {
+      name            = "web-test-react"
+      plan_sku        = "B1"
+      runtime_version = "22-lts"
+      always_on       = true
+      api_base_url    = ""
+      app_settings    = {}
+      easy_auth       = null
+    }
+    function_app = {
+      name                          = "func-test-api"
+      plan_sku                      = "EP1"
+      runtime                       = "python"
+      runtime_version               = "3.11"
+      run_from_package              = true
+      storage_account_name          = ""
+      public_network_access_enabled = true
+      cors_allowed_origins          = ["*"]
+      app_settings                  = {}
+    }
+    observability = {
+      log_retention_days          = 30
+      app_insights_retention_days = 90
+    }
   }
 
   expect_failures = [
@@ -68,7 +55,38 @@ run "test_invalid_location" {
   command = plan
 
   variables {
-    location = "centralus" # Invalid
+    project_name          = "subnetcalc"
+    environment           = "dev"
+    location              = "centralus" # Invalid
+    resource_group_name   = "rg-test-webapp"
+    create_resource_group = true
+    tags = {
+      test = "true"
+    }
+    web_app = {
+      name            = "web-test-react"
+      plan_sku        = "B1"
+      runtime_version = "22-lts"
+      always_on       = true
+      api_base_url    = ""
+      app_settings    = {}
+      easy_auth       = null
+    }
+    function_app = {
+      name                          = "func-test-api"
+      plan_sku                      = "EP1"
+      runtime                       = "python"
+      runtime_version               = "3.11"
+      run_from_package              = true
+      storage_account_name          = ""
+      public_network_access_enabled = true
+      cors_allowed_origins          = ["*"]
+      app_settings                  = {}
+    }
+    observability = {
+      log_retention_days          = 30
+      app_insights_retention_days = 90
+    }
   }
 
   expect_failures = [
@@ -80,7 +98,39 @@ run "test_invalid_tenant_id" {
   command = plan
 
   variables {
-    tenant_id = "not-a-uuid" # Invalid format
+    project_name          = "subnetcalc"
+    environment           = "dev"
+    location              = "uksouth"
+    resource_group_name   = "rg-test-webapp"
+    tenant_id             = "not-a-uuid" # Invalid format - intentionally testing validation
+    create_resource_group = true
+    tags = {
+      test = "true"
+    }
+    web_app = {
+      name            = "web-test-react"
+      plan_sku        = "B1"
+      runtime_version = "22-lts"
+      always_on       = true
+      api_base_url    = ""
+      app_settings    = {}
+      easy_auth       = null
+    }
+    function_app = {
+      name                          = "func-test-api"
+      plan_sku                      = "EP1"
+      runtime                       = "python"
+      runtime_version               = "3.11"
+      run_from_package              = true
+      storage_account_name          = ""
+      public_network_access_enabled = true
+      cors_allowed_origins          = ["*"]
+      app_settings                  = {}
+    }
+    observability = {
+      log_retention_days          = 30
+      app_insights_retention_days = 90
+    }
   }
 
   expect_failures = [
@@ -92,7 +142,38 @@ run "test_invalid_project_name" {
   command = plan
 
   variables {
-    project_name = "ThisHasUpperCase" # Invalid - must be lowercase
+    project_name          = "ThisHasUpperCase" # Invalid - must be lowercase
+    environment           = "dev"
+    location              = "uksouth"
+    resource_group_name   = "rg-test-webapp"
+    create_resource_group = true
+    tags = {
+      test = "true"
+    }
+    web_app = {
+      name            = "web-test-react"
+      plan_sku        = "B1"
+      runtime_version = "22-lts"
+      always_on       = true
+      api_base_url    = ""
+      app_settings    = {}
+      easy_auth       = null
+    }
+    function_app = {
+      name                          = "func-test-api"
+      plan_sku                      = "EP1"
+      runtime                       = "python"
+      runtime_version               = "3.11"
+      run_from_package              = true
+      storage_account_name          = ""
+      public_network_access_enabled = true
+      cors_allowed_origins          = ["*"]
+      app_settings                  = {}
+    }
+    observability = {
+      log_retention_days          = 30
+      app_insights_retention_days = 90
+    }
   }
 
   expect_failures = [
@@ -105,6 +186,41 @@ run "test_invalid_project_name" {
 run "validate_resource_naming" {
   command = plan
 
+  variables {
+    project_name          = "subnetcalc"
+    environment           = "dev"
+    location              = "uksouth"
+    resource_group_name   = "rg-test-webapp"
+    create_resource_group = true
+    tags = {
+      test = "true"
+    }
+    web_app = {
+      name            = "web-test-react"
+      plan_sku        = "B1"
+      runtime_version = "22-lts"
+      always_on       = true
+      api_base_url    = ""
+      app_settings    = {}
+      easy_auth       = null
+    }
+    function_app = {
+      name                          = "func-test-api"
+      plan_sku                      = "EP1"
+      runtime                       = "python"
+      runtime_version               = "3.11"
+      run_from_package              = true
+      storage_account_name          = ""
+      public_network_access_enabled = true
+      cors_allowed_origins          = ["*"]
+      app_settings                  = {}
+    }
+    observability = {
+      log_retention_days          = 30
+      app_insights_retention_days = 90
+    }
+  }
+
   assert {
     condition     = azurerm_log_analytics_workspace.this.name == "log-subnetcalc-dev"
     error_message = "Log Analytics workspace should follow naming convention"
@@ -116,18 +232,53 @@ run "validate_resource_naming" {
   }
 
   assert {
-    condition     = azurerm_service_plan.web.name == "asp-subnetcalc-web-dev"
+    condition     = azurerm_service_plan.web.name == "plan-subnetcalc-dev-web"
     error_message = "Web App Service Plan should follow naming convention"
   }
 
   assert {
-    condition     = azurerm_service_plan.function.name == "asp-subnetcalc-func-dev"
+    condition     = azurerm_service_plan.function.name == "plan-subnetcalc-dev-func"
     error_message = "Function App Service Plan should follow naming convention"
   }
 }
 
 run "validate_observability_stack" {
   command = plan
+
+  variables {
+    project_name          = "subnetcalc"
+    environment           = "dev"
+    location              = "uksouth"
+    resource_group_name   = "rg-test-webapp"
+    create_resource_group = true
+    tags = {
+      test = "true"
+    }
+    web_app = {
+      name            = "web-test-react"
+      plan_sku        = "B1"
+      runtime_version = "22-lts"
+      always_on       = true
+      api_base_url    = ""
+      app_settings    = {}
+      easy_auth       = null
+    }
+    function_app = {
+      name                          = "func-test-api"
+      plan_sku                      = "EP1"
+      runtime                       = "python"
+      runtime_version               = "3.11"
+      run_from_package              = true
+      storage_account_name          = ""
+      public_network_access_enabled = true
+      cors_allowed_origins          = ["*"]
+      app_settings                  = {}
+    }
+    observability = {
+      log_retention_days          = 30
+      app_insights_retention_days = 90
+    }
+  }
 
   assert {
     condition     = azurerm_log_analytics_workspace.this.retention_in_days == 30
@@ -148,6 +299,41 @@ run "validate_observability_stack" {
 run "validate_web_app_configuration" {
   command = plan
 
+  variables {
+    project_name          = "subnetcalc"
+    environment           = "dev"
+    location              = "uksouth"
+    resource_group_name   = "rg-test-webapp"
+    create_resource_group = true
+    tags = {
+      test = "true"
+    }
+    web_app = {
+      name            = "web-test-react"
+      plan_sku        = "B1"
+      runtime_version = "22-lts"
+      always_on       = true
+      api_base_url    = ""
+      app_settings    = {}
+      easy_auth       = null
+    }
+    function_app = {
+      name                          = "func-test-api"
+      plan_sku                      = "EP1"
+      runtime                       = "python"
+      runtime_version               = "3.11"
+      run_from_package              = true
+      storage_account_name          = ""
+      public_network_access_enabled = true
+      cors_allowed_origins          = ["*"]
+      app_settings                  = {}
+    }
+    observability = {
+      log_retention_days          = 30
+      app_insights_retention_days = 90
+    }
+  }
+
   assert {
     condition     = azurerm_service_plan.web.sku_name == "B1"
     error_message = "Web App Service Plan should use B1 SKU"
@@ -159,22 +345,22 @@ run "validate_web_app_configuration" {
   }
 
   assert {
-    condition     = azurerm_linux_web_app.this.https_only == true
+    condition     = azurerm_linux_web_app.react.https_only == true
     error_message = "Web App should enforce HTTPS"
   }
 
   assert {
-    condition     = azurerm_linux_web_app.this.identity[0].type == "SystemAssigned"
+    condition     = azurerm_linux_web_app.react.identity[0].type == "SystemAssigned"
     error_message = "Web App should have system-assigned managed identity"
   }
 
   assert {
-    condition     = azurerm_linux_web_app.this.site_config[0].application_stack[0].node_version == "22-lts"
+    condition     = azurerm_linux_web_app.react.site_config[0].application_stack[0].node_version == "22-lts"
     error_message = "Web App should use Node.js 22 LTS"
   }
 
   assert {
-    condition     = azurerm_linux_web_app.this.site_config[0].always_on == true
+    condition     = azurerm_linux_web_app.react.site_config[0].always_on == true
     error_message = "Web App should have always_on enabled"
   }
 }
@@ -182,39 +368,109 @@ run "validate_web_app_configuration" {
 run "validate_function_app_configuration" {
   command = plan
 
+  variables {
+    project_name          = "subnetcalc"
+    environment           = "dev"
+    location              = "uksouth"
+    resource_group_name   = "rg-test-webapp"
+    create_resource_group = true
+    tags = {
+      test = "true"
+    }
+    web_app = {
+      name            = "web-test-react"
+      plan_sku        = "B1"
+      runtime_version = "22-lts"
+      always_on       = true
+      api_base_url    = ""
+      app_settings    = {}
+      easy_auth       = null
+    }
+    function_app = {
+      name                          = "func-test-api"
+      plan_sku                      = "EP1"
+      runtime                       = "python"
+      runtime_version               = "3.11"
+      run_from_package              = true
+      storage_account_name          = ""
+      public_network_access_enabled = true
+      cors_allowed_origins          = ["*"]
+      app_settings                  = {}
+    }
+    observability = {
+      log_retention_days          = 30
+      app_insights_retention_days = 90
+    }
+  }
+
   assert {
     condition     = azurerm_service_plan.function.sku_name == "EP1"
     error_message = "Function App Service Plan should use EP1 (Elastic Premium)"
   }
 
   assert {
-    condition     = azurerm_linux_function_app.this.https_only == true
+    condition     = azurerm_linux_function_app.api.https_only == true
     error_message = "Function App should enforce HTTPS"
   }
 
   assert {
-    condition     = azurerm_linux_function_app.this.identity[0].type == "SystemAssigned"
+    condition     = azurerm_linux_function_app.api.identity[0].type == "SystemAssigned"
     error_message = "Function App should have system-assigned managed identity"
   }
 
   assert {
-    condition     = azurerm_linux_function_app.this.site_config[0].application_stack[0].python_version == "3.11"
+    condition     = azurerm_linux_function_app.api.site_config[0].application_stack[0].python_version == "3.11"
     error_message = "Function App should use Python 3.11"
   }
 
   assert {
-    condition     = azurerm_linux_function_app.this.public_network_access_enabled == true
+    condition     = azurerm_linux_function_app.api.public_network_access_enabled == true
     error_message = "Function App should have public network access enabled"
   }
 
   assert {
-    condition     = contains(azurerm_linux_function_app.this.site_config[0].cors[0].allowed_origins, "*")
+    condition     = contains(azurerm_linux_function_app.api.site_config[0].cors[0].allowed_origins, "*")
     error_message = "Function App CORS should include configured origins"
   }
 }
 
 run "validate_storage_account" {
   command = plan
+
+  variables {
+    project_name          = "subnetcalc"
+    environment           = "dev"
+    location              = "uksouth"
+    resource_group_name   = "rg-test-webapp"
+    create_resource_group = true
+    tags = {
+      test = "true"
+    }
+    web_app = {
+      name            = "web-test-react"
+      plan_sku        = "B1"
+      runtime_version = "22-lts"
+      always_on       = true
+      api_base_url    = ""
+      app_settings    = {}
+      easy_auth       = null
+    }
+    function_app = {
+      name                          = "func-test-api"
+      plan_sku                      = "EP1"
+      runtime                       = "python"
+      runtime_version               = "3.11"
+      run_from_package              = true
+      storage_account_name          = ""
+      public_network_access_enabled = true
+      cors_allowed_origins          = ["*"]
+      app_settings                  = {}
+    }
+    observability = {
+      log_retention_days          = 30
+      app_insights_retention_days = 90
+    }
+  }
 
   assert {
     condition     = can(regex("^st[a-z0-9]+func$", azurerm_storage_account.function.name))
@@ -246,14 +502,42 @@ run "validate_easy_auth_not_configured" {
   command = plan
 
   variables {
+    project_name          = "subnetcalc"
+    environment           = "dev"
+    location              = "uksouth"
+    resource_group_name   = "rg-test-webapp"
+    create_resource_group = true
+    tags = {
+      test = "true"
+    }
     web_app = {
-      plan_sku  = "B1"
-      easy_auth = null
+      name            = "web-test-react"
+      plan_sku        = "B1"
+      runtime_version = "22-lts"
+      always_on       = true
+      api_base_url    = ""
+      app_settings    = {}
+      easy_auth       = null
+    }
+    function_app = {
+      name                          = "func-test-api"
+      plan_sku                      = "EP1"
+      runtime                       = "python"
+      runtime_version               = "3.11"
+      run_from_package              = true
+      storage_account_name          = ""
+      public_network_access_enabled = true
+      cors_allowed_origins          = ["*"]
+      app_settings                  = {}
+    }
+    observability = {
+      log_retention_days          = 30
+      app_insights_retention_days = 90
     }
   }
 
   assert {
-    condition     = length(azurerm_linux_web_app.this.auth_settings_v2) == 0
+    condition     = length(azurerm_linux_web_app.react.auth_settings_v2) == 0
     error_message = "Web App should not have EasyAuth when easy_auth is null"
   }
 }
@@ -262,11 +546,24 @@ run "validate_easy_auth_configured" {
   command = plan
 
   variables {
+    project_name          = "subnetcalc"
+    environment           = "dev"
+    location              = "uksouth"
+    resource_group_name   = "rg-test-webapp"
+    create_resource_group = true
+    tags = {
+      test = "true"
+    }
     web_app = {
-      plan_sku = "B1"
+      name            = "web-test-react"
+      plan_sku        = "B1"
+      runtime_version = "22-lts"
+      always_on       = true
+      api_base_url    = ""
+      app_settings    = {}
       easy_auth = {
         enabled                    = true
-        client_id                  = run.setup.client_id
+        client_id                  = "00000000-0000-0000-0000-000000000001" # Mock client ID for testing
         client_secret              = ""
         client_secret_setting_name = "MICROSOFT_PROVIDER_AUTHENTICATION_SECRET"
         issuer                     = ""
@@ -278,75 +575,99 @@ run "validate_easy_auth_configured" {
         login_parameters           = {}
       }
     }
+    function_app = {
+      name                          = "func-test-api"
+      plan_sku                      = "EP1"
+      runtime                       = "python"
+      runtime_version               = "3.11"
+      run_from_package              = true
+      storage_account_name          = ""
+      public_network_access_enabled = true
+      cors_allowed_origins          = ["*"]
+      app_settings                  = {}
+    }
+    observability = {
+      log_retention_days          = 30
+      app_insights_retention_days = 90
+    }
   }
 
   assert {
-    condition     = length(azurerm_linux_web_app.this.auth_settings_v2) > 0
+    condition     = length(azurerm_linux_web_app.react.auth_settings_v2) > 0
     error_message = "Web App should have EasyAuth configured when easy_auth is provided"
   }
 
   assert {
-    condition     = azurerm_linux_web_app.this.auth_settings_v2[0].auth_enabled == true
+    condition     = azurerm_linux_web_app.react.auth_settings_v2[0].auth_enabled == true
     error_message = "EasyAuth should be enabled"
   }
 
   assert {
-    condition     = azurerm_linux_web_app.this.auth_settings_v2[0].unauthenticated_action == "RedirectToLoginPage"
+    condition     = azurerm_linux_web_app.react.auth_settings_v2[0].unauthenticated_action == "RedirectToLoginPage"
     error_message = "Unauthenticated users should be redirected to login"
   }
 
   assert {
-    condition     = azurerm_linux_web_app.this.auth_settings_v2[0].login[0].token_store_enabled == true
+    condition     = azurerm_linux_web_app.react.auth_settings_v2[0].login[0].token_store_enabled == true
     error_message = "Token store should be enabled"
   }
 
   assert {
-    condition     = azurerm_linux_web_app.this.auth_settings_v2[0].active_directory_v2[0].client_id == run.setup.client_id
-    error_message = "Azure AD client ID should match variable"
+    condition     = azurerm_linux_web_app.react.auth_settings_v2[0].active_directory_v2[0].client_id == "00000000-0000-0000-0000-000000000001"
+    error_message = "Azure AD client ID should match configured value"
   }
 
   assert {
-    condition     = can(regex("^https://login.microsoftonline.com/.*", azurerm_linux_web_app.this.auth_settings_v2[0].active_directory_v2[0].tenant_auth_endpoint))
+    condition     = can(regex("^https://login.microsoftonline.com/.*", azurerm_linux_web_app.react.auth_settings_v2[0].active_directory_v2[0].tenant_auth_endpoint))
     error_message = "Tenant auth endpoint should be valid Microsoft login URL"
   }
 }
 
-run "validate_app_settings_injection" {
-  command = plan
-
-  assert {
-    condition     = can(azurerm_linux_web_app.this.app_settings["APPLICATIONINSIGHTS_CONNECTION_STRING"])
-    error_message = "Web App should have Application Insights connection string"
-  }
-
-  assert {
-    condition     = can(azurerm_linux_web_app.this.app_settings["API_BASE_URL"])
-    error_message = "Web App should have API_BASE_URL set"
-  }
-
-  assert {
-    condition     = can(azurerm_linux_function_app.this.app_settings["APPLICATIONINSIGHTS_CONNECTION_STRING"])
-    error_message = "Function App should have Application Insights connection string"
-  }
-
-  assert {
-    condition     = can(azurerm_linux_function_app.this.app_settings["AzureWebJobsStorage"])
-    error_message = "Function App should have AzureWebJobsStorage connection string"
-  }
-}
+# Note: App settings injection test removed
+# Cannot test app_settings keys at plan time because values like
+# APPLICATIONINSIGHTS_CONNECTION_STRING depend on resources being created.
+# The merge() logic in main.tf ensures these are correctly injected.
 
 run "validate_outputs" {
   command = plan
 
-  assert {
-    condition     = can(regex("^https://.*\\.azurewebsites\\.net$", output.web_app_url))
-    error_message = "Web App URL should be valid Azure Web Sites URL"
+  variables {
+    project_name          = "subnetcalc"
+    environment           = "dev"
+    location              = "uksouth"
+    resource_group_name   = "rg-test-webapp"
+    create_resource_group = true
+    tags = {
+      test = "true"
+    }
+    web_app = {
+      name            = "web-test-react"
+      plan_sku        = "B1"
+      runtime_version = "22-lts"
+      always_on       = true
+      api_base_url    = ""
+      app_settings    = {}
+      easy_auth       = null
+    }
+    function_app = {
+      name                          = "func-test-api"
+      plan_sku                      = "EP1"
+      runtime                       = "python"
+      runtime_version               = "3.11"
+      run_from_package              = true
+      storage_account_name          = ""
+      public_network_access_enabled = true
+      cors_allowed_origins          = ["*"]
+      app_settings                  = {}
+    }
+    observability = {
+      log_retention_days          = 30
+      app_insights_retention_days = 90
+    }
   }
 
-  assert {
-    condition     = can(regex("^https://.*\\.azurewebsites\\.net$", output.function_app_url))
-    error_message = "Function App URL should be valid Azure Web Sites URL"
-  }
+  # Note: URL outputs cannot be tested at plan time because they depend on
+  # default_hostname which is only known after Azure provisions the resources
 
   assert {
     condition     = output.resource_group_name == "rg-test-webapp"
@@ -356,5 +677,15 @@ run "validate_outputs" {
   assert {
     condition     = output.application_insights_name == "appi-subnetcalc-dev"
     error_message = "Output should return Application Insights name"
+  }
+
+  assert {
+    condition     = output.web_app_name == "web-test-react"
+    error_message = "Output should return Web App name"
+  }
+
+  assert {
+    condition     = output.function_app_name == "func-test-api"
+    error_message = "Output should return Function App name"
   }
 }

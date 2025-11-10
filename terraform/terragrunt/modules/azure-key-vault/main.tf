@@ -1,7 +1,13 @@
 # Azure Key Vault Module
 # Supports RBAC and Access Policy authorization models
 
+# Look up current Azure context when tenant_id not provided
+data "azurerm_client_config" "current" {}
+
 locals {
+  # Use provided tenant_id or fall back to current Azure context
+  tenant_id = coalesce(var.tenant_id, data.azurerm_client_config.current.tenant_id)
+
   # Generate unique suffix if requested
   use_suffix       = var.use_random_suffix ? { enabled = true } : {}
   name_with_suffix = var.use_random_suffix ? "${var.name}-${random_string.suffix["enabled"].result}" : var.name
@@ -19,7 +25,7 @@ resource "azurerm_key_vault" "this" {
   name                = local.name_with_suffix
   location            = var.location
   resource_group_name = var.resource_group_name
-  tenant_id           = var.tenant_id
+  tenant_id           = local.tenant_id
 
   sku_name = var.sku_name
 
@@ -83,11 +89,10 @@ resource "azurerm_monitor_diagnostic_setting" "this" {
     }
   }
 
-  dynamic "metric" {
+  dynamic "enabled_metric" {
     for_each = var.diagnostic_metric_categories
     content {
-      category = metric.value
-      enabled  = true
+      category = enabled_metric.value
     }
   }
 }

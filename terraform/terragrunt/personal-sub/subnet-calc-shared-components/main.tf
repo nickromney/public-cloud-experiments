@@ -11,10 +11,13 @@ locals {
 # -----------------------------------------------------------------------------
 
 locals {
+  # Use resource_group_name variable (required - no default)
+  resolved_rg_name = var.resource_group_name
+
   # Resource group maps: create new or reference existing
   resource_groups_to_create = var.create_resource_group ? {
     main = {
-      name     = var.resource_group_name
+      name     = local.resolved_rg_name
       location = var.location
     }
   } : {}
@@ -57,12 +60,12 @@ resource "azurerm_resource_group" "this" {
 data "azurerm_resource_group" "this" {
   for_each = local.resource_groups_existing
 
-  name = var.resource_group_name
+  name = local.resolved_rg_name
 
   lifecycle {
     postcondition {
       condition     = self.id != ""
-      error_message = "Resource group '${var.resource_group_name}' does not exist"
+      error_message = "Resource group '${local.resolved_rg_name}' does not exist"
     }
   }
 }
@@ -144,9 +147,8 @@ resource "azurerm_monitor_diagnostic_setting" "kv" {
     }
   }
 
-  metric {
+  enabled_metric {
     category = "AllMetrics"
-    enabled  = true
   }
 
   depends_on = [

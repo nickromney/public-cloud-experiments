@@ -168,7 +168,7 @@ test:
 	for dir in personal-sub/subnet-calc-* modules/*; do \
 		if [ -d "$$dir" ] && ls $$dir/*.tftest.hcl > /dev/null 2>&1; then \
 			echo "  → Testing $$dir"; \
-			(cd $$dir && $(FMT_TOOL) test) || failed=1; \
+			(cd $$dir && $(FMT_TOOL) init > /dev/null 2>&1 && $(FMT_TOOL) test) || failed=1; \
 		fi; \
 	done; \
 	test_count=$$(find personal-sub/subnet-calc-* modules -name "*.tftest.hcl" 2>/dev/null | wc -l | tr -d ' '); \
