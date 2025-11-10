@@ -76,6 +76,25 @@ terragrunt plan
 terragrunt apply
 ```
 
+## Secure App Stack (App Service + APIM + Function)
+
+The `workloads/secure-app/envs/dev/uksouth` stack deploys the hardened App Service → APIM (Internal) → Function App architecture discussed in the design notes. You can work with it using the dedicated Makefile targets:
+
+```bash
+make secure-app-plan      # init + plan
+make secure-app-apply     # init + apply
+make secure-app-destroy   # destroy the stack
+make secure-app-output    # show stack outputs
+```
+
+Or run Terragrunt manually:
+
+```bash
+cd workloads/secure-app/envs/dev/uksouth
+terragrunt init
+terragrunt plan
+```
+
 ## Key Concepts
 
 ### Map Pattern (0 to n)
@@ -162,6 +181,26 @@ See `ps-az-sbx/app-a/terraform.tfvars.example` for:
 cp .envrc.example .envrc
 # Edit .envrc with your values
 direnv allow
+```
+
+If you prefer not to use `direnv`, export the variables manually in your shell (or place them in your shell profile):
+
+```bash
+export ARM_SUBSCRIPTION_ID="your-sub-id"
+export ARM_TENANT_ID="your-tenant-id"
+export TF_BACKEND_RG="your-backend-rg"
+export TF_BACKEND_SA="your-backend-sa"
+export TF_BACKEND_CONTAINER="terraform-states"
+```
+
+NuShell equivalent (`~/.config/nushell/env.nu`):
+
+```nushell
+$env.ARM_SUBSCRIPTION_ID = "your-sub-id"
+$env.ARM_TENANT_ID = "your-tenant-id"
+$env.TF_BACKEND_RG = "your-backend-rg"
+$env.TF_BACKEND_SA = "your-backend-sa"
+$env.TF_BACKEND_CONTAINER = "terraform-states"
 ```
 
 ## Testing Early

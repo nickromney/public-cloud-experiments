@@ -5,7 +5,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 FUNCTION_APP_DIR="$REPO_ROOT/subnet-calculator/api-fastapi-azure-function"
 OUTPUT_ZIP="${1:-$SCRIPT_DIR/function-app.zip}"
 

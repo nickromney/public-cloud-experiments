@@ -57,10 +57,21 @@ resource "azurerm_linux_function_app" "this" {
     "FUNCTIONS_WORKER_RUNTIME"       = var.runtime == "dotnet-isolated" ? "dotnet-isolated" : var.runtime
     "FUNCTIONS_EXTENSION_VERSION"    = "~4"
     "SCM_DO_BUILD_DURING_DEPLOYMENT" = "true"
+    # Azure auto-builds dependencies from requirements.txt during zip deployment (approach #1)
+    # Don't set WEBSITE_RUN_FROM_PACKAGE - let Azure extract and build
   }, var.app_settings)
 
   identity {
     type = "SystemAssigned"
+  }
+
+  # Ignore Azure-managed Application Insights settings in site_config
+  # Azure automatically syncs these from app_settings, causing drift
+  lifecycle {
+    ignore_changes = [
+      site_config[0].application_insights_connection_string,
+      site_config[0].application_insights_key
+    ]
   }
 
   tags = var.tags

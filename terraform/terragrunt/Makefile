@@ -31,6 +31,7 @@ get-stack-dir = $(strip $(patsubst $(1)/$(2)=%,%,$(filter $(1)/$(2)=%,$(STACK_MA
 # Configuration
 RESOURCE_GROUP ?= rg-subnet-calc
 PERSONAL_SUB_REGION ?= uksouth
+AUTO_APPROVE ?= 0
 
 # Resources with long provisioning/deletion times
 SLOW_PROVISION_RESOURCES := apim aks appgw application-gateway
@@ -49,7 +50,7 @@ help:
 	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(NC)"
-	@echo "  make <project> <stack> <verb> [component]"
+	@echo "  make <project> <stack> <verb> [component] [AUTO_APPROVE=1]"
 	@echo ""
 	@echo "$(YELLOW)Available Stacks:$(NC)"
 	@echo "  subnet-calc react-webapp            Direct JWT authentication"
@@ -85,10 +86,14 @@ help:
 	@echo "$(YELLOW)Examples:$(NC)"
 	@echo "  make subnet-calc react-webapp-easyauth plan"
 	@echo "  make subnet-calc react-webapp-easyauth apply"
+	@echo "  make subnet-calc react-webapp-easyauth apply AUTO_APPROVE=1"
 	@echo "  make subnet-calc react-webapp-easyauth deploy function-app"
 	@echo "  make subnet-calc react-webapp-easyauth deploy frontend"
 	@echo "  make subnet-calc react-apim plan"
 	@echo "  make subnet-calc react-apim deploy all"
+	@echo ""
+	@echo "$(YELLOW)Options:$(NC)"
+	@echo "  AUTO_APPROVE=1                Skip confirmation prompts for apply/destroy"
 	@echo ""
 	@echo "$(YELLOW)Global Commands:$(NC)"
 	@echo "  make setup                    Configure Azure backend"
@@ -97,6 +102,9 @@ help:
 	@echo "  make fmt                      Format all Terraform files"
 	@echo "  make lint                     Run tflint on all stacks"
 	@echo "  make test                     Run Terraform tests (.tftest.hcl)"
+	@echo "  make secure-app-plan          Plan secure-app/dev/uksouth stack"
+	@echo "  make secure-app-apply         Apply secure-app/dev/uksouth stack"
+	@echo "  make secure-app-destroy       Destroy secure-app/dev/uksouth stack"
 	@echo ""
 
 # Setup environment
@@ -238,7 +246,11 @@ _exec-apply:
 			break; \
 		fi; \
 	done
-	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) apply
+	@if [ "$(AUTO_APPROVE)" = "1" ]; then \
+		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) apply -auto-approve; \
+	else \
+		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) apply; \
+	fi
 
 _exec-destroy:
 	@echo "$(YELLOW)⚠️  WARNING: Destroying $(STACK_DIR)$(NC)"
@@ -252,7 +264,11 @@ _exec-destroy:
 			break; \
 		fi; \
 	done
-	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) destroy
+	@if [ "$(AUTO_APPROVE)" = "1" ]; then \
+		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) destroy -auto-approve; \
+	else \
+		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) destroy; \
+	fi
 
 _exec-validate:
 	@echo "$(YELLOW)Validating $(STACK_DIR)...$(NC)"
@@ -288,14 +304,14 @@ _deploy-function:
 		exit 1; \
 	fi && \
 	echo "Function App: $$FUNCTION_APP_NAME" && \
-	$(SCRIPTS_DIR)/build-function-zip.sh $(ROOT_DIR)/function-app.zip && \
+	$(SCRIPTS_DIR)/build-function-zip.sh $(ROOT_DIR)function-app.zip && \
 	$(AZ) functionapp deployment source config-zip \
 		--resource-group $(RESOURCE_GROUP) \
 		--name $$FUNCTION_APP_NAME \
-		--src $(ROOT_DIR)/function-app.zip \
+		--src $(ROOT_DIR)function-app.zip \
 		--build-remote true \
 		--timeout 600 && \
-	rm -f $(ROOT_DIR)/function-app.zip && \
+	rm -f $(ROOT_DIR)function-app.zip && \
 	echo "$(GREEN)✅ Function App deployed successfully$(NC)"
 
 .PHONY: _deploy-frontend
@@ -311,13 +327,13 @@ _deploy-frontend:
 	fi && \
 	echo "Web App: $$WEB_APP_NAME" && \
 	echo "API URL: $$API_BASE_URL" && \
-	API_BASE_URL=$$API_BASE_URL $(SCRIPTS_DIR)/build-deployment-zip.sh $(ROOT_DIR)/react-app.zip && \
+	API_BASE_URL=$$API_BASE_URL $(SCRIPTS_DIR)/build-deployment-zip.sh $(ROOT_DIR)react-app.zip && \
 	$(AZ) webapp deploy \
 		--resource-group $(RESOURCE_GROUP) \
 		--name $$WEB_APP_NAME \
-		--src-path $(ROOT_DIR)/react-app.zip \
+		--src-path $(ROOT_DIR)react-app.zip \
 		--type zip && \
-	rm -f $(ROOT_DIR)/react-app.zip && \
+	rm -f $(ROOT_DIR)react-app.zip && \
 	echo "$(GREEN)✅ Frontend deployed successfully$(NC)" && \
 	echo "$(GREEN)🌐 Web App URL: https://$$WEB_APP_NAME.azurewebsites.net$(NC)"
 
@@ -393,6 +409,36 @@ _test-endpoints:
 	else \
 		echo "$(YELLOW)❌ Web App unreachable (Status: $$status)$(NC)"; \
 	fi
+
+# Secure App convenience verbs
+.PHONY: secure-app-init secure-app-plan secure-app-apply secure-app-destroy secure-app-output secure-app-clean
+
+secure-app-init: check-env
+	@cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) init -upgrade
+
+secure-app-plan: check-env
+	@cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) plan
+
+secure-app-apply: check-env
+	@if [ "$(AUTO_APPROVE)" = "1" ]; then \
+		cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) apply -auto-approve; \
+	else \
+		cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) apply; \
+	fi
+
+secure-app-destroy: check-env
+	@if [ "$(AUTO_APPROVE)" = "1" ]; then \
+		cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) destroy -auto-approve; \
+	else \
+		cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) destroy; \
+	fi
+
+secure-app-output: check-env
+	@cd workloads/secure-app/envs/dev/uksouth && $(TERRAGRUNT) output
+
+secure-app-clean:
+	@cd workloads/secure-app/envs/dev/uksouth && rm -rf .terraform .terragrunt-cache
+	@echo "$(GREEN)✓ Cleaned secure-app/dev/uksouth$(NC)"
 
 # Utility verbs
 .PHONY: _exec-show _exec-get _exec-clean _exec-unlock
