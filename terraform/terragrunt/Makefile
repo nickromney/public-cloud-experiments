@@ -22,7 +22,7 @@ SCRIPTS_DIR ?= $(ROOT_DIR)deployment-scripts
 # Stack name mappings (short-name -> directory)
 # Format: <project>/<stack-alias>=<directory-path>
 # Note: Using spaces to separate entries for filter to work correctly
-STACK_MAP := subnet-calc/react-webapp=personal-sub/subnet-calc-react-webapp subnet-calc/react-webapp-easyauth=personal-sub/subnet-calc-react-webapp-easyauth subnet-calc/react-apim=personal-sub/subnet-calc-react-webapp-apim subnet-calc/internal-apim=personal-sub/subnet-calc-internal-apim subnet-calc/static-web-apps=personal-sub/subnet-calc-static-web-apps subnet-calc/shared-components=personal-sub/subnet-calc-shared-components
+STACK_MAP := subnet-calc/react-webapp=personal-sub/subnet-calc-react-webapp subnet-calc/react-webapp-easyauth=personal-sub/subnet-calc-react-webapp-easyauth subnet-calc/react-easyauth-e2e=personal-sub/subnet-calc-react-easyauth-e2e subnet-calc/react-apim=personal-sub/subnet-calc-react-webapp-apim subnet-calc/internal-apim=personal-sub/subnet-calc-internal-apim subnet-calc/static-web-apps=personal-sub/subnet-calc-static-web-apps subnet-calc/shared-components=personal-sub/subnet-calc-shared-components
 
 # Function to resolve stack directory from project and stack alias
 # Matches the exact key and extracts the value
@@ -55,6 +55,7 @@ help:
 	@echo "$(YELLOW)Available Stacks:$(NC)"
 	@echo "  subnet-calc react-webapp            Direct JWT authentication"
 	@echo "  subnet-calc react-webapp-easyauth   Easy Auth with managed identity (no secrets)"
+	@echo "  subnet-calc react-easyauth-e2e      Easy Auth E2E (frontend + backend, no JWT)"
 	@echo "  subnet-calc react-apim              Public APIM with subscription keys"
 	@echo "  subnet-calc internal-apim           Internal APIM with VNet integration"
 	@echo ""
@@ -89,6 +90,8 @@ help:
 	@echo "  make subnet-calc react-webapp-easyauth apply AUTO_APPROVE=1"
 	@echo "  make subnet-calc react-webapp-easyauth deploy function-app"
 	@echo "  make subnet-calc react-webapp-easyauth deploy frontend"
+	@echo "  make subnet-calc react-easyauth-e2e apply AUTO_APPROVE=1"
+	@echo "  make subnet-calc react-easyauth-e2e deploy all"
 	@echo "  make subnet-calc react-apim plan"
 	@echo "  make subnet-calc react-apim deploy all"
 	@echo ""
@@ -211,6 +214,7 @@ _route:
 		echo "Available stacks:"; \
 		echo "  subnet-calc/react-webapp"; \
 		echo "  subnet-calc/react-webapp-easyauth"; \
+		echo "  subnet-calc/react-easyauth-e2e"; \
 		echo "  subnet-calc/react-apim"; \
 		echo "  subnet-calc/internal-apim"; \
 		exit 1; \
