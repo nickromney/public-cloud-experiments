@@ -94,6 +94,8 @@ help:
 	@echo "  make validate-all             Validate all stacks"
 	@echo "  make clean-all                Clean all stack caches"
 	@echo "  make fmt                      Format all Terraform files"
+	@echo "  make lint                     Run tflint on all stacks"
+	@echo "  make test                     Run Terraform tests (.tftest.hcl)"
 	@echo ""
 
 # Setup environment
@@ -131,6 +133,53 @@ fmt format:
 	@echo "$(YELLOW)Formatting all Terraform files...$(NC)"
 	@$(FMT_TOOL) fmt -recursive .
 	@echo "$(GREEN)✓ Formatting complete$(NC)"
+
+# Global linting
+.PHONY: lint
+lint:
+	@if [ -z "$(TFLINT)" ]; then \
+		echo "$(YELLOW)❌ tflint is not installed. Run: brew install tflint$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Running tflint on all stacks...$(NC)"
+	@failed=0; \
+	for dir in modules/* personal-sub/subnet-calc-* cloudflare-publiccloudexperiments/*; do \
+		if [ -d "$$dir" ] && [ -f "$$dir/main.tf" -o -f "$$dir/versions.tf" ]; then \
+			echo "  → Linting $$dir"; \
+			(cd $$dir && tflint --init > /dev/null 2>&1 && tflint) || failed=1; \
+		fi; \
+	done; \
+	if [ $$failed -eq 0 ]; then \
+		echo "$(GREEN)✓ All linting checks passed$(NC)"; \
+	else \
+		echo "$(YELLOW)❌ Some linting checks failed$(NC)"; \
+		exit 1; \
+	fi
+
+# Global testing with Terraform test framework
+.PHONY: test
+test:
+	@if [ -z "$(FMT_TOOL)" ]; then \
+		echo "$(YELLOW)❌ Neither OpenTofu nor Terraform is installed$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Running Terraform tests on all stacks...$(NC)"
+	@failed=0; \
+	for dir in personal-sub/subnet-calc-* modules/*; do \
+		if [ -d "$$dir" ] && ls $$dir/*.tftest.hcl > /dev/null 2>&1; then \
+			echo "  → Testing $$dir"; \
+			(cd $$dir && $(FMT_TOOL) test) || failed=1; \
+		fi; \
+	done; \
+	test_count=$$(find personal-sub/subnet-calc-* modules -name "*.tftest.hcl" 2>/dev/null | wc -l | tr -d ' '); \
+	if [ "$$test_count" -eq 0 ]; then \
+		echo "$(YELLOW)⚠️  No .tftest.hcl files found$(NC)"; \
+	elif [ $$failed -eq 0 ]; then \
+		echo "$(GREEN)✓ All Terraform tests passed$(NC)"; \
+	else \
+		echo "$(YELLOW)❌ Some Terraform tests failed$(NC)"; \
+		exit 1; \
+	fi
 
 # Parse multi-word commands
 # This is where the magic happens - we route based on arguments

@@ -1,8 +1,3 @@
-variable "zone_name" {
-  description = "Cloudflare zone to manage (e.g., publiccloudexperiments.net). Used for documentation and output purposes only."
-  type        = string
-}
-
 variable "zone_id" {
   description = "Cloudflare zone ID. Required for zone data source lookup."
   type        = string
