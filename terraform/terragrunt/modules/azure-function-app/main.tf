@@ -60,6 +60,17 @@ resource "azurerm_service_plan" "this" {
   }
 }
 
+# User-Assigned Managed Identity (created when managed identity is enabled)
+# Must be created before Function App so we can grant it storage permissions
+resource "azurerm_user_assigned_identity" "this" {
+  count = var.managed_identity.enabled && contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? 1 : 0
+
+  name                = "id-${var.name}"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  tags                = var.tags
+}
+
 # Storage Account for Function App (only created if not using existing)
 resource "azurerm_storage_account" "this" {
   count = local.existing_storage_account_id == null ? 1 : 0
@@ -85,6 +96,40 @@ locals {
   storage_account_name = local.existing_storage_account_id != null ? data.azurerm_storage_account.existing[0].name : azurerm_storage_account.this[0].name
 
   storage_account_access_key = local.existing_storage_account_id != null ? data.azurerm_storage_account.existing[0].primary_access_key : azurerm_storage_account.this[0].primary_access_key
+
+  # User-assigned managed identity details (for storage authentication)
+  uai_client_id    = var.managed_identity.enabled && contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_user_assigned_identity.this[0].client_id : null
+  uai_principal_id = var.managed_identity.enabled && contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_user_assigned_identity.this[0].principal_id : null
+  uai_id           = var.managed_identity.enabled && contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_user_assigned_identity.this[0].id : null
+
+  # Storage authentication strategy
+  use_mi_for_storage = var.managed_identity.enabled && local.uai_client_id != null
+}
+
+# RBAC: Grant UAI storage permissions (Blob, Queue, Table Contributor)
+# These are granted BEFORE Function App creation to avoid chicken-and-egg problem
+resource "azurerm_role_assignment" "uai_storage_blob" {
+  for_each = local.use_mi_for_storage ? { enabled = true } : {}
+
+  scope                = local.storage_account_id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = local.uai_principal_id
+}
+
+resource "azurerm_role_assignment" "uai_storage_queue" {
+  for_each = local.use_mi_for_storage ? { enabled = true } : {}
+
+  scope                = local.storage_account_id
+  role_definition_name = "Storage Queue Data Contributor"
+  principal_id         = local.uai_principal_id
+}
+
+resource "azurerm_role_assignment" "uai_storage_table" {
+  for_each = local.use_mi_for_storage ? { enabled = true } : {}
+
+  scope                = local.storage_account_id
+  role_definition_name = "Storage Table Data Contributor"
+  principal_id         = local.uai_principal_id
 }
 
 # Linux Function App
@@ -94,11 +139,17 @@ resource "azurerm_linux_function_app" "this" {
   location            = var.location
   service_plan_id     = local.service_plan_id
 
-  # Always use storage account keys for AzureWebJobsStorage
-  # Managed identity for storage has chicken-and-egg problem: Function App needs storage
-  # access at creation time, but RBAC roles need Function App's principal_id
+  # Storage authentication: use managed identity if UAI is configured, otherwise use storage keys
+  # UAI solves chicken-and-egg problem: identity and RBAC created before Function App
   storage_account_name       = local.storage_account_name
-  storage_account_access_key = local.storage_account_access_key
+  storage_account_access_key = local.use_mi_for_storage ? null : local.storage_account_access_key
+
+  # Explicit dependency: ensure RBAC roles are granted before Function App tries to access storage
+  depends_on = [
+    azurerm_role_assignment.uai_storage_blob,
+    azurerm_role_assignment.uai_storage_queue,
+    azurerm_role_assignment.uai_storage_table
+  ]
 
   https_only                    = true
   public_network_access_enabled = var.public_network_access_enabled
@@ -128,14 +179,24 @@ resource "azurerm_linux_function_app" "this" {
     # Don't set WEBSITE_RUN_FROM_PACKAGE - let Azure extract and build
     # Application Insights connection string (identifies target App Insights instance)
     "APPLICATIONINSIGHTS_CONNECTION_STRING" = var.app_insights_connection_string
-  }, var.app_settings)
+    }, local.use_mi_for_storage ? {
+    # Managed identity storage authentication
+    "WEBSITES_ENABLE_APP_SERVICE_STORAGE" = "false"
+    "AzureWebJobsStorage__accountName"    = local.storage_account_name
+    "AzureWebJobsStorage__credential"     = "managedidentity"
+    "AzureWebJobsStorage__clientId"       = local.uai_client_id
+  } : {}, var.app_settings)
 
   # Managed identity configuration
   dynamic "identity" {
     for_each = var.managed_identity.enabled ? [1] : []
     content {
-      type         = var.managed_identity.type
-      identity_ids = contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? var.managed_identity.user_assigned_identity_ids : null
+      type = var.managed_identity.type
+      # Include created UAI and any additional user-provided identity IDs
+      identity_ids = contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? concat(
+        local.uai_id != null ? [local.uai_id] : [],
+        var.managed_identity.user_assigned_identity_ids
+      ) : null
     }
   }
 
@@ -178,23 +239,37 @@ resource "azurerm_linux_function_app" "this" {
 
 # Local to extract principal_id for RBAC assignments
 locals {
-  # For system-assigned identity, use principal_id directly
-  # For user-assigned, we'll grant permissions to the user-assigned identity (handled externally)
-  # Create RBAC assignments when system-assigned identity is present (including when both system and user assigned)
-  create_rbac_assignments = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type)
-  principal_id            = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_linux_function_app.this.identity[0].principal_id : null
+  # For system-assigned identity, use principal_id from Function App (known after apply)
+  # For user-assigned identity, use principal_id from UAI (known before Function App creation)
+  create_system_rbac  = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type)
+  system_principal_id = local.create_system_rbac ? azurerm_linux_function_app.this.identity[0].principal_id : null
 }
 
-# Note: Storage RBAC assignments removed - using storage account keys instead of managed identity
-# Managed identity for storage has a chicken-and-egg problem during initial Function App creation
-
-# RBAC: Monitoring Metrics Publisher (for Application Insights)
-resource "azurerm_role_assignment" "monitoring_metrics_publisher" {
-  for_each = local.create_rbac_assignments ? { enabled = true } : {}
+# RBAC: Monitoring Metrics Publisher for UAI (for Application Insights)
+# Assigned before Function App creation
+resource "azurerm_role_assignment" "uai_app_insights" {
+  for_each = local.use_mi_for_storage ? { enabled = true } : {}
 
   scope                = var.app_insights_id
   role_definition_name = "Monitoring Metrics Publisher"
-  principal_id         = local.principal_id
+  principal_id         = local.uai_principal_id
+
+  lifecycle {
+    precondition {
+      condition     = var.app_insights_id != null
+      error_message = "app_insights_id must be provided when managed identity is enabled for RBAC assignments"
+    }
+  }
+}
+
+# RBAC: Monitoring Metrics Publisher for System-Assigned Identity (for Application Insights)
+# Assigned after Function App creation
+resource "azurerm_role_assignment" "system_app_insights" {
+  for_each = local.create_system_rbac && !local.use_mi_for_storage ? { enabled = true } : {}
+
+  scope                = var.app_insights_id
+  role_definition_name = "Monitoring Metrics Publisher"
+  principal_id         = local.system_principal_id
 
   lifecycle {
     precondition {
