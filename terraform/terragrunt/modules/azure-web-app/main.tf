@@ -84,9 +84,9 @@ resource "azurerm_linux_web_app" "this" {
 locals {
   # For system-assigned identity, use principal_id directly
   # For user-assigned, we'll grant permissions to the user-assigned identity (handled externally)
-  # Only create RBAC assignments for system-assigned identities
-  create_rbac_assignments = var.managed_identity.enabled && var.managed_identity.type == "SystemAssigned"
-  principal_id            = var.managed_identity.enabled && var.managed_identity.type == "SystemAssigned" ? azurerm_linux_web_app.this.identity[0].principal_id : null
+  # Create RBAC assignments when system-assigned identity is present (including when both system and user assigned)
+  create_rbac_assignments = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type)
+  principal_id            = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_linux_web_app.this.identity[0].principal_id : null
 }
 
 # RBAC: Monitoring Metrics Publisher (for Application Insights)

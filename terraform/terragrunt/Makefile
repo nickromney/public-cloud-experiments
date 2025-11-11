@@ -1,5 +1,8 @@
 .DEFAULT_GOAL := help
 
+# Use bash for shell commands (required for indirect variable expansion in check-env)
+SHELL := /bin/bash
+
 # Color output
 GREEN := \033[0;32m
 YELLOW := \033[1;33m

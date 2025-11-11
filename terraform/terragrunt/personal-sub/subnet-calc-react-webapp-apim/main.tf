@@ -273,6 +273,8 @@ resource "azurerm_linux_function_app" "api" {
     "AzureWebJobsStorage__blobServiceUri"  = "https://${local.function_app_storage_account_name}.blob.core.windows.net"
     "AzureWebJobsStorage__queueServiceUri" = "https://${local.function_app_storage_account_name}.queue.core.windows.net"
     "AzureWebJobsStorage__tableServiceUri" = "https://${local.function_app_storage_account_name}.table.core.windows.net"
+    # Connection string needed even with managed identity (identifies target App Insights instance)
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
     } : {
     # Only add keys when managed identity is disabled
     "APPINSIGHTS_INSTRUMENTATIONKEY"        = local.app_insights_key

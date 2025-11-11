@@ -131,6 +131,8 @@ resource "azurerm_linux_function_app" "this" {
     "AzureWebJobsStorage__blobServiceUri"  = "https://${local.storage_account_name}.blob.core.windows.net"
     "AzureWebJobsStorage__queueServiceUri" = "https://${local.storage_account_name}.queue.core.windows.net"
     "AzureWebJobsStorage__tableServiceUri" = "https://${local.storage_account_name}.table.core.windows.net"
+    # Application Insights connection string (identifies target App Insights instance)
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = var.app_insights_connection_string
   } : {}, var.app_settings)
 
   # Managed identity configuration
@@ -183,9 +185,9 @@ resource "azurerm_linux_function_app" "this" {
 locals {
   # For system-assigned identity, use principal_id directly
   # For user-assigned, we'll grant permissions to the user-assigned identity (handled externally)
-  # Only create RBAC assignments for system-assigned identities
-  create_rbac_assignments = var.managed_identity.enabled && var.managed_identity.type == "SystemAssigned"
-  principal_id            = var.managed_identity.enabled && var.managed_identity.type == "SystemAssigned" ? azurerm_linux_function_app.this.identity[0].principal_id : null
+  # Create RBAC assignments when system-assigned identity is present (including when both system and user assigned)
+  create_rbac_assignments = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type)
+  principal_id            = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_linux_function_app.this.identity[0].principal_id : null
 }
 
 # RBAC: Storage Blob Data Owner (for AzureWebJobsStorage blobs)

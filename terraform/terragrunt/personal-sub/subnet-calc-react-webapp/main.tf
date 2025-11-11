@@ -145,8 +145,7 @@ locals {
   app_insights_key             = local.app_insights_keys["enabled"]
   app_insights_connection      = local.app_insights_connections["enabled"]
   app_insights_name            = local.app_insights_names["enabled"]
-  # Note: app_insights_id will be used when module calls are updated for managed identity RBAC
-  app_insights_id = local.app_insights_ids["enabled"]
+  app_insights_id              = local.app_insights_ids["enabled"]
 }
 
 # -----------------------------------------------------------------------------
@@ -179,8 +178,10 @@ module "function_app" {
   app_insights_id                = local.app_insights_id
   app_insights_connection_string = local.app_insights_connection
 
-  app_settings = var.function_app.managed_identity.enabled ? merge(
-    var.function_app.app_settings
+  app_settings = var.function_app.managed_identity.enabled ? merge({
+      # Connection string needed even with managed identity (identifies target App Insights instance)
+      "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
+    }, var.function_app.app_settings
     ) : merge({
       # Only add keys when managed identity is disabled
       "APPINSIGHTS_INSTRUMENTATIONKEY"        = local.app_insights_key
