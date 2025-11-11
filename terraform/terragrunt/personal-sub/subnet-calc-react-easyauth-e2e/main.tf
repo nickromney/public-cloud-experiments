@@ -69,23 +69,78 @@ data "azurerm_resource_group" "this" {
 # Application Insights & Log Analytics
 # -----------------------------------------------------------------------------
 
-# Reference shared Log Analytics Workspace from subnet-calc-shared-components
-# This provides centralized logging across all subnet calculator stacks
-data "azurerm_log_analytics_workspace" "shared" {
-  name                = "log-${var.project_name}-shared-${var.environment}"
-  resource_group_name = local.rg_name
+locals {
+  # Observability maps: use existing or create new
+  observability_existing = var.observability.use_existing ? { enabled = true } : {}
+  observability_create   = var.observability.use_existing ? {} : { enabled = true }
 }
 
-# Create stack-specific Application Insights linked to shared LAW
-# Each stack gets its own App Insights for telemetry isolation
+data "azurerm_log_analytics_workspace" "shared" {
+  for_each = local.observability_existing
+
+  name                = var.observability.existing_log_analytics_name
+  resource_group_name = var.observability.existing_resource_group_name
+}
+
+data "azurerm_application_insights" "shared" {
+  for_each = local.observability_existing
+
+  name                = var.observability.existing_app_insights_name
+  resource_group_name = var.observability.existing_resource_group_name
+}
+
+# Create new resources if not using existing
+resource "azurerm_log_analytics_workspace" "this" {
+  for_each = local.observability_create
+
+  name                = "log-${var.project_name}-${var.environment}"
+  location            = local.rg_loc
+  resource_group_name = local.rg_name
+  sku                 = "PerGB2018"
+  retention_in_days   = var.observability.log_retention_days
+  tags                = local.common_tags
+}
+
 resource "azurerm_application_insights" "this" {
+  for_each = local.observability_create
+
   name                = "appi-${var.project_name}-easyauth-e2e-${var.environment}"
   location            = local.rg_loc
   resource_group_name = local.rg_name
-  workspace_id        = data.azurerm_log_analytics_workspace.shared.id
+  workspace_id        = azurerm_log_analytics_workspace.this["enabled"].id
   application_type    = "web"
   retention_in_days   = var.observability.app_insights_retention_days
   tags                = local.common_tags
+}
+
+locals {
+  # Merge existing and created observability resources
+  log_analytics_ids = merge(
+    { for k, v in data.azurerm_log_analytics_workspace.shared : k => v.id },
+    { for k, v in azurerm_log_analytics_workspace.this : k => v.id }
+  )
+  log_analytics_names = merge(
+    { for k, v in data.azurerm_log_analytics_workspace.shared : k => v.name },
+    { for k, v in azurerm_log_analytics_workspace.this : k => v.name }
+  )
+  app_insights_keys = merge(
+    { for k, v in data.azurerm_application_insights.shared : k => v.instrumentation_key },
+    { for k, v in azurerm_application_insights.this : k => v.instrumentation_key }
+  )
+  app_insights_connections = merge(
+    { for k, v in data.azurerm_application_insights.shared : k => v.connection_string },
+    { for k, v in azurerm_application_insights.this : k => v.connection_string }
+  )
+  app_insights_names = merge(
+    { for k, v in data.azurerm_application_insights.shared : k => v.name },
+    { for k, v in azurerm_application_insights.this : k => v.name }
+  )
+
+  log_analytics_workspace_id   = local.log_analytics_ids["enabled"]
+  log_analytics_workspace_name = local.log_analytics_names["enabled"]
+  app_insights_key             = local.app_insights_keys["enabled"]
+  app_insights_connection      = local.app_insights_connections["enabled"]
+  app_insights_name            = local.app_insights_names["enabled"]
 }
 
 # -----------------------------------------------------------------------------
@@ -136,9 +191,13 @@ module "function_app" {
   public_network_access_enabled = var.function_app.public_network_access_enabled
   cors_allowed_origins          = var.function_app.cors_allowed_origins
 
+  # BYO pattern: use existing resources if provided
+  existing_service_plan_id    = var.function_app.existing_service_plan_id
+  existing_storage_account_id = var.function_app.existing_storage_account_id
+
   app_settings = merge({
-    "APPINSIGHTS_INSTRUMENTATIONKEY"        = azurerm_application_insights.this.instrumentation_key
-    "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.this.connection_string
+    "APPINSIGHTS_INSTRUMENTATIONKEY"        = local.app_insights_key
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
   }, var.function_app.app_settings)
 
   # Pass tenant_id for Easy Auth
@@ -194,8 +253,8 @@ module "web_app" {
     "WEBSITE_NODE_DEFAULT_VERSION"          = "~${var.web_app.runtime_version}"
     "SCM_DO_BUILD_DURING_DEPLOYMENT"        = "true"
     "API_BASE_URL"                          = var.web_app.api_base_url != "" ? var.web_app.api_base_url : module.function_app.function_app_url
-    "APPINSIGHTS_INSTRUMENTATIONKEY"        = azurerm_application_insights.this.instrumentation_key
-    "APPLICATIONINSIGHTS_CONNECTION_STRING" = azurerm_application_insights.this.connection_string
+    "APPINSIGHTS_INSTRUMENTATIONKEY"        = local.app_insights_key
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
   }, var.web_app.app_settings)
 
   tags = local.common_tags

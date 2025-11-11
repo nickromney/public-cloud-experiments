@@ -117,6 +117,18 @@ make validate
 make clean
 ```
 
+### Stage Overlays
+
+The `stages/` directory provides minimal configuration overlays:
+
+- `stages/100-minimal.tfvars` – minimal tags for non-interactive plans
+
+Apply with:
+
+```bash
+terragrunt plan -- -var-file=stages/100-minimal.tfvars
+```
+
 ## Import Details
 
 Resources are imported from the existing Azure deployment. The Makefile provides targets for importing:

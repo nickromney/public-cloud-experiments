@@ -92,14 +92,16 @@ variable "web_app" {
 variable "function_app" {
   description = "Configuration for the backend Function App."
   type = object({
-    name                    = optional(string, "")
-    plan_sku                = string
-    runtime                 = string
-    runtime_version         = string
-    run_from_package        = optional(bool, true)
-    app_settings            = optional(map(string), {})
-    storage_account_name    = optional(string, "")
-    enable_private_endpoint = optional(bool, true)
+    name                        = optional(string, "")
+    plan_sku                    = string
+    runtime                     = string
+    runtime_version             = string
+    run_from_package            = optional(bool, true)
+    app_settings                = optional(map(string), {})
+    storage_account_name        = optional(string, "")
+    existing_service_plan_id    = optional(string, null)
+    existing_storage_account_id = optional(string, null)
+    enable_private_endpoint     = optional(bool, true)
   })
 }
 

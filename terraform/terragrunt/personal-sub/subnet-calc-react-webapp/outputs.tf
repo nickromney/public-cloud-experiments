@@ -58,23 +58,23 @@ output "function_app_identity_principal_id" {
 # Observability Outputs
 output "application_insights_name" {
   description = "Name of the Application Insights instance."
-  value       = azurerm_application_insights.this.name
+  value       = local.app_insights_name
 }
 
 output "application_insights_connection_string" {
   description = "Connection string for Application Insights."
-  value       = azurerm_application_insights.this.connection_string
+  value       = local.app_insights_connection
   sensitive   = true
 }
 
 output "log_analytics_workspace_name" {
   description = "Name of the Log Analytics Workspace."
-  value       = azurerm_log_analytics_workspace.this.name
+  value       = local.log_analytics_workspace_name
 }
 
 output "log_analytics_workspace_id" {
   description = "ID of the Log Analytics Workspace."
-  value       = azurerm_log_analytics_workspace.this.id
+  value       = local.log_analytics_workspace_id
 }
 
 # Resource Group Output

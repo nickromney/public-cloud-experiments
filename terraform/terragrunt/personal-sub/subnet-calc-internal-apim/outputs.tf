@@ -25,7 +25,7 @@ output "function_app_hostname" {
 
 output "function_app_private_endpoint_ip" {
   description = "Private endpoint IP of the Function App."
-  value       = var.function_app.enable_private_endpoint ? azurerm_private_endpoint.function[0].private_service_connection[0].private_ip_address : null
+  value       = var.function_app.enable_private_endpoint ? azurerm_private_endpoint.function["enabled"].private_service_connection[0].private_ip_address : null
 }
 
 output "apim_name" {
