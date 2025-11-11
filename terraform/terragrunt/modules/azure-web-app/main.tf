@@ -18,8 +18,29 @@ locals {
   # Parse resource ID to extract name and resource group
   existing_service_plan = local.existing_service_plan_id != null ? provider::azurerm::parse_resource_id(local.existing_service_plan_id) : null
 
-  # UAI creation: create when type includes UserAssigned
-  create_uai = var.managed_identity.enabled && contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type)
+  # BYO pattern: normalize and parse existing UAI resource ID
+  existing_uai_id = try(
+    var.existing_user_assigned_identity_id == null ? null : provider::azurerm::normalise_resource_id(var.existing_user_assigned_identity_id),
+    null
+  )
+
+  # Parse UAI resource ID to extract name and resource group
+  existing_uai = local.existing_uai_id != null ? provider::azurerm::parse_resource_id(local.existing_uai_id) : null
+
+  # UAI creation: create only when type includes UserAssigned AND no existing UAI provided
+  create_uai = var.managed_identity.enabled && contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) && local.existing_uai_id == null
+
+  # Auto-determine RBAC assignment: assign roles when we CREATE the UAI, don't assign when using existing
+  # But allow explicit override for delegated permissions scenarios
+  should_assign_rbac = coalesce(var.assign_rbac_roles, local.create_uai)
+}
+
+# Data source: fetch existing user-assigned identity if ID provided
+data "azurerm_user_assigned_identity" "existing" {
+  count = local.existing_uai_id != null ? 1 : 0
+
+  name                = local.existing_uai.resource_name
+  resource_group_name = local.existing_uai.resource_group_name
 }
 
 # Data source: fetch existing App Service Plan if ID provided
@@ -65,16 +86,24 @@ resource "azurerm_user_assigned_identity" "this" {
 }
 
 # Locals for UAI details
+# Use existing UAI if provided, otherwise use created UAI
 locals {
-  uai_client_id    = local.create_uai ? azurerm_user_assigned_identity.this[0].client_id : null
-  uai_principal_id = local.create_uai ? azurerm_user_assigned_identity.this[0].principal_id : null
-  uai_id           = local.create_uai ? azurerm_user_assigned_identity.this[0].id : null
+  uai_client_id = local.existing_uai_id != null ? data.azurerm_user_assigned_identity.existing[0].client_id : (
+    local.create_uai ? azurerm_user_assigned_identity.this[0].client_id : null
+  )
+  uai_principal_id = local.existing_uai_id != null ? data.azurerm_user_assigned_identity.existing[0].principal_id : (
+    local.create_uai ? azurerm_user_assigned_identity.this[0].principal_id : null
+  )
+  uai_id = local.existing_uai_id != null ? local.existing_uai_id : (
+    local.create_uai ? azurerm_user_assigned_identity.this[0].id : null
+  )
 }
 
 # RBAC: Monitoring Metrics Publisher for UAI (for Application Insights)
 # Assigned before Web App creation
+# Controlled by assign_rbac_roles: defaults to true when creating UAI, false when using existing
 resource "azurerm_role_assignment" "uai_app_insights" {
-  for_each = local.create_uai ? { enabled = true } : {}
+  for_each = local.should_assign_rbac && (local.existing_uai_id != null || local.create_uai) ? { enabled = true } : {}
 
   scope                = var.app_insights_id
   role_definition_name = "Monitoring Metrics Publisher"

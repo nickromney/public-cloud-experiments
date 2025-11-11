@@ -80,6 +80,20 @@ variable "existing_storage_account_id" {
   nullable    = true
 }
 
+variable "existing_user_assigned_identity_id" {
+  description = "ID of existing user-assigned managed identity to use (if provided, new identity won't be created). Common in enterprises where IAM team creates identities separately."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "assign_rbac_roles" {
+  description = "Whether to assign RBAC roles (storage, App Insights) to the managed identity. Auto-determined: true when creating UAI, false when using existing UAI. Override: set true if app team has delegated permissions on resources, set false if IAM team already assigned all permissions."
+  type        = bool
+  default     = null
+  nullable    = true
+}
+
 variable "public_network_access_enabled" {
   description = "Enable public network access to the Function App"
   type        = bool

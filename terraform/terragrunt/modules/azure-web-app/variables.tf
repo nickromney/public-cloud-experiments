@@ -47,6 +47,20 @@ variable "existing_service_plan_id" {
   nullable    = true
 }
 
+variable "existing_user_assigned_identity_id" {
+  description = "ID of existing user-assigned managed identity to use (if provided, new identity won't be created). Common in enterprises where IAM team creates identities separately."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "assign_rbac_roles" {
+  description = "Whether to assign RBAC roles (App Insights) to the managed identity. Auto-determined: true when creating UAI, false when using existing UAI. Override: set true if app team has delegated permissions on resources, set false if IAM team already assigned all permissions."
+  type        = bool
+  default     = null
+  nullable    = true
+}
+
 variable "runtime_version" {
   description = "Node.js runtime version (e.g., 18-lts, 20-lts, 22-lts)"
   type        = string

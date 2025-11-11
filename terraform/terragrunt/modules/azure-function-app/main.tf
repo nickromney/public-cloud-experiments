@@ -23,6 +23,23 @@ locals {
   # Parse resource IDs to extract name and resource group
   existing_service_plan    = local.existing_service_plan_id != null ? provider::azurerm::parse_resource_id(local.existing_service_plan_id) : null
   existing_storage_account = local.existing_storage_account_id != null ? provider::azurerm::parse_resource_id(local.existing_storage_account_id) : null
+
+  # BYO pattern: normalize and parse existing UAI resource ID
+  existing_uai_id = try(
+    var.existing_user_assigned_identity_id == null ? null : provider::azurerm::normalise_resource_id(var.existing_user_assigned_identity_id),
+    null
+  )
+
+  # Parse UAI resource ID to extract name and resource group
+  existing_uai = local.existing_uai_id != null ? provider::azurerm::parse_resource_id(local.existing_uai_id) : null
+}
+
+# Data source: fetch existing user-assigned identity if ID provided
+data "azurerm_user_assigned_identity" "existing" {
+  count = local.existing_uai_id != null ? 1 : 0
+
+  name                = local.existing_uai.resource_name
+  resource_group_name = local.existing_uai.resource_group_name
 }
 
 # Data source: fetch existing App Service Plan if ID provided
@@ -63,9 +80,16 @@ resource "azurerm_service_plan" "this" {
 # Locals for storage authentication (must be before resource creation)
 locals {
   # Storage authentication strategy (must be determinable at plan time for for_each)
-  # Create UAI when type includes UserAssigned
-  create_uai         = var.managed_identity.enabled && contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type)
-  use_mi_for_storage = local.create_uai
+  # Create UAI only when: type includes UserAssigned AND no existing UAI provided
+  create_uai = var.managed_identity.enabled && contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) && local.existing_uai_id == null
+
+  # Use MI for storage when we have a UAI (either existing or created)
+  has_uai            = local.existing_uai_id != null || local.create_uai
+  use_mi_for_storage = local.has_uai
+
+  # Auto-determine RBAC assignment: assign roles when we CREATE the UAI, don't assign when using existing
+  # But allow explicit override for delegated permissions scenarios
+  should_assign_rbac = coalesce(var.assign_rbac_roles, local.create_uai)
 }
 
 # User-Assigned Managed Identity (created when managed identity is enabled)
@@ -106,15 +130,24 @@ locals {
   storage_account_access_key = local.existing_storage_account_id != null ? data.azurerm_storage_account.existing[0].primary_access_key : azurerm_storage_account.this[0].primary_access_key
 
   # User-assigned managed identity details (for storage authentication)
-  uai_client_id    = local.create_uai ? azurerm_user_assigned_identity.this[0].client_id : null
-  uai_principal_id = local.create_uai ? azurerm_user_assigned_identity.this[0].principal_id : null
-  uai_id           = local.create_uai ? azurerm_user_assigned_identity.this[0].id : null
+  # Use existing UAI if provided, otherwise use created UAI
+  uai_client_id = local.existing_uai_id != null ? data.azurerm_user_assigned_identity.existing[0].client_id : (
+    local.create_uai ? azurerm_user_assigned_identity.this[0].client_id : null
+  )
+  uai_principal_id = local.existing_uai_id != null ? data.azurerm_user_assigned_identity.existing[0].principal_id : (
+    local.create_uai ? azurerm_user_assigned_identity.this[0].principal_id : null
+  )
+  uai_id = local.existing_uai_id != null ? local.existing_uai_id : (
+    local.create_uai ? azurerm_user_assigned_identity.this[0].id : null
+  )
 }
 
 # RBAC: Grant UAI storage permissions (Blob, Queue, Table Contributor)
 # These are granted BEFORE Function App creation to avoid chicken-and-egg problem
+# Controlled by assign_rbac_roles: defaults to true when creating UAI, false when using existing
+# Override with explicit true if app team has delegated permissions on resources
 resource "azurerm_role_assignment" "uai_storage_blob" {
-  for_each = local.use_mi_for_storage ? { enabled = true } : {}
+  for_each = local.should_assign_rbac && local.has_uai ? { enabled = true } : {}
 
   scope                = local.storage_account_id
   role_definition_name = "Storage Blob Data Contributor"
@@ -122,7 +155,7 @@ resource "azurerm_role_assignment" "uai_storage_blob" {
 }
 
 resource "azurerm_role_assignment" "uai_storage_queue" {
-  for_each = local.use_mi_for_storage ? { enabled = true } : {}
+  for_each = local.should_assign_rbac && local.has_uai ? { enabled = true } : {}
 
   scope                = local.storage_account_id
   role_definition_name = "Storage Queue Data Contributor"
@@ -130,7 +163,7 @@ resource "azurerm_role_assignment" "uai_storage_queue" {
 }
 
 resource "azurerm_role_assignment" "uai_storage_table" {
-  for_each = local.use_mi_for_storage ? { enabled = true } : {}
+  for_each = local.should_assign_rbac && local.has_uai ? { enabled = true } : {}
 
   scope                = local.storage_account_id
   role_definition_name = "Storage Table Data Contributor"
@@ -139,8 +172,9 @@ resource "azurerm_role_assignment" "uai_storage_table" {
 
 # Wait for RBAC role assignments to propagate
 # Azure role assignments can take up to 60 seconds to propagate
+# Only wait when we assign permissions
 resource "time_sleep" "rbac_propagation" {
-  for_each = local.use_mi_for_storage ? { enabled = true } : {}
+  for_each = local.should_assign_rbac && local.has_uai ? { enabled = true } : {}
 
   create_duration = "60s"
 
@@ -267,8 +301,9 @@ locals {
 
 # RBAC: Monitoring Metrics Publisher for UAI (for Application Insights)
 # Assigned before Function App creation
+# Controlled by assign_rbac_roles: defaults to true when creating UAI, false when using existing
 resource "azurerm_role_assignment" "uai_app_insights" {
-  for_each = local.use_mi_for_storage ? { enabled = true } : {}
+  for_each = local.should_assign_rbac && local.has_uai ? { enabled = true } : {}
 
   scope                = var.app_insights_id
   role_definition_name = "Monitoring Metrics Publisher"
