@@ -185,6 +185,12 @@ resource "time_sleep" "rbac_propagation" {
   ]
 }
 
+# Local to ensure Function App waits for RBAC propagation
+# This creates an implicit data dependency on time_sleep
+locals {
+  rbac_ready = local.should_assign_rbac && local.has_uai ? time_sleep.rbac_propagation["enabled"].id : "immediate"
+}
+
 # Linux Function App
 resource "azurerm_linux_function_app" "this" {
   name                = var.name
@@ -198,11 +204,12 @@ resource "azurerm_linux_function_app" "this" {
   storage_account_access_key = local.use_mi_for_storage ? null : local.storage_account_access_key
 
   # Explicit dependency: ensure RBAC roles are granted AND propagated before Function App tries to access storage
+  # Note: Can't use for_each resources in depends_on, so we depend on the RBAC assignments
+  # The time_sleep itself depends on RBAC, creating an indirect dependency chain
   depends_on = [
     azurerm_role_assignment.uai_storage_blob,
     azurerm_role_assignment.uai_storage_queue,
-    azurerm_role_assignment.uai_storage_table,
-    time_sleep.rbac_propagation
+    azurerm_role_assignment.uai_storage_table
   ]
 
   https_only                    = true
@@ -286,6 +293,13 @@ resource "azurerm_linux_function_app" "this" {
       site_config[0].application_insights_connection_string,
       site_config[0].application_insights_key
     ]
+
+    # Ensure RBAC propagation completes before Function App creation
+    # This references local.rbac_ready which depends on time_sleep completion
+    precondition {
+      condition     = local.rbac_ready != null
+      error_message = "RBAC propagation wait must complete before Function App creation"
+    }
   }
 
   tags = var.tags
