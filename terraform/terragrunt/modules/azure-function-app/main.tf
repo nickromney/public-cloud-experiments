@@ -142,7 +142,7 @@ locals {
   )
 }
 
-# RBAC: Grant UAI storage permissions (Blob, Queue, Table Contributor)
+# RBAC: Grant UAI storage permissions (Blob, Queue, Table, File Contributor)
 # These are granted BEFORE Function App creation to avoid chicken-and-egg problem
 # Controlled by assign_rbac_roles: defaults to true when creating UAI, false when using existing
 # Override with explicit true if app team has delegated permissions on resources
@@ -170,6 +170,14 @@ resource "azurerm_role_assignment" "uai_storage_table" {
   principal_id         = local.uai_principal_id
 }
 
+resource "azurerm_role_assignment" "uai_storage_file" {
+  for_each = local.should_assign_rbac && local.has_uai ? { enabled = true } : {}
+
+  scope                = local.storage_account_id
+  role_definition_name = "Storage File Data SMB Share Contributor"
+  principal_id         = local.uai_principal_id
+}
+
 # Wait for RBAC role assignments to propagate
 # Azure role assignments can take up to 60 seconds to propagate
 # Only wait when we assign permissions
@@ -181,7 +189,8 @@ resource "time_sleep" "rbac_propagation" {
   depends_on = [
     azurerm_role_assignment.uai_storage_blob,
     azurerm_role_assignment.uai_storage_queue,
-    azurerm_role_assignment.uai_storage_table
+    azurerm_role_assignment.uai_storage_table,
+    azurerm_role_assignment.uai_storage_file
   ]
 }
 
@@ -209,7 +218,8 @@ resource "azurerm_linux_function_app" "this" {
   depends_on = [
     azurerm_role_assignment.uai_storage_blob,
     azurerm_role_assignment.uai_storage_queue,
-    azurerm_role_assignment.uai_storage_table
+    azurerm_role_assignment.uai_storage_table,
+    azurerm_role_assignment.uai_storage_file
   ]
 
   https_only                    = true
