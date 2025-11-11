@@ -110,6 +110,7 @@ help:
 	@echo "  TG_ARGS=\"--terragrunt-*\"     Extra Terragrunt CLI flags (applied to every command)"
 	@echo ""
 	@echo "$(YELLOW)Global Commands:$(NC)"
+	@echo "  make check-env                Check required environment variables"
 	@echo "  make setup                    Configure Azure backend"
 	@echo "  make validate-all             Validate all stacks"
 	@echo "  make clean-all                Clean all stack caches"
@@ -120,6 +121,36 @@ help:
 	@echo "  make secure-app-apply         Apply secure-app/dev/uksouth stack"
 	@echo "  make secure-app-destroy       Destroy secure-app/dev/uksouth stack"
 	@echo ""
+	@echo "$(YELLOW)Environment Variables:$(NC)"
+	@echo "  ARM_SUBSCRIPTION_ID           Azure subscription ID (required)"
+	@echo "  ARM_TENANT_ID                 Azure tenant ID (required)"
+	@echo "  ARM_CLIENT_ID                 Service principal app ID (required)"
+	@echo "  ARM_CLIENT_SECRET             Service principal secret (required)"
+	@echo ""
+
+# Check required environment variables
+.PHONY: check-env
+check-env:
+	@missing_vars=""; \
+	for var in ARM_SUBSCRIPTION_ID ARM_TENANT_ID ARM_CLIENT_ID ARM_CLIENT_SECRET; do \
+		if [ -z "$${!var}" ]; then \
+			missing_vars="$$missing_vars $$var"; \
+		fi; \
+	done; \
+	if [ -n "$$missing_vars" ]; then \
+		echo "$(YELLOW)❌ Missing required environment variables:$$missing_vars$(NC)"; \
+		echo ""; \
+		echo "$(CYAN)Run the following to set up your environment:$(NC)"; \
+		echo "  source ./setup-env.sh"; \
+		echo ""; \
+		echo "$(CYAN)Or export manually:$(NC)"; \
+		echo "  export ARM_SUBSCRIPTION_ID=<your-subscription-id>"; \
+		echo "  export ARM_TENANT_ID=<your-tenant-id>"; \
+		echo "  export ARM_CLIENT_ID=<your-client-id>"; \
+		echo "  export ARM_CLIENT_SECRET=<your-client-secret>"; \
+		echo ""; \
+		exit 1; \
+	fi
 
 # Setup environment
 .PHONY: setup
@@ -243,15 +274,15 @@ _route:
 # Infrastructure lifecycle verbs
 .PHONY: _exec-init _exec-plan _exec-apply _exec-destroy _exec-validate _exec-output
 
-_exec-init:
+_exec-init: check-env
 	@echo "$(YELLOW)Initializing $(STACK_DIR)...$(NC)"
 	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade
 
-_exec-plan:
+_exec-plan: check-env
 	@echo "$(YELLOW)Planning $(STACK_DIR)...$(NC)"
 	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) plan $(VAR_FILE_ARG)
 
-_exec-apply:
+_exec-apply: check-env
 	@echo "$(YELLOW)Applying $(STACK_DIR)...$(NC)"
 	@for resource in $(SLOW_PROVISION_RESOURCES); do \
 		if echo "$(STACK_DIR)" | grep -q "$$resource"; then \
@@ -269,7 +300,7 @@ _exec-apply:
 		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) apply $(VAR_FILE_ARG); \
 	fi
 
-_exec-destroy:
+_exec-destroy: check-env
 	@echo "$(YELLOW)⚠️  WARNING: Destroying $(STACK_DIR)$(NC)"
 	@for resource in $(SLOW_PROVISION_RESOURCES); do \
 		if echo "$(STACK_DIR)" | grep -q "$$resource"; then \
@@ -287,11 +318,11 @@ _exec-destroy:
 		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) destroy $(VAR_FILE_ARG); \
 	fi
 
-_exec-validate:
+_exec-validate: check-env
 	@echo "$(YELLOW)Validating $(STACK_DIR)...$(NC)"
 	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) validate
 
-_exec-output:
+_exec-output: check-env
 	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) output
 
 # Deployment verbs
@@ -311,7 +342,7 @@ _exec-deploy:
 	fi
 
 .PHONY: _deploy-function
-_deploy-function:
+_deploy-function: check-env
 	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
 	@echo "$(CYAN)  Deploying Function App$(NC)"
 	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
@@ -332,7 +363,7 @@ _deploy-function:
 	echo "$(GREEN)✅ Function App deployed successfully$(NC)"
 
 .PHONY: _deploy-frontend
-_deploy-frontend:
+_deploy-frontend: check-env
 	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
 	@echo "$(CYAN)  Deploying React Frontend$(NC)"
 	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
@@ -469,7 +500,7 @@ _exec-show:
 	fi
 
 .PHONY: _show-resources
-_show-resources:
+_show-resources: check-env
 	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
 	@echo "$(CYAN)  Deployed Resources$(NC)"
 	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
@@ -484,7 +515,7 @@ _exec-get:
 	fi
 
 .PHONY: _get-subscription-key
-_get-subscription-key:
+_get-subscription-key: check-env
 	@APIM_SUBSCRIPTION_KEY=$$(cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) output -raw apim_subscription_key 2>/dev/null); \
 	if [ -z "$$APIM_SUBSCRIPTION_KEY" ]; then \
 		echo "$(YELLOW)❌ APIM subscription key not found (stack may not have APIM)$(NC)"; \
@@ -500,7 +531,7 @@ _exec-clean:
 	@cd $(STACK_DIR) && rm -rf .terraform .terragrunt-cache
 	@echo "$(GREEN)✓ Cleaned $(STACK_DIR)$(NC)"
 
-_exec-unlock:
+_exec-unlock: check-env
 	@if [ -z "$(COMPONENT)" ]; then \
 		echo "$(YELLOW)❌ Lock ID required$(NC)"; \
 		echo "Usage: make $(PROJECT) $(STACK) unlock <lock-id>"; \
