@@ -91,9 +91,16 @@ locals {
 
 # RBAC: Monitoring Metrics Publisher (for Application Insights)
 resource "azurerm_role_assignment" "monitoring_metrics_publisher" {
-  for_each = local.create_rbac_assignments && var.app_insights_id != null ? { enabled = true } : {}
+  for_each = local.create_rbac_assignments ? { enabled = true } : {}
 
   scope                = var.app_insights_id
   role_definition_name = "Monitoring Metrics Publisher"
   principal_id         = local.principal_id
+
+  lifecycle {
+    precondition {
+      condition     = var.app_insights_id != null
+      error_message = "app_insights_id must be provided when managed identity is enabled for RBAC assignments"
+    }
+  }
 }
