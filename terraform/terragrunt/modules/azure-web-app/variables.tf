@@ -19,23 +19,32 @@ variable "location" {
 }
 
 variable "plan_name" {
-  description = "Name of the App Service Plan"
+  description = "Name of the App Service Plan (ignored if existing_service_plan_id is provided)"
   type        = string
+  default     = ""
 
   validation {
-    condition     = can(regex("^[a-zA-Z0-9-]{1,40}$", var.plan_name))
+    condition     = var.plan_name == "" || can(regex("^[a-zA-Z0-9-]{1,40}$", var.plan_name))
     error_message = "Service plan name must be 1-40 characters, alphanumeric and hyphens only"
   }
 }
 
 variable "plan_sku" {
-  description = "SKU for the App Service Plan (e.g., B1, S1, P1v3)"
+  description = "SKU for the App Service Plan (e.g., B1, S1, P1v3) (ignored if existing_service_plan_id is provided)"
   type        = string
+  default     = "B1"
 
   validation {
     condition     = can(regex("^(B[1-3]|S[1-3]|P[1-3]v[2-3]|F1|D1)$", var.plan_sku))
     error_message = "Plan SKU must be a valid App Service SKU (B1-B3, S1-S3, P1v2-P3v3, F1, D1)"
   }
+}
+
+variable "existing_service_plan_id" {
+  description = "ID of existing App Service Plan to use (if provided, new plan won't be created)"
+  type        = string
+  default     = null
+  nullable    = true
 }
 
 variable "runtime_version" {
@@ -127,13 +136,8 @@ variable "managed_identity" {
     error_message = "Identity type must be 'SystemAssigned', 'UserAssigned', or 'SystemAssigned, UserAssigned'."
   }
 
-  validation {
-    condition = (
-      var.managed_identity.type == "SystemAssigned" ||
-      (contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) && length(var.managed_identity.user_assigned_identity_ids) > 0)
-    )
-    error_message = "When identity type includes 'UserAssigned', user_assigned_identity_ids must be provided."
-  }
+  # Note: user_assigned_identity_ids can be empty when type includes UserAssigned
+  # The module will automatically create a UAI and include it in the identity configuration
 }
 
 variable "app_insights_id" {

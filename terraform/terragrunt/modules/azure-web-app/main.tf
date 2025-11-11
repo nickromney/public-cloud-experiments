@@ -1,5 +1,6 @@
 # Azure Web App Module
 # Deploys Linux App Service with optional Easy Auth using managed identity
+# Supports BYO (Bring Your Own) pattern for existing App Service Plans
 
 # Look up current Azure context for tenant_id when not provided
 data "azurerm_client_config" "current" {}
@@ -7,16 +8,84 @@ data "azurerm_client_config" "current" {}
 locals {
   # Use provided tenant_id or fall back to current Azure context
   tenant_id = coalesce(var.tenant_id, data.azurerm_client_config.current.tenant_id)
+
+  # BYO pattern: normalize and parse existing resource ID
+  existing_service_plan_id = try(
+    var.existing_service_plan_id == null ? null : provider::azurerm::normalise_resource_id(var.existing_service_plan_id),
+    null
+  )
+
+  # Parse resource ID to extract name and resource group
+  existing_service_plan = local.existing_service_plan_id != null ? provider::azurerm::parse_resource_id(local.existing_service_plan_id) : null
+
+  # UAI creation: create when type includes UserAssigned
+  create_uai = var.managed_identity.enabled && contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type)
 }
 
-# App Service Plan
+# Data source: fetch existing App Service Plan if ID provided
+data "azurerm_service_plan" "existing" {
+  count = local.existing_service_plan_id != null ? 1 : 0
+
+  name                = local.existing_service_plan.resource_name
+  resource_group_name = local.existing_service_plan.resource_group_name
+}
+
+# App Service Plan for Web App (only created if not using existing)
 resource "azurerm_service_plan" "this" {
+  count = local.existing_service_plan_id == null ? 1 : 0
+
   name                = var.plan_name
   resource_group_name = var.resource_group_name
   location            = var.location
   os_type             = "Linux"
   sku_name            = var.plan_sku
   tags                = var.tags
+
+  lifecycle {
+    precondition {
+      condition     = var.plan_name != ""
+      error_message = "When 'existing_service_plan_id' is not provided, 'plan_name' must be specified."
+    }
+  }
+}
+
+# Locals to reference either existing or created service plan
+locals {
+  service_plan_id = local.existing_service_plan_id != null ? local.existing_service_plan_id : azurerm_service_plan.this[0].id
+}
+
+# User-Assigned Managed Identity (created when managed identity is enabled with UserAssigned type)
+resource "azurerm_user_assigned_identity" "this" {
+  count = local.create_uai ? 1 : 0
+
+  name                = "id-${var.name}"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  tags                = var.tags
+}
+
+# Locals for UAI details
+locals {
+  uai_client_id    = local.create_uai ? azurerm_user_assigned_identity.this[0].client_id : null
+  uai_principal_id = local.create_uai ? azurerm_user_assigned_identity.this[0].principal_id : null
+  uai_id           = local.create_uai ? azurerm_user_assigned_identity.this[0].id : null
+}
+
+# RBAC: Monitoring Metrics Publisher for UAI (for Application Insights)
+# Assigned before Web App creation
+resource "azurerm_role_assignment" "uai_app_insights" {
+  for_each = local.create_uai ? { enabled = true } : {}
+
+  scope                = var.app_insights_id
+  role_definition_name = "Monitoring Metrics Publisher"
+  principal_id         = local.uai_principal_id
+
+  lifecycle {
+    precondition {
+      condition     = var.app_insights_id != null
+      error_message = "app_insights_id must be provided when managed identity is enabled for RBAC assignments"
+    }
+  }
 }
 
 # Linux Web App with Managed Identity
@@ -24,15 +93,19 @@ resource "azurerm_linux_web_app" "this" {
   name                = var.name
   resource_group_name = var.resource_group_name
   location            = var.location
-  service_plan_id     = azurerm_service_plan.this.id
+  service_plan_id     = local.service_plan_id
   https_only          = true
 
   # Managed identity configuration
   dynamic "identity" {
     for_each = var.managed_identity.enabled ? [1] : []
     content {
-      type         = var.managed_identity.type
-      identity_ids = contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? var.managed_identity.user_assigned_identity_ids : null
+      type = var.managed_identity.type
+      # Include created UAI and any additional user-provided identity IDs
+      identity_ids = contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? concat(
+        local.uai_id != null ? [local.uai_id] : [],
+        var.managed_identity.user_assigned_identity_ids
+      ) : null
     }
   }
 
@@ -80,22 +153,22 @@ resource "azurerm_linux_web_app" "this" {
   tags = var.tags
 }
 
-# Local to extract principal_id for RBAC assignments
+# Local to extract principal_id for system-assigned RBAC assignments
 locals {
-  # For system-assigned identity, use principal_id directly
-  # For user-assigned, we'll grant permissions to the user-assigned identity (handled externally)
-  # Create RBAC assignments when system-assigned identity is present (including when both system and user assigned)
-  create_rbac_assignments = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type)
-  principal_id            = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_linux_web_app.this.identity[0].principal_id : null
+  # For system-assigned identity, use principal_id from Web App (known after apply)
+  # For user-assigned identity, use principal_id from UAI (known before Web App creation)
+  create_system_rbac  = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type)
+  system_principal_id = local.create_system_rbac ? azurerm_linux_web_app.this.identity[0].principal_id : null
 }
 
-# RBAC: Monitoring Metrics Publisher (for Application Insights)
-resource "azurerm_role_assignment" "monitoring_metrics_publisher" {
-  for_each = local.create_rbac_assignments ? { enabled = true } : {}
+# RBAC: Monitoring Metrics Publisher for System-Assigned Identity (for Application Insights)
+# Assigned after Web App creation
+resource "azurerm_role_assignment" "system_app_insights" {
+  for_each = local.create_system_rbac && !local.create_uai ? { enabled = true } : {}
 
   scope                = var.app_insights_id
   role_definition_name = "Monitoring Metrics Publisher"
-  principal_id         = local.principal_id
+  principal_id         = local.system_principal_id
 
   lifecycle {
     precondition {

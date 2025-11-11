@@ -34,13 +34,28 @@ output "web_app_identity" {
 }
 
 output "service_plan_id" {
-  description = "The ID of the App Service Plan"
-  value       = azurerm_service_plan.this.id
+  description = "The ID of the App Service Plan (created or existing)"
+  value       = local.service_plan_id
 }
 
 output "service_plan_name" {
-  description = "The name of the App Service Plan"
-  value       = azurerm_service_plan.this.name
+  description = "The name of the App Service Plan (created or existing)"
+  value       = local.existing_service_plan_id != null ? data.azurerm_service_plan.existing[0].name : azurerm_service_plan.this[0].name
+}
+
+output "user_assigned_identity_id" {
+  description = "The ID of the created user-assigned managed identity (null if not created)"
+  value       = local.create_uai ? azurerm_user_assigned_identity.this[0].id : null
+}
+
+output "user_assigned_identity_client_id" {
+  description = "The client ID of the created user-assigned managed identity (null if not created)"
+  value       = local.uai_client_id
+}
+
+output "user_assigned_identity_principal_id" {
+  description = "The principal ID of the created user-assigned managed identity (null if not created)"
+  value       = local.uai_principal_id
 }
 
 output "easy_auth_login_url" {
