@@ -29,13 +29,13 @@ output "apim_api_url" {
 
 output "apim_subscription_key" {
   description = "Primary subscription key for API access (if subscription required)"
-  value       = var.apim.subscription_required ? azurerm_api_management_subscription.subnet_calc[0].primary_key : "N/A - subscription not required"
+  value       = var.apim.subscription_required ? azurerm_api_management_subscription.subnet_calc["enabled"].primary_key : "N/A - subscription not required"
   sensitive   = true
 }
 
 output "apim_secondary_subscription_key" {
   description = "Secondary subscription key for API access (if subscription required)"
-  value       = var.apim.subscription_required ? azurerm_api_management_subscription.subnet_calc[0].secondary_key : "N/A - subscription not required"
+  value       = var.apim.subscription_required ? azurerm_api_management_subscription.subnet_calc["enabled"].secondary_key : "N/A - subscription not required"
   sensitive   = true
 }
 
@@ -103,7 +103,7 @@ output "web_app_principal_id" {
 
 output "application_insights_name" {
   description = "Name of Application Insights instance (existing or created)"
-  value       = var.observability.use_existing ? data.azurerm_application_insights.shared[0].name : azurerm_application_insights.this[0].name
+  value       = var.observability.use_existing ? data.azurerm_application_insights.shared["enabled"].name : azurerm_application_insights.this["enabled"].name
 }
 
 output "application_insights_connection_string" {
@@ -114,7 +114,7 @@ output "application_insights_connection_string" {
 
 output "log_analytics_workspace_name" {
   description = "Name of Log Analytics Workspace (existing or created)"
-  value       = var.observability.use_existing ? data.azurerm_log_analytics_workspace.shared[0].name : azurerm_log_analytics_workspace.this[0].name
+  value       = var.observability.use_existing ? data.azurerm_log_analytics_workspace.shared["enabled"].name : azurerm_log_analytics_workspace.this["enabled"].name
 }
 
 output "log_analytics_workspace_id" {

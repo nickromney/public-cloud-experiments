@@ -33,6 +33,11 @@ RESOURCE_GROUP ?= rg-subnet-calc
 PERSONAL_SUB_REGION ?= uksouth
 AUTO_APPROVE ?= 0
 
+# Terragrunt wrapper arguments
+TG_ARGS ?=
+VAR_FILE ?=
+VAR_FILE_ARG := $(if $(strip $(VAR_FILE)),-var-file="$(VAR_FILE)",)
+
 # Resources with long provisioning/deletion times
 SLOW_PROVISION_RESOURCES := apim aks appgw application-gateway
 APIM_PROVISION_TIME := 37
@@ -94,9 +99,13 @@ help:
 	@echo "  make subnet-calc react-easyauth-e2e deploy all"
 	@echo "  make subnet-calc react-apim plan"
 	@echo "  make subnet-calc react-apim deploy all"
+	@echo "  make subnet-calc react-apim plan VAR_FILE=stages/200-create-observability.tfvars"
+	@echo "  make subnet-calc react-apim apply VAR_FILE=stages/300-byo-platform.tfvars TG_ARGS=--terragrunt-non-interactive AUTO_APPROVE=1"
 	@echo ""
 	@echo "$(YELLOW)Options:$(NC)"
 	@echo "  AUTO_APPROVE=1                Skip confirmation prompts for apply/destroy"
+	@echo "  VAR_FILE=path/to.tfvars       Pass an extra -var-file to plan/apply/destroy"
+	@echo "  TG_ARGS=\"--terragrunt-*\"     Extra Terragrunt CLI flags (applied to every command)"
 	@echo ""
 	@echo "$(YELLOW)Global Commands:$(NC)"
 	@echo "  make setup                    Configure Azure backend"
@@ -232,11 +241,11 @@ _route:
 
 _exec-init:
 	@echo "$(YELLOW)Initializing $(STACK_DIR)...$(NC)"
-	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) init -upgrade
+	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade
 
 _exec-plan:
 	@echo "$(YELLOW)Planning $(STACK_DIR)...$(NC)"
-	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) plan
+	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) plan $(VAR_FILE_ARG)
 
 _exec-apply:
 	@echo "$(YELLOW)Applying $(STACK_DIR)...$(NC)"
@@ -251,9 +260,9 @@ _exec-apply:
 		fi; \
 	done
 	@if [ "$(AUTO_APPROVE)" = "1" ]; then \
-		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) apply -auto-approve; \
+		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) apply $(VAR_FILE_ARG) -auto-approve; \
 	else \
-		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) init -upgrade && $(TERRAGRUNT) apply; \
+		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) apply $(VAR_FILE_ARG); \
 	fi
 
 _exec-destroy:
@@ -269,17 +278,17 @@ _exec-destroy:
 		fi; \
 	done
 	@if [ "$(AUTO_APPROVE)" = "1" ]; then \
-		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) destroy -auto-approve; \
+		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) destroy $(VAR_FILE_ARG) -auto-approve; \
 	else \
-		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) destroy; \
+		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) destroy $(VAR_FILE_ARG); \
 	fi
 
 _exec-validate:
 	@echo "$(YELLOW)Validating $(STACK_DIR)...$(NC)"
-	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) validate
+	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) validate
 
 _exec-output:
-	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) output
+	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) output
 
 # Deployment verbs
 .PHONY: _exec-deploy

@@ -108,6 +108,24 @@ observability = {
 }
 ```
 
+### 4. Bring Your Own Platform Resources
+
+Function Apps almost always sit on shared platform components. This stack now exposes
+`existing_service_plan_id` and `existing_storage_account_id` so you can opt into
+landing-zone provided infrastructure instead of creating new instances.
+
+```hcl
+function_app = {
+  name                        = "func-subnet-calc-apim"
+  existing_service_plan_id    = "/subscriptions/<sub>/resourceGroups/rg-platform/providers/Microsoft.Web/serverFarms/plan-platform-ep1"
+  existing_storage_account_id = "/subscriptions/<sub>/resourceGroups/rg-shared/providers/Microsoft.Storage/storageAccounts/stplatformshared"
+}
+```
+
+Terraform 1.8 + azurerm 4.0+ provider functions (`provider::azurerm::normalise_resource_id`
+and `provider::azurerm::parse_resource_id`) remove brittle `split("/")` parsing and
+ensure IDs are casing-correct before they are passed to the Azure APIs.
+
 ## Resource Details
 
 ### Azure API Management
@@ -176,6 +194,7 @@ cp terraform.tfvars.example terraform.tfvars
 Edit `terraform.tfvars` and update:
 
 - `apim.publisher_email` - **REQUIRED**
+- `apim.enable_app_insights` - Toggle APIM ↔ Application Insights diagnostics
 - `observability.use_existing` - Set to `true` to use shared resources
 - `security.enforce_apim_only_access` - Start with `false`, enable after testing
 
@@ -204,6 +223,27 @@ make deploy-frontend
 ```
 
 This builds the React frontend with the APIM gateway URL configured.
+
+### Stage Overlays & Toggle Workflow
+
+The `stages/` directory mirrors the staged toggle experience from the aks-course
+baseline. Each `.tfvars` overlay captures a milestone:
+
+- `stages/100-minimal.tfvars` – minimal inputs to unblock non-interactive plans with
+  required APIM settings.
+- `stages/200-create-observability.tfvars` – flips `create_resource_group` and
+  `observability.use_existing` so this stack can stand alone.
+- `stages/300-byo-platform.tfvars` – demonstrates reusing App Service Plans and
+  Storage Accounts via the new `existing_*` inputs.
+
+Apply an overlay with standard Terragrunt syntax:
+
+```bash
+terragrunt plan -- -var-file=stages/300-byo-platform.tfvars
+```
+
+Copy or extend these overlays to document every environment’s toggle set without
+editing `terraform.tfvars` directly.
 
 ### Step 5: Test Deployment
 

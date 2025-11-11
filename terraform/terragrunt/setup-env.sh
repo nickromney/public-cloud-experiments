@@ -158,6 +158,23 @@ echo "Terragrunt Environment Setup"
 echo "============================"
 echo ""
 
+# Check if Azure CLI is installed
+if ! command -v az &>/dev/null; then
+  echo "❌ Azure CLI is not installed"
+  echo "On macOS install with: brew install azure-cli"
+  exit 1
+fi
+
+# Check if logged in
+if ! az account show --only-show-errors &>/dev/null; then
+  echo "❌ Azure CLI: not logged in"
+  echo "Please log in by running: az login"
+  exit 1
+fi
+
+echo "✓ Azure CLI: logged in"
+echo ""
+
 # Check if all required variables are already set and valid (skip if --force)
 if [[ "${FORCE_MODE}" == "false" ]] && \
    [[ -n "${ARM_SUBSCRIPTION_ID:-}" ]] && \
@@ -222,22 +239,6 @@ if [[ "${FORCE_MODE}" == "false" ]] && \
   fi
 fi
 
-# Check if Azure CLI is installed
-if ! command -v az &>/dev/null; then
-  echo "❌ Azure CLI is not installed"
-  echo "On macOS install with: brew install azure-cli"
-  exit 1
-fi
-
-# Check if logged in
-if ! az account show --only-show-errors &>/dev/null; then
-  echo "❌ Azure CLI: not logged in"
-  echo "Please log in by running: az login"
-  exit 1
-fi
-
-echo "✓ Azure CLI: logged in"
-echo ""
 az account show --query "{Name:name,SubscriptionId:id,User:user.name}" -o table
 echo ""
 

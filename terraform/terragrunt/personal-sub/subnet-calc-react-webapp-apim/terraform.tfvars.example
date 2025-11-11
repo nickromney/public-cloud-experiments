@@ -38,6 +38,7 @@ apim = {
   api_display_name        = "Subnet Calculator API"
   subscription_required   = true                # Use subscription keys for auth
   rate_limit_per_minute   = 100                 # Requests per minute per subscription
+  enable_app_insights     = true                # Enable APIM diagnostics/logging
 }
 
 # -----------------------------------------------------------------------------
@@ -50,6 +51,9 @@ function_app = {
   runtime                       = "python"
   runtime_version               = "3.11"
   storage_account_name          = ""            # Auto-generated if empty
+  # Example: reference shared platform resources instead of creating new ones
+  # existing_service_plan_id    = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Web/serverFarms/plan-platform-ep1"
+  # existing_storage_account_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-shared/providers/Microsoft.Storage/storageAccounts/stplatformshared"
   public_network_access_enabled = true          # Must be true initially
 
   # CORS for local development (APIM gateway is added automatically)
@@ -166,6 +170,26 @@ web_app = {
 # 8. Verify direct access is blocked:
 #    curl https://<function-app>/api/v1/health
 #    # Should return 403 Forbidden
+
+# -----------------------------------------------------------------------------
+# Stage Overlays (Optional)
+# -----------------------------------------------------------------------------
+
+# Ready-made tfvars overlays under ./stages mimic the staged toggle pattern from
+# the aks-course baseline. Apply them with:
+#
+#   terragrunt plan -- -var-file=stages/200-create-observability.tfvars
+#
+# Provided overlays:
+# - stages/100-minimal.tfvars              → minimal inputs to unblock non-interactive
+#   plans with required APIM settings.
+# - stages/200-create-observability.tfvars → flips observability.use_existing to false
+#   and sets create_resource_group = true so the stack stands alone.
+# - stages/300-byo-platform.tfvars         → reuses shared plans/storage via the new
+#   existing_service_plan_id/existing_storage_account_id inputs.
+#
+# Copy and tweak these files as you progress through environments to document
+# which resources are created vs. imported.
 
 # -----------------------------------------------------------------------------
 # Cost Estimation

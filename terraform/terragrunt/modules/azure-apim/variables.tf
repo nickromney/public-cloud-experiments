@@ -195,11 +195,22 @@ variable "diagnostics_backend_response_headers" {
 }
 
 # -----------------------------------------------------------------------------
-# Tags
+# Tags & Feature Flags
 # -----------------------------------------------------------------------------
 
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)
   default     = {}
+}
+
+variable "enable_app_insights" {
+  description = "Enable Application Insights diagnostics/logging"
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.enable_app_insights || (var.app_insights_id != null && var.app_insights_instrumentation_key != null)
+    error_message = "When enable_app_insights is true, both app_insights_id and app_insights_instrumentation_key must be provided."
+  }
 }

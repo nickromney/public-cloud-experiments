@@ -26,13 +26,10 @@ resource "azurerm_api_management" "this" {
 }
 
 # Application Insights integration (optional)
-locals {
-  enable_app_insights = var.app_insights_id != null ? { enabled = true } : {}
-}
 
 # APIM Logger for Application Insights (optional)
 resource "azurerm_api_management_logger" "appinsights" {
-  for_each = local.enable_app_insights
+  count = var.enable_app_insights ? 1 : 0
 
   name                = "apim-logger-appinsights"
   api_management_name = azurerm_api_management.this.name
@@ -46,12 +43,12 @@ resource "azurerm_api_management_logger" "appinsights" {
 
 # APIM Diagnostics Settings (optional)
 resource "azurerm_api_management_diagnostic" "this" {
-  for_each = local.enable_app_insights
+  count = var.enable_app_insights ? 1 : 0
 
   identifier               = "applicationinsights"
   api_management_name      = azurerm_api_management.this.name
   resource_group_name      = var.resource_group_name
-  api_management_logger_id = azurerm_api_management_logger.appinsights["enabled"].id
+  api_management_logger_id = azurerm_api_management_logger.appinsights[0].id
 
   sampling_percentage       = var.diagnostics_sampling_percentage
   always_log_errors         = var.diagnostics_always_log_errors
