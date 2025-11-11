@@ -107,6 +107,11 @@ variable "function_app" {
     public_network_access_enabled = optional(bool, true)
     cors_allowed_origins          = optional(list(string), [])
     app_settings                  = optional(map(string), {})
+    managed_identity = optional(object({
+      enabled                    = optional(bool, true)
+      type                       = optional(string, "SystemAssigned") # SystemAssigned, UserAssigned, or SystemAssigned, UserAssigned
+      user_assigned_identity_ids = optional(list(string), [])
+    }), { enabled = true, type = "SystemAssigned" })
   })
   default = {}
 
@@ -151,6 +156,11 @@ variable "web_app" {
     api_base_url    = optional(string, "") # Auto-computed from APIM if empty
     always_on       = optional(bool, true)
     app_settings    = optional(map(string), {})
+    managed_identity = optional(object({
+      enabled                    = optional(bool, true)
+      type                       = optional(string, "SystemAssigned") # SystemAssigned, UserAssigned, or SystemAssigned, UserAssigned
+      user_assigned_identity_ids = optional(list(string), [])
+    }), { enabled = true, type = "SystemAssigned" })
   })
   default = {}
 }
