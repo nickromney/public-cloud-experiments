@@ -46,6 +46,8 @@ rsync -a \
   --exclude 'CLAUDE.md' \
   --exclude 'README.md' \
   --exclude 'uv.lock' \
+  --exclude 'pyproject.toml' \
+  --exclude 'local.settings.json' \
   "$FUNCTION_APP_DIR/" "$TEMP_DIR/"
 
 cd "$TEMP_DIR"

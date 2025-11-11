@@ -99,7 +99,6 @@ variable "function_app" {
     plan_sku                      = string
     runtime                       = string
     runtime_version               = string
-    run_from_package              = optional(bool, true)
     storage_account_name          = optional(string, "")
     public_network_access_enabled = optional(bool, true)
     cors_allowed_origins          = optional(list(string), ["*"])

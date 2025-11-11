@@ -210,7 +210,7 @@ az functionapp deployment source config-zip \
 
 ## Related Files
 
-- Terraform configuration: `terraform/terragrunt/personal-sub/subnet-calc-react-webapp/main.tf:110-115`
-- Terraform variables: `terraform/terragrunt/personal-sub/subnet-calc-react-webapp/terraform.tfvars:40-51`
-- Deployment script: `terraform/terragrunt/personal-sub/subnet-calc-react-webapp/build-function-zip.sh`
+- Terraform configuration: `terraform/terragrunt/personal-sub/subnet-calc-react-easyauth-e2e/main.tf:110-115`
+- Terraform variables: `terraform/terragrunt/personal-sub/subnet-calc-react-easyauth-e2e/terraform.tfvars:40-51`
+- Deployment script: `terraform/terragrunt/deployment-scripts/build-function-zip.sh`
 - Reference working script: `subnet-calculator/infrastructure/azure/22-deploy-function-zip.sh:138` (`--build-remote true`)

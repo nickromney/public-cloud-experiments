@@ -12,7 +12,7 @@ The Web App exposes `API_BASE_URL` that points to the Function App’s `/api/v1`
 
 1. Azure credentials exported for Terragrunt (`ARM_SUBSCRIPTION_ID`, `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_TENANT_ID`, backend storage envs).
 2. Default region: UK South. Set `PERSONAL_SUB_REGION=uksouth` (already assumed) if you need to override for troubleshooting.
-3. Resource group naming follows CAF: this stack creates/uses `rg-subnet-calc-webapp`.
+3. Resource group naming follows CAF: this stack creates/uses `rg-subnet-calc`.
 4. An Azure AD App Registration with a client secret. Use the same steps from `frontend-python-flask/EASY-AUTH-SETUP.md`.
 5. Optional: a dedicated storage account name if you don’t want Terraform to derive one automatically.
 
@@ -29,7 +29,7 @@ The Web App exposes `API_BASE_URL` that points to the Function App’s `/api/v1`
 ## Usage
 
 ```bash
-cd terraform/terragrunt/personal-sub/subnet-calc-react-webapp
+cd terraform/terragrunt/personal-sub/subnet-calc-react-easyauth-e2e
 export PERSONAL_SUB_REGION=uksouth   # optional if already default
 terragrunt init
 terragrunt plan
@@ -49,9 +49,9 @@ After `terragrunt apply`, deploy the React build with `az webapp up` or the exis
 This directory now has a convenience `Makefile`:
 
 ```bash
-cd terraform/terragrunt/personal-sub/subnet-calc-react-webapp
+cd terraform/terragrunt/personal-sub/subnet-calc-react-easyauth-e2e
 make function-app-deploy   # packages & deploys api-fastapi-azure-function
 make web-app-deploy        # builds frontend-react and deploys to App Service
 ```
 
-Both targets read resource names from `terragrunt output` (or honor `FUNCTION_APP_NAME`/`WEB_APP_NAME` overrides) and default to `rg-subnet-calc-webapp`. Ensure you are logged into Azure CLI before running them.
+Both targets read resource names from `terragrunt output` (or honor `FUNCTION_APP_NAME`/`WEB_APP_NAME` overrides) and default to `rg-subnet-calc`. Ensure you are logged into Azure CLI before running them.
