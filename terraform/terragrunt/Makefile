@@ -121,18 +121,23 @@ help:
 	@echo "  make secure-app-apply         Apply secure-app/dev/uksouth stack"
 	@echo "  make secure-app-destroy       Destroy secure-app/dev/uksouth stack"
 	@echo ""
-	@echo "$(YELLOW)Environment Variables:$(NC)"
-	@echo "  ARM_SUBSCRIPTION_ID           Azure subscription ID (required)"
-	@echo "  ARM_TENANT_ID                 Azure tenant ID (required)"
-	@echo "  ARM_CLIENT_ID                 Service principal app ID (required)"
-	@echo "  ARM_CLIENT_SECRET             Service principal secret (required)"
+	@echo "$(YELLOW)Environment Variables (Required):$(NC)"
+	@echo "  ARM_SUBSCRIPTION_ID           Azure subscription ID"
+	@echo "  ARM_TENANT_ID                 Azure tenant ID"
+	@echo "  TF_BACKEND_RG                 Backend resource group name"
+	@echo "  TF_BACKEND_SA                 Backend storage account name"
+	@echo "  TF_BACKEND_CONTAINER          Backend container name"
+	@echo ""
+	@echo "$(YELLOW)Environment Variables (Optional):$(NC)"
+	@echo "  ARM_CLIENT_ID                 Service principal app ID (if not using az login)"
+	@echo "  ARM_CLIENT_SECRET             Service principal secret (if not using az login)"
 	@echo ""
 
 # Check required environment variables
 .PHONY: check-env
 check-env:
 	@missing_vars=""; \
-	for var in ARM_SUBSCRIPTION_ID ARM_TENANT_ID ARM_CLIENT_ID ARM_CLIENT_SECRET; do \
+	for var in ARM_SUBSCRIPTION_ID ARM_TENANT_ID TF_BACKEND_RG TF_BACKEND_SA TF_BACKEND_CONTAINER; do \
 		if [ -z "$${!var}" ]; then \
 			missing_vars="$$missing_vars $$var"; \
 		fi; \
@@ -143,11 +148,22 @@ check-env:
 		echo "$(CYAN)Run the following to set up your environment:$(NC)"; \
 		echo "  source ./setup-env.sh"; \
 		echo ""; \
-		echo "$(CYAN)Or export manually:$(NC)"; \
+		echo "$(CYAN)Or export manually (Bash):$(NC)"; \
 		echo "  export ARM_SUBSCRIPTION_ID=<your-subscription-id>"; \
 		echo "  export ARM_TENANT_ID=<your-tenant-id>"; \
-		echo "  export ARM_CLIENT_ID=<your-client-id>"; \
-		echo "  export ARM_CLIENT_SECRET=<your-client-secret>"; \
+		echo "  export TF_BACKEND_RG=<backend-resource-group>"; \
+		echo "  export TF_BACKEND_SA=<backend-storage-account>"; \
+		echo "  export TF_BACKEND_CONTAINER=<backend-container-name>"; \
+		echo ""; \
+		echo "$(CYAN)Or in Nushell:$(NC)"; \
+		echo "  \$$env.ARM_SUBSCRIPTION_ID = \"<your-subscription-id>\""; \
+		echo "  \$$env.ARM_TENANT_ID = \"<your-tenant-id>\""; \
+		echo "  \$$env.TF_BACKEND_RG = \"<backend-resource-group>\""; \
+		echo "  \$$env.TF_BACKEND_SA = \"<backend-storage-account>\""; \
+		echo "  \$$env.TF_BACKEND_CONTAINER = \"<backend-container-name>\""; \
+		echo ""; \
+		echo "$(YELLOW)Note:$(NC) This assumes you're using Azure CLI authentication (az login)."; \
+		echo "If using service principal auth, also set ARM_CLIENT_ID and ARM_CLIENT_SECRET."; \
 		echo ""; \
 		exit 1; \
 	fi
