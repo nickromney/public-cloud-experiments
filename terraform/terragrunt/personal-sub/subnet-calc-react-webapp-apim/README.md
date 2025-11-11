@@ -122,7 +122,7 @@ function_app = {
 }
 ```
 
-Terraform 1.8 + azurerm 4.40 provider functions (`provider::azurerm::normalise_resource_id`
+Terraform 1.8 + azurerm 4.0+ provider functions (`provider::azurerm::normalise_resource_id`
 and `provider::azurerm::parse_resource_id`) remove brittle `split("/")` parsing and
 ensure IDs are casing-correct before they are passed to the Azure APIs.
 
@@ -229,6 +229,8 @@ This builds the React frontend with the APIM gateway URL configured.
 The `stages/` directory mirrors the staged toggle experience from the aks-course
 baseline. Each `.tfvars` overlay captures a milestone:
 
+- `stages/100-minimal.tfvars` – minimal inputs to unblock non-interactive plans with
+  required APIM settings.
 - `stages/200-create-observability.tfvars` – flips `create_resource_group` and
   `observability.use_existing` so this stack can stand alone.
 - `stages/300-byo-platform.tfvars` – demonstrates reusing App Service Plans and

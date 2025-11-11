@@ -181,6 +181,8 @@ web_app = {
 #   terragrunt plan -- -var-file=stages/200-create-observability.tfvars
 #
 # Provided overlays:
+# - stages/100-minimal.tfvars              → minimal inputs to unblock non-interactive
+#   plans with required APIM settings.
 # - stages/200-create-observability.tfvars → flips observability.use_existing to false
 #   and sets create_resource_group = true so the stack stands alone.
 # - stages/300-byo-platform.tfvars         → reuses shared plans/storage via the new
