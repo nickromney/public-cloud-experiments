@@ -29,21 +29,21 @@ output "function_app_identity_tenant_id" {
 }
 
 output "service_plan_id" {
-  description = "The ID of the App Service Plan"
-  value       = azurerm_service_plan.this.id
+  description = "The ID of the App Service Plan (either existing or created)"
+  value       = local.service_plan_id
 }
 
 output "service_plan_name" {
-  description = "The name of the App Service Plan"
-  value       = azurerm_service_plan.this.name
+  description = "The name of the App Service Plan (either existing or created)"
+  value       = local.service_plan_name
 }
 
 output "storage_account_id" {
-  description = "The ID of the storage account"
-  value       = azurerm_storage_account.this.id
+  description = "The ID of the storage account (either existing or created)"
+  value       = local.storage_account_id
 }
 
 output "storage_account_name" {
-  description = "The name of the storage account"
-  value       = azurerm_storage_account.this.name
+  description = "The name of the storage account (either existing or created)"
+  value       = local.storage_account_name
 }

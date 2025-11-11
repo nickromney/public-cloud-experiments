@@ -1,5 +1,6 @@
 # Azure Function App Module
 # Deploys Linux Function App with storage account and service plan
+# Supports BYO (Bring Your Own) pattern for existing App Service Plans and Storage Accounts
 
 # Look up current Azure context for tenant_id when not provided
 data "azurerm_client_config" "current" {}
@@ -7,10 +8,42 @@ data "azurerm_client_config" "current" {}
 locals {
   # Use provided tenant_id or fall back to current Azure context
   tenant_id = coalesce(var.tenant_id, data.azurerm_client_config.current.tenant_id)
+
+  # BYO pattern: normalize and parse existing resource IDs
+  existing_service_plan_id = try(
+    var.existing_service_plan_id == null ? null : provider::azurerm::normalise_resource_id(var.existing_service_plan_id),
+    null
+  )
+
+  existing_storage_account_id = try(
+    var.existing_storage_account_id == null ? null : provider::azurerm::normalise_resource_id(var.existing_storage_account_id),
+    null
+  )
+
+  # Parse storage account resource ID to extract name and resource group
+  existing_storage_account = local.existing_storage_account_id != null ? provider::azurerm::parse_resource_id(local.existing_storage_account_id) : null
 }
 
-# App Service Plan for Function App
+# Data source: fetch existing App Service Plan if ID provided
+data "azurerm_service_plan" "existing" {
+  count = local.existing_service_plan_id != null ? 1 : 0
+
+  name                = provider::azurerm::parse_resource_id(local.existing_service_plan_id).resource_name
+  resource_group_name = provider::azurerm::parse_resource_id(local.existing_service_plan_id).resource_group_name
+}
+
+# Data source: fetch existing Storage Account if ID provided
+data "azurerm_storage_account" "existing" {
+  count = local.existing_storage_account_id != null ? 1 : 0
+
+  name                = local.existing_storage_account.resource_name
+  resource_group_name = local.existing_storage_account.resource_group_name
+}
+
+# App Service Plan for Function App (only created if not using existing)
 resource "azurerm_service_plan" "this" {
+  count = local.existing_service_plan_id == null ? 1 : 0
+
   name                = var.plan_name
   resource_group_name = var.resource_group_name
   location            = var.location
@@ -19,8 +52,10 @@ resource "azurerm_service_plan" "this" {
   tags                = var.tags
 }
 
-# Storage Account for Function App
+# Storage Account for Function App (only created if not using existing)
 resource "azurerm_storage_account" "this" {
+  count = local.existing_storage_account_id == null ? 1 : 0
+
   name                       = var.storage_account_name != "" ? var.storage_account_name : lower(replace("st${var.name}", "-", ""))
   resource_group_name        = var.resource_group_name
   location                   = var.location
@@ -31,15 +66,28 @@ resource "azurerm_storage_account" "this" {
   tags                       = var.tags
 }
 
+# Locals to reference either existing or created resources
+locals {
+  service_plan_id = local.existing_service_plan_id != null ? local.existing_service_plan_id : azurerm_service_plan.this[0].id
+
+  service_plan_name = local.existing_service_plan_id != null ? data.azurerm_service_plan.existing[0].name : azurerm_service_plan.this[0].name
+
+  storage_account_id = local.existing_storage_account_id != null ? local.existing_storage_account_id : azurerm_storage_account.this[0].id
+
+  storage_account_name = local.existing_storage_account_id != null ? data.azurerm_storage_account.existing[0].name : azurerm_storage_account.this[0].name
+
+  storage_account_access_key = local.existing_storage_account_id != null ? data.azurerm_storage_account.existing[0].primary_access_key : azurerm_storage_account.this[0].primary_access_key
+}
+
 # Linux Function App
 resource "azurerm_linux_function_app" "this" {
   name                = var.name
   resource_group_name = var.resource_group_name
   location            = var.location
-  service_plan_id     = azurerm_service_plan.this.id
+  service_plan_id     = local.service_plan_id
 
-  storage_account_name       = azurerm_storage_account.this.name
-  storage_account_access_key = azurerm_storage_account.this.primary_access_key
+  storage_account_name       = local.storage_account_name
+  storage_account_access_key = local.storage_account_access_key
 
   https_only                    = true
   public_network_access_enabled = var.public_network_access_enabled

@@ -226,7 +226,34 @@ resource "azurerm_private_dns_zone_virtual_network_link" "webapps" {
 # Function App
 # -----------------------------------------------------------------------------
 
+locals {
+  # BYO pattern: normalize and parse existing resource IDs
+  function_app_existing_plan_id = try(
+    var.function_app.existing_service_plan_id == null ? null : provider::azurerm::normalise_resource_id(var.function_app.existing_service_plan_id),
+    null
+  )
+
+  function_app_existing_storage_account_id = try(
+    var.function_app.existing_storage_account_id == null ? null : provider::azurerm::normalise_resource_id(var.function_app.existing_storage_account_id),
+    null
+  )
+
+  # Parse storage account resource ID to extract name and resource group
+  function_app_existing_storage_account = local.function_app_existing_storage_account_id != null ? provider::azurerm::parse_resource_id(local.function_app_existing_storage_account_id) : null
+}
+
+# Data source: fetch existing Storage Account if ID provided
+data "azurerm_storage_account" "function_existing" {
+  count = local.function_app_existing_storage_account_id != null ? 1 : 0
+
+  name                = local.function_app_existing_storage_account.resource_name
+  resource_group_name = local.function_app_existing_storage_account.resource_group_name
+}
+
+# App Service Plan for Function App (only created if not using existing)
 resource "azurerm_service_plan" "function" {
+  count = local.function_app_existing_plan_id == null ? 1 : 0
+
   name                = "plan-${var.project_name}-${var.environment}-func"
   resource_group_name = local.rg_name
   location            = local.rg_loc
@@ -235,7 +262,10 @@ resource "azurerm_service_plan" "function" {
   tags                = local.common_tags
 }
 
+# Storage Account for Function App (only created if not using existing)
 resource "azurerm_storage_account" "function" {
+  count = local.function_app_existing_storage_account_id == null ? 1 : 0
+
   name                     = var.function_app.storage_account_name != "" ? var.function_app.storage_account_name : lower(replace("st${var.project_name}${var.environment}func", "-", ""))
   resource_group_name      = local.rg_name
   location                 = local.rg_loc
@@ -245,13 +275,22 @@ resource "azurerm_storage_account" "function" {
   tags                     = local.common_tags
 }
 
+# Locals to reference either existing or created resources
+locals {
+  function_app_service_plan_id = local.function_app_existing_plan_id != null ? local.function_app_existing_plan_id : azurerm_service_plan.function[0].id
+
+  function_app_storage_account_name = local.function_app_existing_storage_account_id != null ? data.azurerm_storage_account.function_existing[0].name : azurerm_storage_account.function[0].name
+
+  function_app_storage_account_access_key = local.function_app_existing_storage_account_id != null ? data.azurerm_storage_account.function_existing[0].primary_access_key : azurerm_storage_account.function[0].primary_access_key
+}
+
 resource "azurerm_linux_function_app" "this" {
   name                          = var.function_app.name != "" ? var.function_app.name : "func-${var.project_name}-${var.environment}"
   resource_group_name           = local.rg_name
   location                      = local.rg_loc
-  service_plan_id               = azurerm_service_plan.function.id
-  storage_account_name          = azurerm_storage_account.function.name
-  storage_account_access_key    = azurerm_storage_account.function.primary_access_key
+  service_plan_id               = local.function_app_service_plan_id
+  storage_account_name          = local.function_app_storage_account_name
+  storage_account_access_key    = local.function_app_storage_account_access_key
   https_only                    = true
   public_network_access_enabled = false
 

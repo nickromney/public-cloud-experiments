@@ -19,23 +19,32 @@ variable "location" {
 }
 
 variable "plan_name" {
-  description = "Name of the App Service Plan"
+  description = "Name of the App Service Plan (ignored if existing_service_plan_id is provided)"
   type        = string
+  default     = ""
 
   validation {
-    condition     = can(regex("^[a-zA-Z0-9-]{1,40}$", var.plan_name))
+    condition     = var.plan_name == "" || can(regex("^[a-zA-Z0-9-]{1,40}$", var.plan_name))
     error_message = "Service plan name must be 1-40 characters, alphanumeric and hyphens only"
   }
 }
 
 variable "plan_sku" {
-  description = "SKU for the App Service Plan (e.g., Y1, EP1, EP2, EP3)"
+  description = "SKU for the App Service Plan (e.g., Y1, EP1, EP2, EP3) (ignored if existing_service_plan_id is provided)"
   type        = string
+  default     = "Y1"
 
   validation {
     condition     = can(regex("^(Y1|EP[1-3]|B[1-3]|S[1-3]|P[1-3]v[2-3])$", var.plan_sku))
     error_message = "Plan SKU must be a valid Function App SKU (Y1, EP1-EP3, B1-B3, S1-S3, P1v2-P3v3)"
   }
+}
+
+variable "existing_service_plan_id" {
+  description = "ID of existing App Service Plan to use (if provided, new plan won't be created)"
+  type        = string
+  default     = null
+  nullable    = true
 }
 
 variable "runtime" {
@@ -54,7 +63,7 @@ variable "runtime_version" {
 }
 
 variable "storage_account_name" {
-  description = "Storage account name (if empty, auto-generated from function app name)"
+  description = "Storage account name (if empty, auto-generated from function app name) (ignored if existing_storage_account_id is provided)"
   type        = string
   default     = ""
 
@@ -62,6 +71,13 @@ variable "storage_account_name" {
     condition     = var.storage_account_name == "" || can(regex("^[a-z0-9]{3,24}$", var.storage_account_name))
     error_message = "Storage account name must be 3-24 characters, lowercase alphanumeric only"
   }
+}
+
+variable "existing_storage_account_id" {
+  description = "ID of existing Storage Account to use (if provided, new storage account won't be created)"
+  type        = string
+  default     = null
+  nullable    = true
 }
 
 variable "public_network_access_enabled" {

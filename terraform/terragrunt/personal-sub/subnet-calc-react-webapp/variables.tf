@@ -92,6 +92,8 @@ variable "function_app" {
     runtime_version               = string
     run_from_package              = optional(bool, true)
     storage_account_name          = optional(string, "")
+    existing_service_plan_id      = optional(string, null)
+    existing_storage_account_id   = optional(string, null)
     public_network_access_enabled = optional(bool, true)
     cors_allowed_origins          = optional(list(string), ["*"])
     app_settings                  = optional(map(string), {})
@@ -99,13 +101,16 @@ variable "function_app" {
 }
 
 variable "observability" {
-  description = "Observability configuration for Application Insights and Log Analytics."
+  description = "Observability configuration - can use existing or create new resources"
   type = object({
-    log_retention_days          = optional(number, 30)
-    app_insights_retention_days = optional(number, 90)
+    use_existing                 = bool
+    existing_resource_group_name = optional(string)
+    existing_log_analytics_name  = optional(string)
+    existing_app_insights_name   = optional(string)
+    log_retention_days           = optional(number, 30)
+    app_insights_retention_days  = optional(number, 90)
   })
   default = {
-    log_retention_days          = 30
-    app_insights_retention_days = 90
+    use_existing = false
   }
 }

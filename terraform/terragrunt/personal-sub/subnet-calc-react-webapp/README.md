@@ -55,3 +55,33 @@ make web-app-deploy        # builds frontend-react and deploys to App Service
 ```
 
 Both targets read resource names from `terragrunt output` (or honor `FUNCTION_APP_NAME`/`WEB_APP_NAME` overrides) and default to `rg-subnet-calc-webapp`. Ensure you are logged into Azure CLI before running them.
+
+### Stage Overlays & Toggle Workflow
+
+The `stages/` directory provides layered configuration files for progressive infrastructure deployment:
+
+- `stages/100-minimal.tfvars` – minimal inputs to unblock non-interactive plans with basic settings.
+- `stages/200-create-observability.tfvars` – flips `create_resource_group` and `observability.use_existing` so this stack can stand alone.
+- `stages/300-byo-platform.tfvars` – demonstrates reusing App Service Plans and Storage Accounts via the new `existing_*` inputs.
+
+Apply an overlay with standard Terragrunt syntax:
+
+```bash
+terragrunt plan -- -var-file=stages/200-create-observability.tfvars
+```
+
+Copy or extend these overlays to document every environment's toggle set without editing `terraform.tfvars` directly.
+
+### Bring Your Own Platform Resources
+
+Function Apps can now reference existing infrastructure instead of creating new resources:
+
+```hcl
+function_app = {
+  name                        = "func-subnet-calc"
+  existing_service_plan_id    = "/subscriptions/<sub>/resourceGroups/rg-platform/providers/Microsoft.Web/serverFarms/plan-platform-ep1"
+  existing_storage_account_id = "/subscriptions/<sub>/resourceGroups/rg-shared/providers/Microsoft.Storage/storageAccounts/stplatformshared"
+}
+```
+
+Terraform 1.8 + azurerm 4.0+ provider functions (`provider::azurerm::normalise_resource_id` and `provider::azurerm::parse_resource_id`) remove brittle `split("/")` parsing and ensure IDs are casing-correct before they are passed to the Azure APIs.

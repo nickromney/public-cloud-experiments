@@ -8,12 +8,18 @@ This stack provides shared infrastructure components used by all Subnet Calculat
 ## Architecture
 
 ```text
-Shared Components
-├── Log Analytics Workspace
-│   └── Used by: App Insights, diagnostics, logs
-└── Key Vault
+Shared Components (this stack)
+├── Log Analytics Workspace (shared across all stacks)
+│   └── Used by: All App Insights instances, diagnostics, logs
+└── Key Vault (shared across all stacks)
     └── Used by: Entra ID app secrets, app settings
+
+Per-Stack Resources (created by each application stack)
+└── Application Insights (one per stack)
+    └── Logs to: Shared Log Analytics Workspace
 ```
+
+**Key Pattern**: The Log Analytics Workspace is shared across all stacks for centralized logging. Each application stack creates its own Application Insights instance that connects to this shared LAW. This allows per-application telemetry while maintaining centralized log storage and querying.
 
 ## Resources Created
 
@@ -39,7 +45,7 @@ terragrunt init
 terragrunt apply
 ```
 
-### Reference in Other Stacks
+### Reference in Other Stacks (Using Terragrunt Dependencies)
 
 ```hcl
 # In subnet-calc-react-webapp-easyauth/terragrunt.hcl
@@ -48,10 +54,31 @@ dependency "shared" {
 }
 
 inputs = {
-  key_vault_id                = dependency.shared.outputs.key_vault_id
-  log_analytics_workspace_id  = dependency.shared.outputs.log_analytics_workspace_id
-  # ...
+  # Reference shared Log Analytics Workspace
+  observability = {
+    use_existing                 = true
+    existing_resource_group_name = dependency.shared.outputs.resource_group_name
+    existing_log_analytics_name  = dependency.shared.outputs.log_analytics_workspace_name
+    # Note: App Insights is created per-stack, not referenced from shared
+  }
+  # Reference shared Key Vault if needed
+  key_vault_id = dependency.shared.outputs.key_vault_id
 }
+```
+
+### Reference in Other Stacks (Using Stage Files)
+
+```bash
+# In other stacks, use stages/300-byo-platform.tfvars
+cd terraform/terragrunt/personal-sub/subnet-calc-react-webapp
+terragrunt plan -- -var-file=stages/300-byo-platform.tfvars
+
+# The 300-byo-platform.tfvars file contains:
+# observability = {
+#   use_existing                 = true
+#   existing_resource_group_name = "rg-subnet-calc-shared-dev"
+#   existing_log_analytics_name  = "log-subnetcalc-shared-dev"
+# }
 ```
 
 ## Outputs
@@ -81,6 +108,19 @@ az role assignment create \
   --role "Key Vault Secrets User" \
   --assignee $WEB_APP_PRINCIPAL \
   --scope $KV_ID
+```
+
+### Stage Overlays
+
+The `stages/` directory provides layered configuration files:
+
+- `stages/100-minimal.tfvars` – minimal inputs for non-interactive plans
+- `stages/200-standalone.tfvars` – creates new resource group and all shared resources
+
+Apply with:
+
+```bash
+terragrunt plan -- -var-file=stages/200-standalone.tfvars
 ```
 
 ## Dependencies

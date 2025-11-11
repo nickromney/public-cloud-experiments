@@ -58,11 +58,13 @@ help:
 	@echo "  make <project> <stack> <verb> [component] [AUTO_APPROVE=1]"
 	@echo ""
 	@echo "$(YELLOW)Available Stacks:$(NC)"
+	@echo "  subnet-calc shared-components       Shared Log Analytics Workspace + Key Vault"
 	@echo "  subnet-calc react-webapp            Direct JWT authentication"
 	@echo "  subnet-calc react-webapp-easyauth   Easy Auth with managed identity (no secrets)"
 	@echo "  subnet-calc react-easyauth-e2e      Easy Auth E2E (frontend + backend, no JWT)"
 	@echo "  subnet-calc react-apim              Public APIM with subscription keys"
 	@echo "  subnet-calc internal-apim           Internal APIM with VNet integration"
+	@echo "  subnet-calc static-web-apps         Import-only stack for existing SWAs"
 	@echo ""
 	@echo "$(YELLOW)Infrastructure Verbs:$(NC)"
 	@echo "  init                          Initialize Terragrunt"
@@ -221,11 +223,13 @@ _route:
 	if [ -z "$$STACK_DIR" ]; then \
 		echo "$(YELLOW)❌ Unknown stack: $(PROJECT)/$(STACK)$(NC)"; \
 		echo "Available stacks:"; \
+		echo "  subnet-calc/shared-components"; \
 		echo "  subnet-calc/react-webapp"; \
 		echo "  subnet-calc/react-webapp-easyauth"; \
 		echo "  subnet-calc/react-easyauth-e2e"; \
 		echo "  subnet-calc/react-apim"; \
 		echo "  subnet-calc/internal-apim"; \
+		echo "  subnet-calc/static-web-apps"; \
 		exit 1; \
 	fi; \
 	VALID_VERBS="init plan apply destroy validate output deploy test show get clean unlock"; \
