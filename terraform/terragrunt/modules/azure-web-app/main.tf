@@ -19,7 +19,7 @@ resource "azurerm_service_plan" "this" {
   tags                = var.tags
 }
 
-# Linux Web App with System-Assigned Managed Identity
+# Linux Web App with Managed Identity
 resource "azurerm_linux_web_app" "this" {
   name                = var.name
   resource_group_name = var.resource_group_name
@@ -27,9 +27,13 @@ resource "azurerm_linux_web_app" "this" {
   service_plan_id     = azurerm_service_plan.this.id
   https_only          = true
 
-  # Always enable system-assigned managed identity
-  identity {
-    type = "SystemAssigned"
+  # Managed identity configuration
+  dynamic "identity" {
+    for_each = var.managed_identity.enabled ? [1] : []
+    content {
+      type         = var.managed_identity.type
+      identity_ids = contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? var.managed_identity.user_assigned_identity_ids : null
+    }
   }
 
   site_config {
@@ -74,4 +78,22 @@ resource "azurerm_linux_web_app" "this" {
   }
 
   tags = var.tags
+}
+
+# Local to extract principal_id for RBAC assignments
+locals {
+  # For system-assigned identity, use principal_id directly
+  # For user-assigned, we'll grant permissions to the user-assigned identity (handled externally)
+  # Create RBAC assignments when system-assigned identity is present (including when both system and user assigned)
+  create_rbac_assignments = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type)
+  principal_id            = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_linux_web_app.this.identity[0].principal_id : null
+}
+
+# RBAC: Monitoring Metrics Publisher (for Application Insights)
+resource "azurerm_role_assignment" "monitoring_metrics_publisher" {
+  count = local.create_rbac_assignments && var.app_insights_id != null ? 1 : 0
+
+  scope                = var.app_insights_id
+  role_definition_name = "Monitoring Metrics Publisher"
+  principal_id         = local.principal_id
 }

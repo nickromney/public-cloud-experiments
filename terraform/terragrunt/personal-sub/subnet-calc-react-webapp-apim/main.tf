@@ -233,12 +233,15 @@ locals {
 
 # Function App
 resource "azurerm_linux_function_app" "api" {
-  name                       = local.function_app_name
-  resource_group_name        = local.rg_name
-  location                   = local.rg_loc
-  service_plan_id            = local.function_app_service_plan_id
+  name                = local.function_app_name
+  resource_group_name = local.rg_name
+  location            = local.rg_loc
+  service_plan_id     = local.function_app_service_plan_id
+
+  # When using managed identity, only provide account name (no access key)
+  # When not using managed identity, provide both name and key
   storage_account_name       = local.function_app_storage_account_name
-  storage_account_access_key = local.function_app_storage_account_access_key
+  storage_account_access_key = var.function_app.managed_identity.enabled ? null : local.function_app_storage_account_access_key
 
   # Network configuration - optional enforcement via NSG
   public_network_access_enabled = var.function_app.public_network_access_enabled
@@ -259,17 +262,32 @@ resource "azurerm_linux_function_app" "api" {
   }
 
   app_settings = merge({
-    "FUNCTIONS_WORKER_RUNTIME"              = var.function_app.runtime == "dotnet-isolated" ? "dotnet-isolated" : var.function_app.runtime
-    "FUNCTIONS_EXTENSION_VERSION"           = "~4"
-    "SCM_DO_BUILD_DURING_DEPLOYMENT"        = "true"
-    "APPINSIGHTS_INSTRUMENTATIONKEY"        = local.app_insights_key
-    "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
+    "FUNCTIONS_WORKER_RUNTIME"       = var.function_app.runtime == "dotnet-isolated" ? "dotnet-isolated" : var.function_app.runtime
+    "FUNCTIONS_EXTENSION_VERSION"    = "~4"
+    "SCM_DO_BUILD_DURING_DEPLOYMENT" = "true"
     # AUTH_METHOD=none - APIM handles all authentication
     "AUTH_METHOD" = "none"
+    }, var.function_app.managed_identity.enabled ? {
+    # Managed identity configuration for storage
+    "AzureWebJobsStorage__accountName"     = local.function_app_storage_account_name
+    "AzureWebJobsStorage__blobServiceUri"  = "https://${local.function_app_storage_account_name}.blob.core.windows.net"
+    "AzureWebJobsStorage__queueServiceUri" = "https://${local.function_app_storage_account_name}.queue.core.windows.net"
+    "AzureWebJobsStorage__tableServiceUri" = "https://${local.function_app_storage_account_name}.table.core.windows.net"
+    # Connection string needed even with managed identity (identifies target App Insights instance)
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
+    } : {
+    # Only add keys when managed identity is disabled
+    "APPINSIGHTS_INSTRUMENTATIONKEY"        = local.app_insights_key
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
   }, var.function_app.app_settings)
 
-  identity {
-    type = "SystemAssigned"
+  # Managed identity configuration
+  dynamic "identity" {
+    for_each = var.function_app.managed_identity.enabled ? [1] : []
+    content {
+      type         = var.function_app.managed_identity.type
+      identity_ids = contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.function_app.managed_identity.type) ? var.function_app.managed_identity.user_assigned_identity_ids : null
+    }
   }
 
   lifecycle {
@@ -290,6 +308,65 @@ resource "azurerm_linux_function_app" "api" {
   }
 
   tags = local.common_tags
+}
+
+# -----------------------------------------------------------------------------
+# RBAC for Function App Managed Identity
+# -----------------------------------------------------------------------------
+
+locals {
+  # For system-assigned identity, use principal_id directly
+  # Only create RBAC assignments for system-assigned identities
+  function_app_create_rbac  = var.function_app.managed_identity.enabled && var.function_app.managed_identity.type == "SystemAssigned"
+  function_app_principal_id = local.function_app_create_rbac ? azurerm_linux_function_app.api.identity[0].principal_id : null
+
+  # Storage account ID for RBAC assignments
+  function_app_storage_id = local.function_app_existing_storage_account_id != null ? local.function_app_existing_storage_account_id : try(azurerm_storage_account.function[0].id, null)
+}
+
+# RBAC: Storage Blob Data Owner (for AzureWebJobsStorage blobs)
+resource "azurerm_role_assignment" "function_storage_blob" {
+  count = local.function_app_create_rbac && local.function_app_storage_id != null ? 1 : 0
+
+  scope                = local.function_app_storage_id
+  role_definition_name = "Storage Blob Data Owner"
+  principal_id         = local.function_app_principal_id
+}
+
+# RBAC: Storage Queue Data Contributor (for AzureWebJobsStorage queues)
+resource "azurerm_role_assignment" "function_storage_queue" {
+  count = local.function_app_create_rbac && local.function_app_storage_id != null ? 1 : 0
+
+  scope                = local.function_app_storage_id
+  role_definition_name = "Storage Queue Data Contributor"
+  principal_id         = local.function_app_principal_id
+}
+
+# RBAC: Storage Table Data Contributor (for AzureWebJobsStorage tables)
+resource "azurerm_role_assignment" "function_storage_table" {
+  count = local.function_app_create_rbac && local.function_app_storage_id != null ? 1 : 0
+
+  scope                = local.function_app_storage_id
+  role_definition_name = "Storage Table Data Contributor"
+  principal_id         = local.function_app_principal_id
+}
+
+# RBAC: Monitoring Metrics Publisher (for Application Insights)
+resource "azurerm_role_assignment" "function_monitoring" {
+  count = local.function_app_create_rbac && local.app_insights_id != null ? 1 : 0
+
+  scope                = local.app_insights_id
+  role_definition_name = "Monitoring Metrics Publisher"
+  principal_id         = local.function_app_principal_id
+}
+
+# RBAC: Monitoring Metrics Publisher for Web App (for Application Insights)
+resource "azurerm_role_assignment" "web_monitoring" {
+  count = var.web_app.managed_identity.enabled && var.web_app.managed_identity.type == "SystemAssigned" && local.app_insights_id != null ? 1 : 0
+
+  scope                = local.app_insights_id
+  role_definition_name = "Monitoring Metrics Publisher"
+  principal_id         = azurerm_linux_web_app.react.identity[0].principal_id
 }
 
 # -----------------------------------------------------------------------------
@@ -499,7 +576,12 @@ resource "azurerm_linux_web_app" "react" {
     "AUTH_METHOD" = "none" # Web app doesn't authenticate - APIM does
   }, var.web_app.app_settings)
 
-  identity {
-    type = "SystemAssigned"
+  # Managed identity configuration
+  dynamic "identity" {
+    for_each = var.web_app.managed_identity.enabled ? [1] : []
+    content {
+      type         = var.web_app.managed_identity.type
+      identity_ids = contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.web_app.managed_identity.type) ? var.web_app.managed_identity.user_assigned_identity_ids : null
+    }
   }
 }

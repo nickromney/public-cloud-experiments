@@ -17,9 +17,9 @@ inputs = {
   component_name = "shared"
   environment    = local.root_vars.environment
 
-  # Use existing resource group
+  # Create resource group for shared components
   resource_group_name   = "rg-subnet-calc"
-  create_resource_group = false
+  create_resource_group = true
 
   # Log Analytics configuration
   log_retention_days = 30

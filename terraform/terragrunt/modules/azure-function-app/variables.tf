@@ -140,3 +140,43 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "managed_identity" {
+  description = "Managed identity configuration for Azure service authentication (App Insights, Storage). Set enabled=false for environments without Entra ID access (e.g., Pluralsight sandboxes)."
+  type = object({
+    enabled                    = optional(bool, true)
+    type                       = optional(string, "SystemAssigned") # SystemAssigned, UserAssigned, or SystemAssigned, UserAssigned
+    user_assigned_identity_ids = optional(list(string), [])
+  })
+  default = {
+    enabled = true
+    type    = "SystemAssigned"
+  }
+
+  validation {
+    condition     = contains(["SystemAssigned", "UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type)
+    error_message = "Identity type must be 'SystemAssigned', 'UserAssigned', or 'SystemAssigned, UserAssigned'."
+  }
+
+  validation {
+    condition = (
+      var.managed_identity.type == "SystemAssigned" ||
+      (contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) && length(var.managed_identity.user_assigned_identity_ids) > 0)
+    )
+    error_message = "When identity type includes 'UserAssigned', user_assigned_identity_ids must be provided."
+  }
+}
+
+variable "app_insights_id" {
+  description = "Application Insights resource ID (required when managed_identity.enabled is true for RBAC role assignment)"
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "app_insights_connection_string" {
+  description = "Application Insights connection string (for app settings)"
+  type        = string
+  default     = null
+  nullable    = true
+}

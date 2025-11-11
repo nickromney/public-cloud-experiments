@@ -19,13 +19,18 @@ output "web_app_url" {
 }
 
 output "web_app_identity_principal_id" {
-  description = "Principal ID of the system-assigned managed identity"
-  value       = azurerm_linux_web_app.this.identity[0].principal_id
+  description = "Principal ID of the system-assigned managed identity (null if disabled or user-assigned only)"
+  value       = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_linux_web_app.this.identity[0].principal_id : null
 }
 
 output "web_app_identity_tenant_id" {
-  description = "Tenant ID of the system-assigned managed identity"
-  value       = azurerm_linux_web_app.this.identity[0].tenant_id
+  description = "Tenant ID of the managed identity (null if disabled)"
+  value       = var.managed_identity.enabled ? azurerm_linux_web_app.this.identity[0].tenant_id : null
+}
+
+output "web_app_identity" {
+  description = "Full identity block of the Web App"
+  value       = var.managed_identity.enabled ? azurerm_linux_web_app.this.identity[0] : null
 }
 
 output "service_plan_id" {

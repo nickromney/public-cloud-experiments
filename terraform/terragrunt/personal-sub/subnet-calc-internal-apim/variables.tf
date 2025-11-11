@@ -86,6 +86,11 @@ variable "web_app" {
     cloudflare_only         = optional(bool, false)
     enable_private_endpoint = optional(bool, false)
     app_settings            = optional(map(string), {})
+    managed_identity = optional(object({
+      enabled                    = optional(bool, true)
+      type                       = optional(string, "SystemAssigned")
+      user_assigned_identity_ids = optional(list(string), [])
+    }), { enabled = true, type = "SystemAssigned" })
   })
 }
 
@@ -102,6 +107,11 @@ variable "function_app" {
     existing_service_plan_id    = optional(string, null)
     existing_storage_account_id = optional(string, null)
     enable_private_endpoint     = optional(bool, true)
+    managed_identity = optional(object({
+      enabled                    = optional(bool, true)
+      type                       = optional(string, "SystemAssigned")
+      user_assigned_identity_ids = optional(list(string), [])
+    }), { enabled = true, type = "SystemAssigned" })
   })
 }
 

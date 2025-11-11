@@ -123,6 +123,10 @@ locals {
     { for k, v in data.azurerm_log_analytics_workspace.shared : k => v.name },
     { for k, v in azurerm_log_analytics_workspace.this : k => v.name }
   )
+  app_insights_ids = merge(
+    { for k, v in data.azurerm_application_insights.shared : k => v.id },
+    { for k, v in azurerm_application_insights.this : k => v.id }
+  )
   app_insights_keys = merge(
     { for k, v in data.azurerm_application_insights.shared : k => v.instrumentation_key },
     { for k, v in azurerm_application_insights.this : k => v.instrumentation_key }
@@ -138,6 +142,7 @@ locals {
 
   log_analytics_workspace_id   = local.log_analytics_ids["enabled"]
   log_analytics_workspace_name = local.log_analytics_names["enabled"]
+  app_insights_id              = local.app_insights_ids["enabled"]
   app_insights_key             = local.app_insights_keys["enabled"]
   app_insights_connection      = local.app_insights_connections["enabled"]
   app_insights_name            = local.app_insights_names["enabled"]
@@ -195,9 +200,19 @@ module "function_app" {
   existing_service_plan_id    = var.function_app.existing_service_plan_id
   existing_storage_account_id = var.function_app.existing_storage_account_id
 
-  app_settings = merge({
-    "APPINSIGHTS_INSTRUMENTATIONKEY"        = local.app_insights_key
-    "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
+  # Managed identity configuration (defaults to enabled with SystemAssigned)
+  managed_identity               = var.function_app.managed_identity
+  app_insights_id                = local.app_insights_id
+  app_insights_connection_string = local.app_insights_connection
+
+  app_settings = var.function_app.managed_identity.enabled ? merge({
+      # Connection string needed even with managed identity (identifies target App Insights instance)
+      "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
+    }, var.function_app.app_settings
+    ) : merge({
+      # Only add keys when managed identity is disabled
+      "APPINSIGHTS_INSTRUMENTATIONKEY"        = local.app_insights_key
+      "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
   }, var.function_app.app_settings)
 
   # Pass tenant_id for Easy Auth
@@ -248,14 +263,23 @@ module "web_app" {
     }
   ) : null
 
+  # Managed identity configuration (defaults to enabled with SystemAssigned)
+  managed_identity = var.web_app.managed_identity
+  app_insights_id  = local.app_insights_id
+
   app_settings = merge({
-    "WEBSITE_RUN_FROM_PACKAGE"              = "0"
-    "WEBSITE_NODE_DEFAULT_VERSION"          = "~${var.web_app.runtime_version}"
-    "SCM_DO_BUILD_DURING_DEPLOYMENT"        = "true"
-    "API_BASE_URL"                          = var.web_app.api_base_url != "" ? var.web_app.api_base_url : module.function_app.function_app_url
-    "APPINSIGHTS_INSTRUMENTATIONKEY"        = local.app_insights_key
-    "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
-  }, var.web_app.app_settings)
+    "WEBSITE_RUN_FROM_PACKAGE"       = "0"
+    "WEBSITE_NODE_DEFAULT_VERSION"   = "~${var.web_app.runtime_version}"
+    "SCM_DO_BUILD_DURING_DEPLOYMENT" = "true"
+    "API_BASE_URL"                   = var.web_app.api_base_url != "" ? var.web_app.api_base_url : module.function_app.function_app_url
+    },
+    var.web_app.managed_identity.enabled ? {} : {
+      # Only add keys when managed identity is disabled
+      "APPINSIGHTS_INSTRUMENTATIONKEY"        = local.app_insights_key
+      "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
+    },
+    var.web_app.app_settings
+  )
 
   tags = local.common_tags
 }

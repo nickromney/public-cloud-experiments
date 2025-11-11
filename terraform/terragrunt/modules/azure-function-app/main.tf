@@ -94,8 +94,10 @@ resource "azurerm_linux_function_app" "this" {
   location            = var.location
   service_plan_id     = local.service_plan_id
 
+  # When using managed identity, only provide account name (no access key)
+  # When not using managed identity, provide both name and key
   storage_account_name       = local.storage_account_name
-  storage_account_access_key = local.storage_account_access_key
+  storage_account_access_key = var.managed_identity.enabled ? null : local.storage_account_access_key
 
   https_only                    = true
   public_network_access_enabled = var.public_network_access_enabled
@@ -123,10 +125,23 @@ resource "azurerm_linux_function_app" "this" {
     "SCM_DO_BUILD_DURING_DEPLOYMENT" = "true"
     # Azure auto-builds dependencies from requirements.txt during zip deployment (approach #1)
     # Don't set WEBSITE_RUN_FROM_PACKAGE - let Azure extract and build
-  }, var.app_settings)
+    }, var.managed_identity.enabled ? {
+    # Managed identity configuration for storage
+    "AzureWebJobsStorage__accountName"     = local.storage_account_name
+    "AzureWebJobsStorage__blobServiceUri"  = "https://${local.storage_account_name}.blob.core.windows.net"
+    "AzureWebJobsStorage__queueServiceUri" = "https://${local.storage_account_name}.queue.core.windows.net"
+    "AzureWebJobsStorage__tableServiceUri" = "https://${local.storage_account_name}.table.core.windows.net"
+    # Application Insights connection string (identifies target App Insights instance)
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = var.app_insights_connection_string
+  } : {}, var.app_settings)
 
-  identity {
-    type = "SystemAssigned"
+  # Managed identity configuration
+  dynamic "identity" {
+    for_each = var.managed_identity.enabled ? [1] : []
+    content {
+      type         = var.managed_identity.type
+      identity_ids = contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? var.managed_identity.user_assigned_identity_ids : null
+    }
   }
 
   # Easy Auth V2 with Managed Identity
@@ -164,4 +179,49 @@ resource "azurerm_linux_function_app" "this" {
   }
 
   tags = var.tags
+}
+
+# Local to extract principal_id for RBAC assignments
+locals {
+  # For system-assigned identity, use principal_id directly
+  # For user-assigned, we'll grant permissions to the user-assigned identity (handled externally)
+  # Create RBAC assignments when system-assigned identity is present (including when both system and user assigned)
+  create_rbac_assignments = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type)
+  principal_id            = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_linux_function_app.this.identity[0].principal_id : null
+}
+
+# RBAC: Storage Blob Data Owner (for AzureWebJobsStorage blobs)
+resource "azurerm_role_assignment" "storage_blob_data_owner" {
+  count = local.create_rbac_assignments ? 1 : 0
+
+  scope                = local.storage_account_id
+  role_definition_name = "Storage Blob Data Owner"
+  principal_id         = local.principal_id
+}
+
+# RBAC: Storage Queue Data Contributor (for AzureWebJobsStorage queues)
+resource "azurerm_role_assignment" "storage_queue_data_contributor" {
+  count = local.create_rbac_assignments ? 1 : 0
+
+  scope                = local.storage_account_id
+  role_definition_name = "Storage Queue Data Contributor"
+  principal_id         = local.principal_id
+}
+
+# RBAC: Storage Table Data Contributor (for AzureWebJobsStorage tables)
+resource "azurerm_role_assignment" "storage_table_data_contributor" {
+  count = local.create_rbac_assignments ? 1 : 0
+
+  scope                = local.storage_account_id
+  role_definition_name = "Storage Table Data Contributor"
+  principal_id         = local.principal_id
+}
+
+# RBAC: Monitoring Metrics Publisher (for Application Insights)
+resource "azurerm_role_assignment" "monitoring_metrics_publisher" {
+  count = local.create_rbac_assignments && var.app_insights_id != null ? 1 : 0
+
+  scope                = var.app_insights_id
+  role_definition_name = "Monitoring Metrics Publisher"
+  principal_id         = local.principal_id
 }
