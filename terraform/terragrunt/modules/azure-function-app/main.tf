@@ -137,6 +137,20 @@ resource "azurerm_role_assignment" "uai_storage_table" {
   principal_id         = local.uai_principal_id
 }
 
+# Wait for RBAC role assignments to propagate
+# Azure role assignments can take up to 60 seconds to propagate
+resource "time_sleep" "rbac_propagation" {
+  for_each = local.use_mi_for_storage ? { enabled = true } : {}
+
+  create_duration = "60s"
+
+  depends_on = [
+    azurerm_role_assignment.uai_storage_blob,
+    azurerm_role_assignment.uai_storage_queue,
+    azurerm_role_assignment.uai_storage_table
+  ]
+}
+
 # Linux Function App
 resource "azurerm_linux_function_app" "this" {
   name                = var.name
@@ -149,11 +163,12 @@ resource "azurerm_linux_function_app" "this" {
   storage_account_name       = local.storage_account_name
   storage_account_access_key = local.use_mi_for_storage ? null : local.storage_account_access_key
 
-  # Explicit dependency: ensure RBAC roles are granted before Function App tries to access storage
+  # Explicit dependency: ensure RBAC roles are granted AND propagated before Function App tries to access storage
   depends_on = [
     azurerm_role_assignment.uai_storage_blob,
     azurerm_role_assignment.uai_storage_queue,
-    azurerm_role_assignment.uai_storage_table
+    azurerm_role_assignment.uai_storage_table,
+    time_sleep.rbac_propagation
   ]
 
   https_only                    = true
