@@ -80,6 +80,11 @@ variable "web_app" {
       login_parameters           = optional(map(string), {})
       use_managed_identity       = optional(bool, true)
     }), null)
+    managed_identity = optional(object({
+      enabled                    = optional(bool, true)
+      type                       = optional(string, "SystemAssigned")
+      user_assigned_identity_ids = optional(list(string), [])
+    }), { enabled = true, type = "SystemAssigned" })
   })
 }
 
@@ -97,6 +102,11 @@ variable "function_app" {
     public_network_access_enabled = optional(bool, true)
     cors_allowed_origins          = optional(list(string), ["*"])
     app_settings                  = optional(map(string), {})
+    managed_identity = optional(object({
+      enabled                    = optional(bool, true)
+      type                       = optional(string, "SystemAssigned")
+      user_assigned_identity_ids = optional(list(string), [])
+    }), { enabled = true, type = "SystemAssigned" })
   })
 }
 

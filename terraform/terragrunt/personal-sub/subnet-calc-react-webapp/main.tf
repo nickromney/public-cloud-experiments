@@ -123,6 +123,10 @@ locals {
     { for k, v in data.azurerm_log_analytics_workspace.shared : k => v.name },
     { for k, v in azurerm_log_analytics_workspace.this : k => v.name }
   )
+  app_insights_ids = merge(
+    { for k, v in data.azurerm_application_insights.shared : k => v.id },
+    { for k, v in azurerm_application_insights.this : k => v.id }
+  )
   app_insights_keys = merge(
     { for k, v in data.azurerm_application_insights.shared : k => v.instrumentation_key },
     { for k, v in azurerm_application_insights.this : k => v.instrumentation_key }
@@ -141,6 +145,8 @@ locals {
   app_insights_key             = local.app_insights_keys["enabled"]
   app_insights_connection      = local.app_insights_connections["enabled"]
   app_insights_name            = local.app_insights_names["enabled"]
+  # Note: app_insights_id will be used when module calls are updated for managed identity RBAC
+  app_insights_id = local.app_insights_ids["enabled"]
 }
 
 # -----------------------------------------------------------------------------

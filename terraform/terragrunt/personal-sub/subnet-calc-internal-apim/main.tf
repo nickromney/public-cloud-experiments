@@ -122,8 +122,14 @@ resource "azurerm_linux_web_app" "web" {
   resource_group_name = local.rg_name
   location            = local.rg_loc
   service_plan_id     = azurerm_service_plan.web.id
-  identity {
-    type = "SystemAssigned"
+
+  # Managed identity configuration
+  dynamic "identity" {
+    for_each = var.web_app.managed_identity.enabled ? [1] : []
+    content {
+      type         = var.web_app.managed_identity.type
+      identity_ids = contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.web_app.managed_identity.type) ? var.web_app.managed_identity.user_assigned_identity_ids : null
+    }
   }
 
   https_only = true
@@ -317,6 +323,15 @@ resource "azurerm_linux_function_app" "this" {
     "FUNCTIONS_WORKER_RUNTIME" = var.function_app.runtime == "dotnet-isolated" ? "dotnet-isolated" : var.function_app.runtime
     "WEBSITE_RUN_FROM_PACKAGE" = var.function_app.run_from_package ? "1" : "0"
   }, var.function_app.app_settings)
+
+  # Managed identity configuration
+  dynamic "identity" {
+    for_each = var.function_app.managed_identity.enabled ? [1] : []
+    content {
+      type         = var.function_app.managed_identity.type
+      identity_ids = contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.function_app.managed_identity.type) ? var.function_app.managed_identity.user_assigned_identity_ids : null
+    }
+  }
 
   tags = local.common_tags
 }
