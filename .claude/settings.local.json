@@ -304,7 +304,8 @@
       "Bash(az functionapp:*)",
       "Bash(tofu fmt:*)",
       "Bash(terraform providers:*)",
-      "WebFetch(domain:opentofu.org)"
+      "WebFetch(domain:opentofu.org)",
+      "Bash(terragrunt state show:*)"
     ],
     "deny": [],
     "ask": []

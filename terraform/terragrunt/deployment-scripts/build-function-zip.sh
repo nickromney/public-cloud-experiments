@@ -29,19 +29,26 @@ for file in "${REQUIRED_FILES[@]}"; do
   fi
 done
 
-# Copy only necessary files for Azure Function deployment
-cp -r \
-  auth.py \
-  config.py \
-  function_app.py \
-  host.json \
-  requirements.txt \
-  "$TEMP_DIR/"
-
-# Copy .funcignore if it exists (Azure Functions respects this)
-if [ -f .funcignore ]; then
-  cp .funcignore "$TEMP_DIR/"
-fi
+# Copy entire function app (excluding dev artifacts) so Azure can register functions
+rsync -a \
+  --exclude '.git/' \
+  --exclude '.github/' \
+  --exclude '.venv/' \
+  --exclude '__pycache__/' \
+  --exclude '.pytest_cache/' \
+  --exclude '.ruff_cache/' \
+  --exclude 'tests/' \
+  --exclude 'test*/' \
+  --exclude 'test*.py' \
+  --exclude 'bruno-collections/' \
+  --exclude 'Dockerfile' \
+  --exclude 'compose.yml' \
+  --exclude 'CLAUDE.md' \
+  --exclude 'README.md' \
+  --exclude 'uv.lock' \
+  --exclude 'pyproject.toml' \
+  --exclude 'local.settings.json' \
+  "$FUNCTION_APP_DIR/" "$TEMP_DIR/"
 
 cd "$TEMP_DIR"
 

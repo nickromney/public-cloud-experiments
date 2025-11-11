@@ -88,6 +88,37 @@ variable "app_settings" {
   default     = {}
 }
 
+variable "tenant_id" {
+  description = "Azure AD tenant ID for Easy Auth (defaults to current context if not specified)"
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.tenant_id == null || can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.tenant_id))
+    error_message = "Tenant ID must be a valid UUID"
+  }
+}
+
+variable "easy_auth" {
+  description = "Easy Auth V2 configuration with managed identity support"
+  type = object({
+    enabled                    = optional(bool, true)
+    client_id                  = string
+    client_secret_setting_name = optional(string, "")
+    issuer                     = optional(string, "")
+    tenant_id                  = optional(string, "")
+    allowed_audiences          = optional(list(string), [])
+    runtime_version            = optional(string, "~1")
+    unauthenticated_action     = optional(string, "Return401")
+    token_store_enabled        = optional(bool, true)
+    login_parameters           = optional(map(string), {})
+    use_managed_identity       = optional(bool, true)
+  })
+  default  = null
+  nullable = true
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)

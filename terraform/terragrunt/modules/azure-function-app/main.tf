@@ -1,6 +1,14 @@
 # Azure Function App Module
 # Deploys Linux Function App with storage account and service plan
 
+# Look up current Azure context for tenant_id when not provided
+data "azurerm_client_config" "current" {}
+
+locals {
+  # Use provided tenant_id or fall back to current Azure context
+  tenant_id = coalesce(var.tenant_id, data.azurerm_client_config.current.tenant_id)
+}
+
 # App Service Plan for Function App
 resource "azurerm_service_plan" "this" {
   name                = var.plan_name
@@ -63,6 +71,31 @@ resource "azurerm_linux_function_app" "this" {
 
   identity {
     type = "SystemAssigned"
+  }
+
+  # Easy Auth V2 with Managed Identity
+  # Only configured when easy_auth is provided
+  dynamic "auth_settings_v2" {
+    for_each = var.easy_auth != null ? [var.easy_auth] : []
+    content {
+      auth_enabled           = auth_settings_v2.value.enabled
+      runtime_version        = auth_settings_v2.value.runtime_version
+      unauthenticated_action = auth_settings_v2.value.unauthenticated_action
+      default_provider       = "azureactivedirectory"
+
+      login {
+        token_store_enabled = auth_settings_v2.value.token_store_enabled
+      }
+
+      active_directory_v2 {
+        client_id                            = auth_settings_v2.value.client_id
+        tenant_auth_endpoint                 = auth_settings_v2.value.issuer != "" ? auth_settings_v2.value.issuer : "https://login.microsoftonline.com/${local.tenant_id}/v2.0"
+        allowed_audiences                    = auth_settings_v2.value.allowed_audiences
+        login_parameters                     = auth_settings_v2.value.login_parameters
+        client_secret_setting_name           = auth_settings_v2.value.client_secret_setting_name != "" ? auth_settings_v2.value.client_secret_setting_name : null
+        client_secret_certificate_thumbprint = null
+      }
+    }
   }
 
   # Ignore Azure-managed Application Insights settings in site_config
