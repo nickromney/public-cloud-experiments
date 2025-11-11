@@ -113,4 +113,13 @@ variable "observability" {
   default = {
     use_existing = false
   }
+
+  validation {
+    condition = !var.observability.use_existing || (
+      var.observability.existing_resource_group_name != null &&
+      var.observability.existing_log_analytics_name != null &&
+      var.observability.existing_app_insights_name != null
+    )
+    error_message = "When 'use_existing' is true, 'existing_resource_group_name', 'existing_log_analytics_name', and 'existing_app_insights_name' must be provided."
+  }
 }

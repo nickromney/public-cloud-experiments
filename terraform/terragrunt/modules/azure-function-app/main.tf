@@ -20,7 +20,8 @@ locals {
     null
   )
 
-  # Parse storage account resource ID to extract name and resource group
+  # Parse resource IDs to extract name and resource group
+  existing_service_plan    = local.existing_service_plan_id != null ? provider::azurerm::parse_resource_id(local.existing_service_plan_id) : null
   existing_storage_account = local.existing_storage_account_id != null ? provider::azurerm::parse_resource_id(local.existing_storage_account_id) : null
 }
 
@@ -28,8 +29,8 @@ locals {
 data "azurerm_service_plan" "existing" {
   count = local.existing_service_plan_id != null ? 1 : 0
 
-  name                = provider::azurerm::parse_resource_id(local.existing_service_plan_id).resource_name
-  resource_group_name = provider::azurerm::parse_resource_id(local.existing_service_plan_id).resource_group_name
+  name                = local.existing_service_plan.resource_name
+  resource_group_name = local.existing_service_plan.resource_group_name
 }
 
 # Data source: fetch existing Storage Account if ID provided
@@ -50,6 +51,13 @@ resource "azurerm_service_plan" "this" {
   os_type             = "Linux"
   sku_name            = var.plan_sku
   tags                = var.tags
+
+  lifecycle {
+    precondition {
+      condition     = var.plan_name != ""
+      error_message = "When 'existing_service_plan_id' is not provided, 'plan_name' must be specified."
+    }
+  }
 }
 
 # Storage Account for Function App (only created if not using existing)

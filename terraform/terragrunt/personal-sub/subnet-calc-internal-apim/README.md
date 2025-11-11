@@ -132,7 +132,7 @@ function_app = {
 }
 ```
 
-Terraform 1.8 + azurerm 4.0+ provider functions (`provider::azurerm::normalise_resource_id` and `provider::azurerm::parse_resource_id`) remove brittle `split("/")` parsing and ensure IDs are casing-correct before they are passed to the Azure APIs.
+**Minimum Requirements**: Terraform 1.8+ and azurerm 4.0+ are required for provider-defined functions used in the BYO pattern. The `provider::azurerm::normalise_resource_id` and `provider::azurerm::parse_resource_id` functions provide robust resource ID parsing, removing brittle `split("/")` approaches and ensuring IDs are casing-correct before they are passed to Azure APIs.
 
 ## Configuration
 

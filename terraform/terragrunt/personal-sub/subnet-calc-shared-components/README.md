@@ -25,7 +25,7 @@ Per-Stack Resources (created by each application stack)
 
 Following CAF naming convention: `{resource-type}-{workload}-{component}-{environment}`
 
-- `log-subnetcalc-shared-dev` - Log Analytics Workspace (30-day retention)
+- `log-subnet-calc-shared-dev` - Log Analytics Workspace (30-day retention)
 - `kv-sc-shared-dev-<random>` - Key Vault with RBAC authorization (sc = subnet-calc abbreviated due to 24-char limit)
 
 ## Usage
@@ -77,7 +77,7 @@ terragrunt plan -- -var-file=stages/300-byo-platform.tfvars
 # observability = {
 #   use_existing                 = true
 #   existing_resource_group_name = "rg-subnet-calc-shared-dev"
-#   existing_log_analytics_name  = "log-subnetcalc-shared-dev"
+#   existing_log_analytics_name  = "log-subnet-calc-shared-dev"
 # }
 ```
 
