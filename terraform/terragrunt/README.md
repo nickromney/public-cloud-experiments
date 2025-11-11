@@ -164,6 +164,10 @@ make app-a-clean       # Clean cached files
 make fmt               # Format Terraform files
 make validate          # Validate configurations
 make clean             # Clean all cached files
+
+# Pass Terragrunt flags / tfvars overlays via Make:
+make subnet-calc react-apim plan VAR_FILE=stages/200-create-observability.tfvars
+make subnet-calc react-apim apply VAR_FILE=stages/300-byo-platform.tfvars TG_ARGS=--terragrunt-non-interactive AUTO_APPROVE=1
 ```
 
 ## Examples

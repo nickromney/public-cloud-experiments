@@ -81,6 +81,7 @@ variable "apim" {
     api_display_name      = optional(string, "Subnet Calculator API")
     subscription_required = optional(bool, true)
     rate_limit_per_minute = optional(number, 100)
+    enable_app_insights   = optional(bool, true)
   })
 
   validation {
@@ -101,11 +102,21 @@ variable "function_app" {
     runtime                       = optional(string, "python")
     runtime_version               = optional(string, "3.11")
     storage_account_name          = optional(string, "")
+    existing_service_plan_id      = optional(string, null)
+    existing_storage_account_id   = optional(string, null)
     public_network_access_enabled = optional(bool, true)
     cors_allowed_origins          = optional(list(string), [])
     app_settings                  = optional(map(string), {})
   })
   default = {}
+
+  validation {
+    condition = alltrue([
+      var.function_app.existing_service_plan_id == null || can(regex("^/subscriptions/", var.function_app.existing_service_plan_id)),
+      var.function_app.existing_storage_account_id == null || can(regex("^/subscriptions/", var.function_app.existing_storage_account_id))
+    ])
+    error_message = "existing_service_plan_id and existing_storage_account_id must be full Azure resource IDs."
+  }
 }
 
 # -----------------------------------------------------------------------------

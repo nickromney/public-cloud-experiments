@@ -17,6 +17,8 @@ crash.*.log
 # to change depending on the environment.
 *.tfvars
 *.tfvars.json
+!terraform/terragrunt/personal-sub/subnet-calc-react-webapp-apim/stages/*.tfvars
+!terraform/terragrunt/personal-sub/subnet-calc-react-webapp-apim/stages/*.tfvars
 
 # Ignore override files as they are usually used to override resources locally and so
 # are not checked in
@@ -37,6 +39,7 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+**/.azure-cli/
 
 # Ignore reference repositories (cloned for documentation)
 terraform/reference/

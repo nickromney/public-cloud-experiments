@@ -62,6 +62,32 @@ data "azurerm_resource_group" "this" {
 }
 
 # -----------------------------------------------------------------------------
+# Function App dependency resolution
+# -----------------------------------------------------------------------------
+
+locals {
+  function_app_existing_plan_id = try(
+    var.function_app.existing_service_plan_id == null ? null : provider::azurerm::normalise_resource_id(var.function_app.existing_service_plan_id),
+    null
+  )
+
+  function_app_existing_storage_account_id = try(
+    var.function_app.existing_storage_account_id == null ? null : provider::azurerm::normalise_resource_id(var.function_app.existing_storage_account_id),
+    null
+  )
+
+  function_app_existing_storage_account     = local.function_app_existing_storage_account_id != null ? provider::azurerm::parse_resource_id(local.function_app_existing_storage_account_id) : null
+  function_app_existing_storage_account_map = local.function_app_existing_storage_account != null ? { existing = local.function_app_existing_storage_account } : {}
+}
+
+data "azurerm_storage_account" "function_existing" {
+  for_each = local.function_app_existing_storage_account_map
+
+  name                = each.value.resource_name
+  resource_group_name = each.value.resource_group_name
+}
+
+# -----------------------------------------------------------------------------
 # Shared Observability (Data Sources)
 # -----------------------------------------------------------------------------
 
@@ -147,6 +173,7 @@ module "apim" {
   publisher_name      = var.apim.publisher_name
   publisher_email     = var.apim.publisher_email
   sku_name            = var.apim.sku_name
+  enable_app_insights = var.apim.enable_app_insights
 
   # Public access (Developer tier)
   virtual_network_type          = "None"
@@ -165,6 +192,8 @@ module "apim" {
 
 # Storage Account for Function App
 resource "azurerm_storage_account" "function" {
+  count = local.function_app_existing_storage_account_id == null ? 1 : 0
+
   name                     = var.function_app.storage_account_name != "" ? var.function_app.storage_account_name : "st${var.project_name}${var.environment}apim"
   resource_group_name      = local.rg_name
   location                 = local.rg_loc
@@ -175,6 +204,8 @@ resource "azurerm_storage_account" "function" {
 
 # App Service Plan for Function App
 resource "azurerm_service_plan" "function" {
+  count = local.function_app_existing_plan_id == null ? 1 : 0
+
   name                = "plan-${var.project_name}-${var.environment}-func-apim"
   resource_group_name = local.rg_name
   location            = local.rg_loc
@@ -183,14 +214,31 @@ resource "azurerm_service_plan" "function" {
   tags                = local.common_tags
 }
 
+locals {
+  function_app_service_plan_id = coalesce(
+    local.function_app_existing_plan_id,
+    try(azurerm_service_plan.function[0].id, null)
+  )
+
+  function_app_storage_account_name = coalesce(
+    try(data.azurerm_storage_account.function_existing["existing"].name, null),
+    try(azurerm_storage_account.function[0].name, null)
+  )
+
+  function_app_storage_account_access_key = coalesce(
+    try(data.azurerm_storage_account.function_existing["existing"].primary_access_key, null),
+    try(azurerm_storage_account.function[0].primary_access_key, null)
+  )
+}
+
 # Function App
 resource "azurerm_linux_function_app" "api" {
   name                       = local.function_app_name
   resource_group_name        = local.rg_name
   location                   = local.rg_loc
-  service_plan_id            = azurerm_service_plan.function.id
-  storage_account_name       = azurerm_storage_account.function.name
-  storage_account_access_key = azurerm_storage_account.function.primary_access_key
+  service_plan_id            = local.function_app_service_plan_id
+  storage_account_name       = local.function_app_storage_account_name
+  storage_account_access_key = local.function_app_storage_account_access_key
 
   # Network configuration - optional enforcement via NSG
   public_network_access_enabled = var.function_app.public_network_access_enabled
@@ -222,6 +270,23 @@ resource "azurerm_linux_function_app" "api" {
 
   identity {
     type = "SystemAssigned"
+  }
+
+  lifecycle {
+    precondition {
+      condition     = local.function_app_service_plan_id != null
+      error_message = "Function App requires either an existing_service_plan_id or a plan_sku to create one."
+    }
+
+    precondition {
+      condition     = local.function_app_storage_account_access_key != null && local.function_app_storage_account_name != null
+      error_message = "Function App requires either an existing_storage_account_id or permission to create a storage account."
+    }
+
+    ignore_changes = [
+      site_config[0].application_insights_connection_string,
+      site_config[0].application_insights_key
+    ]
   }
 
   tags = local.common_tags

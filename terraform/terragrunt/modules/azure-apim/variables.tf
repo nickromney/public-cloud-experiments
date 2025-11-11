@@ -195,11 +195,17 @@ variable "diagnostics_backend_response_headers" {
 }
 
 # -----------------------------------------------------------------------------
-# Tags
+# Tags & Feature Flags
 # -----------------------------------------------------------------------------
 
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)
   default     = {}
+}
+
+variable "enable_app_insights" {
+  description = "Enable Application Insights diagnostics/logging"
+  type        = bool
+  default     = false
 }
