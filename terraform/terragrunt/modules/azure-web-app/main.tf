@@ -91,7 +91,7 @@ locals {
 
 # RBAC: Monitoring Metrics Publisher (for Application Insights)
 resource "azurerm_role_assignment" "monitoring_metrics_publisher" {
-  count = local.create_rbac_assignments && var.app_insights_id != null ? 1 : 0
+  for_each = local.create_rbac_assignments && var.app_insights_id != null ? { enabled = true } : {}
 
   scope                = var.app_insights_id
   role_definition_name = "Monitoring Metrics Publisher"

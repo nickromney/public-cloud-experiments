@@ -192,7 +192,7 @@ locals {
 
 # RBAC: Storage Blob Data Owner (for AzureWebJobsStorage blobs)
 resource "azurerm_role_assignment" "storage_blob_data_owner" {
-  count = local.create_rbac_assignments ? 1 : 0
+  for_each = local.create_rbac_assignments ? { enabled = true } : {}
 
   scope                = local.storage_account_id
   role_definition_name = "Storage Blob Data Owner"
@@ -201,7 +201,7 @@ resource "azurerm_role_assignment" "storage_blob_data_owner" {
 
 # RBAC: Storage Queue Data Contributor (for AzureWebJobsStorage queues)
 resource "azurerm_role_assignment" "storage_queue_data_contributor" {
-  count = local.create_rbac_assignments ? 1 : 0
+  for_each = local.create_rbac_assignments ? { enabled = true } : {}
 
   scope                = local.storage_account_id
   role_definition_name = "Storage Queue Data Contributor"
@@ -210,7 +210,7 @@ resource "azurerm_role_assignment" "storage_queue_data_contributor" {
 
 # RBAC: Storage Table Data Contributor (for AzureWebJobsStorage tables)
 resource "azurerm_role_assignment" "storage_table_data_contributor" {
-  count = local.create_rbac_assignments ? 1 : 0
+  for_each = local.create_rbac_assignments ? { enabled = true } : {}
 
   scope                = local.storage_account_id
   role_definition_name = "Storage Table Data Contributor"
@@ -219,7 +219,7 @@ resource "azurerm_role_assignment" "storage_table_data_contributor" {
 
 # RBAC: Monitoring Metrics Publisher (for Application Insights)
 resource "azurerm_role_assignment" "monitoring_metrics_publisher" {
-  count = local.create_rbac_assignments && var.app_insights_id != null ? 1 : 0
+  for_each = local.create_rbac_assignments && var.app_insights_id != null ? { enabled = true } : {}
 
   scope                = var.app_insights_id
   role_definition_name = "Monitoring Metrics Publisher"
