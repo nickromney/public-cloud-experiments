@@ -60,10 +60,18 @@ resource "azurerm_service_plan" "this" {
   }
 }
 
+# Locals for storage authentication (must be before resource creation)
+locals {
+  # Storage authentication strategy (must be determinable at plan time for for_each)
+  # Create UAI when type includes UserAssigned
+  create_uai         = var.managed_identity.enabled && contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type)
+  use_mi_for_storage = local.create_uai
+}
+
 # User-Assigned Managed Identity (created when managed identity is enabled)
 # Must be created before Function App so we can grant it storage permissions
 resource "azurerm_user_assigned_identity" "this" {
-  count = var.managed_identity.enabled && contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? 1 : 0
+  count = local.create_uai ? 1 : 0
 
   name                = "id-${var.name}"
   resource_group_name = var.resource_group_name
@@ -98,12 +106,9 @@ locals {
   storage_account_access_key = local.existing_storage_account_id != null ? data.azurerm_storage_account.existing[0].primary_access_key : azurerm_storage_account.this[0].primary_access_key
 
   # User-assigned managed identity details (for storage authentication)
-  uai_client_id    = var.managed_identity.enabled && contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_user_assigned_identity.this[0].client_id : null
-  uai_principal_id = var.managed_identity.enabled && contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_user_assigned_identity.this[0].principal_id : null
-  uai_id           = var.managed_identity.enabled && contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_user_assigned_identity.this[0].id : null
-
-  # Storage authentication strategy
-  use_mi_for_storage = var.managed_identity.enabled && local.uai_client_id != null
+  uai_client_id    = local.create_uai ? azurerm_user_assigned_identity.this[0].client_id : null
+  uai_principal_id = local.create_uai ? azurerm_user_assigned_identity.this[0].principal_id : null
+  uai_id           = local.create_uai ? azurerm_user_assigned_identity.this[0].id : null
 }
 
 # RBAC: Grant UAI storage permissions (Blob, Queue, Table Contributor)
