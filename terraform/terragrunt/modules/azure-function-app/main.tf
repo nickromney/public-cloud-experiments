@@ -94,10 +94,11 @@ resource "azurerm_linux_function_app" "this" {
   location            = var.location
   service_plan_id     = local.service_plan_id
 
-  # When using managed identity, only provide account name (no access key)
-  # When not using managed identity, provide both name and key
+  # Always use storage account keys for AzureWebJobsStorage
+  # Managed identity for storage has chicken-and-egg problem: Function App needs storage
+  # access at creation time, but RBAC roles need Function App's principal_id
   storage_account_name       = local.storage_account_name
-  storage_account_access_key = var.managed_identity.enabled ? null : local.storage_account_access_key
+  storage_account_access_key = local.storage_account_access_key
 
   https_only                    = true
   public_network_access_enabled = var.public_network_access_enabled
@@ -125,15 +126,9 @@ resource "azurerm_linux_function_app" "this" {
     "SCM_DO_BUILD_DURING_DEPLOYMENT" = "true"
     # Azure auto-builds dependencies from requirements.txt during zip deployment (approach #1)
     # Don't set WEBSITE_RUN_FROM_PACKAGE - let Azure extract and build
-    }, var.managed_identity.enabled ? {
-    # Managed identity configuration for storage
-    "AzureWebJobsStorage__accountName"     = local.storage_account_name
-    "AzureWebJobsStorage__blobServiceUri"  = "https://${local.storage_account_name}.blob.core.windows.net"
-    "AzureWebJobsStorage__queueServiceUri" = "https://${local.storage_account_name}.queue.core.windows.net"
-    "AzureWebJobsStorage__tableServiceUri" = "https://${local.storage_account_name}.table.core.windows.net"
     # Application Insights connection string (identifies target App Insights instance)
     "APPLICATIONINSIGHTS_CONNECTION_STRING" = var.app_insights_connection_string
-  } : {}, var.app_settings)
+  }, var.app_settings)
 
   # Managed identity configuration
   dynamic "identity" {
@@ -190,32 +185,8 @@ locals {
   principal_id            = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_linux_function_app.this.identity[0].principal_id : null
 }
 
-# RBAC: Storage Blob Data Owner (for AzureWebJobsStorage blobs)
-resource "azurerm_role_assignment" "storage_blob_data_owner" {
-  for_each = local.create_rbac_assignments ? { enabled = true } : {}
-
-  scope                = local.storage_account_id
-  role_definition_name = "Storage Blob Data Owner"
-  principal_id         = local.principal_id
-}
-
-# RBAC: Storage Queue Data Contributor (for AzureWebJobsStorage queues)
-resource "azurerm_role_assignment" "storage_queue_data_contributor" {
-  for_each = local.create_rbac_assignments ? { enabled = true } : {}
-
-  scope                = local.storage_account_id
-  role_definition_name = "Storage Queue Data Contributor"
-  principal_id         = local.principal_id
-}
-
-# RBAC: Storage Table Data Contributor (for AzureWebJobsStorage tables)
-resource "azurerm_role_assignment" "storage_table_data_contributor" {
-  for_each = local.create_rbac_assignments ? { enabled = true } : {}
-
-  scope                = local.storage_account_id
-  role_definition_name = "Storage Table Data Contributor"
-  principal_id         = local.principal_id
-}
+# Note: Storage RBAC assignments removed - using storage account keys instead of managed identity
+# Managed identity for storage has a chicken-and-egg problem during initial Function App creation
 
 # RBAC: Monitoring Metrics Publisher (for Application Insights)
 resource "azurerm_role_assignment" "monitoring_metrics_publisher" {
