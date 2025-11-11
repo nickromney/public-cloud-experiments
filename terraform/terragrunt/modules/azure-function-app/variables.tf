@@ -158,13 +158,8 @@ variable "managed_identity" {
     error_message = "Identity type must be 'SystemAssigned', 'UserAssigned', or 'SystemAssigned, UserAssigned'."
   }
 
-  validation {
-    condition = (
-      var.managed_identity.type == "SystemAssigned" ||
-      (contains(["UserAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) && length(var.managed_identity.user_assigned_identity_ids) > 0)
-    )
-    error_message = "When identity type includes 'UserAssigned', user_assigned_identity_ids must be provided."
-  }
+  # Note: user_assigned_identity_ids can be empty when type includes UserAssigned
+  # The module will automatically create a UAI and include it in the identity configuration
 }
 
 variable "app_insights_id" {
