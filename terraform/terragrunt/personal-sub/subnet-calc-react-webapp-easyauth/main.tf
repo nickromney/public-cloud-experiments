@@ -207,10 +207,10 @@ module "function_app" {
 
   app_settings = var.function_app.managed_identity.enabled ? merge(
     var.function_app.app_settings
-  ) : merge({
-    # Only add keys when managed identity is disabled
-    "APPINSIGHTS_INSTRUMENTATIONKEY"        = local.app_insights_key
-    "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
+    ) : merge({
+      # Only add keys when managed identity is disabled
+      "APPINSIGHTS_INSTRUMENTATIONKEY"        = local.app_insights_key
+      "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
   }, var.function_app.app_settings)
 
   tags = local.common_tags

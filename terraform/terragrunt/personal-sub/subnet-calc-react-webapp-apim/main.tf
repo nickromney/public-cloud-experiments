@@ -273,7 +273,7 @@ resource "azurerm_linux_function_app" "api" {
     "AzureWebJobsStorage__blobServiceUri"  = "https://${local.function_app_storage_account_name}.blob.core.windows.net"
     "AzureWebJobsStorage__queueServiceUri" = "https://${local.function_app_storage_account_name}.queue.core.windows.net"
     "AzureWebJobsStorage__tableServiceUri" = "https://${local.function_app_storage_account_name}.table.core.windows.net"
-  } : {
+    } : {
     # Only add keys when managed identity is disabled
     "APPINSIGHTS_INSTRUMENTATIONKEY"        = local.app_insights_key
     "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
@@ -315,7 +315,7 @@ resource "azurerm_linux_function_app" "api" {
 locals {
   # For system-assigned identity, use principal_id directly
   # Only create RBAC assignments for system-assigned identities
-  function_app_create_rbac = var.function_app.managed_identity.enabled && var.function_app.managed_identity.type == "SystemAssigned"
+  function_app_create_rbac  = var.function_app.managed_identity.enabled && var.function_app.managed_identity.type == "SystemAssigned"
   function_app_principal_id = local.function_app_create_rbac ? azurerm_linux_function_app.api.identity[0].principal_id : null
 
   # Storage account ID for RBAC assignments
