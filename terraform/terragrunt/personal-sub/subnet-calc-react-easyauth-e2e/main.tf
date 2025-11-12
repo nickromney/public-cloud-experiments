@@ -95,6 +95,7 @@ module "storage_accounts" {
 # Log Analytics & Application Insights
 # -----------------------------------------------------------------------------
 
+# Log Analytics workspaces (0-to-n - typically empty, using shared workspace)
 resource "azurerm_log_analytics_workspace" "this" {
   for_each = var.log_analytics_workspaces
 
@@ -106,13 +107,14 @@ resource "azurerm_log_analytics_workspace" "this" {
   tags                = merge(local.common_tags, try(each.value.tags, {}))
 }
 
+# Application Insights - uses shared workspace if log_analytics_key not specified
 resource "azurerm_application_insights" "this" {
   for_each = var.application_insights
 
   name                = each.value.name
   resource_group_name = data.azurerm_resource_group.main.name
   location            = data.azurerm_resource_group.main.location
-  workspace_id        = azurerm_log_analytics_workspace.this[each.value.log_analytics_key].id
+  workspace_id        = each.value.log_analytics_key != null ? azurerm_log_analytics_workspace.this[each.value.log_analytics_key].id : var.shared_log_analytics_workspace_id
   application_type    = try(each.value.application_type, "web")
   tags                = merge(local.common_tags, try(each.value.tags, {}))
 }
@@ -169,6 +171,8 @@ module "function_apps" {
         type = v.identity_type
         # Prefer identity_ids (BYO), fall back to identity_keys (created)
         identity_ids = length(try(v.identity_ids, [])) > 0 ? v.identity_ids : [for k in try(v.identity_keys, []) : module.user_assigned_identities.ids[k]]
+        # For UAMI storage access, provide the client_id of the first identity
+        client_id = v.identity_type == "UserAssigned" && length(try(v.identity_keys, [])) > 0 ? module.user_assigned_identities.client_ids[v.identity_keys[0]] : null
       } : null
 
       # Easy Auth
@@ -176,6 +180,7 @@ module "function_apps" {
         enabled                = try(v.easy_auth.enabled, true)
         client_id              = module.entra_id_app[v.easy_auth.entra_app_key].application_id
         tenant_id              = local.tenant_id
+        tenant_auth_endpoint   = try(v.easy_auth.tenant_auth_endpoint, null)
         allowed_audiences      = try(v.easy_auth.allowed_audiences, [])
         unauthenticated_action = try(v.easy_auth.unauthenticated_action, "Return401")
         token_store_enabled    = try(v.easy_auth.token_store_enabled, true)
@@ -228,6 +233,7 @@ module "web_apps" {
         enabled                = try(v.easy_auth.enabled, true)
         client_id              = module.entra_id_app[v.easy_auth.entra_app_key].application_id
         tenant_id              = local.tenant_id
+        tenant_auth_endpoint   = try(v.easy_auth.tenant_auth_endpoint, null)
         allowed_audiences      = try(v.easy_auth.allowed_audiences, [])
         unauthenticated_action = try(v.easy_auth.unauthenticated_action, "RedirectToLoginPage")
         default_provider       = try(v.easy_auth.default_provider, "azureactivedirectory")

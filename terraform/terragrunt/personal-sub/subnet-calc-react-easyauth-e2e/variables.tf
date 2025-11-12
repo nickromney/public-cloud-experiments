@@ -102,11 +102,17 @@ variable "log_analytics_workspaces" {
   default = {}
 }
 
+variable "shared_log_analytics_workspace_id" {
+  description = "Resource ID of shared Log Analytics workspace (from shared-components stack)"
+  type        = string
+  default     = ""
+}
+
 variable "application_insights" {
   description = "Map of Application Insights instances to create"
   type = map(object({
     name              = string
-    log_analytics_key = string # Key from log_analytics_workspaces map
+    log_analytics_key = optional(string, null) # Key from log_analytics_workspaces map (optional if using shared workspace)
     application_type  = optional(string, "web")
     tags              = optional(map(string), {})
   }))
