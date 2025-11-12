@@ -84,8 +84,6 @@ resource "azurerm_log_analytics_workspace" "this" {
       error_message = "Log Analytics workspace '${each.value.name}' creation failed"
     }
   }
-
-  depends_on = [azurerm_resource_group.this, data.azurerm_resource_group.existing]
 }
 
 # -----------------------------------------------------------------------------
@@ -116,8 +114,6 @@ module "key_vaults" {
   log_analytics_workspace_id = null
 
   tags = merge(local.common_tags, each.value.tags)
-
-  depends_on = [azurerm_resource_group.this, data.azurerm_resource_group.existing]
 }
 
 # Key Vault diagnostics - only if Log Analytics workspace and diagnostic config provided
@@ -144,11 +140,6 @@ resource "azurerm_monitor_diagnostic_setting" "kv" {
   enabled_metric {
     category = "AllMetrics"
   }
-
-  depends_on = [
-    azurerm_log_analytics_workspace.this,
-    module.key_vaults
-  ]
 }
 
 # Grant current user Key Vault Secrets Officer role (if enabled)
@@ -158,6 +149,4 @@ resource "azurerm_role_assignment" "kv_secrets_officer_current_user" {
   scope                = module.key_vaults[each.key].id
   role_definition_name = "Key Vault Secrets Officer"
   principal_id         = data.azurerm_client_config.current.object_id
-
-  depends_on = [module.key_vaults]
 }

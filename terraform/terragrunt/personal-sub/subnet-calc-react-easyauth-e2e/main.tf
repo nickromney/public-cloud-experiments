@@ -184,12 +184,6 @@ module "function_apps" {
   }
 
   common_tags = local.common_tags
-
-  depends_on = [
-    module.service_plans,
-    module.storage_accounts,
-    module.user_assigned_identities
-  ]
 }
 
 # -----------------------------------------------------------------------------
@@ -243,9 +237,4 @@ module "web_apps" {
   }
 
   common_tags = local.common_tags
-
-  depends_on = [
-    module.service_plans,
-    module.user_assigned_identities
-  ]
 }
