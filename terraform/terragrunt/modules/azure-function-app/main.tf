@@ -3,6 +3,22 @@
 # Dependencies (service plan, storage, UAI) must be created separately
 # Storage account is OPTIONAL - if not provided, Azure auto-creates one
 
+locals {
+  # Build app settings with managed identity storage configuration when needed
+  function_app_settings = {
+    for key, app in var.function_apps : key => merge(
+      # Base app settings from configuration
+      try(app.app_settings, {}),
+
+      # Add managed identity storage settings when using UAMI
+      try(app.storage_uses_managed_identity, false) && try(app.identity.type, "") == "UserAssigned" ? {
+        "AzureWebJobsStorage__credential" = "managedidentity"
+        "AzureWebJobsStorage__clientId"   = try(app.identity.client_id, null)
+      } : {}
+    )
+  }
+}
+
 resource "azurerm_linux_function_app" "this" {
   for_each = var.function_apps
 
@@ -44,8 +60,8 @@ resource "azurerm_linux_function_app" "this" {
     application_insights_key               = try(each.value.app_insights_key, null)
   }
 
-  # App settings
-  app_settings = try(each.value.app_settings, {})
+  # App settings (includes managed identity storage settings when applicable)
+  app_settings = local.function_app_settings[each.key]
 
   # Managed Identity (optional)
   dynamic "identity" {
@@ -71,7 +87,7 @@ resource "azurerm_linux_function_app" "this" {
         for_each = try(each.value.easy_auth.client_id, null) != null ? [1] : []
         content {
           client_id            = each.value.easy_auth.client_id
-          tenant_auth_endpoint = try(each.value.easy_auth.tenant_auth_endpoint, "https://login.microsoftonline.com/${each.value.easy_auth.tenant_id}/v2.0")
+          tenant_auth_endpoint = coalesce(each.value.easy_auth.tenant_auth_endpoint, "https://login.microsoftonline.com/${each.value.easy_auth.tenant_id}/v2.0")
           allowed_audiences    = try(each.value.easy_auth.allowed_audiences, [])
         }
       }

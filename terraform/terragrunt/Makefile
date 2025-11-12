@@ -39,6 +39,11 @@ AUTO_APPROVE ?= 0
 # Terragrunt wrapper arguments
 TG_ARGS ?=
 VAR_FILE ?=
+STAGE ?= 000
+STAGE_DEFAULT := 000
+
+# VAR_FILE_ARG will be constructed dynamically based on STAGE and VAR_FILE
+# Priority: VAR_FILE (explicit) > STAGE file (found) > none
 VAR_FILE_ARG := $(if $(strip $(VAR_FILE)),-var-file="$(VAR_FILE)",)
 
 # Resources with long provisioning/deletion times
@@ -104,12 +109,21 @@ help:
 	@echo -e "  make subnet-calc react-easyauth-e2e deploy all"
 	@echo -e "  make subnet-calc react-apim plan"
 	@echo -e "  make subnet-calc react-apim deploy all"
+	@echo -e ""
+	@echo -e "$(YELLOW)Staged Deployments:$(NC)"
+	@echo -e "  make subnet-calc react-easyauth-e2e 100 plan            # Use stages/100-*.tfvars"
+	@echo -e "  make subnet-calc react-easyauth-e2e 100 apply           # Apply stage 100"
+	@echo -e "  make subnet-calc react-easyauth-e2e 200 apply AUTO_APPROVE=1"
+	@echo -e "  make subnet-calc react-easyauth-e2e 400 plan            # Use stages/400-all.tfvars"
+	@echo -e ""
+	@echo -e "$(YELLOW)Advanced Options:$(NC)"
 	@echo -e "  make subnet-calc react-apim plan VAR_FILE=stages/200-create-observability.tfvars"
 	@echo -e "  make subnet-calc react-apim apply VAR_FILE=stages/300-byo-platform.tfvars TG_ARGS=--terragrunt-non-interactive AUTO_APPROVE=1"
 	@echo -e ""
 	@echo -e "$(YELLOW)Options:$(NC)"
 	@echo -e "  AUTO_APPROVE=1                Skip confirmation prompts for apply/destroy"
 	@echo -e "  VAR_FILE=path/to.tfvars       Pass an extra -var-file to plan/apply/destroy"
+	@echo -e "  STAGE=<3-digit>               Use stages/<3-digit>-*.tfvars file (default: 000)"
 	@echo -e "  TG_ARGS=\"--terragrunt-*\"     Extra Terragrunt CLI flags (applied to every command)"
 	@echo -e ""
 	@echo -e "$(YELLOW)Global Commands:$(NC)"
@@ -256,10 +270,59 @@ test:
 
 # Parse multi-word commands
 # This is where the magic happens - we route based on arguments
+# Supports flexible argument ordering by detecting types:
+#   - Verbs: init, plan, apply, destroy, validate, output, deploy, test, show, get, clean, unlock
+#   - Stages: 3-digit numbers (000, 100, 200, etc.)
+#   - Projects: subnet-calc
+#   - Stacks: react-webapp, react-easyauth-e2e, etc.
 
-# Infrastructure lifecycle commands
+# Smart argument parser - detects argument types regardless of position
+# Receives: ARG1 ARG2 ARG3 ARG4 ARG5 as parameters
+.PHONY: _parse-args
+_parse-args:
+	@PARSED_PROJECT=""; \
+	PARSED_STACK=""; \
+	PARSED_STAGE="$(STAGE_DEFAULT)"; \
+	PARSED_VERB=""; \
+	PARSED_COMPONENT=""; \
+	VALID_VERBS="init plan apply destroy validate output deploy test show get clean unlock"; \
+	for arg in "$(ARG1)" "$(ARG2)" "$(ARG3)" "$(ARG4)" "$(ARG5)"; do \
+		if [ -z "$$arg" ]; then continue; fi; \
+		if echo "$$arg" | grep -qE '^[0-9]{3}$$'; then \
+			PARSED_STAGE=$$arg; \
+		elif echo " $$VALID_VERBS " | grep -q " $$arg "; then \
+			if [ -z "$$PARSED_VERB" ]; then \
+				PARSED_VERB=$$arg; \
+			else \
+				PARSED_COMPONENT=$$arg; \
+			fi; \
+		elif [ "$$arg" = "subnet-calc" ]; then \
+			PARSED_PROJECT=$$arg; \
+		elif [ -z "$$PARSED_STACK" ] && [ -n "$$PARSED_PROJECT" ]; then \
+			PARSED_STACK=$$arg; \
+		elif [ -z "$$PARSED_COMPONENT" ] && [ -n "$$PARSED_VERB" ]; then \
+			PARSED_COMPONENT=$$arg; \
+		fi; \
+	done; \
+	$(MAKE) --no-print-directory _route \
+		PROJECT=$$PARSED_PROJECT \
+		STACK=$$PARSED_STACK \
+		STAGE=$$PARSED_STAGE \
+		VERB=$$PARSED_VERB \
+		COMPONENT=$$PARSED_COMPONENT
+
+# Project-based routing (traditional: make subnet-calc <stack> [stage] <verb>)
 subnet-calc:
-	@$(MAKE) --no-print-directory _route PROJECT=subnet-calc STACK=$(word 2,$(MAKECMDGOALS)) VERB=$(word 3,$(MAKECMDGOALS)) COMPONENT=$(word 4,$(MAKECMDGOALS))
+	@$(MAKE) --no-print-directory _parse-args ARG1=subnet-calc ARG2=$(word 2,$(MAKECMDGOALS)) ARG3=$(word 3,$(MAKECMDGOALS)) ARG4=$(word 4,$(MAKECMDGOALS)) ARG5=$(word 5,$(MAKECMDGOALS))
+
+# Verb-based routing (alternative: make <verb> [stage] subnet-calc <stack>)
+# Note: 'test' is excluded as it conflicts with global test target
+.PHONY: init plan apply destroy validate output deploy show get unlock
+init plan apply destroy validate output:
+	@$(MAKE) --no-print-directory _parse-args ARG1=$(firstword $(MAKECMDGOALS)) ARG2=$(word 2,$(MAKECMDGOALS)) ARG3=$(word 3,$(MAKECMDGOALS)) ARG4=$(word 4,$(MAKECMDGOALS)) ARG5=$(word 5,$(MAKECMDGOALS))
+
+deploy show get unlock:
+	@$(MAKE) --no-print-directory _parse-args ARG1=$(firstword $(MAKECMDGOALS)) ARG2=$(word 2,$(MAKECMDGOALS)) ARG3=$(word 3,$(MAKECMDGOALS)) ARG4=$(word 4,$(MAKECMDGOALS)) ARG5=$(word 5,$(MAKECMDGOALS))
 
 # Internal routing target
 .PHONY: _route
@@ -299,7 +362,20 @@ _exec-init: check-env
 
 _exec-plan: check-env
 	@echo -e "$(YELLOW)Planning $(STACK_DIR)...$(NC)"
-	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) plan $(VAR_FILE_ARG)
+	@STAGE_VAR_FILE_ARG=""; \
+	if [ -z "$(VAR_FILE)" ]; then \
+		STAGE_FILE=$$(find $(STACK_DIR)/stages -maxdepth 1 -type f \( -name "$(STAGE)-*.tfvars" -o -name "$(STAGE)_*.tfvars" \) 2>/dev/null | head -n 1); \
+		if [ -n "$$STAGE_FILE" ]; then \
+			echo -e "$(CYAN)Using stage file: $$(basename $$STAGE_FILE)$(NC)"; \
+			STAGE_VAR_FILE_ARG="-var-file=stages/$$(basename $$STAGE_FILE)"; \
+		elif [ "$(STAGE)" != "000" ]; then \
+			echo -e "$(YELLOW)❌ Stage file not found for STAGE=$(STAGE) in $(STACK_DIR)/stages/$(NC)"; \
+			exit 1; \
+		fi; \
+	else \
+		STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
+	fi; \
+	cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) plan $$STAGE_VAR_FILE_ARG
 
 _exec-apply: check-env
 	@echo -e "$(YELLOW)Applying $(STACK_DIR)...$(NC)"
@@ -313,10 +389,23 @@ _exec-apply: check-env
 			break; \
 		fi; \
 	done
-	@if [ "$(AUTO_APPROVE)" = "1" ]; then \
-		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) apply $(VAR_FILE_ARG) -auto-approve; \
+	@STAGE_VAR_FILE_ARG=""; \
+	if [ -z "$(VAR_FILE)" ]; then \
+		STAGE_FILE=$$(find $(STACK_DIR)/stages -maxdepth 1 -type f \( -name "$(STAGE)-*.tfvars" -o -name "$(STAGE)_*.tfvars" \) 2>/dev/null | head -n 1); \
+		if [ -n "$$STAGE_FILE" ]; then \
+			echo -e "$(CYAN)Using stage file: $$(basename $$STAGE_FILE)$(NC)"; \
+			STAGE_VAR_FILE_ARG="-var-file=stages/$$(basename $$STAGE_FILE)"; \
+		elif [ "$(STAGE)" != "000" ]; then \
+			echo -e "$(YELLOW)❌ Stage file not found for STAGE=$(STAGE) in $(STACK_DIR)/stages/$(NC)"; \
+			exit 1; \
+		fi; \
 	else \
-		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) apply $(VAR_FILE_ARG); \
+		STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
+	fi; \
+	if [ "$(AUTO_APPROVE)" = "1" ]; then \
+		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) apply $$STAGE_VAR_FILE_ARG -auto-approve; \
+	else \
+		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) apply $$STAGE_VAR_FILE_ARG; \
 	fi
 
 _exec-destroy: check-env
@@ -331,10 +420,23 @@ _exec-destroy: check-env
 			break; \
 		fi; \
 	done
-	@if [ "$(AUTO_APPROVE)" = "1" ]; then \
-		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) destroy $(VAR_FILE_ARG) -auto-approve; \
+	@STAGE_VAR_FILE_ARG=""; \
+	if [ -z "$(VAR_FILE)" ]; then \
+		STAGE_FILE=$$(find $(STACK_DIR)/stages -maxdepth 1 -type f \( -name "$(STAGE)-*.tfvars" -o -name "$(STAGE)_*.tfvars" \) 2>/dev/null | head -n 1); \
+		if [ -n "$$STAGE_FILE" ]; then \
+			echo -e "$(CYAN)Using stage file: $$(basename $$STAGE_FILE)$(NC)"; \
+			STAGE_VAR_FILE_ARG="-var-file=stages/$$(basename $$STAGE_FILE)"; \
+		elif [ "$(STAGE)" != "000" ]; then \
+			echo -e "$(YELLOW)❌ Stage file not found for STAGE=$(STAGE) in $(STACK_DIR)/stages/$(NC)"; \
+			exit 1; \
+		fi; \
 	else \
-		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) destroy $(VAR_FILE_ARG); \
+		STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
+	fi; \
+	if [ "$(AUTO_APPROVE)" = "1" ]; then \
+		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) destroy $$STAGE_VAR_FILE_ARG -auto-approve; \
+	else \
+		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) destroy $$STAGE_VAR_FILE_ARG; \
 	fi
 
 _exec-validate: check-env

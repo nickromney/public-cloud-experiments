@@ -63,7 +63,7 @@ resource "azurerm_linux_web_app" "this" {
         for_each = try(each.value.easy_auth.client_id, null) != null ? [1] : []
         content {
           client_id            = each.value.easy_auth.client_id
-          tenant_auth_endpoint = try(each.value.easy_auth.tenant_auth_endpoint, "https://login.microsoftonline.com/${each.value.easy_auth.tenant_id}/v2.0")
+          tenant_auth_endpoint = coalesce(each.value.easy_auth.tenant_auth_endpoint, "https://login.microsoftonline.com/${each.value.easy_auth.tenant_id}/v2.0")
           allowed_audiences    = try(each.value.easy_auth.allowed_audiences, [])
         }
       }
