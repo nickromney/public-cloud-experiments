@@ -42,6 +42,27 @@ VAR_FILE ?=
 STAGE ?= 000
 STAGE_DEFAULT := 000
 
+# Valid verbs for argument parsing
+VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock
+
+# Shell function to find stage file
+# Usage: $(call find_stage_file,STAGE,STACK_DIR)
+define find_stage_file
+	if [ -z "$(VAR_FILE)" ]; then \
+		STAGE_FILE=$$(find $(2)/stages -maxdepth 1 -type f \( -name "$(1)-*.tfvars" -o -name "$(1)_*.tfvars" \) 2>/dev/null | head -n 1); \
+		if [ -n "$$STAGE_FILE" ]; then \
+			STAGE_BASENAME=$$(basename "$$STAGE_FILE"); \
+			echo -e "$(CYAN)Using stage file: $$STAGE_BASENAME$(NC)"; \
+			STAGE_VAR_FILE_ARG="-var-file=$$STAGE_FILE"; \
+		elif [ "$(1)" != "000" ]; then \
+			echo -e "$(YELLOW)⚠️  Stage file not found: $(1)-*.tfvars or $(1)_*.tfvars$(NC)"; \
+			echo -e "$(YELLOW)Available stages:$(NC)"; \
+			ls $(2)/stages/*.tfvars 2>/dev/null | xargs -n1 basename || echo "  (none)"; \
+			exit 1; \
+		fi; \
+	fi
+endef
+
 # VAR_FILE_ARG will be constructed dynamically based on STAGE and VAR_FILE
 # Priority: VAR_FILE (explicit) > STAGE file (found) > none
 VAR_FILE_ARG := $(if $(strip $(VAR_FILE)),-var-file="$(VAR_FILE)",)
@@ -285,12 +306,11 @@ _parse-args:
 	PARSED_STAGE="$(STAGE_DEFAULT)"; \
 	PARSED_VERB=""; \
 	PARSED_COMPONENT=""; \
-	VALID_VERBS="init plan apply destroy validate output deploy test show get clean unlock"; \
 	for arg in "$(ARG1)" "$(ARG2)" "$(ARG3)" "$(ARG4)" "$(ARG5)"; do \
 		if [ -z "$$arg" ]; then continue; fi; \
 		if echo "$$arg" | grep -qE '^[0-9]{3}$$'; then \
 			PARSED_STAGE=$$arg; \
-		elif echo " $$VALID_VERBS " | grep -q " $$arg "; then \
+		elif echo " $(VALID_VERBS) " | grep -q " $$arg "; then \
 			if [ -z "$$PARSED_VERB" ]; then \
 				PARSED_VERB=$$arg; \
 			else \
@@ -345,8 +365,7 @@ _route:
 		echo -e "  subnet-calc/static-web-apps"; \
 		exit 1; \
 	fi; \
-	VALID_VERBS="init plan apply destroy validate output deploy test show get clean unlock"; \
-	echo -e "$$VALID_VERBS" | grep -qw "$(VERB)" || { \
+	echo -e "$(VALID_VERBS)" | grep -qw "$(VERB)" || { \
 		echo -e "$(YELLOW)❌ Unknown verb: $(VERB)$(NC)"; \
 		echo -e "Run 'make help' for available verbs"; \
 		exit 1; \
@@ -362,19 +381,8 @@ _exec-init: check-env
 
 _exec-plan: check-env
 	@echo -e "$(YELLOW)Planning $(STACK_DIR)...$(NC)"
-	@STAGE_VAR_FILE_ARG=""; \
-	if [ -z "$(VAR_FILE)" ]; then \
-		STAGE_FILE=$$(find $(STACK_DIR)/stages -maxdepth 1 -type f \( -name "$(STAGE)-*.tfvars" -o -name "$(STAGE)_*.tfvars" \) 2>/dev/null | head -n 1); \
-		if [ -n "$$STAGE_FILE" ]; then \
-			echo -e "$(CYAN)Using stage file: $$(basename $$STAGE_FILE)$(NC)"; \
-			STAGE_VAR_FILE_ARG="-var-file=stages/$$(basename $$STAGE_FILE)"; \
-		elif [ "$(STAGE)" != "000" ]; then \
-			echo -e "$(YELLOW)❌ Stage file not found for STAGE=$(STAGE) in $(STACK_DIR)/stages/$(NC)"; \
-			exit 1; \
-		fi; \
-	else \
-		STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
-	fi; \
+	@$(call find_stage_file,$(STAGE),$(STACK_DIR)); \
+	[ -z "$(VAR_FILE)" ] || STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
 	cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) plan $$STAGE_VAR_FILE_ARG
 
 _exec-apply: check-env
@@ -390,18 +398,8 @@ _exec-apply: check-env
 		fi; \
 	done
 	@STAGE_VAR_FILE_ARG=""; \
-	if [ -z "$(VAR_FILE)" ]; then \
-		STAGE_FILE=$$(find $(STACK_DIR)/stages -maxdepth 1 -type f \( -name "$(STAGE)-*.tfvars" -o -name "$(STAGE)_*.tfvars" \) 2>/dev/null | head -n 1); \
-		if [ -n "$$STAGE_FILE" ]; then \
-			echo -e "$(CYAN)Using stage file: $$(basename $$STAGE_FILE)$(NC)"; \
-			STAGE_VAR_FILE_ARG="-var-file=stages/$$(basename $$STAGE_FILE)"; \
-		elif [ "$(STAGE)" != "000" ]; then \
-			echo -e "$(YELLOW)❌ Stage file not found for STAGE=$(STAGE) in $(STACK_DIR)/stages/$(NC)"; \
-			exit 1; \
-		fi; \
-	else \
-		STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
-	fi; \
+	$(call find_stage_file,$(STAGE),$(STACK_DIR)); \
+	[ -z "$(VAR_FILE)" ] || STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
 	if [ "$(AUTO_APPROVE)" = "1" ]; then \
 		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) apply $$STAGE_VAR_FILE_ARG -auto-approve; \
 	else \
@@ -421,23 +419,9 @@ _exec-destroy: check-env
 		fi; \
 	done
 	@STAGE_VAR_FILE_ARG=""; \
-	if [ -z "$(VAR_FILE)" ]; then \
-		STAGE_FILE=$$(find $(STACK_DIR)/stages -maxdepth 1 -type f \( -name "$(STAGE)-*.tfvars" -o -name "$(STAGE)_*.tfvars" \) 2>/dev/null | head -n 1); \
-		if [ -n "$$STAGE_FILE" ]; then \
-			echo -e "$(CYAN)Using stage file: $$(basename $$STAGE_FILE)$(NC)"; \
-			STAGE_VAR_FILE_ARG="-var-file=stages/$$(basename $$STAGE_FILE)"; \
-		elif [ "$(STAGE)" != "000" ]; then \
-			echo -e "$(YELLOW)❌ Stage file not found for STAGE=$(STAGE) in $(STACK_DIR)/stages/$(NC)"; \
-			exit 1; \
-		fi; \
-	else \
-		STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
-	fi; \
-	if [ "$(AUTO_APPROVE)" = "1" ]; then \
-		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) destroy $$STAGE_VAR_FILE_ARG -auto-approve; \
-	else \
-		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) destroy $$STAGE_VAR_FILE_ARG; \
-	fi
+	$(call find_stage_file,$(STAGE),$(STACK_DIR)); \
+	[ -z "$(VAR_FILE)" ] || STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
+	cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) destroy $$STAGE_VAR_FILE_ARG
 
 _exec-validate: check-env
 	@echo -e "$(YELLOW)Validating $(STACK_DIR)...$(NC)"

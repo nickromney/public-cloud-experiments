@@ -114,12 +114,9 @@ resource "azurerm_application_insights" "this" {
   name                = each.value.name
   resource_group_name = data.azurerm_resource_group.main.name
   location            = data.azurerm_resource_group.main.location
-  workspace_id = try(
-    each.value.log_analytics_key != null ? azurerm_log_analytics_workspace.this[each.value.log_analytics_key].id : var.shared_log_analytics_workspace_id,
-    var.shared_log_analytics_workspace_id
-  )
-  application_type = try(each.value.application_type, "web")
-  tags             = merge(local.common_tags, try(each.value.tags, {}))
+  workspace_id        = each.value.log_analytics_key != null ? azurerm_log_analytics_workspace.this[each.value.log_analytics_key].id : var.shared_log_analytics_workspace_id
+  application_type    = try(each.value.application_type, "web")
+  tags                = merge(local.common_tags, try(each.value.tags, {}))
 }
 
 # -----------------------------------------------------------------------------
