@@ -53,88 +53,88 @@ APPGW_DESTROY_TIME := 5
 .PHONY: help
 
 help:
-	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(CYAN)  Terragrunt Multi-Stack Management$(NC)"
-	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo ""
-	@echo "$(YELLOW)Usage:$(NC)"
-	@echo "  make <project> <stack> <verb> [component] [AUTO_APPROVE=1]"
-	@echo ""
-	@echo "$(YELLOW)Available Stacks:$(NC)"
-	@echo "  subnet-calc shared-components       Shared Log Analytics Workspace + Key Vault"
-	@echo "  subnet-calc react-webapp            Direct JWT authentication"
-	@echo "  subnet-calc react-webapp-easyauth   Easy Auth with managed identity (no secrets)"
-	@echo "  subnet-calc react-easyauth-e2e      Easy Auth E2E (frontend + backend, no JWT)"
-	@echo "  subnet-calc react-apim              Public APIM with subscription keys"
-	@echo "  subnet-calc internal-apim           Internal APIM with VNet integration"
-	@echo "  subnet-calc static-web-apps         Import-only stack for existing SWAs"
-	@echo ""
-	@echo "$(YELLOW)Infrastructure Verbs:$(NC)"
-	@echo "  init                          Initialize Terragrunt"
-	@echo "  plan                          Show execution plan"
-	@echo "  apply                         Apply infrastructure changes"
-	@echo "  destroy                       Destroy all resources"
-	@echo "  validate                      Validate Terraform configuration"
-	@echo "  output                        Show Terragrunt outputs"
-	@echo ""
-	@echo "$(YELLOW)Deployment Verbs:$(NC)"
-	@echo "  deploy function-app           Build and deploy Function App"
-	@echo "  deploy frontend               Build and deploy React frontend"
-	@echo "  deploy all                    Deploy both function and frontend"
-	@echo ""
-	@echo "$(YELLOW)Testing Verbs:$(NC)"
-	@echo "  test apim                     Test API via APIM gateway"
-	@echo "  test direct                   Test direct Function App access"
-	@echo "  test endpoints                Test all endpoints"
-	@echo "  test all                      Run all tests"
-	@echo ""
-	@echo "$(YELLOW)Utility Verbs:$(NC)"
-	@echo "  show resources                Show deployed resource names/URLs"
-	@echo "  get subscription-key          Display APIM subscription key"
-	@echo "  clean                         Remove Terragrunt cache"
-	@echo "  unlock <lock-id>              Force unlock Terraform state"
-	@echo ""
-	@echo "$(YELLOW)Examples:$(NC)"
-	@echo "  make subnet-calc react-webapp-easyauth plan"
-	@echo "  make subnet-calc react-webapp-easyauth apply"
-	@echo "  make subnet-calc react-webapp-easyauth apply AUTO_APPROVE=1"
-	@echo "  make subnet-calc react-webapp-easyauth deploy function-app"
-	@echo "  make subnet-calc react-webapp-easyauth deploy frontend"
-	@echo "  make subnet-calc react-easyauth-e2e apply AUTO_APPROVE=1"
-	@echo "  make subnet-calc react-easyauth-e2e deploy all"
-	@echo "  make subnet-calc react-apim plan"
-	@echo "  make subnet-calc react-apim deploy all"
-	@echo "  make subnet-calc react-apim plan VAR_FILE=stages/200-create-observability.tfvars"
-	@echo "  make subnet-calc react-apim apply VAR_FILE=stages/300-byo-platform.tfvars TG_ARGS=--terragrunt-non-interactive AUTO_APPROVE=1"
-	@echo ""
-	@echo "$(YELLOW)Options:$(NC)"
-	@echo "  AUTO_APPROVE=1                Skip confirmation prompts for apply/destroy"
-	@echo "  VAR_FILE=path/to.tfvars       Pass an extra -var-file to plan/apply/destroy"
-	@echo "  TG_ARGS=\"--terragrunt-*\"     Extra Terragrunt CLI flags (applied to every command)"
-	@echo ""
-	@echo "$(YELLOW)Global Commands:$(NC)"
-	@echo "  make check-env                Check required environment variables"
-	@echo "  make setup                    Configure Azure backend"
-	@echo "  make validate-all             Validate all stacks"
-	@echo "  make clean-all                Clean all stack caches"
-	@echo "  make fmt                      Format all Terraform files"
-	@echo "  make lint                     Run tflint on all stacks"
-	@echo "  make test                     Run Terraform tests (.tftest.hcl)"
-	@echo "  make secure-app-plan          Plan secure-app/dev/uksouth stack"
-	@echo "  make secure-app-apply         Apply secure-app/dev/uksouth stack"
-	@echo "  make secure-app-destroy       Destroy secure-app/dev/uksouth stack"
-	@echo ""
-	@echo "$(YELLOW)Environment Variables (Required):$(NC)"
-	@echo "  ARM_SUBSCRIPTION_ID           Azure subscription ID"
-	@echo "  ARM_TENANT_ID                 Azure tenant ID"
-	@echo "  TF_BACKEND_RG                 Backend resource group name"
-	@echo "  TF_BACKEND_SA                 Backend storage account name"
-	@echo "  TF_BACKEND_CONTAINER          Backend container name"
-	@echo ""
-	@echo "$(YELLOW)Environment Variables (Optional):$(NC)"
-	@echo "  ARM_CLIENT_ID                 Service principal app ID (if not using az login)"
-	@echo "  ARM_CLIENT_SECRET             Service principal secret (if not using az login)"
-	@echo ""
+	@echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo -e "$(CYAN)  Terragrunt Multi-Stack Management$(NC)"
+	@echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo -e ""
+	@echo -e "$(YELLOW)Usage:$(NC)"
+	@echo -e "  make <project> <stack> <verb> [component] [AUTO_APPROVE=1]"
+	@echo -e ""
+	@echo -e "$(YELLOW)Available Stacks:$(NC)"
+	@echo -e "  subnet-calc shared-components       Shared Log Analytics Workspace + Key Vault"
+	@echo -e "  subnet-calc react-webapp            Direct JWT authentication"
+	@echo -e "  subnet-calc react-webapp-easyauth   Easy Auth with managed identity (no secrets)"
+	@echo -e "  subnet-calc react-easyauth-e2e      Easy Auth E2E (frontend + backend, no JWT)"
+	@echo -e "  subnet-calc react-apim              Public APIM with subscription keys"
+	@echo -e "  subnet-calc internal-apim           Internal APIM with VNet integration"
+	@echo -e "  subnet-calc static-web-apps         Import-only stack for existing SWAs"
+	@echo -e ""
+	@echo -e "$(YELLOW)Infrastructure Verbs:$(NC)"
+	@echo -e "  init                          Initialize Terragrunt"
+	@echo -e "  plan                          Show execution plan"
+	@echo -e "  apply                         Apply infrastructure changes"
+	@echo -e "  destroy                       Destroy all resources"
+	@echo -e "  validate                      Validate Terraform configuration"
+	@echo -e "  output                        Show Terragrunt outputs"
+	@echo -e ""
+	@echo -e "$(YELLOW)Deployment Verbs:$(NC)"
+	@echo -e "  deploy function-app           Build and deploy Function App"
+	@echo -e "  deploy frontend               Build and deploy React frontend"
+	@echo -e "  deploy all                    Deploy both function and frontend"
+	@echo -e ""
+	@echo -e "$(YELLOW)Testing Verbs:$(NC)"
+	@echo -e "  test apim                     Test API via APIM gateway"
+	@echo -e "  test direct                   Test direct Function App access"
+	@echo -e "  test endpoints                Test all endpoints"
+	@echo -e "  test all                      Run all tests"
+	@echo -e ""
+	@echo -e "$(YELLOW)Utility Verbs:$(NC)"
+	@echo -e "  show resources                Show deployed resource names/URLs"
+	@echo -e "  get subscription-key          Display APIM subscription key"
+	@echo -e "  clean                         Remove Terragrunt cache"
+	@echo -e "  unlock <lock-id>              Force unlock Terraform state"
+	@echo -e ""
+	@echo -e "$(YELLOW)Examples:$(NC)"
+	@echo -e "  make subnet-calc react-webapp-easyauth plan"
+	@echo -e "  make subnet-calc react-webapp-easyauth apply"
+	@echo -e "  make subnet-calc react-webapp-easyauth apply AUTO_APPROVE=1"
+	@echo -e "  make subnet-calc react-webapp-easyauth deploy function-app"
+	@echo -e "  make subnet-calc react-webapp-easyauth deploy frontend"
+	@echo -e "  make subnet-calc react-easyauth-e2e apply AUTO_APPROVE=1"
+	@echo -e "  make subnet-calc react-easyauth-e2e deploy all"
+	@echo -e "  make subnet-calc react-apim plan"
+	@echo -e "  make subnet-calc react-apim deploy all"
+	@echo -e "  make subnet-calc react-apim plan VAR_FILE=stages/200-create-observability.tfvars"
+	@echo -e "  make subnet-calc react-apim apply VAR_FILE=stages/300-byo-platform.tfvars TG_ARGS=--terragrunt-non-interactive AUTO_APPROVE=1"
+	@echo -e ""
+	@echo -e "$(YELLOW)Options:$(NC)"
+	@echo -e "  AUTO_APPROVE=1                Skip confirmation prompts for apply/destroy"
+	@echo -e "  VAR_FILE=path/to.tfvars       Pass an extra -var-file to plan/apply/destroy"
+	@echo -e "  TG_ARGS=\"--terragrunt-*\"     Extra Terragrunt CLI flags (applied to every command)"
+	@echo -e ""
+	@echo -e "$(YELLOW)Global Commands:$(NC)"
+	@echo -e "  make check-env                Check required environment variables"
+	@echo -e "  make setup                    Configure Azure backend"
+	@echo -e "  make validate-all             Validate all stacks"
+	@echo -e "  make clean-all                Clean all stack caches"
+	@echo -e "  make fmt                      Format all Terraform files"
+	@echo -e "  make lint                     Run tflint on all stacks"
+	@echo -e "  make test                     Run Terraform tests (.tftest.hcl)"
+	@echo -e "  make secure-app-plan          Plan secure-app/dev/uksouth stack"
+	@echo -e "  make secure-app-apply         Apply secure-app/dev/uksouth stack"
+	@echo -e "  make secure-app-destroy       Destroy secure-app/dev/uksouth stack"
+	@echo -e ""
+	@echo -e "$(YELLOW)Environment Variables (Required):$(NC)"
+	@echo -e "  ARM_SUBSCRIPTION_ID           Azure subscription ID"
+	@echo -e "  ARM_TENANT_ID                 Azure tenant ID"
+	@echo -e "  TF_BACKEND_RG                 Backend resource group name"
+	@echo -e "  TF_BACKEND_SA                 Backend storage account name"
+	@echo -e "  TF_BACKEND_CONTAINER          Backend container name"
+	@echo -e ""
+	@echo -e "$(YELLOW)Environment Variables (Optional):$(NC)"
+	@echo -e "  ARM_CLIENT_ID                 Service principal app ID (if not using az login)"
+	@echo -e "  ARM_CLIENT_SECRET             Service principal secret (if not using az login)"
+	@echo -e ""
 
 # Check required environment variables
 .PHONY: check-env
@@ -146,28 +146,28 @@ check-env:
 		fi; \
 	done; \
 	if [ -n "$$missing_vars" ]; then \
-		echo "$(YELLOW)❌ Missing required environment variables:$$missing_vars$(NC)"; \
-		echo ""; \
-		echo "$(CYAN)Run the following to set up your environment:$(NC)"; \
-		echo "  source ./setup-env.sh"; \
-		echo ""; \
-		echo "$(CYAN)Or export manually (Bash):$(NC)"; \
-		echo "  export ARM_SUBSCRIPTION_ID=<your-subscription-id>"; \
-		echo "  export ARM_TENANT_ID=<your-tenant-id>"; \
-		echo "  export TF_BACKEND_RG=<backend-resource-group>"; \
-		echo "  export TF_BACKEND_SA=<backend-storage-account>"; \
-		echo "  export TF_BACKEND_CONTAINER=<backend-container-name>"; \
-		echo ""; \
-		echo "$(CYAN)Or in Nushell:$(NC)"; \
-		echo "  \$$env.ARM_SUBSCRIPTION_ID = \"<your-subscription-id>\""; \
-		echo "  \$$env.ARM_TENANT_ID = \"<your-tenant-id>\""; \
-		echo "  \$$env.TF_BACKEND_RG = \"<backend-resource-group>\""; \
-		echo "  \$$env.TF_BACKEND_SA = \"<backend-storage-account>\""; \
-		echo "  \$$env.TF_BACKEND_CONTAINER = \"<backend-container-name>\""; \
-		echo ""; \
-		echo "$(YELLOW)Note:$(NC) This assumes you're using Azure CLI authentication (az login)."; \
-		echo "If using service principal auth, also set ARM_CLIENT_ID and ARM_CLIENT_SECRET."; \
-		echo ""; \
+		echo -e "$(YELLOW)❌ Missing required environment variables:$$missing_vars$(NC)"; \
+		echo -e ""; \
+		echo -e "$(CYAN)Run the following to set up your environment:$(NC)"; \
+		echo -e "  source ./setup-env.sh"; \
+		echo -e ""; \
+		echo -e "$(CYAN)Or export manually (Bash):$(NC)"; \
+		echo -e "  export ARM_SUBSCRIPTION_ID=<your-subscription-id>"; \
+		echo -e "  export ARM_TENANT_ID=<your-tenant-id>"; \
+		echo -e "  export TF_BACKEND_RG=<backend-resource-group>"; \
+		echo -e "  export TF_BACKEND_SA=<backend-storage-account>"; \
+		echo -e "  export TF_BACKEND_CONTAINER=<backend-container-name>"; \
+		echo -e ""; \
+		echo -e "$(CYAN)Or in Nushell:$(NC)"; \
+		echo -e "  \$$env.ARM_SUBSCRIPTION_ID = \"<your-subscription-id>\""; \
+		echo -e "  \$$env.ARM_TENANT_ID = \"<your-tenant-id>\""; \
+		echo -e "  \$$env.TF_BACKEND_RG = \"<backend-resource-group>\""; \
+		echo -e "  \$$env.TF_BACKEND_SA = \"<backend-storage-account>\""; \
+		echo -e "  \$$env.TF_BACKEND_CONTAINER = \"<backend-container-name>\""; \
+		echo -e ""; \
+		echo -e "$(YELLOW)Note:$(NC) This assumes you're using Azure CLI authentication (az login)."; \
+		echo -e "If using service principal auth, also set ARM_CLIENT_ID and ARM_CLIENT_SECRET."; \
+		echo -e ""; \
 		exit 1; \
 	fi
 
@@ -179,53 +179,53 @@ setup:
 # Global validation
 .PHONY: validate-all
 validate-all:
-	@echo "$(YELLOW)Validating all stacks...$(NC)"
+	@echo -e "$(YELLOW)Validating all stacks...$(NC)"
 	@for dir in $$(find ps-az-sbx personal-sub -name "terragrunt.hcl" -exec dirname {} \;); do \
-		echo "  → Validating $$dir"; \
+		echo -e "  → Validating $$dir"; \
 		(cd $$dir && terragrunt init -upgrade && terragrunt validate) || exit 1; \
 	done
-	@echo "$(GREEN)✓ All configurations valid$(NC)"
+	@echo -e "$(GREEN)✓ All configurations valid$(NC)"
 
 # Global clean
 .PHONY: clean-all
 clean-all:
-	@echo "$(YELLOW)Cleaning all stacks...$(NC)"
+	@echo -e "$(YELLOW)Cleaning all stacks...$(NC)"
 	@for dir in $$(find ps-az-sbx personal-sub -name "terragrunt.hcl" -exec dirname {} \;); do \
-		echo "  → Cleaning $$dir"; \
+		echo -e "  → Cleaning $$dir"; \
 		(cd $$dir && rm -rf .terraform .terragrunt-cache); \
 	done
-	@echo "$(GREEN)✓ All cleaned$(NC)"
+	@echo -e "$(GREEN)✓ All cleaned$(NC)"
 
 # Global formatting
 .PHONY: fmt format
 fmt format:
 	@if [ -z "$(FMT_TOOL)" ]; then \
-		echo "$(YELLOW)❌ Neither OpenTofu nor Terraform is installed$(NC)"; \
+		echo -e "$(YELLOW)❌ Neither OpenTofu nor Terraform is installed$(NC)"; \
 		exit 1; \
 	fi
-	@echo "$(YELLOW)Formatting all Terraform files...$(NC)"
+	@echo -e "$(YELLOW)Formatting all Terraform files...$(NC)"
 	@$(FMT_TOOL) fmt -recursive .
-	@echo "$(GREEN)✓ Formatting complete$(NC)"
+	@echo -e "$(GREEN)✓ Formatting complete$(NC)"
 
 # Global linting
 .PHONY: lint
 lint:
 	@if [ -z "$(TFLINT)" ]; then \
-		echo "$(YELLOW)❌ tflint is not installed. Run: brew install tflint$(NC)"; \
+		echo -e "$(YELLOW)❌ tflint is not installed. Run: brew install tflint$(NC)"; \
 		exit 1; \
 	fi
-	@echo "$(YELLOW)Running tflint on all stacks...$(NC)"
+	@echo -e "$(YELLOW)Running tflint on all stacks...$(NC)"
 	@failed=0; \
 	for dir in modules/* personal-sub/subnet-calc-* cloudflare-publiccloudexperiments/*; do \
 		if [ -d "$$dir" ] && [ -f "$$dir/main.tf" -o -f "$$dir/versions.tf" ]; then \
-			echo "  → Linting $$dir"; \
+			echo -e "  → Linting $$dir"; \
 			(cd $$dir && tflint --init > /dev/null 2>&1 && tflint) || failed=1; \
 		fi; \
 	done; \
 	if [ $$failed -eq 0 ]; then \
-		echo "$(GREEN)✓ All linting checks passed$(NC)"; \
+		echo -e "$(GREEN)✓ All linting checks passed$(NC)"; \
 	else \
-		echo "$(YELLOW)❌ Some linting checks failed$(NC)"; \
+		echo -e "$(YELLOW)❌ Some linting checks failed$(NC)"; \
 		exit 1; \
 	fi
 
@@ -233,24 +233,24 @@ lint:
 .PHONY: test
 test:
 	@if [ -z "$(FMT_TOOL)" ]; then \
-		echo "$(YELLOW)❌ Neither OpenTofu nor Terraform is installed$(NC)"; \
+		echo -e "$(YELLOW)❌ Neither OpenTofu nor Terraform is installed$(NC)"; \
 		exit 1; \
 	fi
-	@echo "$(YELLOW)Running Terraform tests on all stacks...$(NC)"
+	@echo -e "$(YELLOW)Running Terraform tests on all stacks...$(NC)"
 	@failed=0; \
 	for dir in personal-sub/subnet-calc-* modules/*; do \
 		if [ -d "$$dir" ] && ls $$dir/*.tftest.hcl > /dev/null 2>&1; then \
-			echo "  → Testing $$dir"; \
+			echo -e "  → Testing $$dir"; \
 			(cd $$dir && $(FMT_TOOL) init > /dev/null 2>&1 && $(FMT_TOOL) test) || failed=1; \
 		fi; \
 	done; \
 	test_count=$$(find personal-sub/subnet-calc-* modules -name "*.tftest.hcl" 2>/dev/null | wc -l | tr -d ' '); \
 	if [ "$$test_count" -eq 0 ]; then \
-		echo "$(YELLOW)⚠️  No .tftest.hcl files found$(NC)"; \
+		echo -e "$(YELLOW)⚠️  No .tftest.hcl files found$(NC)"; \
 	elif [ $$failed -eq 0 ]; then \
-		echo "$(GREEN)✓ All Terraform tests passed$(NC)"; \
+		echo -e "$(GREEN)✓ All Terraform tests passed$(NC)"; \
 	else \
-		echo "$(YELLOW)❌ Some Terraform tests failed$(NC)"; \
+		echo -e "$(YELLOW)❌ Some Terraform tests failed$(NC)"; \
 		exit 1; \
 	fi
 
@@ -265,27 +265,27 @@ subnet-calc:
 .PHONY: _route
 _route:
 	@if [ -z "$(STACK)" ] || [ -z "$(VERB)" ]; then \
-		echo "$(YELLOW)Usage: make $(PROJECT) <stack> <verb> [component]$(NC)"; \
-		echo "Run 'make help' for details"; \
+		echo -e "$(YELLOW)Usage: make $(PROJECT) <stack> <verb> [component]$(NC)"; \
+		echo -e "Run 'make help' for details"; \
 		exit 1; \
 	fi
 	@STACK_DIR=$$(echo '$(call get-stack-dir,$(PROJECT),$(STACK))'); \
 	if [ -z "$$STACK_DIR" ]; then \
-		echo "$(YELLOW)❌ Unknown stack: $(PROJECT)/$(STACK)$(NC)"; \
-		echo "Available stacks:"; \
-		echo "  subnet-calc/shared-components"; \
-		echo "  subnet-calc/react-webapp"; \
-		echo "  subnet-calc/react-webapp-easyauth"; \
-		echo "  subnet-calc/react-easyauth-e2e"; \
-		echo "  subnet-calc/react-apim"; \
-		echo "  subnet-calc/internal-apim"; \
-		echo "  subnet-calc/static-web-apps"; \
+		echo -e "$(YELLOW)❌ Unknown stack: $(PROJECT)/$(STACK)$(NC)"; \
+		echo -e "Available stacks:"; \
+		echo -e "  subnet-calc/shared-components"; \
+		echo -e "  subnet-calc/react-webapp"; \
+		echo -e "  subnet-calc/react-webapp-easyauth"; \
+		echo -e "  subnet-calc/react-easyauth-e2e"; \
+		echo -e "  subnet-calc/react-apim"; \
+		echo -e "  subnet-calc/internal-apim"; \
+		echo -e "  subnet-calc/static-web-apps"; \
 		exit 1; \
 	fi; \
 	VALID_VERBS="init plan apply destroy validate output deploy test show get clean unlock"; \
-	echo "$$VALID_VERBS" | grep -qw "$(VERB)" || { \
-		echo "$(YELLOW)❌ Unknown verb: $(VERB)$(NC)"; \
-		echo "Run 'make help' for available verbs"; \
+	echo -e "$$VALID_VERBS" | grep -qw "$(VERB)" || { \
+		echo -e "$(YELLOW)❌ Unknown verb: $(VERB)$(NC)"; \
+		echo -e "Run 'make help' for available verbs"; \
 		exit 1; \
 	}; \
 	$(MAKE) --no-print-directory _exec-$(VERB) STACK_DIR=$$STACK_DIR COMPONENT=$(COMPONENT)
@@ -294,21 +294,21 @@ _route:
 .PHONY: _exec-init _exec-plan _exec-apply _exec-destroy _exec-validate _exec-output
 
 _exec-init: check-env
-	@echo "$(YELLOW)Initializing $(STACK_DIR)...$(NC)"
+	@echo -e "$(YELLOW)Initializing $(STACK_DIR)...$(NC)"
 	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade
 
 _exec-plan: check-env
-	@echo "$(YELLOW)Planning $(STACK_DIR)...$(NC)"
+	@echo -e "$(YELLOW)Planning $(STACK_DIR)...$(NC)"
 	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) plan $(VAR_FILE_ARG)
 
 _exec-apply: check-env
-	@echo "$(YELLOW)Applying $(STACK_DIR)...$(NC)"
+	@echo -e "$(YELLOW)Applying $(STACK_DIR)...$(NC)"
 	@for resource in $(SLOW_PROVISION_RESOURCES); do \
 		if echo "$(STACK_DIR)" | grep -q "$$resource"; then \
 			case "$$resource" in \
-				apim) echo "$(YELLOW)⏱️  Note: APIM provisioning takes ~$(APIM_PROVISION_TIME) minutes on first deployment$(NC)" ;; \
-				aks) echo "$(YELLOW)⏱️  Note: AKS provisioning takes ~$(AKS_PROVISION_TIME) minutes$(NC)" ;; \
-				appgw|application-gateway) echo "$(YELLOW)⏱️  Note: Application Gateway provisioning takes ~$(APPGW_PROVISION_TIME) minutes$(NC)" ;; \
+				apim) echo -e "$(YELLOW)⏱️  Note: APIM provisioning takes ~$(APIM_PROVISION_TIME) minutes on first deployment$(NC)" ;; \
+				aks) echo -e "$(YELLOW)⏱️  Note: AKS provisioning takes ~$(AKS_PROVISION_TIME) minutes$(NC)" ;; \
+				appgw|application-gateway) echo -e "$(YELLOW)⏱️  Note: Application Gateway provisioning takes ~$(APPGW_PROVISION_TIME) minutes$(NC)" ;; \
 			esac; \
 			break; \
 		fi; \
@@ -320,13 +320,13 @@ _exec-apply: check-env
 	fi
 
 _exec-destroy: check-env
-	@echo "$(YELLOW)⚠️  WARNING: Destroying $(STACK_DIR)$(NC)"
+	@echo -e "$(YELLOW)⚠️  WARNING: Destroying $(STACK_DIR)$(NC)"
 	@for resource in $(SLOW_PROVISION_RESOURCES); do \
 		if echo "$(STACK_DIR)" | grep -q "$$resource"; then \
 			case "$$resource" in \
-				apim) echo "$(YELLOW)⏱️  Note: APIM deletion takes ~$(APIM_DESTROY_TIME) minutes$(NC)" ;; \
-				aks) echo "$(YELLOW)⏱️  Note: AKS deletion takes ~$(AKS_DESTROY_TIME) minutes$(NC)" ;; \
-				appgw|application-gateway) echo "$(YELLOW)⏱️  Note: Application Gateway deletion takes ~$(APPGW_DESTROY_TIME) minutes$(NC)" ;; \
+				apim) echo -e "$(YELLOW)⏱️  Note: APIM deletion takes ~$(APIM_DESTROY_TIME) minutes$(NC)" ;; \
+				aks) echo -e "$(YELLOW)⏱️  Note: AKS deletion takes ~$(AKS_DESTROY_TIME) minutes$(NC)" ;; \
+				appgw|application-gateway) echo -e "$(YELLOW)⏱️  Note: Application Gateway deletion takes ~$(APPGW_DESTROY_TIME) minutes$(NC)" ;; \
 			esac; \
 			break; \
 		fi; \
@@ -338,7 +338,7 @@ _exec-destroy: check-env
 	fi
 
 _exec-validate: check-env
-	@echo "$(YELLOW)Validating $(STACK_DIR)...$(NC)"
+	@echo -e "$(YELLOW)Validating $(STACK_DIR)...$(NC)"
 	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) validate
 
 _exec-output: check-env
@@ -356,21 +356,21 @@ _exec-deploy:
 		$(MAKE) --no-print-directory _deploy-function STACK_DIR=$(STACK_DIR); \
 		$(MAKE) --no-print-directory _deploy-frontend STACK_DIR=$(STACK_DIR); \
 	else \
-		echo "$(YELLOW)Usage: make $(PROJECT) $(STACK) deploy <function-app|frontend|all>$(NC)"; \
+		echo -e "$(YELLOW)Usage: make $(PROJECT) $(STACK) deploy <function-app|frontend|all>$(NC)"; \
 		exit 1; \
 	fi
 
 .PHONY: _deploy-function
 _deploy-function: check-env
-	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(CYAN)  Deploying Function App$(NC)"
-	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo -e "$(CYAN)  Deploying Function App$(NC)"
+	@echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
 	@FUNCTION_APP_NAME=$$(cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) output -raw function_app_name 2>/dev/null); \
 	if [ -z "$$FUNCTION_APP_NAME" ]; then \
-		echo "$(YELLOW)❌ FUNCTION_APP_NAME not found. Run 'make $(PROJECT) $(STACK) apply' first.$(NC)"; \
+		echo -e "$(YELLOW)❌ FUNCTION_APP_NAME not found. Run 'make $(PROJECT) $(STACK) apply' first.$(NC)"; \
 		exit 1; \
 	fi && \
-	echo "Function App: $$FUNCTION_APP_NAME" && \
+	echo -e "Function App: $$FUNCTION_APP_NAME" && \
 	$(SCRIPTS_DIR)/build-function-zip.sh $(ROOT_DIR)function-app.zip && \
 	$(AZ) functionapp deployment source config-zip \
 		--resource-group $(RESOURCE_GROUP) \
@@ -379,21 +379,21 @@ _deploy-function: check-env
 		--build-remote true \
 		--timeout 600 && \
 	rm -f $(ROOT_DIR)function-app.zip && \
-	echo "$(GREEN)✅ Function App deployed successfully$(NC)"
+	echo -e "$(GREEN)✅ Function App deployed successfully$(NC)"
 
 .PHONY: _deploy-frontend
 _deploy-frontend: check-env
-	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(CYAN)  Deploying React Frontend$(NC)"
-	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo -e "$(CYAN)  Deploying React Frontend$(NC)"
+	@echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
 	@WEB_APP_NAME=$$(cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) output -raw web_app_name 2>/dev/null); \
 	API_BASE_URL=$$(cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) output -raw apim_api_url 2>/dev/null || $(TERRAGRUNT) output -raw function_app_api_base_url 2>/dev/null); \
 	if [ -z "$$WEB_APP_NAME" ] || [ -z "$$API_BASE_URL" ]; then \
-		echo "$(YELLOW)❌ WEB_APP_NAME or API_BASE_URL not found. Run 'make $(PROJECT) $(STACK) apply' first.$(NC)"; \
+		echo -e "$(YELLOW)❌ WEB_APP_NAME or API_BASE_URL not found. Run 'make $(PROJECT) $(STACK) apply' first.$(NC)"; \
 		exit 1; \
 	fi && \
-	echo "Web App: $$WEB_APP_NAME" && \
-	echo "API URL: $$API_BASE_URL" && \
+	echo -e "Web App: $$WEB_APP_NAME" && \
+	echo -e "API URL: $$API_BASE_URL" && \
 	API_BASE_URL=$$API_BASE_URL $(SCRIPTS_DIR)/build-deployment-zip.sh $(ROOT_DIR)react-app.zip && \
 	$(AZ) webapp deploy \
 		--resource-group $(RESOURCE_GROUP) \
@@ -401,8 +401,8 @@ _deploy-frontend: check-env
 		--src-path $(ROOT_DIR)react-app.zip \
 		--type zip && \
 	rm -f $(ROOT_DIR)react-app.zip && \
-	echo "$(GREEN)✅ Frontend deployed successfully$(NC)" && \
-	echo "$(GREEN)🌐 Web App URL: https://$$WEB_APP_NAME.azurewebsites.net$(NC)"
+	echo -e "$(GREEN)✅ Frontend deployed successfully$(NC)" && \
+	echo -e "$(GREEN)🌐 Web App URL: https://$$WEB_APP_NAME.azurewebsites.net$(NC)"
 
 # Testing verbs
 .PHONY: _exec-test
@@ -419,62 +419,62 @@ _exec-test:
 		$(MAKE) --no-print-directory _test-direct STACK_DIR=$(STACK_DIR) || true; \
 		$(MAKE) --no-print-directory _test-endpoints STACK_DIR=$(STACK_DIR) || true; \
 	else \
-		echo "$(YELLOW)Usage: make $(PROJECT) $(STACK) test <apim|direct|endpoints|all>$(NC)"; \
+		echo -e "$(YELLOW)Usage: make $(PROJECT) $(STACK) test <apim|direct|endpoints|all>$(NC)"; \
 		exit 1; \
 	fi
 
 .PHONY: _test-apim
 _test-apim:
-	@echo "$(YELLOW)Testing API via APIM gateway...$(NC)"
+	@echo -e "$(YELLOW)Testing API via APIM gateway...$(NC)"
 	@APIM_API_URL=$$(cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) output -raw apim_api_url 2>/dev/null); \
 	APIM_SUBSCRIPTION_KEY=$$(cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) output -raw apim_subscription_key 2>/dev/null); \
 	if [ -z "$$APIM_API_URL" ]; then \
-		echo "$(YELLOW)⚠️  This stack does not have APIM configured$(NC)"; \
+		echo -e "$(YELLOW)⚠️  This stack does not have APIM configured$(NC)"; \
 		exit 0; \
 	fi; \
-	echo "URL: $$APIM_API_URL/api/v1/health"; \
+	echo -e "URL: $$APIM_API_URL/api/v1/health"; \
 	status=$$(curl -s -o /dev/null -w "%{http_code}" -H "Ocp-Apim-Subscription-Key: $$APIM_SUBSCRIPTION_KEY" "$$APIM_API_URL/api/v1/health"); \
 	if [ "$$status" -eq 200 ]; then \
-		echo "$(GREEN)✅ APIM Gateway: Status $$status (working)$(NC)"; \
+		echo -e "$(GREEN)✅ APIM Gateway: Status $$status (working)$(NC)"; \
 	else \
-		echo "$(YELLOW)❌ APIM Gateway unreachable (Status: $$status)$(NC)"; \
+		echo -e "$(YELLOW)❌ APIM Gateway unreachable (Status: $$status)$(NC)"; \
 		exit 1; \
 	fi
 
 .PHONY: _test-direct
 _test-direct:
-	@echo "$(YELLOW)Testing direct Function App access...$(NC)"
+	@echo -e "$(YELLOW)Testing direct Function App access...$(NC)"
 	@FUNCTION_APP_NAME=$$(cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) output -raw function_app_name 2>/dev/null); \
 	if [ -z "$$FUNCTION_APP_NAME" ]; then \
-		echo "$(YELLOW)❌ Function App not found$(NC)"; \
+		echo -e "$(YELLOW)❌ Function App not found$(NC)"; \
 		exit 1; \
 	fi; \
-	echo "URL: https://$$FUNCTION_APP_NAME.azurewebsites.net/api/v1/health"; \
+	echo -e "URL: https://$$FUNCTION_APP_NAME.azurewebsites.net/api/v1/health"; \
 	status=$$(curl -s -o /dev/null -w "%{http_code}" "https://$$FUNCTION_APP_NAME.azurewebsites.net/api/v1/health"); \
 	if [ "$$status" -eq 403 ]; then \
-		echo "$(GREEN)✅ Direct access blocked (Status $$status) - IP restrictions working!$(NC)"; \
+		echo -e "$(GREEN)✅ Direct access blocked (Status $$status) - IP restrictions working!$(NC)"; \
 	elif [ "$$status" -eq 200 ]; then \
-		echo "$(YELLOW)⚠️  Direct access allowed (Status $$status) - IP restrictions NOT enforced$(NC)"; \
+		echo -e "$(YELLOW)⚠️  Direct access allowed (Status $$status) - IP restrictions NOT enforced$(NC)"; \
 	else \
-		echo "$(YELLOW)Status: $$status$(NC)"; \
+		echo -e "$(YELLOW)Status: $$status$(NC)"; \
 	fi
 
 .PHONY: _test-endpoints
 _test-endpoints:
 	@$(MAKE) --no-print-directory _test-apim STACK_DIR=$(STACK_DIR) || true
 	@$(MAKE) --no-print-directory _test-direct STACK_DIR=$(STACK_DIR) || true
-	@echo "$(YELLOW)Testing Web App...$(NC)"
+	@echo -e "$(YELLOW)Testing Web App...$(NC)"
 	@WEB_APP_NAME=$$(cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) output -raw web_app_name 2>/dev/null); \
 	if [ -z "$$WEB_APP_NAME" ]; then \
-		echo "$(YELLOW)❌ Web App not found$(NC)"; \
+		echo -e "$(YELLOW)❌ Web App not found$(NC)"; \
 		exit 1; \
 	fi; \
-	echo "URL: https://$$WEB_APP_NAME.azurewebsites.net"; \
+	echo -e "URL: https://$$WEB_APP_NAME.azurewebsites.net"; \
 	status=$$(curl -s -o /dev/null -w "%{http_code}" "https://$$WEB_APP_NAME.azurewebsites.net"); \
 	if [ "$$status" -eq 200 ]; then \
-		echo "$(GREEN)✅ Web App: Status $$status (working)$(NC)"; \
+		echo -e "$(GREEN)✅ Web App: Status $$status (working)$(NC)"; \
 	else \
-		echo "$(YELLOW)❌ Web App unreachable (Status: $$status)$(NC)"; \
+		echo -e "$(YELLOW)❌ Web App unreachable (Status: $$status)$(NC)"; \
 	fi
 
 # Secure App convenience verbs
@@ -505,7 +505,7 @@ secure-app-output: check-env
 
 secure-app-clean:
 	@cd workloads/secure-app/envs/dev/uksouth && rm -rf .terraform .terragrunt-cache
-	@echo "$(GREEN)✓ Cleaned secure-app/dev/uksouth$(NC)"
+	@echo -e "$(GREEN)✓ Cleaned secure-app/dev/uksouth$(NC)"
 
 # Utility verbs
 .PHONY: _exec-show _exec-get _exec-clean _exec-unlock
@@ -514,22 +514,22 @@ _exec-show:
 	@if [ "$(COMPONENT)" = "resources" ]; then \
 		$(MAKE) --no-print-directory _show-resources STACK_DIR=$(STACK_DIR); \
 	else \
-		echo "$(YELLOW)Usage: make $(PROJECT) $(STACK) show resources$(NC)"; \
+		echo -e "$(YELLOW)Usage: make $(PROJECT) $(STACK) show resources$(NC)"; \
 		exit 1; \
 	fi
 
 .PHONY: _show-resources
 _show-resources: check-env
-	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(CYAN)  Deployed Resources$(NC)"
-	@echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo -e "$(CYAN)  Deployed Resources$(NC)"
+	@echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
 	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) output deployment_summary 2>/dev/null || $(TERRAGRUNT) output
 
 _exec-get:
 	@if [ "$(COMPONENT)" = "subscription-key" ]; then \
 		$(MAKE) --no-print-directory _get-subscription-key STACK_DIR=$(STACK_DIR); \
 	else \
-		echo "$(YELLOW)Usage: make $(PROJECT) $(STACK) get subscription-key$(NC)"; \
+		echo -e "$(YELLOW)Usage: make $(PROJECT) $(STACK) get subscription-key$(NC)"; \
 		exit 1; \
 	fi
 
@@ -537,27 +537,27 @@ _exec-get:
 _get-subscription-key: check-env
 	@APIM_SUBSCRIPTION_KEY=$$(cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) output -raw apim_subscription_key 2>/dev/null); \
 	if [ -z "$$APIM_SUBSCRIPTION_KEY" ]; then \
-		echo "$(YELLOW)❌ APIM subscription key not found (stack may not have APIM)$(NC)"; \
+		echo -e "$(YELLOW)❌ APIM subscription key not found (stack may not have APIM)$(NC)"; \
 		exit 1; \
 	fi; \
-	echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
-	echo "$(CYAN)  APIM Subscription Key$(NC)"; \
-	echo "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
-	echo "Primary Key: $$APIM_SUBSCRIPTION_KEY"
+	echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+	echo -e "$(CYAN)  APIM Subscription Key$(NC)"; \
+	echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+	echo -e "Primary Key: $$APIM_SUBSCRIPTION_KEY"
 
 _exec-clean:
-	@echo "$(YELLOW)Cleaning $(STACK_DIR) cache...$(NC)"
+	@echo -e "$(YELLOW)Cleaning $(STACK_DIR) cache...$(NC)"
 	@cd $(STACK_DIR) && rm -rf .terraform .terragrunt-cache
-	@echo "$(GREEN)✓ Cleaned $(STACK_DIR)$(NC)"
+	@echo -e "$(GREEN)✓ Cleaned $(STACK_DIR)$(NC)"
 
 _exec-unlock: check-env
 	@if [ -z "$(COMPONENT)" ]; then \
-		echo "$(YELLOW)❌ Lock ID required$(NC)"; \
-		echo "Usage: make $(PROJECT) $(STACK) unlock <lock-id>"; \
-		echo "Example: make subnet-calc react-apim unlock abc123-def456-ghi789"; \
+		echo -e "$(YELLOW)❌ Lock ID required$(NC)"; \
+		echo -e "Usage: make $(PROJECT) $(STACK) unlock <lock-id>"; \
+		echo -e "Example: make subnet-calc react-apim unlock abc123-def456-ghi789"; \
 		exit 1; \
 	fi
-	@echo "$(YELLOW)Force unlocking state with ID: $(COMPONENT)$(NC)"
+	@echo -e "$(YELLOW)Force unlocking state with ID: $(COMPONENT)$(NC)"
 	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) force-unlock -force $(COMPONENT)
 
 # Suppress "Nothing to be done" messages for command arguments

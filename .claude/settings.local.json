@@ -305,7 +305,13 @@
       "Bash(tofu fmt:*)",
       "Bash(terraform providers:*)",
       "WebFetch(domain:opentofu.org)",
-      "Bash(terragrunt state show:*)"
+      "Bash(terragrunt state show:*)",
+      "Bash(terragrunt state list:*)",
+      "Bash(terragrunt state rm:*)",
+      "Bash(az keyvault list:*)",
+      "Bash(az monitor log-analytics workspace list:*)",
+      "Bash(terragrunt import:*)",
+      "Bash(az role assignment list:*)"
     ],
     "deny": [],
     "ask": []

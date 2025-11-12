@@ -1,49 +1,33 @@
-output "web_app_id" {
-  description = "The ID of the Web App"
-  value       = azurerm_linux_web_app.this.id
+output "web_apps" {
+  description = "Map of created web apps"
+  value = {
+    for k, app in azurerm_linux_web_app.this : k => {
+      id                             = app.id
+      name                           = app.name
+      default_hostname               = app.default_hostname
+      outbound_ip_addresses          = app.outbound_ip_addresses
+      possible_outbound_ip_addresses = app.possible_outbound_ip_addresses
+      identity                       = app.identity
+    }
+  }
 }
 
-output "web_app_name" {
-  description = "The name of the Web App"
-  value       = azurerm_linux_web_app.this.name
+output "ids" {
+  description = "Map of web app IDs"
+  value       = { for k, app in azurerm_linux_web_app.this : k => app.id }
 }
 
-output "web_app_hostname" {
-  description = "Default hostname of the Web App"
-  value       = azurerm_linux_web_app.this.default_hostname
+output "names" {
+  description = "Map of web app names"
+  value       = { for k, app in azurerm_linux_web_app.this : k => app.name }
 }
 
-output "web_app_url" {
-  description = "HTTPS URL for the Web App"
-  value       = "https://${azurerm_linux_web_app.this.default_hostname}"
+output "default_hostnames" {
+  description = "Map of web app default hostnames"
+  value       = { for k, app in azurerm_linux_web_app.this : k => app.default_hostname }
 }
 
-output "web_app_identity_principal_id" {
-  description = "Principal ID of the system-assigned managed identity (null if disabled or user-assigned only)"
-  value       = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_linux_web_app.this.identity[0].principal_id : null
-}
-
-output "web_app_identity_tenant_id" {
-  description = "Tenant ID of the managed identity (null if disabled)"
-  value       = var.managed_identity.enabled ? azurerm_linux_web_app.this.identity[0].tenant_id : null
-}
-
-output "web_app_identity" {
-  description = "Full identity block of the Web App"
-  value       = var.managed_identity.enabled ? azurerm_linux_web_app.this.identity[0] : null
-}
-
-output "service_plan_id" {
-  description = "The ID of the App Service Plan"
-  value       = azurerm_service_plan.this.id
-}
-
-output "service_plan_name" {
-  description = "The name of the App Service Plan"
-  value       = azurerm_service_plan.this.name
-}
-
-output "easy_auth_login_url" {
-  description = "Easy Auth login endpoint (Azure AD)"
-  value       = "https://${azurerm_linux_web_app.this.default_hostname}/.auth/login/aad"
+output "urls" {
+  description = "Map of web app URLs"
+  value       = { for k, app in azurerm_linux_web_app.this : k => "https://${app.default_hostname}" }
 }

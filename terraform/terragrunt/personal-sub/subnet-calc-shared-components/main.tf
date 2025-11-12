@@ -1,141 +1,131 @@
+data "azurerm_client_config" "current" {}
+
 locals {
   common_tags = merge({
     environment = var.environment
-    project     = var.project_name
     managed_by  = "terragrunt"
   }, var.tags)
 }
 
 # -----------------------------------------------------------------------------
-# Resource Group
+# Resource Groups (0-to-n pattern)
 # -----------------------------------------------------------------------------
 
-locals {
-  # Use resource_group_name variable (required - no default)
-  resolved_rg_name = var.resource_group_name
+# Create new resource groups (if map is populated)
+resource "azurerm_resource_group" "this" {
+  for_each = var.resource_groups
 
-  # Resource group maps: create new or reference existing
-  resource_groups_to_create = var.create_resource_group ? {
-    main = {
-      name     = local.resolved_rg_name
-      location = var.location
+  name     = each.value.name
+  location = each.value.location
+  tags     = merge(local.common_tags, each.value.tags)
+
+  lifecycle {
+    postcondition {
+      condition     = self.id != ""
+      error_message = "Resource group '${each.value.name}' creation failed - no ID returned"
     }
-  } : {}
-
-  resource_groups_existing = var.create_resource_group ? {} : {
-    main = {}
   }
+}
 
+# Reference existing resource group (if map is empty and existing_resource_group_name is set)
+data "azurerm_resource_group" "existing" {
+  count = length(var.resource_groups) == 0 && var.existing_resource_group_name != "" ? 1 : 0
+
+  name = var.existing_resource_group_name
+
+  lifecycle {
+    postcondition {
+      condition     = self.id != ""
+      error_message = "Resource group '${var.existing_resource_group_name}' does not exist"
+    }
+  }
+}
+
+# Resolve resource group name and location
+locals {
   # Merge created and existing resource groups
   resource_group_names = merge(
     { for k, v in azurerm_resource_group.this : k => v.name },
-    { for k, v in data.azurerm_resource_group.this : k => v.name }
+    length(data.azurerm_resource_group.existing) > 0 ? { main = data.azurerm_resource_group.existing[0].name } : {}
   )
 
   resource_group_locations = merge(
     { for k, v in azurerm_resource_group.this : k => v.location },
-    { for k, v in data.azurerm_resource_group.this : k => v.location }
+    length(data.azurerm_resource_group.existing) > 0 ? { main = data.azurerm_resource_group.existing[0].location } : {}
   )
 
-  # Final values
-  rg_name = local.resource_group_names["main"]
-  rg_loc  = local.resource_group_locations["main"]
-}
-
-resource "azurerm_resource_group" "this" {
-  for_each = local.resource_groups_to_create
-
-  name     = each.value.name
-  location = each.value.location
-  tags     = local.common_tags
-
-  lifecycle {
-    postcondition {
-      condition     = self.id != ""
-      error_message = "Resource group creation failed - no ID returned"
-    }
-  }
-}
-
-data "azurerm_resource_group" "this" {
-  for_each = local.resource_groups_existing
-
-  name = local.resolved_rg_name
-
-  lifecycle {
-    postcondition {
-      condition     = self.id != ""
-      error_message = "Resource group '${local.resolved_rg_name}' does not exist"
-    }
-  }
+  # Default resource group for shared resources (use first created or existing)
+  default_rg_name = length(local.resource_group_names) > 0 ? values(local.resource_group_names)[0] : ""
+  default_rg_loc  = length(local.resource_group_locations) > 0 ? values(local.resource_group_locations)[0] : ""
 }
 
 # -----------------------------------------------------------------------------
-# Log Analytics Workspace
+# Log Analytics Workspaces (0-to-n pattern)
 # -----------------------------------------------------------------------------
 
 resource "azurerm_log_analytics_workspace" "this" {
-  name                = "log-${var.project_name}-${var.component_name}-${var.environment}"
-  location            = local.rg_loc
-  resource_group_name = local.rg_name
-  sku                 = "PerGB2018"
-  retention_in_days   = var.log_retention_days
-  tags                = local.common_tags
+  for_each = var.log_analytics_workspaces
+
+  name                = each.value.name
+  location            = local.default_rg_loc
+  resource_group_name = local.default_rg_name
+  sku                 = each.value.sku
+  retention_in_days   = each.value.retention_in_days
+  tags                = merge(local.common_tags, each.value.tags)
 
   lifecycle {
     precondition {
-      condition     = local.rg_name != ""
-      error_message = "Resource group name must be set before creating Log Analytics workspace"
+      condition     = local.default_rg_name != ""
+      error_message = "Resource group must be created or specified before creating Log Analytics workspace"
     }
 
     postcondition {
       condition     = self.id != "" && self.workspace_id != ""
-      error_message = "Log Analytics workspace creation failed"
+      error_message = "Log Analytics workspace '${each.value.name}' creation failed"
     }
   }
 }
 
 # -----------------------------------------------------------------------------
-# Key Vault
+# Key Vaults (0-to-n pattern)
 # -----------------------------------------------------------------------------
 
-data "azurerm_client_config" "current" {}
-
-locals {
-  # Key Vault names have a 24 character limit (before random suffix)
-  # Use abbreviated project name: sc = subnet-calc
-  kv_name = "kv-sc-${var.component_name}-${var.environment}"
-}
-
-module "key_vault" {
+module "key_vaults" {
   source = "../../modules/azure-key-vault"
 
-  name                = local.kv_name
-  location            = local.rg_loc
-  resource_group_name = local.rg_name
+  for_each = var.key_vaults
+
+  name                = each.value.name
+  location            = local.default_rg_loc
+  resource_group_name = local.default_rg_name
   tenant_id           = data.azurerm_client_config.current.tenant_id
 
-  sku_name          = var.key_vault_sku
-  use_random_suffix = var.key_vault_use_random_suffix
+  sku_name          = each.value.sku
+  use_random_suffix = each.value.use_random_suffix
 
   # Enable RBAC authorization model
-  enable_rbac_authorization = true
+  enable_rbac_authorization = each.value.enable_rbac_authorization
 
   # Security settings
-  purge_protection_enabled   = var.key_vault_purge_protection_enabled
-  soft_delete_retention_days = var.key_vault_soft_delete_retention_days
+  purge_protection_enabled   = each.value.purge_protection_enabled
+  soft_delete_retention_days = each.value.soft_delete_retention_days
 
   # Don't pass workspace ID to module - will create diagnostics separately below
   log_analytics_workspace_id = null
 
-  tags = local.common_tags
+  tags = merge(local.common_tags, each.value.tags)
 }
 
-# Key Vault diagnostics - created separately to avoid circular dependency
+# Key Vault diagnostics - only if Log Analytics workspace and diagnostic config provided
 resource "azurerm_monitor_diagnostic_setting" "kv" {
+  for_each = {
+    for k, v in var.key_vaults : k => v
+    if v.log_analytics_workspace_key != null && contains(keys(azurerm_log_analytics_workspace.this), v.log_analytics_workspace_key)
+  }
+
   name                       = "keyvault-diagnostics"
-  target_resource_id         = module.key_vault.id
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.this.id
+  target_resource_id         = module.key_vaults[each.key].id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.this[each.value.log_analytics_workspace_key].id
 
   dynamic "enabled_log" {
     for_each = toset([
@@ -150,16 +140,13 @@ resource "azurerm_monitor_diagnostic_setting" "kv" {
   enabled_metric {
     category = "AllMetrics"
   }
-
-  depends_on = [
-    azurerm_log_analytics_workspace.this,
-    module.key_vault
-  ]
 }
 
-# Grant current user Key Vault Secrets Officer role
+# Grant current user Key Vault Secrets Officer role (if enabled)
 resource "azurerm_role_assignment" "kv_secrets_officer_current_user" {
-  scope                = module.key_vault.id
+  for_each = var.grant_current_user_key_vault_access ? var.key_vaults : {}
+
+  scope                = module.key_vaults[each.key].id
   role_definition_name = "Key Vault Secrets Officer"
   principal_id         = data.azurerm_client_config.current.object_id
 }

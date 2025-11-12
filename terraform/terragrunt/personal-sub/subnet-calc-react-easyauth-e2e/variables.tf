@@ -1,156 +1,202 @@
-variable "project_name" {
-  description = "Project short name used for resource naming."
-  type        = string
-
-  validation {
-    condition     = can(regex("^[a-z0-9-]{3,24}$", var.project_name))
-    error_message = "Project name must be 3-24 characters, lowercase alphanumeric and hyphens only"
-  }
-}
+# -----------------------------------------------------------------------------
+# Core Configuration
+# -----------------------------------------------------------------------------
 
 variable "environment" {
-  description = "Environment identifier (dev, prod, etc.)."
+  description = "Environment name (e.g., dev, staging, prod)"
   type        = string
-
-  validation {
-    condition     = contains(["dev", "stg", "prod", "pre", "np", "qa", "uat"], var.environment)
-    error_message = "Environment must be one of: dev, stg, prod, pre, np, qa, uat"
-  }
 }
 
-variable "location" {
-  description = "Azure region for all resources."
+variable "project_name" {
+  description = "Project name for resource naming"
   type        = string
-
-  validation {
-    condition     = contains(["uksouth", "ukwest", "eastus", "eastus2", "westeurope"], var.location)
-    error_message = "Location must be one of: uksouth, ukwest, eastus, eastus2, westeurope"
-  }
 }
 
-variable "tenant_id" {
-  description = "Azure AD tenant ID used for Easy Auth configuration (defaults to current Azure CLI context if not specified)."
+variable "workload_name" {
+  description = "Workload name for tagging"
   type        = string
-  default     = null
-  nullable    = true
-
-  validation {
-    condition     = var.tenant_id == null || can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.tenant_id))
-    error_message = "Tenant ID must be a valid UUID"
-  }
 }
 
 variable "resource_group_name" {
-  description = "Resource group name that hosts the stack."
+  description = "Name of the existing resource group"
   type        = string
 }
 
-variable "create_resource_group" {
-  description = "Whether to create the resource group (true) or assume it already exists (false)."
-  type        = bool
-  default     = true
+variable "tenant_id" {
+  description = "Azure AD tenant ID (optional - defaults to current)"
+  type        = string
+  default     = null
 }
 
 variable "tags" {
-  description = "Additional tags to apply to resources."
+  description = "Additional tags to apply to all resources"
   type        = map(string)
   default     = {}
 }
 
-variable "entra_id_app" {
-  description = "Entra ID App Registration configuration for Easy Auth (client_id generated automatically)"
-  type = object({
-    display_name     = string
-    sign_in_audience = optional(string, "AzureADMyOrg")
-    identifier_uris  = optional(list(string), [])
-  })
+# -----------------------------------------------------------------------------
+# User-Assigned Identities (0-to-n)
+# -----------------------------------------------------------------------------
+
+variable "user_assigned_identities" {
+  description = "Map of user-assigned identities to create"
+  type = map(object({
+    name                = string
+    resource_group_name = string
+    location            = string
+    tags                = optional(map(string), {})
+  }))
+  default = {}
 }
 
-variable "web_app" {
-  description = "Configuration for the React frontend hosted on App Service."
-  type = object({
-    name            = optional(string, "")
-    plan_sku        = string
-    runtime_version = optional(string, "20-lts")
-    api_base_url    = optional(string, "")
-    always_on       = optional(bool, true)
-    startup_command = optional(string, "")
-    app_settings    = optional(map(string), {})
-    easy_auth = optional(object({
-      enabled                    = optional(bool, true)
-      client_id                  = optional(string, "") # Dynamically generated from Entra ID app
-      client_secret_setting_name = optional(string, "")
-      issuer                     = optional(string, "")
-      tenant_id                  = optional(string, "")
-      allowed_audiences          = optional(list(string), [])
-      runtime_version            = optional(string, "~1")
-      unauthenticated_action     = optional(string, "RedirectToLoginPage")
-      token_store_enabled        = optional(bool, true)
-      login_parameters           = optional(map(string), {})
-      use_managed_identity       = optional(bool, true)
-    }), null)
-    managed_identity = optional(object({
-      enabled                    = optional(bool, true)
-      type                       = optional(string, "SystemAssigned") # SystemAssigned, UserAssigned, or SystemAssigned, UserAssigned
-      user_assigned_identity_ids = optional(list(string), [])
-    }), { enabled = true, type = "SystemAssigned" })
-  })
+# -----------------------------------------------------------------------------
+# Service Plans (0-to-n)
+# -----------------------------------------------------------------------------
+
+variable "service_plans" {
+  description = "Map of service plans to create"
+  type = map(object({
+    name     = string
+    os_type  = string
+    sku_name = string
+    tags     = optional(map(string), {})
+  }))
+  default = {}
 }
 
-variable "function_app" {
-  description = "Configuration for the FastAPI Azure Function backend."
-  type = object({
-    name                          = optional(string, "")
-    plan_sku                      = string
-    runtime                       = string
-    runtime_version               = string
-    storage_account_name          = optional(string, "")
-    existing_service_plan_id      = optional(string, null)
-    existing_storage_account_id   = optional(string, null)
+# -----------------------------------------------------------------------------
+# Storage Accounts (0-to-n)
+# -----------------------------------------------------------------------------
+
+variable "storage_accounts" {
+  description = "Map of storage accounts to create"
+  type = map(object({
+    name                          = string
+    account_tier                  = string
+    account_replication_type      = string
+    account_kind                  = optional(string, "StorageV2")
     public_network_access_enabled = optional(bool, true)
-    cors_allowed_origins          = optional(list(string), ["*"])
-    app_settings                  = optional(map(string), {})
-    easy_auth = optional(object({
-      enabled                    = optional(bool, true)
-      client_id                  = string
-      client_secret_setting_name = optional(string, "")
-      issuer                     = optional(string, "")
-      tenant_id                  = optional(string, "")
-      allowed_audiences          = optional(list(string), [])
-      runtime_version            = optional(string, "~1")
-      unauthenticated_action     = optional(string, "Return401")
-      token_store_enabled        = optional(bool, true)
-      login_parameters           = optional(map(string), {})
-      use_managed_identity       = optional(bool, true)
-    }), null)
-    managed_identity = optional(object({
-      enabled                    = optional(bool, true)
-      type                       = optional(string, "SystemAssigned") # SystemAssigned, UserAssigned, or SystemAssigned, UserAssigned
-      user_assigned_identity_ids = optional(list(string), [])
-    }), { enabled = true, type = "SystemAssigned" })
-  })
+    tags                          = optional(map(string), {})
+
+    # RBAC assignments: map of identity_key => role
+    rbac_assignments = optional(map(object({
+      identity_key = string # Key from user_assigned_identities map
+      role         = string # e.g., "Storage Blob Data Contributor"
+    })), {})
+  }))
+  default = {}
 }
 
-variable "observability" {
-  description = "Observability configuration - can use existing or create new resources"
-  type = object({
-    use_existing                 = bool
-    existing_resource_group_name = optional(string)
-    existing_log_analytics_name  = optional(string)
-    existing_app_insights_name   = optional(string)
-    log_retention_days           = optional(number, 30)
-    app_insights_retention_days  = optional(number, 90)
-  })
-  default = {
-    use_existing = false
-  }
+# -----------------------------------------------------------------------------
+# Observability (Log Analytics + App Insights)
+# -----------------------------------------------------------------------------
 
-  validation {
-    condition = !var.observability.use_existing || (
-      var.observability.existing_resource_group_name != null &&
-      var.observability.existing_log_analytics_name != null &&
-      var.observability.existing_app_insights_name != null
-    )
-    error_message = "When 'use_existing' is true, 'existing_resource_group_name', 'existing_log_analytics_name', and 'existing_app_insights_name' must be provided."
-  }
+variable "log_analytics_workspaces" {
+  description = "Map of Log Analytics workspaces to create"
+  type = map(object({
+    name              = string
+    sku               = optional(string, "PerGB2018")
+    retention_in_days = optional(number, 30)
+    tags              = optional(map(string), {})
+  }))
+  default = {}
+}
+
+variable "application_insights" {
+  description = "Map of Application Insights instances to create"
+  type = map(object({
+    name              = string
+    log_analytics_key = string # Key from log_analytics_workspaces map
+    application_type  = optional(string, "web")
+    tags              = optional(map(string), {})
+  }))
+  default = {}
+}
+
+# -----------------------------------------------------------------------------
+# Entra ID App Registrations (0-to-n)
+# -----------------------------------------------------------------------------
+
+variable "entra_id_apps" {
+  description = "Map of Entra ID app registrations to create"
+  type = map(object({
+    display_name      = string
+    sign_in_audience  = optional(string, "AzureADMyOrg")
+    identifier_uris   = optional(list(string), [])
+    web_redirect_uris = optional(list(string), [])
+    spa_redirect_uris = optional(list(string), [])
+  }))
+  default = {}
+}
+
+# -----------------------------------------------------------------------------
+# Function Apps (0-to-n)
+# -----------------------------------------------------------------------------
+
+variable "function_apps" {
+  description = "Map of function apps to create"
+  type = map(object({
+    name                          = string
+    service_plan_key              = string                 # Key from service_plans map
+    runtime                       = string                 # python, node, dotnet
+    runtime_version               = string                 # e.g., "3.11", "20", "8.0"
+    storage_account_key           = optional(string, null) # Key from storage_accounts map (null = auto-create)
+    storage_uses_managed_identity = optional(bool, false)
+    public_network_access_enabled = optional(bool, true)
+    cors_allowed_origins          = optional(list(string), null)
+    app_insights_key              = optional(string, null) # Key from application_insights map
+    app_settings                  = optional(map(string), {})
+    tags                          = optional(map(string), {})
+
+    # Identity configuration
+    identity_type = optional(string, null)     # "SystemAssigned", "UserAssigned", or "SystemAssigned, UserAssigned"
+    identity_keys = optional(list(string), []) # List of keys from user_assigned_identities map (for created UAIs)
+    identity_ids  = optional(list(string), []) # List of UAI resource IDs (for BYO UAIs)
+
+    # Easy Auth configuration
+    easy_auth = optional(object({
+      enabled                = optional(bool, true)
+      entra_app_key          = string # Key from entra_id_apps map
+      allowed_audiences      = optional(list(string), [])
+      unauthenticated_action = optional(string, "Return401")
+      token_store_enabled    = optional(bool, true)
+    }), null)
+  }))
+  default = {}
+}
+
+# -----------------------------------------------------------------------------
+# Web Apps (0-to-n)
+# -----------------------------------------------------------------------------
+
+variable "web_apps" {
+  description = "Map of web apps to create"
+  type = map(object({
+    name                          = string
+    service_plan_key              = string # Key from service_plans map
+    runtime                       = string # node, python, dotnet
+    runtime_version               = string # e.g., "20-lts", "3.11", "8.0"
+    always_on                     = optional(bool, true)
+    public_network_access_enabled = optional(bool, true)
+    cors_allowed_origins          = optional(list(string), null)
+    app_insights_key              = optional(string, null) # Key from application_insights map
+    app_settings                  = optional(map(string), {})
+    tags                          = optional(map(string), {})
+
+    # Identity configuration
+    identity_type = optional(string, null)     # "SystemAssigned", "UserAssigned", or "SystemAssigned, UserAssigned"
+    identity_keys = optional(list(string), []) # List of keys from user_assigned_identities map (for created UAIs)
+    identity_ids  = optional(list(string), []) # List of UAI resource IDs (for BYO UAIs)
+
+    # Easy Auth configuration
+    easy_auth = optional(object({
+      enabled                = optional(bool, true)
+      entra_app_key          = string # Key from entra_id_apps map
+      allowed_audiences      = optional(list(string), [])
+      unauthenticated_action = optional(string, "RedirectToLoginPage")
+      default_provider       = optional(string, "azureactivedirectory")
+      token_store_enabled    = optional(bool, true)
+    }), null)
+  }))
+  default = {}
 }

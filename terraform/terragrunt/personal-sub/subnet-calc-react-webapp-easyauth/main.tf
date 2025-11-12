@@ -206,8 +206,8 @@ module "function_app" {
   app_insights_connection_string = local.app_insights_connection
 
   app_settings = var.function_app.managed_identity.enabled ? merge({
-      # Connection string needed even with managed identity (identifies target App Insights instance)
-      "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
+    # Connection string needed even with managed identity (identifies target App Insights instance)
+    "APPLICATIONINSIGHTS_CONNECTION_STRING" = local.app_insights_connection
     }, var.function_app.app_settings
     ) : merge({
       # Only add keys when managed identity is disabled

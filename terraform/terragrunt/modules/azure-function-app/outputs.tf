@@ -1,54 +1,33 @@
-output "function_app_id" {
-  description = "The ID of the Function App"
-  value       = azurerm_linux_function_app.this.id
+output "function_apps" {
+  description = "Map of created function apps"
+  value = {
+    for k, app in azurerm_linux_function_app.this : k => {
+      id                             = app.id
+      name                           = app.name
+      default_hostname               = app.default_hostname
+      outbound_ip_addresses          = app.outbound_ip_addresses
+      possible_outbound_ip_addresses = app.possible_outbound_ip_addresses
+      identity                       = app.identity
+    }
+  }
 }
 
-output "function_app_name" {
-  description = "The name of the Function App"
-  value       = azurerm_linux_function_app.this.name
+output "ids" {
+  description = "Map of function app IDs"
+  value       = { for k, app in azurerm_linux_function_app.this : k => app.id }
 }
 
-output "function_app_hostname" {
-  description = "Default hostname of the Function App"
-  value       = azurerm_linux_function_app.this.default_hostname
+output "names" {
+  description = "Map of function app names"
+  value       = { for k, app in azurerm_linux_function_app.this : k => app.name }
 }
 
-output "function_app_url" {
-  description = "HTTPS URL for the Function App"
-  value       = "https://${azurerm_linux_function_app.this.default_hostname}"
+output "default_hostnames" {
+  description = "Map of function app default hostnames"
+  value       = { for k, app in azurerm_linux_function_app.this : k => app.default_hostname }
 }
 
-output "function_app_identity_principal_id" {
-  description = "Principal ID of the system-assigned managed identity (null if disabled or user-assigned only)"
-  value       = var.managed_identity.enabled && contains(["SystemAssigned", "SystemAssigned, UserAssigned"], var.managed_identity.type) ? azurerm_linux_function_app.this.identity[0].principal_id : null
-}
-
-output "function_app_identity_tenant_id" {
-  description = "Tenant ID of the managed identity (null if disabled)"
-  value       = var.managed_identity.enabled ? azurerm_linux_function_app.this.identity[0].tenant_id : null
-}
-
-output "function_app_identity" {
-  description = "Full identity block of the Function App"
-  value       = var.managed_identity.enabled ? azurerm_linux_function_app.this.identity[0] : null
-}
-
-output "service_plan_id" {
-  description = "The ID of the App Service Plan (either existing or created)"
-  value       = local.service_plan_id
-}
-
-output "service_plan_name" {
-  description = "The name of the App Service Plan (either existing or created)"
-  value       = local.service_plan_name
-}
-
-output "storage_account_id" {
-  description = "The ID of the storage account (either existing or created)"
-  value       = local.storage_account_id
-}
-
-output "storage_account_name" {
-  description = "The name of the storage account (either existing or created)"
-  value       = local.storage_account_name
+output "urls" {
+  description = "Map of function app URLs"
+  value       = { for k, app in azurerm_linux_function_app.this : k => "https://${app.default_hostname}" }
 }
