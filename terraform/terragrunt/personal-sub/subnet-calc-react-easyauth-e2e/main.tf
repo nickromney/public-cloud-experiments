@@ -126,10 +126,11 @@ module "entra_id_app" {
 
   for_each = var.entra_id_apps
 
-  display_name     = each.value.display_name
-  sign_in_audience = try(each.value.sign_in_audience, "AzureADMyOrg")
-  identifier_uris  = try(each.value.identifier_uris, [])
-  redirect_uris    = try(each.value.redirect_uris, [])
+  display_name      = each.value.display_name
+  sign_in_audience  = try(each.value.sign_in_audience, "AzureADMyOrg")
+  identifier_uris   = try(each.value.identifier_uris, [])
+  web_redirect_uris = try(each.value.web_redirect_uris, [])
+  spa_redirect_uris = try(each.value.spa_redirect_uris, [])
 }
 
 # -----------------------------------------------------------------------------
@@ -212,12 +213,14 @@ module "web_apps" {
       public_network_access_enabled = try(v.public_network_access_enabled, true)
       cors_allowed_origins          = try(v.cors_allowed_origins, null)
 
-      # App Insights
-      app_insights_connection_string = try(v.app_insights_key, null) != null ? azurerm_application_insights.this[v.app_insights_key].connection_string : null
-
-      # App settings
-      app_settings = try(v.app_settings, {})
-      tags         = try(v.tags, {})
+      # App settings (merge Application Insights connection string if provided)
+      app_settings = merge(
+        try(v.app_settings, {}),
+        try(v.app_insights_key, null) != null ? {
+          APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.this[v.app_insights_key].connection_string
+        } : {}
+      )
+      tags = try(v.tags, {})
 
       # Identity (supports both created UAIs via identity_keys and BYO UAIs via identity_ids)
       identity = try(v.identity_type, null) != null ? {

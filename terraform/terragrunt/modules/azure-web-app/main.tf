@@ -33,10 +33,6 @@ resource "azurerm_linux_web_app" "this" {
         allowed_origins = each.value.cors_allowed_origins
       }
     }
-
-    # Application Insights
-    application_insights_connection_string = try(each.value.app_insights_connection_string, null)
-    application_insights_key               = try(each.value.app_insights_key, null)
   }
 
   # App settings

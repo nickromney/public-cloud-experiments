@@ -120,10 +120,11 @@ variable "application_insights" {
 variable "entra_id_apps" {
   description = "Map of Entra ID app registrations to create"
   type = map(object({
-    display_name     = string
-    sign_in_audience = optional(string, "AzureADMyOrg")
-    identifier_uris  = optional(list(string), [])
-    redirect_uris    = optional(list(string), [])
+    display_name      = string
+    sign_in_audience  = optional(string, "AzureADMyOrg")
+    identifier_uris   = optional(list(string), [])
+    web_redirect_uris = optional(list(string), [])
+    spa_redirect_uris = optional(list(string), [])
   }))
   default = {}
 }
