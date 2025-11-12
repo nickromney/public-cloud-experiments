@@ -53,7 +53,7 @@ define find_stage_file
 		if [ -n "$$STAGE_FILE" ]; then \
 			STAGE_BASENAME=$$(basename "$$STAGE_FILE"); \
 			echo -e "$(CYAN)Using stage file: $$STAGE_BASENAME$(NC)"; \
-			STAGE_VAR_FILE_ARG="-var-file=$$STAGE_FILE"; \
+			STAGE_VAR_FILE_ARG="-var-file=stages/$$STAGE_BASENAME"; \
 		elif [ "$(1)" != "000" ]; then \
 			echo -e "$(YELLOW)⚠️  Stage file not found: $(1)-*.tfvars or $(1)_*.tfvars$(NC)"; \
 			echo -e "$(YELLOW)Available stages:$(NC)"; \
