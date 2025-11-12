@@ -1,5 +1,6 @@
 # Personal Subscription - Shared Components
-# Deploys: Key Vault + Log Analytics Workspace for shared observability and secrets
+# Deploys: Resource Group + Log Analytics + Key Vault for shared observability and secrets
+# Uses map-based (0-to-n) pattern
 
 include "root" {
   path   = find_in_parent_folders("root.hcl")
@@ -12,22 +13,57 @@ locals {
 }
 
 inputs = {
-  location       = local.preferred_region
-  project_name   = "subnetcalc"
-  component_name = "shared"
-  environment    = local.root_vars.environment
+  environment = local.root_vars.environment
 
-  # Create resource group for shared components
-  resource_group_name   = "rg-subnet-calc"
-  create_resource_group = true
+  # -----------------------------------------------------------------------------
+  # Resource Groups (map-based)
+  # -----------------------------------------------------------------------------
+  # Create new resource group
+  resource_groups = {
+    main = {
+      name     = "rg-subnet-calc"
+      location = local.preferred_region
+    }
+  }
 
-  # Log Analytics configuration
-  log_retention_days = 30
+  # Use existing resource group (set resource_groups = {} and uncomment this)
+  # existing_resource_group_name = "rg-subnet-calc"
 
+  # -----------------------------------------------------------------------------
+  # Log Analytics Workspaces (map-based)
+  # -----------------------------------------------------------------------------
+  log_analytics_workspaces = {
+    shared = {
+      name              = "log-subnetcalc-shared-dev"
+      sku               = "PerGB2018"
+      retention_in_days = 30
+    }
+  }
+
+  # -----------------------------------------------------------------------------
+  # Key Vaults (map-based)
+  # -----------------------------------------------------------------------------
+  key_vaults = {
+    shared = {
+      name                        = "kv-sc-shared-dev"
+      sku                         = "standard"
+      use_random_suffix           = true
+      purge_protection_enabled    = false
+      soft_delete_retention_days  = 90
+      enable_rbac_authorization   = true
+      log_analytics_workspace_key = "shared" # Link to Log Analytics workspace
+    }
+  }
+
+  # Grant current user Key Vault access
+  grant_current_user_key_vault_access = true
+
+  # -----------------------------------------------------------------------------
+  # Tags
+  # -----------------------------------------------------------------------------
   tags = {
-    environment = local.root_vars.environment
-    managed_by  = "terragrunt"
-    workload    = "shared-components"
-    purpose     = "observability-and-secrets"
+    managed_by = "terragrunt"
+    workload   = "shared-components"
+    purpose    = "observability-and-secrets"
   }
 }
