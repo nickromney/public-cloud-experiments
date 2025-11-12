@@ -45,9 +45,9 @@ inputs = {
   # -----------------------------------------------------------------------------
   key_vaults = {
     shared = {
-      name                        = "kv-sc-shared-dev"
+      name                        = "kv-sc-shared-dev-h41c" # Include existing suffix
       sku                         = "standard"
-      use_random_suffix           = true
+      use_random_suffix           = false # Disable since we're using existing vault
       purge_protection_enabled    = false
       soft_delete_retention_days  = 90
       enable_rbac_authorization   = true
