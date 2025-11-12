@@ -1,24 +1,27 @@
-output "id" {
-  description = "The ID of the user-assigned identity"
-  value       = azurerm_user_assigned_identity.this.id
+output "identities" {
+  description = "Map of created user-assigned identities"
+  value = {
+    for k, uai in azurerm_user_assigned_identity.this : k => {
+      id           = uai.id
+      name         = uai.name
+      principal_id = uai.principal_id
+      client_id    = uai.client_id
+      tenant_id    = uai.tenant_id
+    }
+  }
 }
 
-output "principal_id" {
-  description = "The principal ID (object ID) of the user-assigned identity"
-  value       = azurerm_user_assigned_identity.this.principal_id
+output "ids" {
+  description = "Map of identity IDs"
+  value       = { for k, uai in azurerm_user_assigned_identity.this : k => uai.id }
 }
 
-output "client_id" {
-  description = "The client ID (application ID) of the user-assigned identity"
-  value       = azurerm_user_assigned_identity.this.client_id
+output "principal_ids" {
+  description = "Map of identity principal IDs (for RBAC assignments)"
+  value       = { for k, uai in azurerm_user_assigned_identity.this : k => uai.principal_id }
 }
 
-output "tenant_id" {
-  description = "The tenant ID of the user-assigned identity"
-  value       = azurerm_user_assigned_identity.this.tenant_id
-}
-
-output "name" {
-  description = "The name of the user-assigned identity"
-  value       = azurerm_user_assigned_identity.this.name
+output "client_ids" {
+  description = "Map of identity client IDs"
+  value       = { for k, uai in azurerm_user_assigned_identity.this : k => uai.client_id }
 }
