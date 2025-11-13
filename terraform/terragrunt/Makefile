@@ -53,7 +53,7 @@ define find_stage_file
 		if [ -n "$$STAGE_FILE" ]; then \
 			STAGE_BASENAME=$$(basename "$$STAGE_FILE"); \
 			echo -e "$(CYAN)Using stage file: $$STAGE_BASENAME$(NC)"; \
-			STAGE_VAR_FILE_ARG="-var-file=$$STAGE_FILE"; \
+			STAGE_VAR_FILE_ARG="-var-file=stages/$$STAGE_BASENAME"; \
 		elif [ "$(1)" != "000" ]; then \
 			echo -e "$(YELLOW)⚠️  Stage file not found: $(1)-*.tfvars or $(1)_*.tfvars$(NC)"; \
 			echo -e "$(YELLOW)Available stages:$(NC)"; \
@@ -337,12 +337,17 @@ subnet-calc:
 
 # Verb-based routing (alternative: make <verb> [stage] subnet-calc <stack>)
 # Note: 'test' is excluded as it conflicts with global test target
+# These targets only execute if they are the FIRST word in MAKECMDGOALS to prevent double-execution
 .PHONY: init plan apply destroy validate output deploy show get unlock
 init plan apply destroy validate output:
-	@$(MAKE) --no-print-directory _parse-args ARG1=$(firstword $(MAKECMDGOALS)) ARG2=$(word 2,$(MAKECMDGOALS)) ARG3=$(word 3,$(MAKECMDGOALS)) ARG4=$(word 4,$(MAKECMDGOALS)) ARG5=$(word 5,$(MAKECMDGOALS))
+	@if [ "$(firstword $(MAKECMDGOALS))" = "$@" ]; then \
+		$(MAKE) --no-print-directory _parse-args ARG1=$(firstword $(MAKECMDGOALS)) ARG2=$(word 2,$(MAKECMDGOALS)) ARG3=$(word 3,$(MAKECMDGOALS)) ARG4=$(word 4,$(MAKECMDGOALS)) ARG5=$(word 5,$(MAKECMDGOALS)); \
+	fi
 
 deploy show get unlock:
-	@$(MAKE) --no-print-directory _parse-args ARG1=$(firstword $(MAKECMDGOALS)) ARG2=$(word 2,$(MAKECMDGOALS)) ARG3=$(word 3,$(MAKECMDGOALS)) ARG4=$(word 4,$(MAKECMDGOALS)) ARG5=$(word 5,$(MAKECMDGOALS))
+	@if [ "$(firstword $(MAKECMDGOALS))" = "$@" ]; then \
+		$(MAKE) --no-print-directory _parse-args ARG1=$(firstword $(MAKECMDGOALS)) ARG2=$(word 2,$(MAKECMDGOALS)) ARG3=$(word 3,$(MAKECMDGOALS)) ARG4=$(word 4,$(MAKECMDGOALS)) ARG5=$(word 5,$(MAKECMDGOALS)); \
+	fi
 
 # Internal routing target
 .PHONY: _route
@@ -480,7 +485,13 @@ _deploy-frontend: check-env
 	fi && \
 	echo -e "Web App: $$WEB_APP_NAME" && \
 	echo -e "API URL: $$API_BASE_URL" && \
-	API_BASE_URL=$$API_BASE_URL $(SCRIPTS_DIR)/build-deployment-zip.sh $(ROOT_DIR)react-app.zip && \
+	if echo "$(STACK)" | grep -q "easyauth"; then \
+		echo -e "$(CYAN)Using Easy Auth build script...$(NC)"; \
+		API_BASE_URL=$$API_BASE_URL $(SCRIPTS_DIR)/build-easyauth-frontend-zip.sh $(ROOT_DIR)react-app.zip; \
+	else \
+		echo -e "$(CYAN)Using JWT auth build script...$(NC)"; \
+		API_BASE_URL=$$API_BASE_URL $(SCRIPTS_DIR)/build-deployment-zip.sh $(ROOT_DIR)react-app.zip; \
+	fi && \
 	$(AZ) webapp deploy \
 		--resource-group $(RESOURCE_GROUP) \
 		--name $$WEB_APP_NAME \

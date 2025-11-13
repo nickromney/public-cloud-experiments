@@ -213,6 +213,42 @@ terragrunt apply
 - Limited regions: eastus, westus2
 - No role assignments due to sandbox limitations
 
+### Staged Deployment Pattern (IMPORTANT)
+
+Some stacks use numbered `.tfvars` files in a `stages/` directory for incremental deployment:
+
+- `000-all.tfvars` - Complete configuration (ALL resources)
+- `100-identity.tfvars` - Identity resources only
+- `200-storage.tfvars` - Identity + Storage
+- `300-rbac.tfvars` - Identity + Storage + RBAC
+- `400-function-app.tfvars` - Identity + Storage + RBAC + Function App
+- `500-web-app.tfvars` - Everything (equivalent to 000-all)
+
+**CRITICAL RULES:**
+
+1. **Stage files are cumulative, NOT standalone** - Each stage includes all resources from previous stages
+2. **NEVER apply a lower-numbered stage when higher stages have been applied** - This will DESTROY resources not defined in that stage
+3. **For updates to existing infrastructure, ALWAYS use `000-all.tfvars` (or the highest stage number)**
+4. **Only use numbered stages for fresh deployments** when you want to incrementally build infrastructure
+5. **Example of what NOT to do**: If infrastructure was deployed with stage 500 (or 000), running stage 100 will destroy the Function App and Web App because they're not defined in stage 100
+
+**Correct workflow:**
+
+```bash
+# Fresh deployment (incremental)
+make subnet-calc react-easyauth-e2e 100 apply  # Identity only
+make subnet-calc react-easyauth-e2e 200 apply  # Add storage
+make subnet-calc react-easyauth-e2e 300 apply  # Add RBAC
+make subnet-calc react-easyauth-e2e 400 apply  # Add Function App
+make subnet-calc react-easyauth-e2e 500 apply  # Add Web App
+
+# OR: Fresh deployment (all at once)
+make subnet-calc react-easyauth-e2e apply      # Uses 000-all.tfvars
+
+# Updates to existing infrastructure
+make subnet-calc react-easyauth-e2e apply      # ALWAYS uses 000-all.tfvars
+```
+
 ## Security and Quality
 
 ### Pre-commit Hooks
