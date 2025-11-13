@@ -21,6 +21,7 @@ variable "function_apps" {
     identity = optional(object({
       type         = string # SystemAssigned, UserAssigned, or "SystemAssigned, UserAssigned"
       identity_ids = optional(list(string), [])
+      client_id    = optional(string, null) # Client ID of the User-Assigned Identity (for UAMI storage access)
     }), null)
 
     # Easy Auth configuration

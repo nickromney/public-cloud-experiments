@@ -5,8 +5,9 @@ variable "web_apps" {
     resource_group_name            = string
     location                       = string
     service_plan_id                = string
-    runtime                        = string # node, python, dotnet
-    runtime_version                = string # e.g., "20-lts", "3.11", "8.0"
+    runtime                        = string                 # node, python, dotnet
+    runtime_version                = string                 # e.g., "20-lts", "3.11", "8.0"
+    startup_file                   = optional(string, null) # Startup command (e.g., "node server.js")
     always_on                      = optional(bool, true)
     https_only                     = optional(bool, true)
     public_network_access_enabled  = optional(bool, true)
