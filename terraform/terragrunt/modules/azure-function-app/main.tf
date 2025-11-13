@@ -79,6 +79,10 @@ resource "azurerm_linux_function_app" "this" {
       auth_enabled           = try(each.value.easy_auth.enabled, true)
       unauthenticated_action = try(each.value.easy_auth.unauthenticated_action, "Return401")
 
+      # Excluded paths - critical for Function Apps to allow runtime management endpoints
+      # Must exclude /admin/* for function registration and /runtime/* for webhooks
+      excluded_paths = try(each.value.easy_auth.excluded_paths, ["/admin/*", "/runtime/*"])
+
       login {
         token_store_enabled = try(each.value.easy_auth.token_store_enabled, true)
       }

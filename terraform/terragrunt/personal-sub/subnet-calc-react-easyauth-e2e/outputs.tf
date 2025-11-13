@@ -114,3 +114,22 @@ output "resource_group_location" {
   description = "Location of the resource group"
   value       = data.azurerm_resource_group.main.location
 }
+
+# -----------------------------------------------------------------------------
+# Convenience outputs for deployment scripts (singular values)
+# -----------------------------------------------------------------------------
+
+output "function_app_name" {
+  description = "Name of the API function app (convenience output for deployment)"
+  value       = try(module.function_apps.names["api"], null)
+}
+
+output "web_app_name" {
+  description = "Name of the frontend web app (convenience output for deployment)"
+  value       = try(module.web_apps.names["frontend"], null)
+}
+
+output "function_app_api_base_url" {
+  description = "Base URL for the API function app (convenience output for deployment)"
+  value       = try(module.function_apps.urls["api"], null)
+}
