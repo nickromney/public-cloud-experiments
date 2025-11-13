@@ -58,7 +58,6 @@ async function fetchEasyAuthSession(forceRefresh = false): Promise<EasyAuthSessi
 
     if (!response.ok) {
       return null
-      return null
     }
 
     const data = await response.json()

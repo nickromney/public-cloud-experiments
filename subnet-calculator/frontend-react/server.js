@@ -53,7 +53,6 @@ if (proxyTarget) {
     createProxyMiddleware({
       target: proxyTarget,
       changeOrigin: true,
-      pathRewrite: (pathStr) => pathStr,
       logLevel: process.env.NODE_ENV === 'production' ? 'warn' : 'info',
       xfwd: true,
       onProxyReq: (proxyReq, req) => {
