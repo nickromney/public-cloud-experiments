@@ -9,6 +9,7 @@ resource "azurerm_linux_web_app" "this" {
   resource_group_name = each.value.resource_group_name
   location            = each.value.location
   service_plan_id     = each.value.service_plan_id
+  app_command_line    = try(each.value.startup_file, null)
 
   # Network configuration
   public_network_access_enabled = try(each.value.public_network_access_enabled, true)
