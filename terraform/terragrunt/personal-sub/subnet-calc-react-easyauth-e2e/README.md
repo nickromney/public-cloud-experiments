@@ -1,4 +1,4 @@
-# Subnet Calculator React Web App (Easy Auth)
+# Subnet Calculator React Web App (Easy Auth Direct)
 
 This Terragrunt stack provisions the Azure infrastructure that previously lived in the `infrastructure/azure` bash scripts for the “App Service + Function” experiment. It deploys:
 
@@ -6,7 +6,7 @@ This Terragrunt stack provisions the Azure infrastructure that previously lived 
 - A dedicated **Function App** plan + **Linux Function App** for `subnet-calculator/api-fastapi-azure-function`.
 - **Easy Auth (Azure AD)** on the Web App using the guidance from `subnet-calculator/frontend-python-flask/EASY-AUTH-SETUP.md`.
 
-The Web App exposes `API_BASE_URL` that points to the Function App’s `/api/v1` endpoints, mirroring Stack 1 (Static Web App + Azure Function) but on App Service with Easy Auth.
+The Web App exposes `API_BASE_URL` that points to the Function App’s `/api/v1` endpoints, mirroring Stack 1 (Static Web App + Azure Function) but on App Service with Easy Auth. If you need to keep the backend hostname private, use the sibling stack `subnet-calc-react-easyauth-proxied`, which enables the Express proxy instead.
 
 ## Prerequisites
 
@@ -24,7 +24,7 @@ The Web App exposes `API_BASE_URL` that points to the Function App’s `/api/v1`
    - `web_app.easy_auth`: set `client_id`, `client_secret`, `issuer` (`https://login.microsoftonline.com/<tenant-id>/v2.0`), and any `allowed_audiences`.
    - `function_app.plan_sku`, `runtime = "python"`, `runtime_version = "3.11"`, and tighten `cors_allowed_origins` to the final hostname (replace `"*"`).
    - Add any custom `app_settings` required by the React SPA or FastAPI (for example `AUTH_METHOD=none` on the Function App).
-3. (Optional) Override `web_app.api_base_url` if you need a different routing surface (default is the Function App host).
+3. Set `web_app.app_settings.API_BASE_URL` to the Function App host so the browser can call it directly (and optionally add `AUTH_METHOD = "easyauth"`). No proxy variables are used in this stack.
 
 ## Usage
 

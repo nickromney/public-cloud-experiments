@@ -279,39 +279,31 @@ async def get_current_user(request: Request) -> str:
             ) from e
 
     # Azure Static Web Apps EasyAuth
-    if auth_method == AuthMethod.AZURE_SWA:
-        # SWA injects x-ms-client-principal header after authentication
+    if auth_method in (AuthMethod.AZURE_SWA, AuthMethod.AZURE_AD):
         principal_header = request.headers.get("x-ms-client-principal")
 
         if not principal_header:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Azure SWA authentication required but no principal found",
+                detail="Easy Auth principal header missing",
             )
 
         try:
-            # Decode base64-encoded JSON
             import base64
             import json
 
             principal_json = base64.b64decode(principal_header).decode("utf-8")
             claims = json.loads(principal_json)
 
-            # Extract user identity from claims
-            # userDetails: email address (for AAD, GitHub, etc.)
-            # userId: unique user ID
-            # identityProvider: aad, github, google, twitter, etc.
             user_details = claims.get("userDetails")
             user_id = claims.get("userId")
-            claims.get("identityProvider")
 
-            # Return email if available, otherwise user ID
             user = user_details or user_id
 
             if not user:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid Azure SWA principal: missing user identity",
+                    detail="Easy Auth principal missing user identity",
                 )
 
             return user
@@ -319,7 +311,7 @@ async def get_current_user(request: Request) -> str:
         except (ValueError, KeyError, json.JSONDecodeError) as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Invalid Azure SWA principal: {str(e)}",
+                detail=f"Invalid Easy Auth principal: {str(e)}",
             ) from e
 
     # Azure API Management (APIM)

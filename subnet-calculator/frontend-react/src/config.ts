@@ -19,6 +19,7 @@ declare global {
       AZURE_REDIRECT_URI?: string
       JWT_USERNAME?: string
       JWT_PASSWORD?: string
+      EASYAUTH_RESOURCE_ID?: string
     }
   }
 }
@@ -30,6 +31,7 @@ export interface AuthConfig {
   redirectUri?: string
   jwtUsername?: string
   jwtPassword?: string
+  easyAuthResourceId?: string
 }
 
 export interface AppConfig {
@@ -113,13 +115,13 @@ export function getAppConfig(): AppConfig {
     import.meta.env.VITE_API_URL ||
     (isAzureSWA() ? '' : 'http://localhost:7071')
 
-  // MSAL configuration (only used when authMethod === 'msal')
+  // MSAL / Easy Auth configuration
   const clientId = window.RUNTIME_CONFIG?.AZURE_CLIENT_ID || import.meta.env.VITE_AZURE_CLIENT_ID || ''
-
   const tenantId = window.RUNTIME_CONFIG?.AZURE_TENANT_ID || import.meta.env.VITE_AZURE_TENANT_ID || 'common'
-
   const redirectUri =
     window.RUNTIME_CONFIG?.AZURE_REDIRECT_URI || import.meta.env.VITE_AZURE_REDIRECT_URI || window.location.origin
+  const easyAuthResourceId =
+    window.RUNTIME_CONFIG?.EASYAUTH_RESOURCE_ID || import.meta.env.VITE_EASYAUTH_RESOURCE_ID || ''
 
   // JWT configuration (only used when authMethod === 'jwt')
   const jwtUsername = window.RUNTIME_CONFIG?.JWT_USERNAME || import.meta.env.VITE_JWT_USERNAME || ''
@@ -146,6 +148,7 @@ export function getAppConfig(): AppConfig {
       redirectUri,
       jwtUsername,
       jwtPassword,
+      easyAuthResourceId,
     },
     stackName,
   }
@@ -183,6 +186,7 @@ export function getConfig(): AppConfig {
         redirectUri: window.RUNTIME_CONFIG?.AZURE_REDIRECT_URI || import.meta.env.VITE_AZURE_REDIRECT_URI || window.location.origin,
         jwtUsername: window.RUNTIME_CONFIG?.JWT_USERNAME || import.meta.env.VITE_JWT_USERNAME || '',
         jwtPassword: window.RUNTIME_CONFIG?.JWT_PASSWORD || import.meta.env.VITE_JWT_PASSWORD || '',
+        easyAuthResourceId: window.RUNTIME_CONFIG?.EASYAUTH_RESOURCE_ID || import.meta.env.VITE_EASYAUTH_RESOURCE_ID || '',
       },
       stackName: `React + TypeScript + Vite${authSuffix}`,
     }

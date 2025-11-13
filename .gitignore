@@ -19,6 +19,10 @@ crash.*.log
 *.tfvars.json
 !terraform/terragrunt/personal-sub/subnet-calc-react-webapp-apim/stages/*.tfvars
 !terraform/terragrunt/personal-sub/subnet-calc-react-webapp-apim/stages/*.tfvars
+!terraform/terragrunt/personal-sub/subnet-calc-react-easyauth-e2e/terraform.tfvars
+!terraform/terragrunt/personal-sub/subnet-calc-react-easyauth-e2e/stages/*.tfvars
+!terraform/terragrunt/personal-sub/subnet-calc-react-easyauth-proxied/terraform.tfvars
+!terraform/terragrunt/personal-sub/subnet-calc-react-easyauth-proxied/stages/*.tfvars
 
 # Ignore override files as they are usually used to override resources locally and so
 # are not checked in
