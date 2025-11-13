@@ -311,7 +311,13 @@
       "Bash(az keyvault list:*)",
       "Bash(az monitor log-analytics workspace list:*)",
       "Bash(terragrunt import:*)",
-      "Bash(az role assignment list:*)"
+      "Bash(az role assignment list:*)",
+      "Bash(AUTO_APPROVE=1 make subnet-calc react-easyauth-e2e apply)",
+      "Bash(az rest:*)",
+      "Bash(az webapp log tail:*)",
+      "Bash(az resource show:*)",
+      "Bash(az monitor app-insights query:*)",
+      "Bash(az webapp config appsettings list:*)"
     ],
     "deny": [],
     "ask": []

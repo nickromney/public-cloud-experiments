@@ -94,6 +94,17 @@ For scenarios where build-time config isn't suitable, inject runtime config:
 <script type="module" src="/src/main.tsx"></script>
 ```
 
+#### Server-Side Proxy Controls
+
+When the app runs behind a Node/Express host (e.g., Azure Web App), you can keep API details hidden:
+
+- `API_BASE_URL`: **Set** to the public API host when the browser should call the backend directly (Static Web App / direct Easy Auth pattern).
+- `PROXY_API_URL`: **Set** to the backend host when you want the Node server to proxy `/api/*` requests (Easy Auth proxy pattern). Leave `API_BASE_URL` empty so the SPA keeps using relative paths.
+- `PROXY_FORWARD_EASYAUTH_HEADERS` (optional): defaults to `true`. Set to `false` to stop forwarding Easy Auth headers/cookies when proxying.
+- `AUTH_METHOD` or `AUTH_MODE`: either variable works; both feed `window.RUNTIME_CONFIG.AUTH_METHOD`.
+
+With `PROXY_API_URL` configured the Node process copies the incoming Easy Auth headers (`X-ZUMO-AUTH`, `x-ms-token-*`, etc.) to the backend call so the Function App receives the visitor’s identity without ever exposing its hostname to the browser.
+
 ## Deployment
 
 ### Azure Web App with Easy Auth

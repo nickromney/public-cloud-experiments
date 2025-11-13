@@ -99,4 +99,10 @@ resource "azurerm_linux_function_app" "this" {
   }
 
   tags = merge(var.common_tags, try(each.value.tags, {}))
+
+  lifecycle {
+    ignore_changes = [
+      tags["hidden-link: /app-insights-resource-id"],
+    ]
+  }
 }

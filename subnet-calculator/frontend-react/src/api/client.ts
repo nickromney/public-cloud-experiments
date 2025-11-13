@@ -7,6 +7,7 @@ import type { IApiClient } from '@subnet-calculator/shared-frontend/api'
 import { TokenManager } from '@subnet-calculator/shared-frontend'
 import { getApiPrefix, handleFetchError, isIpv6, parseJsonResponse } from '@subnet-calculator/shared-frontend/api'
 import { APP_CONFIG } from '../config'
+import { getEasyAuthAccessToken } from '../auth/easyAuthProvider'
 import type {
   ApiCallTiming,
   CloudflareCheckResponse,
@@ -21,6 +22,7 @@ import type {
 class ApiClient implements IApiClient {
   private baseUrl: string
   private tokenManager: TokenManager | null = null
+  private easyAuthToken: { token: string; expiresAt?: number } | null = null
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl
@@ -40,9 +42,56 @@ class ApiClient implements IApiClient {
    */
   private async getAuthHeaders(): Promise<Record<string, string>> {
     if (!this.tokenManager) {
+      if (await this.shouldAttachEasyAuthToken()) {
+        const token = await this.getEasyAuthAuthHeader()
+        if (token) {
+          return token
+        }
+      }
       return {}
     }
     return await this.tokenManager.getAuthHeaders()
+  }
+
+  private async shouldAttachEasyAuthToken(): Promise<boolean> {
+    if (APP_CONFIG.auth.method !== 'easyauth') {
+      return false
+    }
+
+    if (!this.baseUrl) {
+      return false
+    }
+
+    try {
+      const apiOrigin = new URL(this.baseUrl, window.location.origin).origin
+      return apiOrigin !== window.location.origin
+    } catch {
+      return false
+    }
+  }
+
+  private async getEasyAuthAuthHeader(): Promise<Record<string, string> | null> {
+    if (this.easyAuthToken && (!this.easyAuthToken.expiresAt || this.easyAuthToken.expiresAt - 60_000 > Date.now())) {
+      return this.buildEasyAuthHeaders(this.easyAuthToken.token)
+    }
+
+    const tokenInfo = await getEasyAuthAccessToken(
+      this.easyAuthToken !== null,
+      APP_CONFIG.auth.easyAuthResourceId || undefined
+    )
+    if (!tokenInfo) {
+      return null
+    }
+
+    this.easyAuthToken = tokenInfo
+    return this.buildEasyAuthHeaders(tokenInfo.token)
+  }
+
+  private buildEasyAuthHeaders(token: string): Record<string, string> {
+    return {
+      Authorization: `Bearer ${token}`,
+      'X-ZUMO-AUTH': token,
+    }
   }
 
   getBaseUrl(): string {
