@@ -20,6 +20,11 @@ user_assigned_identities = {
     resource_group_name = "rg-subnet-calc"
     location            = "uksouth"
   }
+  webapp = {
+    name                = "id-web-subnet-calc-react-easyauth-proxied"
+    resource_group_name = "rg-subnet-calc"
+    location            = "uksouth"
+  }
 }
 
 # -----------------------------------------------------------------------------
@@ -40,7 +45,7 @@ service_plans = {
 
 storage_accounts = {
   funcapp = {
-    name                     = "stsubnetcalceasyauthe2e"
+    name                     = "stsubnetcalcproxied"
     account_tier             = "Standard"
     account_replication_type = "LRS"
     account_kind             = "StorageV2"
