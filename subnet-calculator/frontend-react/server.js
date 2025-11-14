@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import { DefaultAzureCredential } from '@azure/identity';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +26,7 @@ const runtimeConfig = {
 
 const proxyTarget = process.env.PROXY_API_URL || '';
 const forwardEasyAuthHeaders = process.env.PROXY_FORWARD_EASYAUTH_HEADERS !== 'false';
+const useManagedIdentity = !forwardEasyAuthHeaders && proxyTarget;
 const easyAuthHeaderWhitelist = [
   'x-zumo-auth',
   'authorization',
@@ -35,6 +37,60 @@ const easyAuthHeaderWhitelist = [
   'x-ms-client-principal-name',
   'cookie',
 ];
+
+// Managed Identity credential and token cache
+let credential = null;
+let tokenCache = { token: null, expiresAt: 0 };
+
+/**
+ * Get access token for Function App using Managed Identity
+ * Caches token until it expires
+ */
+async function getManagedIdentityToken() {
+  if (!useManagedIdentity) {
+    return null;
+  }
+
+  // Return cached token if still valid (with 5 min buffer)
+  const now = Date.now();
+  if (tokenCache.token && tokenCache.expiresAt > now + 300000) {
+    return tokenCache.token;
+  }
+
+  try {
+    // Initialize credential on first use
+    if (!credential) {
+      credential = new DefaultAzureCredential();
+      console.log('Initialized DefaultAzureCredential for Managed Identity');
+    }
+
+    // Get token for Function App
+    // Scope should be the Function App's application ID URI or client ID
+    const functionAppScope = process.env.EASYAUTH_RESOURCE_ID ||
+                            process.env.FUNCTION_APP_SCOPE ||
+                            `${proxyTarget}/.default`;
+
+    console.log(`Requesting MI token for scope: ${functionAppScope}`);
+    const tokenResponse = await credential.getToken(functionAppScope);
+
+    if (!tokenResponse || !tokenResponse.token) {
+      console.error('Failed to get Managed Identity token');
+      return null;
+    }
+
+    // Cache the token
+    tokenCache = {
+      token: tokenResponse.token,
+      expiresAt: tokenResponse.expiresOnTimestamp,
+    };
+
+    console.log('Successfully obtained Managed Identity token');
+    return tokenResponse.token;
+  } catch (error) {
+    console.error('Error getting Managed Identity token:', error);
+    return null;
+  }
+}
 
 console.log('Runtime Configuration:', {
   API_BASE_URL: runtimeConfig.API_BASE_URL,
@@ -51,6 +107,8 @@ console.log('Runtime Configuration:', {
 
 if (proxyTarget) {
   console.log('Enabling API proxy middleware');
+  console.log('Proxy mode:', useManagedIdentity ? 'Managed Identity' : 'Easy Auth Headers');
+
   app.use(
     '/api',
     createProxyMiddleware({
@@ -58,17 +116,32 @@ if (proxyTarget) {
       changeOrigin: true,
       logLevel: process.env.NODE_ENV === 'production' ? 'warn' : 'info',
       xfwd: true,
-      onProxyReq: (proxyReq, req) => {
-        if (!forwardEasyAuthHeaders) {
+      onProxyReq: async (proxyReq, req) => {
+        // Managed Identity mode: Get MI token and add to Authorization header
+        if (useManagedIdentity) {
+          try {
+            const token = await getManagedIdentityToken();
+            if (token) {
+              proxyReq.setHeader('Authorization', `Bearer ${token}`);
+              console.log('Added Managed Identity token to request');
+            } else {
+              console.warn('No Managed Identity token available');
+            }
+          } catch (error) {
+            console.error('Error adding MI token to request:', error);
+          }
           return;
         }
 
-        easyAuthHeaderWhitelist.forEach((header) => {
-          const value = req.headers[header];
-          if (value) {
-            proxyReq.setHeader(header, value);
-          }
-        });
+        // Easy Auth Headers mode: Forward user's Easy Auth headers
+        if (forwardEasyAuthHeaders) {
+          easyAuthHeaderWhitelist.forEach((header) => {
+            const value = req.headers[header];
+            if (value) {
+              proxyReq.setHeader(header, value);
+            }
+          });
+        }
       },
     })
   );

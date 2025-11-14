@@ -17,6 +17,7 @@
     "test:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@azure/identity": "^4.6.0",
     "@azure/msal-browser": "^4.26.1",
     "@azure/msal-react": "^3.0.21",
     "@subnet-calculator/shared-frontend": "file:../shared-frontend",
