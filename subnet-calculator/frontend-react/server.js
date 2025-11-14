@@ -109,6 +109,24 @@ if (proxyTarget) {
   console.log('Enabling API proxy middleware');
   console.log('Proxy mode:', useManagedIdentity ? 'Managed Identity' : 'Easy Auth Headers');
 
+  // Middleware to add Managed Identity token BEFORE proxy (async supported in Express middleware)
+  if (useManagedIdentity) {
+    app.use('/api', async (req, res, next) => {
+      try {
+        const token = await getManagedIdentityToken();
+        if (token) {
+          req.headers.authorization = `Bearer ${token}`;
+          console.log('Added Managed Identity token to request headers');
+        } else {
+          console.warn('No Managed Identity token available');
+        }
+      } catch (error) {
+        console.error('Error getting MI token:', error);
+      }
+      next();
+    });
+  }
+
   app.use(
     '/api',
     createProxyMiddleware({
@@ -116,23 +134,7 @@ if (proxyTarget) {
       changeOrigin: true,
       logLevel: process.env.NODE_ENV === 'production' ? 'warn' : 'info',
       xfwd: true,
-      onProxyReq: async (proxyReq, req) => {
-        // Managed Identity mode: Get MI token and add to Authorization header
-        if (useManagedIdentity) {
-          try {
-            const token = await getManagedIdentityToken();
-            if (token) {
-              proxyReq.setHeader('Authorization', `Bearer ${token}`);
-              console.log('Added Managed Identity token to request');
-            } else {
-              console.warn('No Managed Identity token available');
-            }
-          } catch (error) {
-            console.error('Error adding MI token to request:', error);
-          }
-          return;
-        }
-
+      onProxyReq: (proxyReq, req) => {
         // Easy Auth Headers mode: Forward user's Easy Auth headers
         if (forwardEasyAuthHeaders) {
           easyAuthHeaderWhitelist.forEach((header) => {
