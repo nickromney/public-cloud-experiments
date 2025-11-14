@@ -51,7 +51,8 @@ resource "azurerm_linux_function_app" "this" {
     dynamic "cors" {
       for_each = try(each.value.cors_allowed_origins, null) != null ? [1] : []
       content {
-        allowed_origins = each.value.cors_allowed_origins
+        allowed_origins     = each.value.cors_allowed_origins
+        support_credentials = try(each.value.cors_support_credentials, false)
       }
     }
 

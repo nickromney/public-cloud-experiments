@@ -158,27 +158,34 @@ export async function getEasyAuthAccessToken(
 }
 
 async function fetchResourceToken(resourceId: string): Promise<EasyAuthAccessToken | null> {
-  try {
-    const response = await fetch(`/.auth/refresh?resource=${encodeURIComponent(resourceId)}`, {
-      credentials: 'include',
-    })
-    if (!response.ok) {
-      return null
+  const attempts = [
+    `/.auth/refresh?resource=${encodeURIComponent(resourceId)}`,
+    `/.auth/refresh?scopes=${encodeURIComponent(`${resourceId}/user_impersonation`)}`,
+    `/.auth/refresh?scopes=${encodeURIComponent(`${resourceId}/.default`)}`,
+  ]
+
+  for (const url of attempts) {
+    try {
+      const response = await fetch(url, { credentials: 'include' })
+      if (!response.ok) {
+        continue
+      }
+      const data = await response.json()
+      const normalized = normalizeToken(data?.access_token || data?.authentication_token || data?.id_token)
+      if (!normalized) {
+        continue
+      }
+      return {
+        token: normalized.token,
+        source: 'access_token',
+        expiresAt: normalized.expiresAt,
+      }
+    } catch (error) {
+      console.error(`Error refreshing Easy Auth token via ${url}:`, error)
     }
-    const data = await response.json()
-    const normalized = normalizeToken(data?.access_token || data?.authentication_token || data?.id_token)
-    if (!normalized) {
-      return null
-    }
-    return {
-      token: normalized.token,
-      source: 'access_token',
-      expiresAt: normalized.expiresAt,
-    }
-  } catch (error) {
-    console.error('Error refreshing Easy Auth token:', error)
-    return null
   }
+
+  return null
 }
 
 function normalizeToken(input?: TokenLike): { token: string; expiresAt?: number } | null {

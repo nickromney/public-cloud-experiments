@@ -2,6 +2,8 @@
 
 A full-stack IPv4/IPv6 subnet calculator with multiple backend and frontend implementations demonstrating different deployment patterns.
 
+> Looking for an overview of every hosting option (local compose, SWA, App Service Easy Auth, etc.) and how authentication works in each one? See [docs/HOSTING-MATRIX.md](docs/HOSTING-MATRIX.md) for the compatibility matrix that maps stacks to auth modes.
+
 ## Quick Start
 
 ### Run All Services

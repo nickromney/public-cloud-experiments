@@ -13,18 +13,28 @@ The Web App exposes `API_BASE_URL` that points to the Function App’s `/api/v1`
 1. Azure credentials exported for Terragrunt (`ARM_SUBSCRIPTION_ID`, `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_TENANT_ID`, backend storage envs).
 2. Default region: UK South. Set `PERSONAL_SUB_REGION=uksouth` (already assumed) if you need to override for troubleshooting.
 3. Resource group naming follows CAF: this stack creates/uses `rg-subnet-calc`.
-4. An Azure AD App Registration with a client secret. Use the same steps from `frontend-python-flask/EASY-AUTH-SETUP.md`.
+4. Azure AD permissions to create app registrations **and** grant delegated permissions (the stack now provisions separate frontend/API apps plus the delegated grant automatically).
 5. Optional: a dedicated storage account name if you don’t want Terraform to derive one automatically.
 
 ## Configuration
 
 1. Copy `terraform.tfvars.example` to `terraform.tfvars`.
 2. Update the following blocks:
-   - `web_app.plan_sku`, `web_app.runtime_version` (Node version needed by the React build).
-   - `web_app.easy_auth`: set `client_id`, `client_secret`, `issuer` (`https://login.microsoftonline.com/<tenant-id>/v2.0`), and any `allowed_audiences`.
-   - `function_app.plan_sku`, `runtime = "python"`, `runtime_version = "3.11"`, and tighten `cors_allowed_origins` to the final hostname (replace `"*"`).
-   - Add any custom `app_settings` required by the React SPA or FastAPI (for example `AUTH_METHOD=none` on the Function App).
-3. Set `web_app.app_settings.API_BASE_URL` to the Function App host so the browser can call it directly (and optionally add `AUTH_METHOD = "easyauth"`). No proxy variables are used in this stack.
+   - `service_plans`, `storage_accounts`, and `user_assigned_identities` if you need different SKUs or BYO resources.
+   - `entra_id_apps.frontend` and `.api` to align with your hostnames. The API app exposes the `api://...-api` Application ID URI plus the `user_impersonation` scope, while `entra_id_app_delegated_permissions` grants the frontend delegated access to that scope so `/.auth/refresh?resource=...` works without a proxy.
+   - `function_apps.api`: confirm the `cors_allowed_origins`, `AUTH_METHOD = "azure_ad"`, and Easy Auth `entra_app_key = "api"`.
+   - `web_apps.frontend`: keep `AUTH_METHOD = "easyauth"` and set `EASYAUTH_RESOURCE_ID` to the API Application ID URI (exposed above).
+3. Set `API_BASE_URL` to the Function App host so the browser can call it directly. No proxy variables are used in this stack (see the `proxied` sibling stack if you need that behavior).
+
+### Easy Auth token flow
+
+The stack now models the recommended two-app pattern:
+
+- **Frontend app registration** → used by the Web App’s Easy Auth handler. Users sign in here and the SPA calls `/.auth/refresh?resource=api://subnet-calculator-react-easyauth-e2e-api`.
+- **API app registration** → used by the Function App’s Easy Auth handler and exposes the `user_impersonation` scope.
+- **Delegated permission grant** → Terraform creates an `azuread_service_principal_delegated_permission_grant` so the frontend is pre-consented for the API scope. This lets Easy Auth mint a downstream token that the SPA forwards in `Authorization`/`X-ZUMO-AUTH` headers.
+
+With that split, the Function App honors the same Easy Auth token the frontend received, so direct browser calls no longer return `401/403`.
 
 ## Usage
 
