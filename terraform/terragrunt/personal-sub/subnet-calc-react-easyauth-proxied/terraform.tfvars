@@ -199,15 +199,18 @@ web_apps = {
       WEBSITE_NODE_DEFAULT_VERSION   = "~22"
       SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
       WEBSITE_RUN_FROM_PACKAGE       = "0"
-      API_BASE_URL                   = "https://func-subnet-calc-react-easyauth-proxied-api.azurewebsites.net"
-      API_PROXY_ENABLED              = "false"
+      API_BASE_URL                   = ""
+      API_PROXY_ENABLED              = "true"
+      PROXY_API_URL                  = "https://func-subnet-calc-react-easyauth-proxied-api.azurewebsites.net"
+      PROXY_FORWARD_EASYAUTH_HEADERS = "false"
       AUTH_METHOD                    = "easyauth"
       AUTH_MODE                      = "easyauth"
       EASYAUTH_RESOURCE_ID           = "api://subnet-calculator-react-easyauth-proxied-api"
     }
 
-    # Managed Identity: SystemAssigned
-    identity_type = "SystemAssigned"
+    # Managed Identity: UserAssigned (for calling Function App)
+    identity_type = "UserAssigned"
+    identity_keys = ["webapp"]
 
     # Easy Auth
     easy_auth = {

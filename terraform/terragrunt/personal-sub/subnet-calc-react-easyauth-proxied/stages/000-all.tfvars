@@ -197,13 +197,14 @@ web_apps = {
       API_BASE_URL                   = ""
       API_PROXY_ENABLED              = "true"
       PROXY_API_URL                  = "https://func-subnet-calc-react-easyauth-proxied-api.azurewebsites.net"
-      PROXY_FORWARD_EASYAUTH_HEADERS = "true"
+      PROXY_FORWARD_EASYAUTH_HEADERS = "false"
       AUTH_METHOD                    = "easyauth"
       AUTH_MODE                      = "easyauth"
       EASYAUTH_RESOURCE_ID           = "api://subnet-calculator-react-easyauth-proxied-api"
     }
 
-    identity_type = "SystemAssigned"
+    identity_type = "UserAssigned"
+    identity_keys = ["webapp"]
 
     easy_auth = {
       enabled                = true
