@@ -76,6 +76,19 @@ entra_id_apps = {
     web_redirect_uris = [
       "https://web-subnet-calc-react-easyauth-e2e.azurewebsites.net/.auth/login/aad/callback"
     ]
+    required_resource_access = [
+      {
+        # API app - allows frontend to request tokens for the API
+        resource_app_id = "e65aae60-ea26-48e1-bc20-af9e1cff1dd7"
+        resource_access = [
+          {
+            # user_impersonation scope
+            id   = "15dcdbde-c98c-4442-8620-35fa793196da"
+            type = "Scope"
+          }
+        ]
+      }
+    ]
   }
 
   api = {
