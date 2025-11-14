@@ -195,6 +195,7 @@ web_apps = {
       SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
       WEBSITE_RUN_FROM_PACKAGE       = "0"
       API_BASE_URL                   = "https://func-subnet-calc-react-easyauth-e2e-api.azurewebsites.net"
+      API_PROXY_ENABLED              = "false"
       AUTH_METHOD                    = "easyauth"
       AUTH_MODE                      = "easyauth"
       EASYAUTH_RESOURCE_ID           = "api://subnet-calculator-react-easyauth-e2e-api"

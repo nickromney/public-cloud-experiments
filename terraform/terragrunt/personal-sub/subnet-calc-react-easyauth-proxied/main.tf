@@ -128,11 +128,40 @@ module "entra_id_app" {
 
   for_each = var.entra_id_apps
 
-  display_name      = each.value.display_name
-  sign_in_audience  = try(each.value.sign_in_audience, "AzureADMyOrg")
-  identifier_uris   = try(each.value.identifier_uris, [])
-  web_redirect_uris = try(each.value.web_redirect_uris, [])
-  spa_redirect_uris = try(each.value.spa_redirect_uris, [])
+  display_name                        = each.value.display_name
+  sign_in_audience                    = try(each.value.sign_in_audience, "AzureADMyOrg")
+  identifier_uris                     = try(each.value.identifier_uris, [])
+  web_redirect_uris                   = try(each.value.web_redirect_uris, [])
+  spa_redirect_uris                   = try(each.value.spa_redirect_uris, [])
+  implicit_grant_access_token_enabled = try(each.value.implicit_grant_access_token_enabled, true)
+  implicit_grant_id_token_enabled     = try(each.value.implicit_grant_id_token_enabled, true)
+  requested_access_token_version      = try(each.value.requested_access_token_version, 2)
+  add_microsoft_graph_user_read       = try(each.value.add_microsoft_graph_user_read, true)
+  oauth2_permission_scopes            = try(each.value.oauth2_permission_scopes, [])
+  required_resource_access            = try(each.value.required_resource_access, [])
+  app_roles                           = try(each.value.app_roles, [])
+  additional_owners                   = try(each.value.additional_owners, [])
+  create_client_secret                = try(each.value.create_client_secret, false)
+  client_secret_display_name          = try(each.value.client_secret_display_name, "terraform-generated")
+  client_secret_end_date              = try(each.value.client_secret_end_date, null)
+  key_vault_id                        = try(each.value.key_vault_id, null)
+  client_secret_kv_name               = try(each.value.client_secret_kv_name, "")
+  tags                                = merge(local.common_tags, try(each.value.tags, {}))
+}
+
+locals {
+  delegated_permission_grants = {
+    for perm in var.entra_id_app_delegated_permissions :
+    "${perm.from_app_key}-${perm.to_app_key}-${join("-", perm.scopes)}" => perm
+  }
+}
+
+resource "azuread_service_principal_delegated_permission_grant" "entra" {
+  for_each = local.delegated_permission_grants
+
+  service_principal_object_id          = module.entra_id_app[each.value.from_app_key].service_principal_id
+  resource_service_principal_object_id = module.entra_id_app[each.value.to_app_key].service_principal_id
+  claim_values                         = each.value.scopes
 }
 
 # -----------------------------------------------------------------------------
@@ -158,6 +187,7 @@ module "function_apps" {
       # Network
       public_network_access_enabled = try(v.public_network_access_enabled, true)
       cors_allowed_origins          = try(v.cors_allowed_origins, null)
+      cors_support_credentials      = try(v.cors_support_credentials, null)
 
       # App Insights
       app_insights_connection_string = try(v.app_insights_key, null) != null ? azurerm_application_insights.this[v.app_insights_key].connection_string : null
@@ -177,11 +207,16 @@ module "function_apps" {
 
       # Easy Auth
       easy_auth = try(v.easy_auth, null) != null ? {
-        enabled                = try(v.easy_auth.enabled, true)
-        client_id              = module.entra_id_app[v.easy_auth.entra_app_key].application_id
-        tenant_id              = local.tenant_id
-        tenant_auth_endpoint   = try(v.easy_auth.tenant_auth_endpoint, null)
-        allowed_audiences      = try(v.easy_auth.allowed_audiences, [])
+        enabled              = try(v.easy_auth.enabled, true)
+        client_id            = module.entra_id_app[v.easy_auth.entra_app_key].application_id
+        tenant_id            = local.tenant_id
+        tenant_auth_endpoint = try(v.easy_auth.tenant_auth_endpoint, null)
+        allowed_audiences = distinct(concat(
+          try(v.easy_auth.allowed_audiences, []),
+          try([for uri in module.entra_id_app[v.easy_auth.entra_app_key].identifier_uris : uri], []),
+          [module.entra_id_app[v.easy_auth.entra_app_key].application_id],
+          [for key in try(v.easy_auth.additional_entra_app_keys, []) : module.entra_id_app[key].application_id]
+        ))
         unauthenticated_action = try(v.easy_auth.unauthenticated_action, "Return401")
         token_store_enabled    = try(v.easy_auth.token_store_enabled, true)
       } : null
@@ -231,11 +266,15 @@ module "web_apps" {
 
       # Easy Auth
       easy_auth = try(v.easy_auth, null) != null ? {
-        enabled                = try(v.easy_auth.enabled, true)
-        client_id              = module.entra_id_app[v.easy_auth.entra_app_key].application_id
-        tenant_id              = local.tenant_id
-        tenant_auth_endpoint   = try(v.easy_auth.tenant_auth_endpoint, null)
-        allowed_audiences      = try(v.easy_auth.allowed_audiences, [])
+        enabled              = try(v.easy_auth.enabled, true)
+        client_id            = module.entra_id_app[v.easy_auth.entra_app_key].application_id
+        tenant_id            = local.tenant_id
+        tenant_auth_endpoint = try(v.easy_auth.tenant_auth_endpoint, null)
+        allowed_audiences = distinct(concat(
+          try(v.easy_auth.allowed_audiences, []),
+          try([for uri in module.entra_id_app[v.easy_auth.entra_app_key].identifier_uris : uri], []),
+          [module.entra_id_app[v.easy_auth.entra_app_key].application_id]
+        ))
         unauthenticated_action = try(v.easy_auth.unauthenticated_action, "RedirectToLoginPage")
         default_provider       = try(v.easy_auth.default_provider, "azureactivedirectory")
         token_store_enabled    = try(v.easy_auth.token_store_enabled, true)

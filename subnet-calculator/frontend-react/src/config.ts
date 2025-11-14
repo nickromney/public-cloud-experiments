@@ -20,6 +20,7 @@ declare global {
       JWT_USERNAME?: string
       JWT_PASSWORD?: string
       EASYAUTH_RESOURCE_ID?: string
+      API_PROXY_ENABLED?: string | boolean
     }
   }
 }
@@ -38,6 +39,7 @@ export interface AppConfig {
   apiBaseUrl: string
   auth: AuthConfig
   stackName: string
+  apiProxyEnabled: boolean
 }
 
 /**
@@ -106,14 +108,21 @@ export function getAuthMethod(): AuthConfig['method'] {
  * Get complete application configuration
  */
 export function getAppConfig(): AppConfig {
+  const runtimeProxyFlag = window.RUNTIME_CONFIG?.API_PROXY_ENABLED ?? import.meta.env.VITE_API_PROXY_ENABLED
+  const apiProxyEnabled = `${runtimeProxyFlag ?? ''}`.toLowerCase() === 'true'
+
   const authMethod = getAuthMethod()
 
   // API Base URL priority: Runtime > Environment > Default (relative for SWA)
-  const apiBaseUrl =
+  let apiBaseUrl =
     window.RUNTIME_CONFIG?.API_BASE_URL ||
     import.meta.env.VITE_API_BASE_URL ||
     import.meta.env.VITE_API_URL ||
     (isAzureSWA() ? '' : 'http://localhost:7071')
+
+  if (apiProxyEnabled) {
+    apiBaseUrl = ''
+  }
 
   // MSAL / Easy Auth configuration
   const clientId = window.RUNTIME_CONFIG?.AZURE_CLIENT_ID || import.meta.env.VITE_AZURE_CLIENT_ID || ''
@@ -151,6 +160,7 @@ export function getAppConfig(): AppConfig {
       easyAuthResourceId,
     },
     stackName,
+    apiProxyEnabled,
   }
 }
 
@@ -162,11 +172,18 @@ export function getConfig(): AppConfig {
     // Priority: window.RUNTIME_CONFIG (injected by server.js) > build-time env > defaults
     const authMethod = (window.RUNTIME_CONFIG?.AUTH_METHOD || getAuthMethod()) as AuthConfig['method']
 
-    const apiBaseUrl =
+    let apiBaseUrl =
       window.RUNTIME_CONFIG?.API_BASE_URL ||
       import.meta.env.VITE_API_BASE_URL ||
       import.meta.env.VITE_API_URL ||
       (isAzureSWA() ? '' : 'http://localhost:7071')
+
+    const runtimeProxyFlag = window.RUNTIME_CONFIG?.API_PROXY_ENABLED ?? import.meta.env.VITE_API_PROXY_ENABLED
+    const apiProxyEnabled = `${runtimeProxyFlag ?? ''}`.toLowerCase() === 'true'
+
+    if (apiProxyEnabled) {
+      apiBaseUrl = ''
+    }
 
     // Determine stack name suffix based on auth method
     const authSuffix = {
@@ -189,6 +206,7 @@ export function getConfig(): AppConfig {
         easyAuthResourceId: window.RUNTIME_CONFIG?.EASYAUTH_RESOURCE_ID || import.meta.env.VITE_EASYAUTH_RESOURCE_ID || '',
       },
       stackName: `React + TypeScript + Vite${authSuffix}`,
+      apiProxyEnabled,
     }
   }
   return _cachedConfig

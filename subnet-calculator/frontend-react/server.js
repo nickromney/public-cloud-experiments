@@ -13,6 +13,7 @@ const port = process.env.PORT || 8080;
 // Read runtime configuration from environment variables
 const runtimeConfig = {
   API_BASE_URL: process.env.API_BASE_URL || '',
+  API_PROXY_ENABLED: process.env.API_PROXY_ENABLED || 'false',
   AUTH_METHOD: process.env.AUTH_METHOD || process.env.AUTH_MODE || '',
   JWT_USERNAME: process.env.JWT_USERNAME || '',
   JWT_PASSWORD: process.env.JWT_PASSWORD || '',
@@ -32,10 +33,12 @@ const easyAuthHeaderWhitelist = [
   'x-ms-client-principal',
   'x-ms-client-principal-id',
   'x-ms-client-principal-name',
+  'cookie',
 ];
 
 console.log('Runtime Configuration:', {
   API_BASE_URL: runtimeConfig.API_BASE_URL,
+  API_PROXY_ENABLED: runtimeConfig.API_PROXY_ENABLED,
   AUTH_METHOD: runtimeConfig.AUTH_METHOD,
   JWT_USERNAME: runtimeConfig.JWT_USERNAME ? '***' : '(not set)',
   JWT_PASSWORD: runtimeConfig.JWT_PASSWORD ? '***' : '(not set)',
