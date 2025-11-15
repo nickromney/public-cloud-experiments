@@ -1,14 +1,14 @@
-# Stage 900 - All (Complete Configuration)
+# Stage 000 - All (Complete Configuration)
 # Superset of everything from stages 100-500
-# Pattern: Use 900 for complete stacks in other deployments
+# Pattern: Use 000 for complete stacks in this deployment
 
 # -----------------------------------------------------------------------------
 # Core Configuration
 # -----------------------------------------------------------------------------
 
 environment         = "dev"
-project_name        = "subnetcalc"
-workload_name       = "subnet-calculator-react-easyauth-e2e"
+project_name        = "authtest"
+workload_name       = "webapp-auth-test-csharp"
 resource_group_name = "rg-subnet-calc"
 
 # -----------------------------------------------------------------------------

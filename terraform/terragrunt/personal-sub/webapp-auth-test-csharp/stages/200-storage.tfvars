@@ -6,8 +6,8 @@
 # -----------------------------------------------------------------------------
 
 environment         = "dev"
-project_name        = "subnetcalc"
-workload_name       = "subnet-calculator-react-easyauth-e2e"
+project_name        = "authtest"
+workload_name       = "webapp-auth-test-csharp"
 resource_group_name = "rg-subnet-calc"
 
 # -----------------------------------------------------------------------------

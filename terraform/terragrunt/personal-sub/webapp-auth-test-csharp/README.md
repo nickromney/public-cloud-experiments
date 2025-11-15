@@ -56,7 +56,7 @@ With this stage applied:
 
 ## Local Testing with podman-compose
 
-The `.NET` repos now ship Dockerfiles plus a compose definition for smoke tests without touching Azure:
+The .NET repos now ship Dockerfiles plus a compose definition for smoke tests without touching Azure:
 
 ```bash
 cd subnet-calculator/csharp-test
@@ -129,8 +129,8 @@ The C# applications are located in:
 When deploying .NET apps to Azure App Service via CLI, you **must** manually configure the Stack in Azure Portal:
 
 1. Configuration > General Settings
-2. Set Stack: `.NET`
-3. Set Major/Minor version: `.NET 9 (STS)`
+2. Set Stack: .NET
+3. Set Major/Minor version: .NET 9 (STS)
 4. Save and redeploy
 
 See `subnet-calculator/csharp-test/DEPLOYMENT-NOTES.md` for full details on this critical issue.
