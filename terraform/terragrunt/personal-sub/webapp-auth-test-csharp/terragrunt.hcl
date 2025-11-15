@@ -1,6 +1,6 @@
-# Personal Subscription - React Web App + Function App with Easy Auth E2E
-# Deploys: React SPA on App Service + FastAPI Function App backend
-# Auth: Easy Auth V2 with Managed Identity on BOTH frontend AND backend (no JWT)
+# Personal Subscription - C# .NET 9.0 Testing Stack for Easy Auth + Managed Identity
+# Deploys: C# Web App + C# Function App (baseline - no auth configured yet)
+# Auth: Testing Azure Easy Auth patterns with Managed Identity (future iterations)
 
 include "root" {
   path   = find_in_parent_folders("root.hcl")
@@ -26,7 +26,7 @@ inputs = {
   tags = {
     environment = local.root_vars.environment
     managed_by  = "terragrunt"
-    workload    = "subnet-calculator-react-easyauth-e2e"
+    workload    = "webapp-auth-test-csharp"
   }
 
   # web_app, function_app, and entra_id_app defined in terraform.tfvars
