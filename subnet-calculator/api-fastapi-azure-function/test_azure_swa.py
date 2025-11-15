@@ -114,7 +114,7 @@ class TestAzureSWAAuthentication:
         )
 
         assert response.status_code == 401
-        assert "Invalid Azure SWA principal" in response.json()["detail"]
+        assert "Invalid Easy Auth principal" in response.json()["detail"]
 
     def test_invalid_json_returns_401(self):
         """Invalid JSON in principal should return 401."""
@@ -127,7 +127,7 @@ class TestAzureSWAAuthentication:
         )
 
         assert response.status_code == 401
-        assert "Invalid Azure SWA principal" in response.json()["detail"]
+        assert "Invalid Easy Auth principal" in response.json()["detail"]
 
     def test_principal_missing_user_identity_returns_401(self):
         """Principal without userId or userDetails should return 401."""

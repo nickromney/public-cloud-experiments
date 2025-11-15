@@ -52,6 +52,10 @@ rsync -a \
 
 cd "$TEMP_DIR"
 
+# Note: Skipping local dependency installation since Azure Functions
+# will build remotely with --build-remote true using the correct Python version
+echo "Skipping local dependency installation (Azure will build remotely)..."
+
 echo "Files included in deployment:"
 find . -type f | sort
 

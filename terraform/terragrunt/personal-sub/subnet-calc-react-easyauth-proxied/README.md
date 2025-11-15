@@ -1,6 +1,6 @@
 # Subnet Calculator React Web App (Easy Auth Proxy)
 
-This Terragrunt stack provisions the “App Service + Function (proxied)” experiment. It is the companion to `subnet-calc-react-easyauth-e2e`, but demonstrates how the Azure Web App can keep the backend origin private by proxying all `/api/*` calls via `frontend-react/server.js`.
+This Terragrunt stack provisions the “App Service + Function (proxied)” experiment. It is the companion to `subnet-calc-react-easyauth-proxied`, but demonstrates how the Azure Web App can keep the backend origin private by proxying all `/api/*` calls via `frontend-react/server.js`.
 
 It deploys:
 
@@ -14,8 +14,8 @@ Unlike the E2E stack, this deployment sets `PROXY_API_URL` (and leaves `API_BASE
 
 1. Azure credentials exported for Terragrunt (`ARM_SUBSCRIPTION_ID`, `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_TENANT_ID`, backend storage envs).
 2. Default region: UK South. Set `PERSONAL_SUB_REGION=uksouth` (already assumed) if you need to override for troubleshooting.
-3. Resource group naming follows CAF: this stack uses `rg-subnet-calc`.
-4. An Azure AD App Registration with redirect URIs for both the Web App and Function App (`/.auth/login/aad/callback`).
+3. Resource group naming follows CAF: this stack uses `rg-subnet-calc` (shared with the direct stack).
+4. An Azure AD App Registration with redirect URIs for both the Web App and Function App (`/.auth/login/aad/callback`). Terraform will create two registrations (frontend + API) plus the delegated permission grant automatically; see [docs/AUTHENTICATION.md](../../../../subnet-calculator/docs/AUTHENTICATION.md) for the rationale.
 5. Optional: override the storage account or plan names if these collide with existing resources.
 
 ## Configuration
@@ -24,7 +24,7 @@ Unlike the E2E stack, this deployment sets `PROXY_API_URL` (and leaves `API_BASE
 2. Update the following blocks:
    - `service_plans.shared`: adjust SKU/size if you need a cheaper or bigger plan.
    - `function_apps.api`: confirm the CORS origins and any custom app settings required by FastAPI.
-   - `web_apps.frontend.app_settings`: keep `API_BASE_URL = ""`, set `PROXY_API_URL` to the deployed Function App host, and set both `AUTH_METHOD`/`AUTH_MODE = "easyauth"` so the SPA’s runtime config matches.
+   - `web_apps.frontend.app_settings`: keep `API_BASE_URL = ""`, set `PROXY_API_URL` to the deployed Function App host, set `API_PROXY_ENABLED = "true"`, and keep both `AUTH_METHOD`/`AUTH_MODE = "easyauth"` so the SPA’s runtime config matches.
 3. (Optional) If you lock down the Function App (private endpoints, APIM, App Gateway), update `PROXY_API_URL` to the new internal DNS name and ensure the Web App has outbound access.
 
 ## Usage
@@ -52,15 +52,14 @@ The `stages/` directory provides layered configuration files for progressive inf
 - `stages/100-identity.tfvars` – adds the user-assigned managed identity plus Entra ID registration.
 - `stages/200-storage.tfvars` / `300-rbac.tfvars` – adds storage and RBAC for the Function App.
 - `stages/400-function-app.tfvars` – provisions the Function App with Easy Auth.
-- `stages/500-web-app.tfvars` – enables the Web App + proxy settings.
-- `stages/000-all.tfvars` – complete stack blueprint.
+- `stages/000-all.tfvars` – complete stack blueprint (includes the Web App + proxy settings).
 
 Apply an overlay with standard Terragrunt syntax:
 
 ```bash
-terragrunt plan -- -var-file=stages/500-web-app.tfvars
+terragrunt plan -- -var-file=stages/400-function-app.tfvars
 ```
 
 Copy or extend these overlays to document every environment's toggle set without editing `terraform.tfvars` directly.
 
-For infrastructure re-use (BYO shared components, plans, storage), follow the same guidance documented in `subnet-calc-react-easyauth-e2e/README.md`. The modules are shared, so the override knobs work identically in this stack.
+For infrastructure re-use (BYO shared components, plans, storage), follow the same guidance documented in `subnet-calc-react-easyauth-proxied/README.md`. The modules are shared, so the override knobs work identically in this stack.

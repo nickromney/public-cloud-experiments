@@ -317,7 +317,9 @@
       "Bash(az webapp log tail:*)",
       "Bash(az resource show:*)",
       "Bash(az monitor app-insights query:*)",
-      "Bash(az webapp config appsettings list:*)"
+      "Bash(az webapp config appsettings list:*)",
+      "Bash(az webapp auth:*)",
+      "Bash(az webapp config appsettings set:*)"
     ],
     "deny": [],
     "ask": []

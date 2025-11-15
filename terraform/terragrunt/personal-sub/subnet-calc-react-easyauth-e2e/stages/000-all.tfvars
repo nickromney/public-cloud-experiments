@@ -79,18 +79,54 @@ application_insights = {
 # -----------------------------------------------------------------------------
 
 entra_id_apps = {
-  react-easyauth = {
-    display_name     = "Subnet Calculator React E2E"
+  frontend = {
+    display_name     = "Subnet Calculator React EasyAuth Frontend"
+    sign_in_audience = "AzureADMyOrg"
+    web_redirect_uris = [
+      "https://web-subnet-calc-react-easyauth-e2e.azurewebsites.net/.auth/login/aad/callback"
+    ]
+    required_resource_access = [
+      {
+        # API app - allows frontend to request tokens for the API
+        resource_app_id = "e65aae60-ea26-48e1-bc20-af9e1cff1dd7"
+        resource_access = [
+          {
+            # user_impersonation scope
+            id   = "15dcdbde-c98c-4442-8620-35fa793196da"
+            type = "Scope"
+          }
+        ]
+      }
+    ]
+  }
+
+  api = {
+    display_name     = "Subnet Calculator React EasyAuth API"
     sign_in_audience = "AzureADMyOrg"
     identifier_uris = [
-      "api://subnet-calculator-react-easyauth-e2e"
+      "api://subnet-calculator-react-easyauth-e2e-api"
     ]
     web_redirect_uris = [
-      "https://func-subnet-calc-react-easyauth-e2e-api.azurewebsites.net/.auth/login/aad/callback",
-      "https://web-subnet-calc-react-easyauth-e2e.azurewebsites.net/.auth/login/aad/callback"
+      "https://func-subnet-calc-react-easyauth-e2e-api.azurewebsites.net/.auth/login/aad/callback"
+    ]
+    oauth2_permission_scopes = [
+      {
+        id                         = "15dcdbde-c98c-4442-8620-35fa793196da"
+        admin_consent_display_name = "Access Subnet Calculator API"
+        admin_consent_description  = "Allow the React frontend to call the Subnet Calculator API on behalf of the signed-in user."
+        value                      = "user_impersonation"
+      }
     ]
   }
 }
+
+entra_id_app_delegated_permissions = [
+  {
+    from_app_key = "frontend"
+    to_app_key   = "api"
+    scopes       = ["user_impersonation"]
+  }
+]
 
 # -----------------------------------------------------------------------------
 # Function Apps
@@ -110,6 +146,7 @@ function_apps = {
     cors_allowed_origins = [
       "https://web-subnet-calc-react-easyauth-e2e.azurewebsites.net"
     ]
+    cors_support_credentials = true
 
     app_settings = {
       AzureWebJobsFeatureFlags       = "EnableWorkerIndexing"
@@ -122,13 +159,13 @@ function_apps = {
 
     easy_auth = {
       enabled       = true
-      entra_app_key = "react-easyauth"
+      entra_app_key = "api"
       allowed_audiences = [
-        "api://subnet-calculator-react-easyauth-e2e",
-        "d62b2e8f-a9a7-4aa4-b303-a861b0e3885e"
+        "api://subnet-calculator-react-easyauth-e2e-api"
       ]
-      unauthenticated_action = "Return401"
-      token_store_enabled    = true
+      unauthenticated_action    = "Return401"
+      token_store_enabled       = true
+      additional_entra_app_keys = ["frontend"]
     }
   }
 }
@@ -153,19 +190,18 @@ web_apps = {
       SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
       WEBSITE_RUN_FROM_PACKAGE       = "0"
       API_BASE_URL                   = "https://func-subnet-calc-react-easyauth-e2e-api.azurewebsites.net"
+      API_PROXY_ENABLED              = "false"
       AUTH_METHOD                    = "easyauth"
       AUTH_MODE                      = "easyauth"
-      EASYAUTH_RESOURCE_ID           = "api://subnet-calculator-react-easyauth-e2e"
+      EASYAUTH_RESOURCE_ID           = "api://subnet-calculator-react-easyauth-e2e-api"
     }
 
     identity_type = "SystemAssigned"
 
     easy_auth = {
-      enabled       = true
-      entra_app_key = "react-easyauth"
-      allowed_audiences = [
-        "api://subnet-calculator-react-easyauth-e2e"
-      ]
+      enabled                = true
+      entra_app_key          = "frontend"
+      allowed_audiences      = []
       unauthenticated_action = "RedirectToLoginPage"
       default_provider       = "azureactivedirectory"
       token_store_enabled    = true

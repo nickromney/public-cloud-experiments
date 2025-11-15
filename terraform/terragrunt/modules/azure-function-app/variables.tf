@@ -12,6 +12,7 @@ variable "function_apps" {
     storage_account_access_key     = optional(string, null)
     public_network_access_enabled  = optional(bool, true)
     cors_allowed_origins           = optional(list(string), null)
+    cors_support_credentials       = optional(bool, false)
     app_insights_connection_string = optional(string, null)
     app_insights_key               = optional(string, null)
     app_settings                   = optional(map(string), {})

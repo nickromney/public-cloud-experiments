@@ -24,18 +24,24 @@ resource "azurerm_storage_account" "this" {
 # RBAC role assignments for storage accounts
 # Flatten the map to create individual role assignments
 locals {
-  # Create a flat map of role assignments
-  # Key format: "storage_key-principal_key-role_name"
-  role_assignments = merge([
-    for storage_key, storage in var.storage_accounts : {
-      for assignment_key, assignment in try(storage.rbac_assignments, {}) :
-      "${storage_key}-${assignment_key}-${assignment.role}" => {
-        storage_account_id = azurerm_storage_account.this[storage_key].id
-        principal_id       = assignment.principal_id
-        role               = assignment.role
+  role_assignment_meta = flatten([
+    for storage_key, storage in var.storage_accounts : [
+      for assignment_key, assignment in try(storage.rbac_assignments, {}) : {
+        key          = "${storage_key}-${assignment_key}-${assignment.role}"
+        storage_key  = storage_key
+        role         = assignment.role
+        principal_id = assignment.principal_id
       }
+    ]
+  ])
+
+  role_assignments = {
+    for meta in local.role_assignment_meta : meta.key => {
+      storage_account_id = azurerm_storage_account.this[meta.storage_key].id
+      principal_id       = meta.principal_id
+      role               = meta.role
     }
-  ]...)
+  }
 }
 
 resource "azurerm_role_assignment" "storage" {

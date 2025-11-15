@@ -60,18 +60,41 @@ application_insights = {
 # -----------------------------------------------------------------------------
 
 entra_id_apps = {
-  react-easyauth = {
-    display_name     = "Subnet Calculator React E2E"
+  frontend = {
+    display_name     = "Subnet Calculator React EasyAuth Frontend"
     sign_in_audience = "AzureADMyOrg"
-    identifier_uris = [
-      "api://subnet-calculator-react-easyauth-e2e"
-    ]
     web_redirect_uris = [
-      "https://func-subnet-calc-react-easyauth-e2e-api.azurewebsites.net/.auth/login/aad/callback",
       "https://web-subnet-calc-react-easyauth-e2e.azurewebsites.net/.auth/login/aad/callback"
     ]
   }
+
+  api = {
+    display_name     = "Subnet Calculator React EasyAuth API"
+    sign_in_audience = "AzureADMyOrg"
+    identifier_uris = [
+      "api://subnet-calculator-react-easyauth-e2e-api"
+    ]
+    web_redirect_uris = [
+      "https://func-subnet-calc-react-easyauth-e2e-api.azurewebsites.net/.auth/login/aad/callback"
+    ]
+    oauth2_permission_scopes = [
+      {
+        id                         = "15dcdbde-c98c-4442-8620-35fa793196da"
+        admin_consent_display_name = "Access Subnet Calculator API"
+        admin_consent_description  = "Allow the React frontend to call the Subnet Calculator API on behalf of the signed-in user."
+        value                      = "user_impersonation"
+      }
+    ]
+  }
 }
+
+entra_id_app_delegated_permissions = [
+  {
+    from_app_key = "frontend"
+    to_app_key   = "api"
+    scopes       = ["user_impersonation"]
+  }
+]
 
 # -----------------------------------------------------------------------------
 # Function Apps (none yet)

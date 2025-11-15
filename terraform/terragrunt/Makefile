@@ -25,7 +25,7 @@ SCRIPTS_DIR ?= $(ROOT_DIR)deployment-scripts
 # Stack name mappings (short-name -> directory)
 # Format: <project>/<stack-alias>=<directory-path>
 # Note: Using spaces to separate entries for filter to work correctly
-STACK_MAP := subnet-calc/react-webapp=personal-sub/subnet-calc-react-webapp subnet-calc/react-webapp-easyauth=personal-sub/subnet-calc-react-webapp-easyauth subnet-calc/react-easyauth-e2e=personal-sub/subnet-calc-react-easyauth-e2e subnet-calc/react-apim=personal-sub/subnet-calc-react-webapp-apim subnet-calc/internal-apim=personal-sub/subnet-calc-internal-apim subnet-calc/static-web-apps=personal-sub/subnet-calc-static-web-apps subnet-calc/shared-components=personal-sub/subnet-calc-shared-components
+STACK_MAP := subnet-calc/react-webapp=personal-sub/subnet-calc-react-webapp subnet-calc/react-webapp-easyauth=personal-sub/subnet-calc-react-webapp-easyauth subnet-calc/react-easyauth-e2e=personal-sub/subnet-calc-react-easyauth-e2e subnet-calc/react-easyauth-proxied=personal-sub/subnet-calc-react-easyauth-proxied subnet-calc/react-apim=personal-sub/subnet-calc-react-webapp-apim subnet-calc/internal-apim=personal-sub/subnet-calc-internal-apim subnet-calc/static-web-apps=personal-sub/subnet-calc-static-web-apps subnet-calc/shared-components=personal-sub/subnet-calc-shared-components
 
 # Function to resolve stack directory from project and stack alias
 # Matches the exact key and extracts the value
@@ -91,6 +91,7 @@ help:
 	@echo -e "  subnet-calc react-webapp            Direct JWT authentication"
 	@echo -e "  subnet-calc react-webapp-easyauth   Easy Auth with managed identity (no secrets)"
 	@echo -e "  subnet-calc react-easyauth-e2e      Easy Auth E2E (frontend + backend, no JWT)"
+	@echo -e "  subnet-calc react-easyauth-proxied  Easy Auth frontend proxying API calls"
 	@echo -e "  subnet-calc react-apim              Public APIM with subscription keys"
 	@echo -e "  subnet-calc internal-apim           Internal APIM with VNet integration"
 	@echo -e "  subnet-calc static-web-apps         Import-only stack for existing SWAs"
@@ -365,6 +366,7 @@ _route:
 		echo -e "  subnet-calc/react-webapp"; \
 		echo -e "  subnet-calc/react-webapp-easyauth"; \
 		echo -e "  subnet-calc/react-easyauth-e2e"; \
+		echo -e "  subnet-calc/react-easyauth-proxied"; \
 		echo -e "  subnet-calc/react-apim"; \
 		echo -e "  subnet-calc/internal-apim"; \
 		echo -e "  subnet-calc/static-web-apps"; \
