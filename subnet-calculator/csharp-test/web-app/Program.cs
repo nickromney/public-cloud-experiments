@@ -18,14 +18,35 @@ Console.WriteLine("========== WEB APP CONFIGURED ==========");
 // Read configuration
 var functionAppUrl = Environment.GetEnvironmentVariable("FUNCTION_APP_URL") ?? "http://localhost:7071";
 var functionAppClientId = Environment.GetEnvironmentVariable("FUNCTION_APP_CLIENT_ID");
-var useManagedIdentity = !string.IsNullOrEmpty(functionAppClientId);
+var functionAppAudience = Environment.GetEnvironmentVariable("FUNCTION_APP_AUDIENCE");
+var functionAppScope = Environment.GetEnvironmentVariable("FUNCTION_APP_SCOPE");
+
+string? ResolveScope()
+{
+    if (!string.IsNullOrWhiteSpace(functionAppScope))
+    {
+        return functionAppScope;
+    }
+
+    if (!string.IsNullOrWhiteSpace(functionAppAudience))
+    {
+        return $"{functionAppAudience.TrimEnd('/')}/.default";
+    }
+
+    if (!string.IsNullOrWhiteSpace(functionAppClientId))
+    {
+        return $"api://{functionAppClientId}/.default";
+    }
+
+    return null;
+}
+
+var resolvedScope = ResolveScope();
+var useManagedIdentity = !string.IsNullOrEmpty(resolvedScope);
 
 Console.WriteLine($"Function App URL: {functionAppUrl}");
 Console.WriteLine($"Use Managed Identity: {useManagedIdentity}");
-if (useManagedIdentity)
-{
-    Console.WriteLine($"Client ID Configured: Yes");
-}
+Console.WriteLine($"Function App Scope: {(resolvedScope ?? "(not set)")}");
 
 app.MapGet("/", () => new
 {
@@ -34,7 +55,8 @@ app.MapGet("/", () => new
     config = new
     {
         functionAppUrl,
-        useManagedIdentity
+        useManagedIdentity,
+        functionAppScope = resolvedScope
     }
 });
 
@@ -59,11 +81,18 @@ app.MapGet("/test", async (HttpClient httpClient, ILogger<Program> logger) =>
         if (useManagedIdentity)
         {
             logger.LogInformation("Getting Managed Identity token...");
-            var credential = new DefaultAzureCredential();
-            var scope = $"api://{functionAppClientId}/.default";
-            var tokenResponse = await credential.GetTokenAsync(new TokenRequestContext(new[] { scope }));
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.Token);
-            logger.LogInformation("Token acquired successfully for scope: {Scope}", scope);
+            if (string.IsNullOrEmpty(resolvedScope))
+            {
+                logger.LogWarning("Managed Identity scope not configured, skipping token acquisition.");
+            }
+            else
+            {
+                logger.LogInformation("Using scope: {Scope}", resolvedScope);
+                var credential = new DefaultAzureCredential();
+                var tokenResponse = await credential.GetTokenAsync(new TokenRequestContext(new[] { resolvedScope }));
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.Token);
+                logger.LogInformation("Token acquired successfully for scope: {Scope}", resolvedScope);
+            }
         }
         else
         {

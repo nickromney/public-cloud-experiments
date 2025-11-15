@@ -203,7 +203,8 @@ function normalizeToken(input?: TokenLike): { token: string; expiresAt?: number 
   }
 
   const expiresRaw = input.expires_on ?? input.expiresOn
-  const expiresAt = typeof expiresRaw === 'number' ? expiresRaw * 1000 : expiresRaw ? Number(expiresRaw) * 1000 : undefined
+  const expiresAt =
+    typeof expiresRaw === 'number' ? expiresRaw * 1000 : expiresRaw ? Number(expiresRaw) * 1000 : undefined
   return { token, expiresAt }
 }
 

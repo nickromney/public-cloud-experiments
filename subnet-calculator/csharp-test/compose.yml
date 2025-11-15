@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  function-app:
+    build:
+      context: ./function-app
+      dockerfile: Dockerfile
+    image: csharp-function-app:latest
+    container_name: csharp-function-app
+    ports:
+      - "7071:80"
+    environment:
+      # Match Azure defaults
+      AzureWebJobsFeatureFlags: EnableWorkerIndexing
+
+  web-app:
+    build:
+      context: ./web-app
+      dockerfile: Dockerfile
+    image: csharp-web-app:latest
+    container_name: csharp-web-app
+    ports:
+      - "8085:8080"
+    environment:
+      FUNCTION_APP_URL: http://function-app
+      # Leave FUNCTION_APP_SCOPE unset locally (no Managed Identity when running in containers)
+    depends_on:
+      function-app:
+        condition: service_started

@@ -26,6 +26,7 @@
   },
   "scripts": {
     "build": "tsc -b",
+    "type-check": "tsc --noEmit",
     "clean": "rm -rf dist",
     "lint": "biome check --write src/",
     "lint:check": "biome check src/",

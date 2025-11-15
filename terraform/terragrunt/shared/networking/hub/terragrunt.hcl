@@ -2,7 +2,7 @@
 # Creates the central hub VNet (10.200.0.0/24) with Firewall, Gateway, and Bastion subnets
 
 include "root" {
-  path = find_in_parent_folders()
+  path = find_in_parent_folders("root.hcl")
 }
 
 include "hub_common" {

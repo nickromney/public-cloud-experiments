@@ -1,83 +1,92 @@
-# Copy to terraform.tfvars and update the placeholders before running terragrunt.
+# Example configuration for the Easy Auth React stack
+# Copy to terraform.tfvars and replace placeholder values.
 
-# Entra ID App Registration (created by Terraform, no manual portal configuration needed)
-entra_id_app = {
-  display_name     = "Subnet Calculator React Web App (Easy Auth)"
-  sign_in_audience = "AzureADMyOrg"
-  identifier_uris = [
-    "api://subnet-calculator-react-easyauth"
-  ]
+environment         = "dev"
+project_name        = "subnetcalc"
+workload_name       = "subnet-calculator-react-webapp-easyauth"
+resource_group_name = "rg-subnet-calc"
+
+service_plans = {
+  func = {
+    name     = "plan-subnetcalc-dev-func-easyauth"
+    os_type  = "Linux"
+    sku_name = "EP1"
+  }
+  web = {
+    name     = "plan-subnetcalc-dev-web-easyauth"
+    os_type  = "Linux"
+    sku_name = "B1"
+  }
 }
 
-web_app = {
-  plan_sku        = "P1v3"
-  runtime_version = "18-lts"
-  api_base_url    = ""
-  always_on       = true
-  app_settings = {
-    STACK_NAME = "Subnet Calculator React (Easy Auth with Managed Identity)"
+storage_accounts = {
+  funcapp = {
+    name                     = "stsubnetcalceasyauth"
+    account_tier             = "Standard"
+    account_replication_type = "LRS"
+    account_kind             = "StorageV2"
   }
-  # Easy Auth with Managed Identity (no client secret needed)
-  easy_auth = {
-    client_id     = "00000000-0000-0000-0000-000000000000"
-    tenant_id     = "<tenant-id>"
-    issuer        = "https://login.microsoftonline.com/<tenant-id>/v2.0"
-    allowed_audiences = [
-      "api://subnet-calculator-react"
+}
+
+log_analytics_workspaces          = {}
+shared_log_analytics_workspace_id = "/subscriptions/<sub-id>/resourceGroups/rg-subnet-calc/providers/Microsoft.OperationalInsights/workspaces/log-subnetcalc-shared-dev"
+
+application_insights = {
+  easyauth = {
+    name             = "appi-subnetcalc-react-webapp-easyauth"
+    application_type = "web"
+  }
+}
+
+entra_id_apps = {
+  frontend = {
+    display_name     = "Subnet Calculator React Web App"
+    sign_in_audience = "AzureADMyOrg"
+    identifier_uris  = ["api://subnet-calculator-react-easyauth"]
+    web_redirect_uris = [
+      "https://web-subnet-calc-react-easyauth.azurewebsites.net/.auth/login/aad/callback"
     ]
-    use_managed_identity = true
-    login_parameters     = {}
   }
 }
 
-function_app = {
-  plan_sku             = "EP1"
-  runtime              = "python"
-  runtime_version      = "3.11"
-  run_from_package     = true
-  storage_account_name = ""
-  cors_allowed_origins = [
-    "https://web-cloud-exp-dev-react.azurewebsites.net",
-    "http://localhost:5173",
-    "http://localhost:4173"
-  ]
-  app_settings = {
-    # JWT Authentication Configuration
-    AUTH_METHOD                     = "jwt"
-    # WARNING: Change this secret for any deployment! For production, use Azure Key Vault (see PASSWORD-HASH-ESCAPING.md)
-    JWT_SECRET_KEY                  = "dev-secret-key-minimum-32-characters-long-for-security"
-    JWT_ALGORITHM                   = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES = "30"
-
-    # WARNING: These are DEMO credentials only (demo/password123, admin/securepass). DO NOT use in production! For production, use Azure Key Vault.
-    # Argon2 hashed passwords (demo=password123, admin=securepass)
-    # IMPORTANT: Use SINGLE $ in Terraform tfvars (no escaping needed)
-    # The same hash in Docker Compose requires $$ escaping
-    JWT_TEST_USERS = "{\"demo\":\"$argon2id$v=19$m=65536,t=3,p=4$TklhcmEkyMzqJaH3KHQQDA$rgp8AmtaR6PzBgjyZGNsivb2yJRqULRt5B+BmzUnzbo\",\"admin\":\"$argon2id$v=19$m=65536,t=3,p=4$JiTJZlTwD/1jJLlMQMOwCA$HbubnE11kzEfcszqKtMOmjvxj14vjooqbdZtgc1NYCs\"}"
-
-    # Azure Function configuration
-    AzureWebJobsFeatureFlags = "EnableWorkerIndexing"
-    # NOTE: Do NOT set ENABLE_ORYX_BUILD or WEBSITE_RUN_FROM_PACKAGE
-    # SCM_DO_BUILD_DURING_DEPLOYMENT is set to true in Terraform (main.tf:113) to enable remote builds
+function_apps = {
+  api = {
+    name                = "func-subnet-calc-react-easyauth-api"
+    service_plan_key    = "func"
+    runtime             = "python"
+    runtime_version     = "3.11"
+    storage_account_key = "funcapp"
+    app_insights_key    = "easyauth"
+    cors_allowed_origins = ["https://web-subnet-calc-react-easyauth.azurewebsites.net"]
+    app_settings = {
+      AUTH_METHOD            = "jwt"
+      JWT_SECRET_KEY         = "change-me"
+      JWT_ALGORITHM          = "HS256"
+      AzureWebJobsFeatureFlags = "EnableWorkerIndexing"
+    }
   }
 }
 
-# -----------------------------------------------------------------------------
-# Stage Overlays
-# -----------------------------------------------------------------------------
-# The stages/ directory contains layered configuration files for progressive
-# infrastructure deployment. Apply them with:
-#
-#   terragrunt plan -- -var-file=stages/200-create-observability.tfvars
-#
-# Provided overlays:
-# - stages/100-minimal.tfvars              → minimal inputs to unblock non-interactive
-#   plans with basic settings.
-# - stages/200-create-observability.tfvars → flips observability.use_existing to false
-#   and sets create_resource_group = true so the stack stands alone.
-# - stages/300-byo-platform.tfvars         → reuses shared plans/storage/LAW via the new
-#   existing_service_plan_id/existing_storage_account_id inputs and references the
-#   shared Log Analytics Workspace from subnet-calc-shared-components.
-#
-# Copy and tweak these files as you progress through environments to document
-# which resources are created vs. imported.
+web_apps = {
+  frontend = {
+    name             = "web-subnet-calc-react-easyauth"
+    service_plan_key = "web"
+    runtime          = "node"
+    runtime_version  = "22-lts"
+    startup_file     = "node server.js"
+    always_on        = true
+    app_insights_key = "easyauth"
+    app_settings = {
+      STACK_NAME                     = "Subnet Calculator React (Easy Auth)"
+      AUTH_METHOD                    = "easyauth"
+      WEBSITE_NODE_DEFAULT_VERSION   = "~22"
+      SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+      WEBSITE_RUN_FROM_PACKAGE       = "0"
+    }
+    easy_auth = {
+      enabled           = true
+      entra_app_key     = "frontend"
+      allowed_audiences = ["api://subnet-calculator-react-easyauth"]
+    }
+  }
+}

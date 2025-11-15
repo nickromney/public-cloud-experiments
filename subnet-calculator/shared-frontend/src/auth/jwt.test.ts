@@ -118,12 +118,10 @@ describe('TokenManager', () => {
     it('should retry once on network error', async () => {
       const manager = new TokenManager('http://localhost:8080', 'demo', 'password123')
 
-      mockFetch
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ access_token: 'test-token', token_type: 'bearer' }),
-        })
+      mockFetch.mockRejectedValueOnce(new Error('Network error')).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: 'test-token', token_type: 'bearer' }),
+      })
 
       // Run with real timers since the retry delay uses setTimeout
       vi.useRealTimers()

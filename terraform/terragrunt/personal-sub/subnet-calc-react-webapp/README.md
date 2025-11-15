@@ -1,87 +1,42 @@
-# Subnet Calculator React Web App (Easy Auth)
+# Subnet Calculator React Web App (JWT)
 
-This Terragrunt stack provisions the Azure infrastructure that previously lived in the `infrastructure/azure` bash scripts for the “App Service + Function” experiment. It deploys:
+This stack provisions the classic “React SPA + FastAPI Function App” experiment using the new map-based Terragrunt modules. It mirrors the patterns used in `subnet-calc-react-easyauth-proxied`:
 
-- An **App Service plan** plus a **Linux Web App** that hosts the `subnet-calculator/frontend-react` static build.
-- A dedicated **Function App** plan + **Linux Function App** for `subnet-calculator/api-fastapi-azure-function`.
-- **Easy Auth (Azure AD)** on the Web App using the guidance from `subnet-calculator/frontend-python-flask/EASY-AUTH-SETUP.md`.
+- Dedicated App Service plans for the Function App and Web App (Linux).
+- Optional creation of Log Analytics / Application Insights (or re-use via `shared_log_analytics_workspace_id`).
+- Single `terraform.tfvars` drives everything: `service_plans`, `function_apps`, `web_apps`, and (when required) `storage_accounts` or `user_assigned_identities`.
 
-The Web App exposes `API_BASE_URL` that points to the Function App’s `/api/v1` endpoints, mirroring Stack 1 (Static Web App + Azure Function) but on App Service with Easy Auth.
-
-## Prerequisites
-
-1. Azure credentials exported for Terragrunt (`ARM_SUBSCRIPTION_ID`, `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_TENANT_ID`, backend storage envs).
-2. Default region: UK South. Set `PERSONAL_SUB_REGION=uksouth` (already assumed) if you need to override for troubleshooting.
-3. Resource group naming follows CAF: this stack creates/uses `rg-subnet-calc-webapp`.
-4. An Azure AD App Registration with a client secret. Use the same steps from `frontend-python-flask/EASY-AUTH-SETUP.md`.
-5. Optional: a dedicated storage account name if you don’t want Terraform to derive one automatically.
-
-## Configuration
-
-1. Copy `terraform.tfvars.example` to `terraform.tfvars`.
-2. Update the following blocks:
-   - `web_app.plan_sku`, `web_app.runtime_version` (Node version needed by the React build).
-   - `web_app.easy_auth`: set `client_id`, `client_secret`, `issuer` (`https://login.microsoftonline.com/<tenant-id>/v2.0`), and any `allowed_audiences`.
-   - `function_app.plan_sku`, `runtime = "python"`, `runtime_version = "3.11"`, and tighten `cors_allowed_origins` to the final hostname (replace `"*"`).
-   - Add any custom `app_settings` required by the React SPA or FastAPI (for example `AUTH_METHOD=none` on the Function App).
-3. (Optional) Override `web_app.api_base_url` if you need a different routing surface (default is the Function App host).
+Authentication remains JWT-only on the backend (no Easy Auth). The Web App injects `AUTH_METHOD=jwt`, `JWT_USERNAME`, and `JWT_PASSWORD` runtime config for the React proxy.
 
 ## Usage
 
 ```bash
 cd terraform/terragrunt/personal-sub/subnet-calc-react-webapp
-export PERSONAL_SUB_REGION=uksouth   # optional if already default
-terragrunt init
-terragrunt plan
-terragrunt apply
+terragrunt run -- init
+terragrunt run -- plan
+terragrunt run -- apply
 ```
 
-Key outputs:
+Key inputs live in `terraform.tfvars`:
 
-- `web_app_url` – primary URL for the React frontend.
-- `web_app_login_url` – Easy Auth endpoint for smoke tests (`/.auth/login/aad`).
-- `function_app_api_base_url` – value injected into `API_BASE_URL`.
+- `service_plans` – define the Linux plans (or point at existing ones via Terragrunt’s dependency injection).
+- `application_insights` – optionally create a dedicated App Insights instance (or rely on the shared workspace id).
+- `function_apps.api` – runtime, storage, and JWT app settings for FastAPI.
+- `web_apps.frontend` – Node runtime, startup command, and runtime config for the React proxy.
 
-After `terragrunt apply`, deploy the React build with `az webapp up` or the existing GitHub Action, and publish the FastAPI Azure Function ZIP using `scripts/22-deploy-function-zip.sh` if desired. Easy Auth enforces Azure AD logins, and the Function App is reachable publicly (lock down via `cors_allowed_origins` or IP restrictions as needed).
+Because we now use the shared modules, there is no `stages/` overlay; create temporary overlays by copying `terraform.tfvars` if you need environment-specific overrides.
 
-### Post-Apply Make Targets
+## Deploying Code
 
-This directory now has a convenience `Makefile`:
+Infrastructure and app deployments remain separate:
 
-```bash
-cd terraform/terragrunt/personal-sub/subnet-calc-react-webapp
-make function-app-deploy   # packages & deploys api-fastapi-azure-function
-make web-app-deploy        # builds frontend-react and deploys to App Service
-```
+1. `terragrunt run -- apply` creates/updates Azure resources.
+2. Deploy the FastAPI ZIP (`scripts/22-deploy-function-zip.sh` or GitHub Actions) – the Function App expects to build dependencies in Azure, so keep `SCM_DO_BUILD_DURING_DEPLOYMENT=true`.
+3. Deploy the React build (`subnet-calculator/frontend-react`) with `az webapp deploy` or the existing CI workflow. The runtime config (`AUTH_METHOD`, `API_BASE_URL`, etc.) is injected via environment variables from `terraform.tfvars`.
 
-Both targets read resource names from `terragrunt output` (or honor `FUNCTION_APP_NAME`/`WEB_APP_NAME` overrides) and default to `rg-subnet-calc-webapp`. Ensure you are logged into Azure CLI before running them.
+## Outputs
 
-### Stage Overlays & Toggle Workflow
+- `function_app_api_base_url` – feed into CI/CD or smoke tests.
+- `web_app_url` – public entry point for the SPA.
 
-The `stages/` directory provides layered configuration files for progressive infrastructure deployment:
-
-- `stages/100-minimal.tfvars` – minimal inputs to unblock non-interactive plans with basic settings.
-- `stages/200-create-observability.tfvars` – flips `create_resource_group` and `observability.use_existing` so this stack can stand alone.
-- `stages/300-byo-platform.tfvars` – demonstrates reusing App Service Plans and Storage Accounts via the new `existing_*` inputs.
-
-Apply an overlay with standard Terragrunt syntax:
-
-```bash
-terragrunt plan -- -var-file=stages/200-create-observability.tfvars
-```
-
-Copy or extend these overlays to document every environment's toggle set without editing `terraform.tfvars` directly.
-
-### Bring Your Own Platform Resources
-
-Function Apps can now reference existing infrastructure instead of creating new resources:
-
-```hcl
-function_app = {
-  name                        = "func-subnet-calc"
-  existing_service_plan_id    = "/subscriptions/<sub>/resourceGroups/rg-platform/providers/Microsoft.Web/serverFarms/plan-platform-ep1"
-  existing_storage_account_id = "/subscriptions/<sub>/resourceGroups/rg-shared/providers/Microsoft.Storage/storageAccounts/stplatformshared"
-}
-```
-
-**Minimum Requirements**: Terraform 1.8+ and azurerm 4.0+ are required for provider-defined functions used in the BYO pattern. The `provider::azurerm::normalise_resource_id` and `provider::azurerm::parse_resource_id` functions provide robust resource ID parsing, removing brittle `split("/")` approaches and ensuring IDs are casing-correct before they are passed to Azure APIs.
+For a variant that proxies Easy Auth headers and uses Managed Identity, see the `subnet-calc-react-easyauth-proxied` stack.
