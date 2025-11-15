@@ -12,21 +12,47 @@ resource "azurerm_linux_web_app" "this" {
 
   # Network configuration
   public_network_access_enabled = try(each.value.public_network_access_enabled, true)
-  https_only                    = try(each.value.https_only, true)
+  https_only                    = try(each.value.https_only, false)
+
+  # Security defaults (match Azure CLI deployment)
+  client_affinity_enabled                        = try(each.value.client_affinity_enabled, true)
+  ftp_publish_basic_authentication_enabled       = try(each.value.ftp_publish_basic_authentication_enabled, false)
+  webdeploy_publish_basic_authentication_enabled = try(each.value.webdeploy_publish_basic_authentication_enabled, false)
 
   # Site configuration
   site_config {
     app_command_line = try(each.value.startup_file, null)
 
-    # Runtime stack
-    application_stack {
-      node_version   = try(each.value.runtime, null) == "node" ? each.value.runtime_version : null
-      python_version = try(each.value.runtime, null) == "python" ? each.value.runtime_version : null
-      dotnet_version = try(each.value.runtime, null) == "dotnet" ? each.value.runtime_version : null
+    # Node.js runtime
+    dynamic "application_stack" {
+      for_each = try(each.value.runtime, null) == "node" ? [1] : []
+      content {
+        node_version = each.value.runtime_version
+      }
+    }
+
+    # Python runtime
+    dynamic "application_stack" {
+      for_each = try(each.value.runtime, null) == "python" ? [1] : []
+      content {
+        python_version = each.value.runtime_version
+      }
+    }
+
+    # .NET runtime
+    dynamic "application_stack" {
+      for_each = try(each.value.runtime, null) == "dotnet" ? [1] : []
+      content {
+        dotnet_version = each.value.runtime_version
+      }
     }
 
     # Always on (keep app loaded)
     always_on = try(each.value.always_on, true)
+
+    # Security settings (match Azure CLI deployment defaults)
+    ftps_state    = try(each.value.ftps_state, "FtpsOnly")
+    http2_enabled = try(each.value.http2_enabled, true)
 
     # CORS configuration
     dynamic "cors" {

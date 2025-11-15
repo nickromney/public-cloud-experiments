@@ -164,21 +164,6 @@ resource "azuread_service_principal_delegated_permission_grant" "entra" {
   claim_values                         = each.value.scopes
 }
 
-locals {
-  app_role_assignments = {
-    for assignment in var.entra_id_app_role_assignments :
-    "${assignment.identity_key}-${assignment.app_key}-${assignment.app_role_value}" => assignment
-  }
-}
-
-resource "azuread_app_role_assignment" "managed_identity" {
-  for_each = local.app_role_assignments
-
-  app_role_id         = module.entra_id_app[each.value.app_key].app_role_ids[each.value.app_role_value]
-  principal_object_id = module.user_assigned_identities.principal_ids[each.value.identity_key]
-  resource_object_id  = module.entra_id_app[each.value.app_key].service_principal_id
-}
-
 # -----------------------------------------------------------------------------
 # Function Apps (0-to-n pattern)
 # -----------------------------------------------------------------------------
@@ -191,12 +176,12 @@ module "function_apps" {
       name                = v.name
       resource_group_name = data.azurerm_resource_group.main.name
       location            = data.azurerm_resource_group.main.location
-      service_plan_id     = module.service_plans.ids[v.service_plan_key]
+      service_plan_id     = try(v.existing_service_plan_id, module.service_plans.ids[v.service_plan_key])
       runtime             = v.runtime
       runtime_version     = v.runtime_version
 
-      # Storage account (if using UAI)
-      storage_account_name          = try(v.storage_account_key, null) != null ? module.storage_accounts.names[v.storage_account_key] : null
+      # Storage account (supports both created via key and existing by name)
+      storage_account_name          = try(v.storage_account_name, try(v.storage_account_key, null) != null ? module.storage_accounts.names[v.storage_account_key] : null)
       storage_uses_managed_identity = try(v.storage_uses_managed_identity, false)
 
       # Network
@@ -253,7 +238,7 @@ module "web_apps" {
       name                = v.name
       resource_group_name = data.azurerm_resource_group.main.name
       location            = data.azurerm_resource_group.main.location
-      service_plan_id     = module.service_plans.ids[v.service_plan_key]
+      service_plan_id     = try(v.existing_service_plan_id, module.service_plans.ids[v.service_plan_key])
       runtime             = v.runtime
       runtime_version     = v.runtime_version
       startup_file        = try(v.startup_file, null)

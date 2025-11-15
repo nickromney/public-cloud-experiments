@@ -12,13 +12,16 @@ const app = express();
 const port = process.env.PORT || 8080;
 
 // Read runtime configuration from environment variables
+// Runtime config to inject into frontend (excludes server-only vars like MANAGED_IDENTITY_CLIENT_ID)
+const authMethod = process.env.AUTH_METHOD || process.env.AUTH_MODE || '';
 const runtimeConfig = {
   API_BASE_URL: process.env.API_BASE_URL || '',
   API_PROXY_ENABLED: process.env.API_PROXY_ENABLED || 'false',
-  AUTH_METHOD: process.env.AUTH_METHOD || process.env.AUTH_MODE || '',
+  AUTH_METHOD: authMethod,
   JWT_USERNAME: process.env.JWT_USERNAME || '',
   JWT_PASSWORD: process.env.JWT_PASSWORD || '',
-  AZURE_CLIENT_ID: process.env.AZURE_CLIENT_ID || '',
+  // Only include AZURE_CLIENT_ID for MSAL mode, not for Easy Auth
+  AZURE_CLIENT_ID: authMethod === 'msal' ? (process.env.AZURE_CLIENT_ID || '') : '',
   AZURE_TENANT_ID: process.env.AZURE_TENANT_ID || '',
   AZURE_REDIRECT_URI: process.env.AZURE_REDIRECT_URI || '',
   EASYAUTH_RESOURCE_ID: process.env.EASYAUTH_RESOURCE_ID || '',
@@ -132,6 +135,7 @@ if (proxyTarget) {
     createProxyMiddleware({
       target: proxyTarget,
       changeOrigin: true,
+      pathRewrite: { '^/': '/api/' }, // Add /api prefix back after stripping
       logLevel: process.env.NODE_ENV === 'production' ? 'warn' : 'info',
       xfwd: true,
       onProxyReq: (proxyReq, req) => {

@@ -1,0 +1,100 @@
+# C# Web App + Function App - Current CLI-deployed State
+# Captures what was deployed via Azure CLI for version control
+# No Easy Auth configured yet - basic connectivity only
+
+# -----------------------------------------------------------------------------
+# Core Configuration
+# -----------------------------------------------------------------------------
+
+environment         = "dev"
+project_name        = "authtest"
+workload_name       = "webapp-auth-test-csharp"
+resource_group_name = "rg-subnet-calc"
+
+# -----------------------------------------------------------------------------
+# User-Assigned Identities
+# -----------------------------------------------------------------------------
+
+# None created yet - using System-Assigned MI on Web App
+user_assigned_identities = {}
+
+# -----------------------------------------------------------------------------
+# Service Plans
+# -----------------------------------------------------------------------------
+
+# Use existing shared App Service Plan (not creating new one)
+service_plans = {}
+
+# -----------------------------------------------------------------------------
+# Storage Accounts with RBAC
+# -----------------------------------------------------------------------------
+
+# No storage account needed for current basic deployment
+storage_accounts = {}
+
+# -----------------------------------------------------------------------------
+# Observability
+# -----------------------------------------------------------------------------
+
+# No Application Insights configured yet
+log_analytics_workspaces = {}
+application_insights     = {}
+
+# -----------------------------------------------------------------------------
+# Entra ID App Registrations
+# -----------------------------------------------------------------------------
+
+# No Entra ID apps or Easy Auth configured yet
+entra_id_apps                      = {}
+entra_id_app_delegated_permissions = []
+
+# -----------------------------------------------------------------------------
+# Function Apps
+# -----------------------------------------------------------------------------
+
+function_apps = {
+  api = {
+    name                          = "func-csharp-test-f6fe93"
+    existing_service_plan_id      = "/subscriptions/9800bc67-8c79-4be8-b6a7-9e536e752abf/resourceGroups/rg-subnet-calc/providers/Microsoft.Web/serverFarms/plan-subnetcalc-dev-easyauth-proxied"
+    runtime                       = "dotnet-isolated"
+    runtime_version               = "9.0"
+    storage_account_name          = "stcsharptestf6fe93" # Auto-created by Azure during CLI deployment
+    storage_uses_managed_identity = false                # Using connection string
+    public_network_access_enabled = true
+
+    app_settings = {
+      SCM_DO_BUILD_DURING_DEPLOYMENT         = "false" # .NET apps are pre-compiled
+      MACHINEKEY_DecryptionKey               = "345AA932102C0B6075C1260B363B3CC4E01EE5D219BC82DEB19E7D58CCCBC576"
+      WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED = "1"
+    }
+
+    # No Managed Identity configured yet - omit identity block entirely
+    # No Easy Auth configured yet
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Web Apps
+# -----------------------------------------------------------------------------
+
+web_apps = {
+  frontend = {
+    name                     = "web-csharp-test-f6fe93"
+    existing_service_plan_id = "/subscriptions/9800bc67-8c79-4be8-b6a7-9e536e752abf/resourceGroups/rg-subnet-calc/providers/Microsoft.Web/serverFarms/plan-subnetcalc-dev-easyauth-proxied"
+    runtime                  = "dotnet"
+    runtime_version          = "9.0"
+    startup_file             = "dotnet TestWebApp.dll"
+    always_on                = true
+
+    app_settings = {
+      SCM_DO_BUILD_DURING_DEPLOYMENT = "false" # .NET apps are pre-compiled
+      WEBSITE_RUN_FROM_PACKAGE       = "0"
+      FUNCTION_APP_URL               = "https://func-csharp-test-f6fe93.azurewebsites.net"
+    }
+
+    # System-Assigned Managed Identity (default)
+    identity_type = "SystemAssigned"
+
+    # No Easy Auth configured yet
+  }
+}

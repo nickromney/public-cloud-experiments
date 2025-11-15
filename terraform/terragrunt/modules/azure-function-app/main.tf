@@ -39,13 +39,50 @@ resource "azurerm_linux_function_app" "this" {
   # Network configuration
   public_network_access_enabled = try(each.value.public_network_access_enabled, true)
 
+  # Security defaults (match Azure CLI deployment)
+  builtin_logging_enabled                        = try(each.value.builtin_logging_enabled, false)
+  client_certificate_mode                        = try(each.value.client_certificate_mode, "Required")
+  ftp_publish_basic_authentication_enabled       = try(each.value.ftp_publish_basic_authentication_enabled, false)
+  webdeploy_publish_basic_authentication_enabled = try(each.value.webdeploy_publish_basic_authentication_enabled, false)
+
   # Runtime configuration
   site_config {
-    application_stack {
-      python_version = try(each.value.runtime, null) == "python" ? each.value.runtime_version : null
-      node_version   = try(each.value.runtime, null) == "node" ? each.value.runtime_version : null
-      dotnet_version = try(each.value.runtime, null) == "dotnet" ? each.value.runtime_version : null
+    # Python runtime
+    dynamic "application_stack" {
+      for_each = try(each.value.runtime, null) == "python" ? [1] : []
+      content {
+        python_version = each.value.runtime_version
+      }
     }
+
+    # Node.js runtime
+    dynamic "application_stack" {
+      for_each = try(each.value.runtime, null) == "node" ? [1] : []
+      content {
+        node_version = each.value.runtime_version
+      }
+    }
+
+    # .NET runtime (in-process)
+    dynamic "application_stack" {
+      for_each = try(each.value.runtime, null) == "dotnet" ? [1] : []
+      content {
+        dotnet_version = each.value.runtime_version
+      }
+    }
+
+    # .NET Isolated runtime
+    dynamic "application_stack" {
+      for_each = try(each.value.runtime, null) == "dotnet-isolated" ? [1] : []
+      content {
+        dotnet_version              = each.value.runtime_version
+        use_dotnet_isolated_runtime = true
+      }
+    }
+
+    # Security settings (match Azure CLI deployment defaults)
+    ftps_state    = try(each.value.ftps_state, "FtpsOnly")
+    http2_enabled = try(each.value.http2_enabled, true)
 
     # CORS configuration
     dynamic "cors" {

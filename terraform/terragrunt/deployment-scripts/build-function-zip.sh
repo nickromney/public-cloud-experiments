@@ -52,13 +52,9 @@ rsync -a \
 
 cd "$TEMP_DIR"
 
-echo "Installing Python dependencies into .python_packages..."
-if command -v uv >/dev/null 2>&1; then
-  uv pip install -r requirements.txt --target .python_packages/lib/site-packages
-else
-  python -m pip install --upgrade pip
-  python -m pip install -r requirements.txt -t .python_packages/lib/site-packages
-fi
+# Note: Skipping local dependency installation since Azure Functions
+# will build remotely with --build-remote true using the correct Python version
+echo "Skipping local dependency installation (Azure will build remotely)..."
 
 echo "Files included in deployment:"
 find . -type f | sort

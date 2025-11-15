@@ -181,17 +181,6 @@ variable "entra_id_app_delegated_permissions" {
   default = []
 }
 
-variable "entra_id_app_role_assignments" {
-  description = "App role assignments to grant managed identities access to Entra ID applications"
-  type = list(object({
-    app_key            = string
-    app_role_value     = string
-    identity_key       = string
-    assignment_purpose = optional(string, "")
-  }))
-  default = []
-}
-
 # -----------------------------------------------------------------------------
 # Function Apps (0-to-n)
 # -----------------------------------------------------------------------------
@@ -200,10 +189,12 @@ variable "function_apps" {
   description = "Map of function apps to create"
   type = map(object({
     name                          = string
-    service_plan_key              = string                 # Key from service_plans map
-    runtime                       = string                 # python, node, dotnet
-    runtime_version               = string                 # e.g., "3.11", "20", "8.0"
+    service_plan_key              = optional(string, null) # Key from service_plans map
+    existing_service_plan_id      = optional(string, null) # Full resource ID of existing service plan (use this OR service_plan_key)
+    runtime                       = string                 # python, node, dotnet, dotnet-isolated
+    runtime_version               = string                 # e.g., "3.11", "20", "8.0", "9.0"
     storage_account_key           = optional(string, null) # Key from storage_accounts map (null = auto-create)
+    storage_account_name          = optional(string, null) # Name of existing storage account (use this OR storage_account_key)
     storage_uses_managed_identity = optional(bool, false)
     public_network_access_enabled = optional(bool, true)
     cors_allowed_origins          = optional(list(string), null)
@@ -238,9 +229,10 @@ variable "web_apps" {
   description = "Map of web apps to create"
   type = map(object({
     name                          = string
-    service_plan_key              = string # Key from service_plans map
-    runtime                       = string # node, python, dotnet
-    runtime_version               = string # e.g., "20-lts", "3.11", "8.0"
+    service_plan_key              = optional(string, null) # Key from service_plans map
+    existing_service_plan_id      = optional(string, null) # Full resource ID of existing service plan (use this OR service_plan_key)
+    runtime                       = string                 # node, python, dotnet, dotnetcore
+    runtime_version               = string                 # e.g., "20-lts", "3.11", "8.0", "9.0"
     startup_file                  = optional(string, null)
     always_on                     = optional(bool, true)
     public_network_access_enabled = optional(bool, true)

@@ -125,16 +125,16 @@ export function getAppConfig(): AppConfig {
   }
 
   // MSAL / Easy Auth configuration
-  const clientId = window.RUNTIME_CONFIG?.AZURE_CLIENT_ID || import.meta.env.VITE_AZURE_CLIENT_ID || ''
-  const tenantId = window.RUNTIME_CONFIG?.AZURE_TENANT_ID || import.meta.env.VITE_AZURE_TENANT_ID || 'common'
+  const clientId = window.RUNTIME_CONFIG?.AZURE_CLIENT_ID ?? (import.meta.env.VITE_AZURE_CLIENT_ID || '')
+  const tenantId = window.RUNTIME_CONFIG?.AZURE_TENANT_ID ?? (import.meta.env.VITE_AZURE_TENANT_ID || 'common')
   const redirectUri =
-    window.RUNTIME_CONFIG?.AZURE_REDIRECT_URI || import.meta.env.VITE_AZURE_REDIRECT_URI || window.location.origin
+    window.RUNTIME_CONFIG?.AZURE_REDIRECT_URI ?? (import.meta.env.VITE_AZURE_REDIRECT_URI || window.location.origin)
   const easyAuthResourceId =
-    window.RUNTIME_CONFIG?.EASYAUTH_RESOURCE_ID || import.meta.env.VITE_EASYAUTH_RESOURCE_ID || ''
+    window.RUNTIME_CONFIG?.EASYAUTH_RESOURCE_ID ?? (import.meta.env.VITE_EASYAUTH_RESOURCE_ID || '')
 
   // JWT configuration (only used when authMethod === 'jwt')
-  const jwtUsername = window.RUNTIME_CONFIG?.JWT_USERNAME || import.meta.env.VITE_JWT_USERNAME || ''
-  const jwtPassword = window.RUNTIME_CONFIG?.JWT_PASSWORD || import.meta.env.VITE_JWT_PASSWORD || ''
+  const jwtUsername = window.RUNTIME_CONFIG?.JWT_USERNAME ?? (import.meta.env.VITE_JWT_USERNAME || '')
+  const jwtPassword = window.RUNTIME_CONFIG?.JWT_PASSWORD ?? (import.meta.env.VITE_JWT_PASSWORD || '')
 
   // Determine stack name for display
   let stackName = 'React + TypeScript + Vite'
@@ -198,12 +198,12 @@ export function getConfig(): AppConfig {
       apiBaseUrl,
       auth: {
         method: authMethod,
-        clientId: window.RUNTIME_CONFIG?.AZURE_CLIENT_ID || import.meta.env.VITE_AZURE_CLIENT_ID || '',
-        tenantId: window.RUNTIME_CONFIG?.AZURE_TENANT_ID || import.meta.env.VITE_AZURE_TENANT_ID || 'common',
-        redirectUri: window.RUNTIME_CONFIG?.AZURE_REDIRECT_URI || import.meta.env.VITE_AZURE_REDIRECT_URI || window.location.origin,
-        jwtUsername: window.RUNTIME_CONFIG?.JWT_USERNAME || import.meta.env.VITE_JWT_USERNAME || '',
-        jwtPassword: window.RUNTIME_CONFIG?.JWT_PASSWORD || import.meta.env.VITE_JWT_PASSWORD || '',
-        easyAuthResourceId: window.RUNTIME_CONFIG?.EASYAUTH_RESOURCE_ID || import.meta.env.VITE_EASYAUTH_RESOURCE_ID || '',
+        clientId: window.RUNTIME_CONFIG?.AZURE_CLIENT_ID ?? (import.meta.env.VITE_AZURE_CLIENT_ID || ''),
+        tenantId: window.RUNTIME_CONFIG?.AZURE_TENANT_ID ?? (import.meta.env.VITE_AZURE_TENANT_ID || 'common'),
+        redirectUri: window.RUNTIME_CONFIG?.AZURE_REDIRECT_URI ?? (import.meta.env.VITE_AZURE_REDIRECT_URI || window.location.origin),
+        jwtUsername: window.RUNTIME_CONFIG?.JWT_USERNAME ?? (import.meta.env.VITE_JWT_USERNAME || ''),
+        jwtPassword: window.RUNTIME_CONFIG?.JWT_PASSWORD ?? (import.meta.env.VITE_JWT_PASSWORD || ''),
+        easyAuthResourceId: window.RUNTIME_CONFIG?.EASYAUTH_RESOURCE_ID ?? (import.meta.env.VITE_EASYAUTH_RESOURCE_ID || ''),
       },
       stackName: `React + TypeScript + Vite${authSuffix}`,
       apiProxyEnabled,

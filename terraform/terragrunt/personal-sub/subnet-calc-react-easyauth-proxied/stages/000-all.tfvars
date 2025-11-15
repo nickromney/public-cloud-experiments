@@ -122,6 +122,15 @@ entra_id_apps = {
         value                      = "user_impersonation"
       }
     ]
+    app_roles = [
+      {
+        id                   = "b8f3c2a1-9d7e-4f6b-8c5a-1234567890ab"
+        allowed_member_types = ["Application"]
+        description          = "Allow applications and managed identities to access the Subnet Calculator API"
+        display_name         = "API Access"
+        value                = "API.Access"
+      }
+    ]
   }
 }
 
@@ -130,6 +139,15 @@ entra_id_app_delegated_permissions = [
     from_app_key = "frontend"
     to_app_key   = "api"
     scopes       = ["user_impersonation"]
+  }
+]
+
+entra_id_app_role_assignments = [
+  {
+    app_key            = "api"
+    app_role_value     = "API.Access"
+    identity_key       = "webapp"
+    assignment_purpose = "Allow Web App to call Function App using Managed Identity"
   }
 ]
 
@@ -156,7 +174,7 @@ function_apps = {
     app_settings = {
       AzureWebJobsFeatureFlags       = "EnableWorkerIndexing"
       SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
-      AUTH_METHOD                    = "azure_ad"
+      AUTH_METHOD                    = "azure_swa"
     }
 
     identity_type = "UserAssigned"
@@ -200,7 +218,7 @@ web_apps = {
       PROXY_FORWARD_EASYAUTH_HEADERS = "false"
       AUTH_METHOD                    = "easyauth"
       AUTH_MODE                      = "easyauth"
-      EASYAUTH_RESOURCE_ID           = "api://subnet-calculator-react-easyauth-proxied-api"
+      EASYAUTH_RESOURCE_ID           = "api://subnet-calculator-react-easyauth-proxied-api/.default"
     }
 
     identity_type = "UserAssigned"
