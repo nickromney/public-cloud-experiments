@@ -7,9 +7,9 @@ from datetime import datetime, timedelta
 
 import requests
 from flask import Flask, jsonify, redirect, render_template, request, send_from_directory
-from flask_session import Session
 
 from auth import init_auth
+from flask_session import Session
 
 app = Flask(__name__)
 
@@ -228,12 +228,14 @@ def perform_lookup(address: str, mode: str = "Standard") -> dict:
         validate_response.raise_for_status()
         results["validate"] = validate_response.json()
         validate_duration = (time.time() - validate_start) * 1000  # ms
-        timing.append({
-            "call": "validate",
-            "requestTime": validate_request_time,
-            "responseTime": datetime.now().isoformat(),
-            "duration": round(validate_duration, 0)
-        })
+        timing.append(
+            {
+                "call": "validate",
+                "requestTime": validate_request_time,
+                "responseTime": datetime.now().isoformat(),
+                "duration": round(validate_duration, 0),
+            }
+        )
 
         # 2. Check if RFC1918 (private) - IPv4 only
         if ip_version == "ipv4":
@@ -248,12 +250,14 @@ def perform_lookup(address: str, mode: str = "Standard") -> dict:
             private_response.raise_for_status()
             results["private"] = private_response.json()
             private_duration = (time.time() - private_start) * 1000  # ms
-            timing.append({
-                "call": "checkPrivate",
-                "requestTime": private_request_time,
-                "responseTime": datetime.now().isoformat(),
-                "duration": round(private_duration, 0)
-            })
+            timing.append(
+                {
+                    "call": "checkPrivate",
+                    "requestTime": private_request_time,
+                    "responseTime": datetime.now().isoformat(),
+                    "duration": round(private_duration, 0),
+                }
+            )
 
         # 3. Check if Cloudflare
         cloudflare_start = time.time()
@@ -267,12 +271,14 @@ def perform_lookup(address: str, mode: str = "Standard") -> dict:
         cloudflare_response.raise_for_status()
         results["cloudflare"] = cloudflare_response.json()
         cloudflare_duration = (time.time() - cloudflare_start) * 1000  # ms
-        timing.append({
-            "call": "checkCloudflare",
-            "requestTime": cloudflare_request_time,
-            "responseTime": datetime.now().isoformat(),
-            "duration": round(cloudflare_duration, 0)
-        })
+        timing.append(
+            {
+                "call": "checkCloudflare",
+                "requestTime": cloudflare_request_time,
+                "responseTime": datetime.now().isoformat(),
+                "duration": round(cloudflare_duration, 0),
+            }
+        )
 
         # 4. Get subnet info if it's a network
         if results["validate"].get("type") == "network":
@@ -287,12 +293,14 @@ def perform_lookup(address: str, mode: str = "Standard") -> dict:
             subnet_response.raise_for_status()
             results["subnet"] = subnet_response.json()
             subnet_duration = (time.time() - subnet_start) * 1000  # ms
-            timing.append({
-                "call": "subnetInfo",
-                "requestTime": subnet_request_time,
-                "responseTime": datetime.now().isoformat(),
-                "duration": round(subnet_duration, 0)
-            })
+            timing.append(
+                {
+                    "call": "subnetInfo",
+                    "requestTime": subnet_request_time,
+                    "responseTime": datetime.now().isoformat(),
+                    "duration": round(subnet_duration, 0),
+                }
+            )
 
         # Calculate overall timing
         overall_duration = (time.time() - overall_start) * 1000  # ms
@@ -303,8 +311,8 @@ def perform_lookup(address: str, mode: str = "Standard") -> dict:
                 "overallDuration": round(overall_duration, 0),
                 "renderingDuration": 0,  # Will be calculated on client side if needed
                 "totalDuration": round(overall_duration, 0),
-                "apiCalls": timing
-            }
+                "apiCalls": timing,
+            },
         }
 
     except requests.HTTPError as e:

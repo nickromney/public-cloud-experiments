@@ -36,7 +36,7 @@ The stack now models the recommended two-app pattern:
 
 With that split, the Function App honors the same Easy Auth token the frontend received, so direct browser calls no longer return `401/403`.
 
-> **Limitation**  
+> **Limitation**
 > As of November 2025 the App Service Easy Auth control plane does **not** expose the `loginParameters` setting, which means the platform cannot be instructed (via Terraform/ARM) to request `api://…/.default` scopes for frontends hosted on a different hostname. Without that extra scope the `/.auth/refresh` endpoint returns `403` and the browser cannot obtain a Function App access token, even though both Entra ID apps and delegated permissions exist. See [docs/AUTHENTICATION.md](../../../../subnet-calculator/docs/AUTHENTICATION.md) for the current workarounds (proxy stack, shared Easy Auth boundary, or application-level On-Behalf-Of flow). If you need tokens to flow today, deploy the `subnet-calc-react-easyauth-proxied` stack or front both services with APIM/App Gateway/Front Door.
 
 ## Usage

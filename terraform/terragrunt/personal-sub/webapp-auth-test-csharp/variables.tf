@@ -181,6 +181,17 @@ variable "entra_id_app_delegated_permissions" {
   default = []
 }
 
+variable "entra_id_app_role_assignments" {
+  description = "App role assignments that bind a user-assigned managed identity to an Entra ID application's app role."
+  type = list(object({
+    app_key            = string
+    app_role_value     = string
+    identity_key       = string
+    assignment_purpose = optional(string, "")
+  }))
+  default = []
+}
+
 # -----------------------------------------------------------------------------
 # Function Apps (0-to-n)
 # -----------------------------------------------------------------------------

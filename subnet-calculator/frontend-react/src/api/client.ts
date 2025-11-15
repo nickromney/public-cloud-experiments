@@ -3,11 +3,11 @@
  * Supports both IPv4 and IPv6 lookups with performance timing
  */
 
-import type { IApiClient } from '@subnet-calculator/shared-frontend/api'
 import { TokenManager } from '@subnet-calculator/shared-frontend'
+import type { IApiClient } from '@subnet-calculator/shared-frontend/api'
 import { getApiPrefix, handleFetchError, isIpv6, parseJsonResponse } from '@subnet-calculator/shared-frontend/api'
-import { APP_CONFIG } from '../config'
 import { getEasyAuthAccessToken } from '../auth/easyAuthProvider'
+import { APP_CONFIG } from '../config'
 import type {
   ApiCallTiming,
   CloudflareCheckResponse,
