@@ -7,7 +7,8 @@
  * - None (no authentication)
  */
 
-import { useMsal } from '@azure/msal-react'
+import type { AccountInfo } from '@azure/msal-browser'
+import { MsalContext } from '@azure/msal-react'
 import type { UserInfo } from '@subnet-calculator/shared-frontend'
 import type React from 'react'
 import { createContext, useContext, useEffect, useState } from 'react'
@@ -69,11 +70,10 @@ function StandardAuthProvider({ children }: { children: React.ReactNode }) {
 
   const authMethod = APP_CONFIG.auth.method
 
-  // MSAL hooks - must always call hooks unconditionally (React rules)
-  // When not using MSAL, instance will be null but hook must still be called
-  const msalResult = useMsal()
-  const instance = authMethod === 'msal' ? msalResult.instance : null
-  const accounts = authMethod === 'msal' ? msalResult.accounts : []
+  // Access MSAL context directly so non-MSAL flows don't throw when the provider is absent
+  const msalContext = useContext(MsalContext)
+  const instance = authMethod === 'msal' ? msalContext?.instance ?? null : null
+  const accounts = authMethod === 'msal' ? msalContext?.accounts ?? [] : EMPTY_ACCOUNTS
 
   // Initialize authentication based on method
   useEffect(() => {
@@ -192,3 +192,4 @@ export function useAuth() {
   }
   return context
 }
+const EMPTY_ACCOUNTS: AccountInfo[] = []

@@ -89,6 +89,16 @@ uv run pytest test_auth.py -v
 
 All authentication methods use the same codebase with feature flags for easy switching.
 
+### Managed Identity Proxy Regression Test
+
+When working on the Web App → Function App proxy, run the dedicated Easy Auth suite to confirm the backend still accepts requests that arrive with managed identity headers instead of direct user principals:
+
+```bash
+uv run pytest test_azure_swa.py -k managed_identity
+```
+
+Those tests also cover the nested claim parsing added for Azure Easy Auth, so run them whenever you change `function_app.py`.
+
 ## Interactive API Documentation
 
 FastAPI auto-generates interactive API documentation that you can use to explore and test endpoints directly in your browser:

@@ -7,6 +7,7 @@ This header contains base64-encoded JSON with user claims.
 
 import base64
 import json
+from typing import Dict, List, Optional
 
 import pytest
 from fastapi.testclient import TestClient
@@ -17,7 +18,13 @@ client = TestClient(api)
 
 
 # Helper function to create SWA principal header
-def create_swa_principal(user_details: str = None, user_id: str = None, identity_provider: str = "aad") -> str:
+def create_swa_principal(
+    user_details: Optional[str] = None,
+    user_id: Optional[str] = None,
+    identity_provider: str = "aad",
+    extra_claims: Optional[Dict[str, object]] = None,
+    claim_list: Optional[List[Dict[str, object]]] = None,
+) -> str:
     """
     Create a fake Azure SWA x-ms-client-principal header.
 
@@ -29,12 +36,18 @@ def create_swa_principal(user_details: str = None, user_id: str = None, identity
     Returns:
         str: Base64-encoded JSON principal
     """
-    claims = {
+    claims: Dict[str, object] = {
         "identityProvider": identity_provider,
-        "userId": user_id or "user-123",
-        "userDetails": user_details,
         "userRoles": ["authenticated"],
     }
+    if user_id is not None:
+        claims["userId"] = user_id
+    if user_details is not None:
+        claims["userDetails"] = user_details
+    if extra_claims:
+        claims.update(extra_claims)
+    if claim_list is not None:
+        claims["claims"] = claim_list
     principal_json = json.dumps(claims)
     return base64.b64encode(principal_json.encode()).decode()
 
@@ -146,6 +159,40 @@ class TestAzureSWAAuthentication:
 
         assert response.status_code == 401
         assert "missing user identity" in response.json()["detail"].lower()
+
+    def test_principal_with_nested_claims_returns_200(self):
+        """Principal that only includes nested claim list should still authenticate."""
+        nested_claims = [
+            {"typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress", "val": "proxy@example.com"},
+        ]
+        principal = create_swa_principal(
+            user_details=None,
+            user_id=None,
+            claim_list=nested_claims,
+        )
+
+        response = client.post(
+            "/api/v1/ipv4/validate",
+            json={"address": "192.168.1.1"},
+            headers={"x-ms-client-principal": principal},
+        )
+
+        assert response.status_code == 200
+
+    def test_missing_identity_allows_managed_identity_header(self):
+        """Proxy mode should accept requests that include managed identity headers."""
+        principal = create_swa_principal(user_details=None, user_id=None)
+
+        response = client.post(
+            "/api/v1/ipv4/validate",
+            json={"address": "192.168.1.1"},
+            headers={
+                "x-ms-client-principal": principal,
+                "x-ms-managed-identity-principal-id": "mi-12345",
+            },
+        )
+
+        assert response.status_code == 200
 
     def test_health_endpoint_requires_no_auth(self):
         """Health endpoint should not require authentication."""

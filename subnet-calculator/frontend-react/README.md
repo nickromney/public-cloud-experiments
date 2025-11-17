@@ -209,6 +209,16 @@ npm run type-check
 npm run lint
 ```
 
+### Proxy Mode Regression Test
+
+To verify the Easy Auth proxy runtime configuration keeps API calls relative (mirroring the Azure Web App stack), run the dedicated Playwright spec:
+
+```bash
+npm run test -- tests/proxy-mode.spec.ts
+```
+
+The test injects `window.RUNTIME_CONFIG` at startup, so it works against the default Vite dev server—no Azure resources required.
+
 ## Docker Build
 
 ```bash

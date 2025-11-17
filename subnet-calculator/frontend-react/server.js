@@ -29,7 +29,7 @@ const runtimeConfig = {
 
 const proxyTarget = process.env.PROXY_API_URL || '';
 const forwardEasyAuthHeaders = process.env.PROXY_FORWARD_EASYAUTH_HEADERS !== 'false';
-const useManagedIdentity = !forwardEasyAuthHeaders && proxyTarget;
+const useManagedIdentity = process.env.PROXY_MANAGED_IDENTITY_ENABLED === 'true' && proxyTarget;
 const easyAuthHeaderWhitelist = [
   'x-zumo-auth',
   'authorization',
@@ -106,11 +106,12 @@ console.log('Runtime Configuration:', {
   AZURE_REDIRECT_URI: runtimeConfig.AZURE_REDIRECT_URI || '(not set)',
   PROXY_API_URL: proxyTarget ? '(configured)' : '(disabled)',
   FORWARD_EASYAUTH_HEADERS: forwardEasyAuthHeaders,
+  MANAGED_IDENTITY_PROXY: useManagedIdentity,
 });
 
 if (proxyTarget) {
   console.log('Enabling API proxy middleware');
-  console.log('Proxy mode:', useManagedIdentity ? 'Managed Identity' : 'Easy Auth Headers');
+  console.log('Proxy mode:', useManagedIdentity ? 'Managed Identity + Easy Auth headers' : 'Easy Auth headers');
 
   // Middleware to add Managed Identity token BEFORE proxy (async supported in Express middleware)
   if (useManagedIdentity) {
