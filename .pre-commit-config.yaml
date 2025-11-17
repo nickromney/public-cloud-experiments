@@ -17,6 +17,8 @@ repos:
       - id: terraform_fmt
         exclude: ^terraform/claranet-tfwrapper/
       - id: terraform_validate
+        exclude: ^terraform/(claranet-tfwrapper|terragrunt)/
+      - id: terragrunt_validate
         exclude: ^terraform/(claranet-tfwrapper|terragrunt/modules)/
       - id: terraform_tflint
         exclude: ^terraform/(claranet-tfwrapper|terragrunt/modules)/
