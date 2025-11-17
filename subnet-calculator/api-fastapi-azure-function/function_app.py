@@ -296,11 +296,35 @@ async def get_current_user(request: Request) -> str:
             claims = json.loads(principal_json)
 
             user_details = claims.get("userDetails")
-            user_id = claims.get("userId")
+            user_id = claims.get("userId") or claims.get("user_id")
+            user_principal_name = claims.get("userPrincipalName") or claims.get("user_principal_name")
 
-            user = user_details or user_id
+            # Parse nested claims for additional identifiers
+            claim_list = claims.get("claims", []) or claims.get("user_claims", [])
+            claim_map = {}
+            for claim in claim_list:
+                typ = claim.get("typ") or claim.get("type")
+                val = claim.get("val") or claim.get("value")
+                if typ and val:
+                    claim_map[typ.lower()] = val
+
+            preferred_username = (
+                claim_map.get("preferred_username")
+                or claim_map.get("name")
+                or claim_map.get("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name")
+                or claim_map.get("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")
+                or claim_map.get("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress")
+            )
+
+            user = user_details or user_id or user_principal_name or preferred_username
 
             if not user:
+                # Managed identity proxy may omit user info but still be authorized
+                managed_identity_user = request.headers.get("x-ms-managed-identity-principal-id")
+
+                if managed_identity_user:
+                    return managed_identity_user
+
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Easy Auth principal missing user identity",

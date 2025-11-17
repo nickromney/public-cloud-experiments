@@ -23,6 +23,7 @@
 #   podman-compose up api-fastapi-azure-function frontend-react-jwt                   # local-stack-07
 #   podman-compose up api-fastapi-azure-function frontend-react-msal                  # local-stack-08 (requires MSAL config)
 #   podman-compose up api-fastapi-azure-function frontend-react-server-jwt            # local-stack-09 (tests /runtime-config)
+#   podman-compose up api-fastapi-azure-function frontend-react-proxy                 # local-stack-10 (Vite proxy -> Function App)
 #
 # Access:
 #   local-stack-01 - Static HTML + Container App (no auth):
@@ -58,6 +59,10 @@
 #     - API docs: http://localhost:8080/api/v1/docs
 #     - JWT: Runtime config via /runtime-config endpoint (demo / password123)
 #     - Simulates Azure Web App deployment with node server.js
+#   local-stack-10 - React + Web App proxy -> Azure Function (JWT):
+#     - React SPA (proxy): http://localhost:3005
+#     - API docs: http://localhost:8080/api/v1/docs
+#     - Proxy: Browser hits /api/* via Vite/Express server, which forwards to the Function App
 services:
   api-fastapi-azure-function:
     build:
@@ -265,6 +270,31 @@ services:
       - PORT=8080
       # Use localhost URL for browser access (client appends /api/v1/... paths)
       - API_BASE_URL=http://localhost:8080
+      - AUTH_METHOD=jwt
+      - JWT_USERNAME=demo
+      - JWT_PASSWORD=password123
+    depends_on:
+      api-fastapi-azure-function:
+        condition: service_healthy
+
+  frontend-react-proxy:
+    build:
+      context: .
+      dockerfile: ./frontend-react/Dockerfile.server
+    platform: linux/amd64
+    image: subnet-calculator-frontend-react-proxy:latest
+    ports:
+      - "3005:8080"
+    environment:
+      # Proxy /api/* requests through the Node/Vite host just like the Azure Web App stack
+      - PORT=8080
+      - API_BASE_URL=
+      - API_PROXY_ENABLED=true
+      - PROXY_API_URL=http://api-fastapi-azure-function:80
+      - PROXY_FORWARD_EASYAUTH_HEADERS=true
+      # Enable the Managed Identity code path; token acquisition will fail locally
+      # unless the container inherits Azure credentials (expected, logged as warning).
+      - PROXY_MANAGED_IDENTITY_ENABLED=true
       - AUTH_METHOD=jwt
       - JWT_USERNAME=demo
       - JWT_PASSWORD=password123

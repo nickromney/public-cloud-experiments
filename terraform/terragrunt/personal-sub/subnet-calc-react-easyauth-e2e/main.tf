@@ -251,6 +251,14 @@ module "web_apps" {
       # App settings (merge Application Insights connection string if provided)
       app_settings = merge(
         try(v.app_settings, {}),
+        # Auto-inject AZURE_CLIENT_ID when we created the UAI via identity_keys.
+        # Skip if caller passed identity_ids (BYO identity) or already set AZURE_CLIENT_ID explicitly.
+        can(regex("UserAssigned", coalesce(v.identity_type, ""))) &&
+        length(try(v.identity_ids, [])) == 0 &&
+        length(try(v.identity_keys, [])) > 0 &&
+        try(v.app_settings.AZURE_CLIENT_ID, null) == null ? {
+          AZURE_CLIENT_ID = module.user_assigned_identities.client_ids[v.identity_keys[0]]
+        } : {},
         try(v.app_insights_key, null) != null ? {
           APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.this[v.app_insights_key].connection_string
         } : {}
