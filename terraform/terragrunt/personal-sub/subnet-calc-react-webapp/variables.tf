@@ -48,7 +48,7 @@ variable "tenant_id" {
   default     = null
 
   validation {
-    condition     = var.tenant_id == null || can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", var.tenant_id))
+    condition     = var.tenant_id == null || can(regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", var.tenant_id))
     error_message = "Tenant ID must be a valid UUID format (e.g., 00000000-0000-0000-0000-000000000000)"
   }
 }
