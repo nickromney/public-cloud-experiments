@@ -111,7 +111,8 @@ console.log('Runtime Configuration:', {
 
 if (proxyTarget) {
   console.log('Enabling API proxy middleware');
-  console.log('Proxy mode:', useManagedIdentity ? 'Managed Identity + Easy Auth headers' : 'Easy Auth headers');
+  console.log('Proxy mode:', useManagedIdentity ? 'Managed Identity' : 'Easy Auth headers only');
+  console.log('Forward Easy Auth headers:', forwardEasyAuthHeaders);
 
   // Middleware to add Managed Identity token BEFORE proxy (async supported in Express middleware)
   if (useManagedIdentity) {

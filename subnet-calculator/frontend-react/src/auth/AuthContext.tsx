@@ -27,6 +27,7 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const EMPTY_ACCOUNTS: AccountInfo[] = []
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authMethod = APP_CONFIG.auth.method
@@ -192,4 +193,3 @@ export function useAuth() {
   }
   return context
 }
-const EMPTY_ACCOUNTS: AccountInfo[] = []

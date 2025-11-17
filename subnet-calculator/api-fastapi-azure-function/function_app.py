@@ -322,8 +322,8 @@ async def get_current_user(request: Request) -> str:
                 # Managed identity proxy may omit user info but still be authorized
                 managed_identity_user = request.headers.get("x-ms-managed-identity-principal-id")
 
-                if managed_identity_user or request.headers.get("x-functions-key"):
-                    return managed_identity_user or "managed-identity"
+                if managed_identity_user:
+                    return managed_identity_user
 
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,

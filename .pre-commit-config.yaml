@@ -18,6 +18,8 @@ repos:
         exclude: ^terraform/claranet-tfwrapper/
       - id: terraform_validate
         exclude: ^terraform/(claranet-tfwrapper|terragrunt)/
+        # terragrunt_validate below handles the actual Terragrunt stacks (excluding modules).
+        # terraform_validate only runs against root Terraform modules outside terragrunt/.
       - id: terragrunt_validate
         exclude: ^terraform/(claranet-tfwrapper|terragrunt/modules)/
       - id: terraform_tflint

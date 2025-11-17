@@ -28,7 +28,7 @@ test.describe('Proxy runtime configuration', () => {
     })
 
     await page.goto('/')
-    await page.waitForTimeout(500)
+    await page.waitForRequest((request) => request.url().includes('/api/'), { timeout: 5000 })
 
     expect(interceptedRequests.length).toBeGreaterThan(0)
     interceptedRequests.forEach((url) => {
