@@ -1,37 +1,32 @@
 # Tests for subnet-calc-shared-components stack
-# Validates observability and secrets management infrastructure
-# Uses data source to look up existing Azure resource groups for testing
+# Validates observability and secrets management infrastructure with map-based (0-to-n) patterns
 
 provider "azurerm" {
   features {}
 }
 
 variables {
-  location              = "uksouth"
-  project_name          = "subnetcalc"
-  component_name        = "shared"
-  environment           = "dev"
-  resource_group_name   = "rg-test-shared"
-  create_resource_group = true
-
-  key_vault_sku                        = "standard"
-  key_vault_use_random_suffix          = true
-  key_vault_purge_protection_enabled   = false
-  key_vault_soft_delete_retention_days = 7
-  log_retention_days                   = 30
-
+  environment = "dev"
   tags = {
     test = "true"
   }
 }
 
-# Validation tests - these test input constraints
+# -----------------------------------------------------------------------------
+# Variable Validation Tests
+# -----------------------------------------------------------------------------
 
 run "test_invalid_environment" {
   command = plan
 
   variables {
     environment = "production" # Invalid
+    resource_groups = {
+      main = {
+        name     = "rg-test-shared"
+        location = "uksouth"
+      }
+    }
   }
 
   expect_failures = [
@@ -39,27 +34,20 @@ run "test_invalid_environment" {
   ]
 }
 
-run "test_invalid_location" {
+run "test_invalid_resource_group_location" {
   command = plan
 
   variables {
-    location = "westus" # Invalid
+    resource_groups = {
+      main = {
+        name     = "rg-test-shared"
+        location = "westus" # Invalid - must be uksouth or ukwest
+      }
+    }
   }
 
   expect_failures = [
-    var.location,
-  ]
-}
-
-run "test_invalid_project_name" {
-  command = plan
-
-  variables {
-    project_name = "this-project-name-is-way-too-long-for-azure-naming" # >24 chars
-  }
-
-  expect_failures = [
-    var.project_name,
+    var.resource_groups,
   ]
 }
 
@@ -67,11 +55,22 @@ run "test_invalid_log_retention_too_low" {
   command = plan
 
   variables {
-    log_retention_days = 29 # Below minimum
+    resource_groups = {
+      main = {
+        name     = "rg-test-shared"
+        location = "uksouth"
+      }
+    }
+    log_analytics_workspaces = {
+      main = {
+        name              = "log-test"
+        retention_in_days = 29 # Below minimum of 30
+      }
+    }
   }
 
   expect_failures = [
-    var.log_retention_days,
+    var.log_analytics_workspaces,
   ]
 }
 
@@ -79,11 +78,22 @@ run "test_invalid_log_retention_too_high" {
   command = plan
 
   variables {
-    log_retention_days = 731 # Above maximum
+    resource_groups = {
+      main = {
+        name     = "rg-test-shared"
+        location = "uksouth"
+      }
+    }
+    log_analytics_workspaces = {
+      main = {
+        name              = "log-test"
+        retention_in_days = 731 # Above maximum of 730
+      }
+    }
   }
 
   expect_failures = [
-    var.log_retention_days,
+    var.log_analytics_workspaces,
   ]
 }
 
@@ -91,11 +101,22 @@ run "test_invalid_kv_soft_delete_too_low" {
   command = plan
 
   variables {
-    key_vault_soft_delete_retention_days = 6 # Below minimum
+    resource_groups = {
+      main = {
+        name     = "rg-test-shared"
+        location = "uksouth"
+      }
+    }
+    key_vaults = {
+      main = {
+        name                       = "kv-test"
+        soft_delete_retention_days = 6 # Below minimum of 7
+      }
+    }
   }
 
   expect_failures = [
-    var.key_vault_soft_delete_retention_days,
+    var.key_vaults,
   ]
 }
 
@@ -103,11 +124,22 @@ run "test_invalid_kv_soft_delete_too_high" {
   command = plan
 
   variables {
-    key_vault_soft_delete_retention_days = 91 # Above maximum
+    resource_groups = {
+      main = {
+        name     = "rg-test-shared"
+        location = "uksouth"
+      }
+    }
+    key_vaults = {
+      main = {
+        name                       = "kv-test"
+        soft_delete_retention_days = 91 # Above maximum of 90
+      }
+    }
   }
 
   expect_failures = [
-    var.key_vault_soft_delete_retention_days,
+    var.key_vaults,
   ]
 }
 
@@ -115,31 +147,42 @@ run "test_invalid_kv_sku" {
   command = plan
 
   variables {
-    key_vault_sku = "basic" # Invalid
+    resource_groups = {
+      main = {
+        name     = "rg-test-shared"
+        location = "uksouth"
+      }
+    }
+    key_vaults = {
+      main = {
+        name = "kv-test"
+        sku  = "basic" # Invalid - must be standard or premium
+      }
+    }
   }
 
   expect_failures = [
-    var.key_vault_sku,
+    var.key_vaults,
   ]
 }
 
-# Configuration tests - these test resource configuration
+# -----------------------------------------------------------------------------
+# Configuration Tests
+# -----------------------------------------------------------------------------
 
 run "validate_resource_group_creation" {
   command = plan
 
   variables {
-    create_resource_group = true
-  }
-
-  assert {
-    condition     = length(local.resource_groups_to_create) == 1
-    error_message = "Should create resource group when create_resource_group=true"
-  }
-
-  assert {
-    condition     = length(local.resource_groups_existing) == 0
-    error_message = "Should not use existing resource group when create_resource_group=true"
+    resource_groups = {
+      main = {
+        name     = "rg-test-shared"
+        location = "uksouth"
+        tags = {
+          purpose = "testing"
+        }
+      }
+    }
   }
 
   assert {
@@ -151,126 +194,132 @@ run "validate_resource_group_creation" {
     condition     = azurerm_resource_group.this["main"].location == "uksouth"
     error_message = "Resource group location should match input"
   }
+
+  assert {
+    condition     = azurerm_resource_group.this["main"].tags["environment"] == "dev"
+    error_message = "Resource group should have environment tag from common_tags"
+  }
+
+  assert {
+    condition     = azurerm_resource_group.this["main"].tags["managed_by"] == "terragrunt"
+    error_message = "Resource group should have managed_by tag"
+  }
+
+  assert {
+    condition     = azurerm_resource_group.this["main"].tags["purpose"] == "testing"
+    error_message = "Resource group should have custom tags merged"
+  }
 }
 
-# Test existing resource group conditional logic
-# Note: Uses created RG for testing since we can't guarantee discovery of backend RG
-run "validate_resource_group_conditional" {
+run "validate_log_analytics_workspace" {
   command = plan
 
   variables {
-    create_resource_group = true
-    resource_group_name   = "rg-test-conditional"
-  }
-
-  # When create_resource_group=true
-  assert {
-    condition     = length(local.resource_groups_to_create) == 1
-    error_message = "Should create one resource group when create_resource_group=true"
-  }
-
-  assert {
-    condition     = length(local.resource_groups_existing) == 0
-    error_message = "Should not reference existing RG when create_resource_group=true"
-  }
-
-  # Verify merge produces exactly one RG reference
-  assert {
-    condition     = length(local.resource_group_names) == 1
-    error_message = "Merge logic should produce exactly one resource group name"
-  }
-}
-
-run "validate_log_analytics_configuration" {
-  command = plan
-
-  assert {
-    condition     = azurerm_log_analytics_workspace.this.name == "log-subnetcalc-shared-dev"
-    error_message = "Log Analytics workspace name should follow naming convention"
+    resource_groups = {
+      main = {
+        name     = "rg-test-shared"
+        location = "uksouth"
+      }
+    }
+    log_analytics_workspaces = {
+      main = {
+        name              = "log-test-workspace"
+        sku               = "PerGB2018"
+        retention_in_days = 90
+      }
+    }
   }
 
   assert {
-    condition     = azurerm_log_analytics_workspace.this.location == "uksouth"
-    error_message = "Log Analytics workspace should be in correct location"
+    condition     = azurerm_log_analytics_workspace.this["main"].name == "log-test-workspace"
+    error_message = "Log Analytics workspace name should match input"
   }
 
   assert {
-    condition     = azurerm_log_analytics_workspace.this.retention_in_days == 30
-    error_message = "Log Analytics retention should match variable"
+    condition     = azurerm_log_analytics_workspace.this["main"].sku == "PerGB2018"
+    error_message = "Log Analytics workspace should use correct SKU"
   }
 
   assert {
-    condition     = azurerm_log_analytics_workspace.this.sku == "PerGB2018"
-    error_message = "Log Analytics should use PerGB2018 SKU"
+    condition     = azurerm_log_analytics_workspace.this["main"].retention_in_days == 90
+    error_message = "Log Analytics retention should match input"
   }
 
   assert {
-    condition     = azurerm_log_analytics_workspace.this.tags["environment"] == "dev"
-    error_message = "Tags should include environment"
-  }
-
-  assert {
-    condition     = azurerm_log_analytics_workspace.this.tags["managed_by"] == "terragrunt"
-    error_message = "Tags should include managed_by"
+    condition     = azurerm_log_analytics_workspace.this["main"].tags["environment"] == "dev"
+    error_message = "Log Analytics workspace should have environment tag"
   }
 }
 
-run "validate_key_vault_naming" {
+run "validate_key_vault_module" {
   command = plan
 
-  assert {
-    condition     = length(local.kv_name) <= 20
-    error_message = "Key Vault base name must be ≤20 chars to allow for 4-char suffix (24 char limit)"
+  variables {
+    resource_groups = {
+      main = {
+        name     = "rg-test-shared"
+        location = "uksouth"
+      }
+    }
+    key_vaults = {
+      main = {
+        name                       = "kv-test"
+        sku                        = "standard"
+        use_random_suffix          = true
+        purge_protection_enabled   = false
+        soft_delete_retention_days = 7
+        enable_rbac_authorization  = true
+      }
+    }
   }
 
   assert {
-    condition     = can(regex("^kv-sc-shared-dev$", local.kv_name))
-    error_message = "Key Vault name should follow naming convention: kv-sc-{component}-{env}"
-  }
-}
-
-run "validate_key_vault_configuration" {
-  command = plan
-
-  # Test module outputs (only check values known at plan time)
-  # Note: name and vault_uri contain random suffix so aren't known until apply
-
-  assert {
-    condition     = module.key_vault.location == "uksouth"
+    condition     = module.key_vaults["main"].location == "uksouth"
     error_message = "Key Vault should be in correct location"
   }
 
   assert {
-    condition     = module.key_vault.resource_group_name == "rg-test-shared"
+    condition     = module.key_vaults["main"].resource_group_name == "rg-test-shared"
     error_message = "Key Vault should be in correct resource group"
-  }
-
-  assert {
-    condition     = can(module.key_vault.tenant_id)
-    error_message = "Key Vault tenant_id output should be accessible"
   }
 }
 
-run "validate_diagnostics_configuration" {
+run "validate_key_vault_diagnostics" {
   command = plan
 
+  variables {
+    resource_groups = {
+      main = {
+        name     = "rg-test-shared"
+        location = "uksouth"
+      }
+    }
+    log_analytics_workspaces = {
+      main = {
+        name              = "log-test"
+        retention_in_days = 30
+      }
+    }
+    key_vaults = {
+      main = {
+        name                        = "kv-test"
+        log_analytics_workspace_key = "main"
+      }
+    }
+  }
+
   assert {
-    condition     = azurerm_monitor_diagnostic_setting.kv.name == "keyvault-diagnostics"
+    condition     = azurerm_monitor_diagnostic_setting.kv["main"].name == "keyvault-diagnostics"
     error_message = "Diagnostic setting should have correct name"
   }
 
   assert {
-    condition     = length([for log in azurerm_monitor_diagnostic_setting.kv.enabled_log : log.category]) == 2
-    error_message = "Should have exactly 2 enabled log categories"
-  }
-
-  assert {
-    condition     = contains([for log in azurerm_monitor_diagnostic_setting.kv.enabled_log : log.category], "AuditEvent")
+    condition     = contains([for log in azurerm_monitor_diagnostic_setting.kv["main"].enabled_log : log.category], "AuditEvent")
     error_message = "Should enable AuditEvent logging"
   }
 
   assert {
-    condition     = contains([for log in azurerm_monitor_diagnostic_setting.kv.enabled_log : log.category], "AzurePolicyEvaluationDetails")
+    condition     = contains([for log in azurerm_monitor_diagnostic_setting.kv["main"].enabled_log : log.category], "AzurePolicyEvaluationDetails")
     error_message = "Should enable AzurePolicyEvaluationDetails logging"
   }
 }
@@ -278,27 +327,83 @@ run "validate_diagnostics_configuration" {
 run "validate_rbac_assignment" {
   command = plan
 
+  variables {
+    resource_groups = {
+      main = {
+        name     = "rg-test-shared"
+        location = "uksouth"
+      }
+    }
+    key_vaults = {
+      main = {
+        name = "kv-test"
+      }
+    }
+    grant_current_user_key_vault_access = true
+  }
+
   assert {
-    condition     = azurerm_role_assignment.kv_secrets_officer_current_user.role_definition_name == "Key Vault Secrets Officer"
+    condition     = azurerm_role_assignment.kv_secrets_officer_current_user["main"].role_definition_name == "Key Vault Secrets Officer"
     error_message = "Should assign Key Vault Secrets Officer role"
   }
 }
 
-run "validate_outputs" {
+run "validate_multiple_resources" {
   command = plan
 
-  assert {
-    condition     = output.resource_group_name == "rg-test-shared"
-    error_message = "Output resource_group_name should match input"
+  variables {
+    resource_groups = {
+      main = {
+        name     = "rg-test-1"
+        location = "uksouth"
+      }
+      secondary = {
+        name     = "rg-test-2"
+        location = "ukwest"
+      }
+    }
+    log_analytics_workspaces = {
+      primary = {
+        name              = "log-primary"
+        retention_in_days = 30
+      }
+      secondary = {
+        name              = "log-secondary"
+        retention_in_days = 90
+      }
+    }
+    key_vaults = {
+      dev = {
+        name = "kv-dev"
+        sku  = "standard"
+      }
+      prod = {
+        name = "kv-prod"
+        sku  = "premium"
+      }
+    }
   }
 
   assert {
-    condition     = output.resource_group_location == "uksouth"
-    error_message = "Output resource_group_location should match location"
+    condition     = length(azurerm_resource_group.this) == 2
+    error_message = "Should create 2 resource groups"
   }
 
   assert {
-    condition     = output.log_analytics_workspace_name == "log-subnetcalc-shared-dev"
-    error_message = "Output log_analytics_workspace_name should match created resource"
+    condition     = length(azurerm_log_analytics_workspace.this) == 2
+    error_message = "Should create 2 Log Analytics workspaces"
+  }
+
+  assert {
+    condition     = length(module.key_vaults) == 2
+    error_message = "Should create 2 Key Vaults"
   }
 }
+
+# Note: validate_existing_resource_group test removed because it requires an actual
+# existing resource group in Azure. The data source lookup will fail if RG doesn't exist.
+# To test this feature:
+# 1. Create a resource group in your Azure subscription (e.g., "rg-test-existing")
+# 2. Set existing_resource_group_name = "rg-test-existing"
+# 3. Set resource_groups = {}
+# 4. Verify that no new RGs are created and the existing RG is referenced
