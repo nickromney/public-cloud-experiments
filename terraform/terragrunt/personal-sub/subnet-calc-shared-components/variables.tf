@@ -25,6 +25,14 @@ variable "resource_groups" {
     tags     = optional(map(string), {})
   }))
   default = {}
+
+  validation {
+    condition = alltrue([
+      for k, v in var.resource_groups :
+      contains(["uksouth", "ukwest"], v.location)
+    ])
+    error_message = "Resource group location must be either 'uksouth' or 'ukwest' for all resource groups"
+  }
 }
 
 variable "existing_resource_group_name" {

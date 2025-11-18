@@ -5,16 +5,36 @@
 variable "environment" {
   description = "Environment name (e.g., dev, staging, prod)"
   type        = string
+
+  validation {
+    condition     = contains(["dev", "stg", "prod", "pre", "np", "qa", "uat"], var.environment)
+    error_message = "Environment must be one of: dev, stg, prod, pre, np, qa, uat"
+  }
 }
 
 variable "project_name" {
   description = "Project name for resource naming"
   type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9-]+$", var.project_name))
+    error_message = "Project name must contain only lowercase letters, numbers, and hyphens"
+  }
+
+  validation {
+    condition     = length(var.project_name) > 0 && length(var.project_name) <= 24
+    error_message = "Project name must be between 1 and 24 characters"
+  }
 }
 
 variable "workload_name" {
   description = "Workload name for tagging"
   type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9-]+$", var.workload_name))
+    error_message = "Workload name must contain only lowercase letters, numbers, and hyphens"
+  }
 }
 
 variable "resource_group_name" {
@@ -26,6 +46,11 @@ variable "tenant_id" {
   description = "Azure AD tenant ID (optional - defaults to current)"
   type        = string
   default     = null
+
+  validation {
+    condition     = var.tenant_id == null || can(regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", var.tenant_id))
+    error_message = "Tenant ID must be a valid UUID format (e.g., 00000000-0000-0000-0000-000000000000)"
+  }
 }
 
 variable "tags" {
