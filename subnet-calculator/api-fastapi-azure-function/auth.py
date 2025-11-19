@@ -4,19 +4,29 @@ Authentication utilities.
 Provides functions for validating API keys, JWT tokens, OIDC tokens, and password hashing.
 """
 
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
 import jwt
-from jose import jwk, jwt as jose_jwt
+from jose import jwt as jose_jwt
 from jose.exceptions import JWTError
 from pwdlib import PasswordHash
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 # Password hasher (uses Argon2 - modern, secure)
 pwd_hash = PasswordHash.recommended()
 
 # Cache for OIDC JWKS (JSON Web Key Sets)
+# TODO: Implement TTL-based cache with expiration for production use.
+# Consider using cachetools.TTLCache to refresh keys periodically (e.g., 1-hour TTL)
+# to handle OIDC provider key rotation. Example:
+#   from cachetools import TTLCache
+#   _oidc_jwks_cache: TTLCache[str, Any] = TTLCache(maxsize=10, ttl=3600)
+# For now, this simple dict cache is acceptable for development/testing.
 _oidc_jwks_cache: dict[str, Any] = {}
 
 
@@ -235,7 +245,7 @@ async def validate_oidc_token(token: str, issuer: str, audience: str, jwks_uri: 
 
     except JWTError as e:
         # Token is invalid (expired, wrong signature, etc.)
-        print(f"OIDC token validation failed: {e}", flush=True)
+        logger.warning("OIDC token validation failed: %s", e)
         return None
     except Exception as e:
         # Unexpected error (network, configuration, etc.)

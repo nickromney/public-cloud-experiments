@@ -136,6 +136,28 @@ The realm is pre-configured via `realm-export.json` with:
 | demo     | password123  | user        | <demo@example.com>    |
 | admin    | securepass   | admin, user | <admin@example.com>   |
 
+## Security Warning
+
+**IMPORTANT: This configuration is for LOCAL DEVELOPMENT ONLY**
+
+The `realm-export.json` file contains:
+
+- Hardcoded passwords (`password123`, `securepass`)
+- Pre-configured client secrets
+- Permissive security settings (SSL not required, etc.)
+
+**DO NOT use this realm configuration in production environments.**
+
+For production deployments:
+
+1. Use Azure Entra ID (Azure Active Directory) instead of Keycloak
+2. Generate strong, unique passwords and store them in Azure Key Vault
+3. Enable SSL/TLS (sslRequired: "all")
+4. Configure proper CORS origins
+5. Use managed identities where possible
+6. Implement proper password policies and MFA
+7. Regularly rotate client secrets
+
 ## Environment Variables
 
 ### API (FastAPI)

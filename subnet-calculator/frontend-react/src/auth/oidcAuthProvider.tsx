@@ -8,6 +8,9 @@ import { type ReactNode, createContext, useContext, useEffect, useState } from '
 import { UserManager, WebStorageStateStore } from 'oidc-client-ts'
 import { APP_CONFIG } from '../config'
 
+// Constants
+const POST_LOGOUT_PAGE = '/logged-out.html'
+
 interface OidcAuthContextType {
   isAuthenticated: boolean
   isLoading: boolean
@@ -35,7 +38,7 @@ function getUserManager(): UserManager {
       authority,
       client_id: clientId,
       redirect_uri: `${redirectUri}/`,
-      post_logout_redirect_uri: `${redirectUri}/logged-out.html`,
+      post_logout_redirect_uri: `${redirectUri}${POST_LOGOUT_PAGE}`,
       response_type: 'code',
       scope: 'openid user_impersonation',
       automaticSilentRenew: true,

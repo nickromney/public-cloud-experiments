@@ -195,7 +195,7 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
             {error === 'authentication_required' ? (
               <>
                 <strong>Authentication Required:</strong> Please log in to use the calculator.{' '}
-                <button type="button" onClick={login} style={{ marginLeft: '0.5rem' }}>
+                <button type="button" onClick={login} className="ml-sm">
                   Log In
                 </button>
               </>

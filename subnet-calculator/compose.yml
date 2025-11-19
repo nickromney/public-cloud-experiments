@@ -421,7 +421,8 @@ services:
       context: .
       dockerfile: ./frontend-react/Dockerfile
       args:
-        VITE_API_URL: ""
+        # Use proxy mode - API calls are relative and go through OAuth2 Proxy
+        VITE_API_PROXY_ENABLED: "true"
         VITE_AUTH_METHOD: "oidc"
         VITE_OIDC_AUTHORITY: "http://localhost:8180/realms/subnet-calculator"
         VITE_OIDC_CLIENT_ID: "frontend-app"
@@ -432,7 +433,8 @@ services:
     expose:
       - "80"
     environment:
-      VITE_API_URL: ""
+      # Use proxy mode - API calls are relative and go through OAuth2 Proxy
+      VITE_API_PROXY_ENABLED: "true"
       VITE_AUTH_METHOD: "oidc"
       VITE_OIDC_AUTHORITY: "http://localhost:8180/realms/subnet-calculator"
       VITE_OIDC_CLIENT_ID: "frontend-app"
@@ -454,6 +456,18 @@ services:
       - --provider=oidc
       - --oidc-issuer-url=http://localhost:8180/realms/subnet-calculator
       - --client-id=frontend-app
+      # ---------------------------------------------------------------------------------
+      # WARNING: OAuth2 client secret is hardcoded for demonstration purposes only.
+      # This configuration is ONLY safe for the OAuth2 Proxy sidecar pattern where the
+      # proxy acts as a backend component and is not exposed directly to end users.
+      #
+      # For public clients (SPAs), do NOT use client secrets as they cannot be kept
+      # confidential. Instead, use PKCE (Proof Key for Code Exchange) without a client
+      # secret. See: https://oauth.net/2/pkce/
+      #
+      # For production OAuth2 Proxy deployments, set the client secret via environment
+      # variables or a secrets management system (Azure Key Vault, Kubernetes Secrets).
+      # ---------------------------------------------------------------------------------
       - --client-secret=frontend-secret
       - --redirect-url=http://localhost:3007/oauth2/callback
       - --code-challenge-method=S256
@@ -465,7 +479,32 @@ services:
       - --oidc-jwks-url=http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/certs
       - --validate-url=http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/userinfo
 
+      # ---------------------------------------------------------------------------------
       # Upstreams (proxy both frontend and API)
+      #
+      # This OAuth2 Proxy instance is configured with TWO upstreams to protect both the
+      # frontend and API through a single proxy instance (sidecar pattern):
+      #
+      # 1. Frontend: http://frontend-react-keycloak-protected:80
+      #    - Serves static React SPA assets (HTML, CSS, JS)
+      #    - Not directly accessible from browser (no ports exposed)
+      #
+      # 2. API: http://api-fastapi-keycloak:80/api
+      #    - Proxies API requests to /api/* path
+      #    - Adds authentication headers to upstream requests
+      #
+      # ROUTING BEHAVIOR:
+      # - Requests to /api/* → Routed to api-fastapi-keycloak:80/api
+      # - All other requests → Routed to frontend-react-keycloak-protected:80
+      #
+      # This differs from the typical single-upstream pattern. The proxy determines
+      # which upstream to use based on the request path. For more details, see:
+      # https://oauth2-proxy.github.io/oauth2-proxy/docs/configuration/overview/#upstream-configuration
+      #
+      # AUTHENTICATION:
+      # All requests require authentication before reaching either upstream.
+      # This simulates Azure Easy Auth's "forced login upfront" behavior.
+      # ---------------------------------------------------------------------------------
       - --upstream=http://frontend-react-keycloak-protected:80
       - --upstream=http://api-fastapi-keycloak:80/api
 
@@ -473,6 +512,12 @@ services:
       - --http-address=0.0.0.0:4180
 
       # Cookie configuration
+      # ---------------------------------------------------------------------------------
+      # WARNING: The cookie secret below is hardcoded for demonstration purposes only.
+      # For production, generate a strong secret and set it via environment variables
+      # or a secrets management system. Generate a new secret with:
+      #   python -c 'import secrets; print(secrets.token_urlsafe(32))'
+      # ---------------------------------------------------------------------------------
       - --cookie-secret=OQINaROshtE9TcZkNAm-5Zs2pZWWyqhBcfyqGMC5H0A=
       - --cookie-secure=false
       - --cookie-httponly=true

@@ -40,7 +40,7 @@ import { UserManager, WebStorageStateStore } from 'oidc-client-ts'
 
 **Root Cause**: The authentication middleware in `function_app.py` did not include `AuthMethod.OIDC` in the list of auth methods that should pass through to dependency-based authentication.
 
-**Affected Code** (line 540 in function_app.py):
+**Affected Code** (in the authentication middleware of `function_app.py`):
 
 ```python
 # Before

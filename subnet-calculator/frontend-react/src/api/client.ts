@@ -20,6 +20,9 @@ import type {
   ValidateResponse,
 } from '../types'
 
+// Error message constants
+const AUTH_REQUIRED_ERROR = 'Please log in to use the calculator'
+
 class ApiClient implements IApiClient {
   private baseUrl: string
   private tokenManager: TokenManager | null = null
@@ -149,7 +152,7 @@ class ApiClient implements IApiClient {
       if (!response.ok) {
         // User-friendly error for authentication failures
         if (response.status === 401) {
-          throw new Error('Please log in to use the calculator')
+          throw new Error(AUTH_REQUIRED_ERROR)
         }
         const errorData = await response.json().catch(() => ({ detail: response.statusText }))
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
@@ -177,7 +180,7 @@ class ApiClient implements IApiClient {
       if (!response.ok) {
         // User-friendly error for authentication failures
         if (response.status === 401) {
-          throw new Error('Please log in to use the calculator')
+          throw new Error(AUTH_REQUIRED_ERROR)
         }
         const errorData = await response.json().catch(() => ({ detail: response.statusText }))
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
@@ -206,7 +209,7 @@ class ApiClient implements IApiClient {
       if (!response.ok) {
         // User-friendly error for authentication failures
         if (response.status === 401) {
-          throw new Error('Please log in to use the calculator')
+          throw new Error(AUTH_REQUIRED_ERROR)
         }
         const errorData = await response.json().catch(() => ({ detail: response.statusText }))
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
@@ -235,7 +238,7 @@ class ApiClient implements IApiClient {
       if (!response.ok) {
         // User-friendly error for authentication failures
         if (response.status === 401) {
-          throw new Error('Please log in to use the calculator')
+          throw new Error(AUTH_REQUIRED_ERROR)
         }
         const errorData = await response.json().catch(() => ({ detail: response.statusText }))
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
