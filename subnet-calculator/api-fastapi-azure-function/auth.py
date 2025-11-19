@@ -1,16 +1,23 @@
 """
 Authentication utilities.
 
-Provides functions for validating API keys, JWT tokens, and password hashing.
+Provides functions for validating API keys, JWT tokens, OIDC tokens, and password hashing.
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
+import httpx
 import jwt
+from jose import jwk, jwt as jose_jwt
+from jose.exceptions import JWTError
 from pwdlib import PasswordHash
 
 # Password hasher (uses Argon2 - modern, secure)
 pwd_hash = PasswordHash.recommended()
+
+# Cache for OIDC JWKS (JSON Web Key Sets)
+_oidc_jwks_cache: dict[str, Any] = {}
 
 
 def validate_api_key(api_key: str | None, valid_keys: list[str]) -> bool:
@@ -137,3 +144,99 @@ def verify_test_user(username: str, password: str, test_users: dict) -> bool:
 
     hashed_password = test_users[username]
     return verify_password(password, hashed_password)
+
+
+# OIDC Authentication Functions
+
+
+async def get_oidc_jwks(jwks_uri: str, issuer: str) -> dict[str, Any]:
+    """
+    Fetch OIDC JSON Web Key Set (JWKS) from the provider.
+
+    Args:
+        jwks_uri: Direct JWKS URI, or empty to auto-discover
+        issuer: OIDC issuer URL (used for discovery if jwks_uri not provided)
+
+    Returns:
+        dict: JWKS response containing the public keys
+
+    Raises:
+        ValueError: If JWKS cannot be fetched
+    """
+    # Use cached JWKS if available
+    cache_key = jwks_uri or issuer
+    if cache_key in _oidc_jwks_cache:
+        return _oidc_jwks_cache[cache_key]
+
+    try:
+        async with httpx.AsyncClient() as client:
+            # If no explicit JWKS URI, discover it from the issuer
+            if not jwks_uri:
+                discovery_url = f"{issuer.rstrip('/')}/.well-known/openid-configuration"
+                discovery_response = await client.get(discovery_url, timeout=10.0)
+                discovery_response.raise_for_status()
+                discovery_data = discovery_response.json()
+                jwks_uri = discovery_data.get("jwks_uri")
+
+                if not jwks_uri:
+                    raise ValueError(f"No jwks_uri found in OIDC discovery document at {discovery_url}")
+
+            # Fetch the JWKS
+            jwks_response = await client.get(jwks_uri, timeout=10.0)
+            jwks_response.raise_for_status()
+            jwks = jwks_response.json()
+
+            # Cache for future use
+            _oidc_jwks_cache[cache_key] = jwks
+            return jwks
+
+    except httpx.HTTPError as e:
+        raise ValueError(f"Failed to fetch OIDC JWKS: {e}") from e
+
+
+async def validate_oidc_token(token: str, issuer: str, audience: str, jwks_uri: str = "") -> dict | None:
+    """
+    Validate an OIDC access token.
+
+    Args:
+        token: JWT token string
+        issuer: Expected issuer URL
+        audience: Expected audience (API client ID)
+        jwks_uri: Optional explicit JWKS URI (auto-discovered if not provided)
+
+    Returns:
+        dict: Token payload if valid, None if invalid
+
+    Raises:
+        ValueError: If validation fails for configuration reasons
+    """
+    try:
+        # Get the JWKS (public keys) from the OIDC provider
+        jwks = await get_oidc_jwks(jwks_uri, issuer)
+
+        # Decode and validate the token
+        # python-jose will automatically select the correct key from the JWKS
+        payload = jose_jwt.decode(
+            token,
+            jwks,
+            algorithms=["RS256", "RS384", "RS512", "ES256", "ES384", "ES512"],
+            audience=audience,
+            issuer=issuer,
+            options={
+                "verify_signature": True,
+                "verify_aud": True,
+                "verify_iss": True,
+                "verify_exp": True,
+                "verify_nbf": True,
+            },
+        )
+
+        return payload
+
+    except JWTError as e:
+        # Token is invalid (expired, wrong signature, etc.)
+        print(f"OIDC token validation failed: {e}", flush=True)
+        return None
+    except Exception as e:
+        # Unexpected error (network, configuration, etc.)
+        raise ValueError(f"OIDC token validation error: {e}") from e

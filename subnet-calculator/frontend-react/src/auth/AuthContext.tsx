@@ -16,6 +16,7 @@ import { APP_CONFIG } from '../config'
 import { easyAuthLogin, easyAuthLogout, getEasyAuthUser, isEasyAuthAuthenticated } from './easyAuthProvider'
 import { JwtAuthProvider, useJwtAuth } from './jwtAuthProvider'
 import { loginRequest } from './msalConfig'
+import { OidcAuthProvider, useOidcAuth } from './oidcAuthProvider'
 
 interface AuthContextType {
   isAuthenticated: boolean
@@ -41,6 +42,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     )
   }
 
+  // For OIDC auth, use the specialized OIDC provider
+  if (authMethod === 'oidc') {
+    return (
+      <OidcAuthProvider>
+        <OidcAuthBridge>{children}</OidcAuthBridge>
+      </OidcAuthProvider>
+    )
+  }
+
   // For other auth methods, use the standard flow
   return <StandardAuthProvider>{children}</StandardAuthProvider>
 }
@@ -58,6 +68,24 @@ function JwtAuthBridge({ children }: { children: React.ReactNode }) {
     },
     logout: jwtAuth.logout,
     authMethod: 'jwt',
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+// Bridge component to adapt OIDC context to standard Auth context
+function OidcAuthBridge({ children }: { children: React.ReactNode }) {
+  const oidcAuth = useOidcAuth()
+
+  const value: AuthContextType = {
+    isAuthenticated: oidcAuth.isAuthenticated,
+    isLoading: oidcAuth.isLoading,
+    user: oidcAuth.user,
+    login: () => {
+      oidcAuth.login().catch(console.error)
+    },
+    logout: oidcAuth.logout,
+    authMethod: 'oidc',
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

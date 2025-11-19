@@ -11,6 +11,9 @@
 #   - frontend-typescript-vite-jwt: TypeScript + Vite SPA (connects to Azure Function backend, JWT auth)
 #   - frontend-react: React SPA (connects to Container App backend, no auth)
 #   - frontend-react-msal: React SPA (connects to Azure Function backend, MSAL local)
+#   - keycloak: Keycloak identity provider (OAuth2/OIDC)
+#   - api-fastapi-keycloak: Azure Function backend with Keycloak OIDC validation
+#   - frontend-react-keycloak: React SPA with Keycloak OIDC authentication
 #
 # Usage:
 #   podman-compose up                           # Start all services
@@ -24,6 +27,7 @@
 #   podman-compose up api-fastapi-azure-function frontend-react-msal                  # local-stack-08 (requires MSAL config)
 #   podman-compose up api-fastapi-azure-function frontend-react-server-jwt            # local-stack-09 (tests /runtime-config)
 #   podman-compose up api-fastapi-azure-function frontend-react-proxy                 # local-stack-10 (Vite proxy -> Function App)
+#   podman-compose up keycloak api-fastapi-keycloak frontend-react-keycloak           # local-stack-11 (Keycloak OAuth2/OIDC)
 #
 # Access:
 #   local-stack-01 - Static HTML + Container App (no auth):
@@ -63,6 +67,12 @@
 #     - React SPA (proxy): http://localhost:3005
 #     - API docs: http://localhost:8080/api/v1/docs
 #     - Proxy: Browser hits /api/* via Vite/Express server, which forwards to the Function App
+#   local-stack-11 - React + Keycloak OIDC + Azure Function (OAuth2):
+#     - React SPA: http://localhost:3006
+#     - API docs: http://localhost:8081/api/v1/docs
+#     - Keycloak Admin: http://localhost:8180 (admin / admin123)
+#     - Auth: OAuth2/OIDC with Keycloak (simulates Azure Entra ID)
+#     - Test users: demo / password123, admin / securepass
 services:
   api-fastapi-azure-function:
     build:
@@ -122,7 +132,13 @@ services:
       # Local dev ports: 3000-3002 (react/typescript dev), 5000 (flask dev), 5173-5174 (vite dev servers)
       - CORS_ORIGINS=http://localhost:8001,http://localhost:8002,http://localhost:8003,http://localhost:8004,http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5000,http://localhost:5173,http://localhost:5174
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')",
+        ]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -300,4 +316,190 @@ services:
       - JWT_PASSWORD=password123
     depends_on:
       api-fastapi-azure-function:
+        condition: service_healthy
+
+  # -----------------------------------------------------------------------------
+  # Local Stack 11 - Keycloak OAuth2/OIDC Simulation
+  # Simulates Azure Entra ID authentication flows locally
+  # -----------------------------------------------------------------------------
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.5
+    platform: linux/amd64
+    ports:
+      - "8180:8080"
+    environment:
+      # Admin credentials
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin123
+      # Database (dev mode uses H2)
+      - KC_DB=dev-file
+      # Hostname configuration for local development
+      - KC_HOSTNAME_STRICT=false
+      - KC_HOSTNAME_STRICT_HTTPS=false
+      - KC_HTTP_ENABLED=true
+      # Health check
+      - KC_HEALTH_ENABLED=true
+      - KC_METRICS_ENABLED=true
+    command:
+      - start-dev
+      - --import-realm
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200\\|UP'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  api-fastapi-keycloak:
+    build:
+      context: ./api-fastapi-azure-function
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    image: subnet-calculator-api-fastapi-keycloak:latest
+    init: true
+    ports:
+      - "8081:80"
+    environment:
+      # Keycloak OIDC Authentication
+      - AUTH_METHOD=oidc
+      - OIDC_ISSUER=http://localhost:8180/realms/subnet-calculator
+      - OIDC_AUDIENCE=api-app
+      - OIDC_JWKS_URI=http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/certs
+      # CORS for React frontends (Stack 11 on :3006, Stack 12 on :3007)
+      - CORS_ORIGINS=http://localhost:3006,http://localhost:3007
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      keycloak:
+        condition: service_healthy
+
+  frontend-react-keycloak:
+    build:
+      context: .
+      dockerfile: ./frontend-react/Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8081
+        - VITE_AUTH_METHOD=oidc
+        - VITE_OIDC_AUTHORITY=http://localhost:8180/realms/subnet-calculator
+        - VITE_OIDC_CLIENT_ID=frontend-app
+        - VITE_OIDC_REDIRECT_URI=http://localhost:3006
+    platform: linux/amd64
+    image: subnet-calculator-frontend-react-keycloak:latest
+    ports:
+      - "3006:80"
+    environment:
+      - VITE_API_URL=http://localhost:8081
+      - VITE_AUTH_METHOD=oidc
+      - VITE_OIDC_AUTHORITY=http://localhost:8180/realms/subnet-calculator
+      - VITE_OIDC_CLIENT_ID=frontend-app
+      - VITE_OIDC_REDIRECT_URI=http://localhost:3006
+    depends_on:
+      api-fastapi-keycloak:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+  # -----------------------------------------------------------------------------
+  # Local Stack 12 - OAuth2 Proxy Sidecar Pattern (Easy Auth Simulation)
+  # Demonstrates "forced login upfront" similar to Azure Easy Auth
+  # Architecture: User → OAuth2 Proxy :3007 → Frontend Nginx (internal)
+  # -----------------------------------------------------------------------------
+
+  # Frontend (not directly exposed - only accessible through OAuth2 Proxy)
+  frontend-react-keycloak-protected:
+    build:
+      context: .
+      dockerfile: ./frontend-react/Dockerfile
+      args:
+        VITE_API_URL: ""
+        VITE_AUTH_METHOD: "oidc"
+        VITE_OIDC_AUTHORITY: "http://localhost:8180/realms/subnet-calculator"
+        VITE_OIDC_CLIENT_ID: "frontend-app"
+        VITE_OIDC_REDIRECT_URI: "http://localhost:3007"
+    platform: linux/amd64
+    image: subnet-calculator-frontend-react-protected:latest
+    # No ports exposed - only accessible through oauth2-proxy
+    expose:
+      - "80"
+    environment:
+      VITE_API_URL: ""
+      VITE_AUTH_METHOD: "oidc"
+      VITE_OIDC_AUTHORITY: "http://localhost:8180/realms/subnet-calculator"
+      VITE_OIDC_CLIENT_ID: "frontend-app"
+      VITE_OIDC_REDIRECT_URI: "http://localhost:3007"
+    depends_on:
+      api-fastapi-keycloak:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+  # OAuth2 Proxy - Acts like Azure Easy Auth
+  oauth2-proxy-frontend:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.13.0
+    platform: linux/amd64
+    ports:
+      - "3007:4180"
+    command:
+      # OIDC Provider (Keycloak)
+      - --provider=oidc
+      - --oidc-issuer-url=http://localhost:8180/realms/subnet-calculator
+      - --client-id=frontend-app
+      - --client-secret=frontend-secret
+      - --redirect-url=http://localhost:3007/oauth2/callback
+      - --code-challenge-method=S256
+
+      # Skip discovery and manually configure endpoints
+      - --skip-oidc-discovery=true
+      - --login-url=http://localhost:8180/realms/subnet-calculator/protocol/openid-connect/auth
+      - --redeem-url=http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/token
+      - --oidc-jwks-url=http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/certs
+      - --validate-url=http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/userinfo
+
+      # Upstreams (proxy both frontend and API)
+      - --upstream=http://frontend-react-keycloak-protected:80
+      - --upstream=http://api-fastapi-keycloak:80/api
+
+      # Listen address
+      - --http-address=0.0.0.0:4180
+
+      # Cookie configuration
+      - --cookie-secret=OQINaROshtE9TcZkNAm-5Zs2pZWWyqhBcfyqGMC5H0A=
+      - --cookie-secure=false
+      - --cookie-httponly=true
+      - --cookie-expire=4h
+      - --cookie-refresh=1h
+      - --cookie-name=_oauth2_proxy
+
+      # Email domain (allow all)
+      - --email-domain=*
+
+      # Scopes (only request scopes that exist in Keycloak realm)
+      - --scope=openid user_impersonation
+
+      # Pass headers to upstream
+      - --pass-authorization-header=true
+      - --pass-access-token=true
+      - --pass-user-headers=true
+      - --set-authorization-header=true
+      - --set-xauthrequest=true
+
+      # Logging
+      - --standard-logging=true
+      - --auth-logging=true
+      - --request-logging=true
+
+    depends_on:
+      frontend-react-keycloak-protected:
+        condition: service_started
+      keycloak:
         condition: service_healthy

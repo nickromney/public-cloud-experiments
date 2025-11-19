@@ -13,7 +13,7 @@ declare global {
   interface Window {
     RUNTIME_CONFIG?: {
       API_BASE_URL?: string
-      AUTH_METHOD?: 'none' | 'easyauth' | 'msal' | 'entraid-swa' | 'jwt'
+      AUTH_METHOD?: 'none' | 'easyauth' | 'msal' | 'entraid-swa' | 'jwt' | 'oidc'
       AZURE_CLIENT_ID?: string
       AZURE_TENANT_ID?: string
       AZURE_REDIRECT_URI?: string
@@ -21,18 +21,24 @@ declare global {
       JWT_PASSWORD?: string
       EASYAUTH_RESOURCE_ID?: string
       API_PROXY_ENABLED?: string | boolean
+      OIDC_AUTHORITY?: string
+      OIDC_CLIENT_ID?: string
+      OIDC_REDIRECT_URI?: string
     }
   }
 }
 
 export interface AuthConfig {
-  method: 'none' | 'easyauth' | 'msal' | 'entraid-swa' | 'jwt'
+  method: 'none' | 'easyauth' | 'msal' | 'entraid-swa' | 'jwt' | 'oidc'
   clientId?: string
   tenantId?: string
   redirectUri?: string
   jwtUsername?: string
   jwtPassword?: string
   easyAuthResourceId?: string
+  oidcAuthority?: string
+  oidcClientId?: string
+  oidcRedirectUri?: string
 }
 
 export interface AppConfig {
@@ -192,6 +198,7 @@ export function getConfig(): AppConfig {
         easyauth: ' + Easy Auth',
         'entraid-swa': ' + SWA',
         msal: '',
+        oidc: ' + OIDC (Keycloak)',
         none: '',
       }[authMethod] || ''
 
@@ -208,6 +215,10 @@ export function getConfig(): AppConfig {
         jwtPassword: window.RUNTIME_CONFIG?.JWT_PASSWORD ?? (import.meta.env.VITE_JWT_PASSWORD || ''),
         easyAuthResourceId:
           window.RUNTIME_CONFIG?.EASYAUTH_RESOURCE_ID ?? (import.meta.env.VITE_EASYAUTH_RESOURCE_ID || ''),
+        oidcAuthority: window.RUNTIME_CONFIG?.OIDC_AUTHORITY ?? (import.meta.env.VITE_OIDC_AUTHORITY || ''),
+        oidcClientId: window.RUNTIME_CONFIG?.OIDC_CLIENT_ID ?? (import.meta.env.VITE_OIDC_CLIENT_ID || ''),
+        oidcRedirectUri:
+          window.RUNTIME_CONFIG?.OIDC_REDIRECT_URI ?? (import.meta.env.VITE_OIDC_REDIRECT_URI || window.location.origin),
       },
       stackName: `React + TypeScript + Vite${authSuffix}`,
       apiProxyEnabled,

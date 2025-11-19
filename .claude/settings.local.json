@@ -319,7 +319,10 @@
       "Bash(az monitor app-insights query:*)",
       "Bash(az webapp config appsettings list:*)",
       "Bash(az webapp auth:*)",
-      "Bash(az webapp config appsettings set:*)"
+      "Bash(az webapp config appsettings set:*)",
+      "Bash(podman restart:*)",
+      "Bash(podman start:*)",
+      "Bash(podman inspect:*)"
     ],
     "deny": [],
     "ask": []

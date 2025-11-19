@@ -54,6 +54,7 @@ from auth import (
     create_access_token,
     decode_access_token,
     validate_api_key,
+    validate_oidc_token,
     verify_test_user,
 )
 
@@ -68,6 +69,9 @@ from config import (
     get_jwt_expiration_minutes,
     get_jwt_secret_key,
     get_jwt_test_users,
+    get_oidc_audience,
+    get_oidc_issuer,
+    get_oidc_jwks_uri,
     validate_configuration,
 )
 
@@ -278,6 +282,63 @@ async def get_current_user(request: Request) -> str:
                 headers={"WWW-Authenticate": "Bearer"},
             ) from e
 
+    # OIDC authentication (Keycloak, Azure AD, Okta, Auth0, etc.)
+    if auth_method == AuthMethod.OIDC:
+        # Parse Authorization header
+        authorization = request.headers.get("Authorization")
+
+        if not authorization:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing authorization header",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        authorization = authorization.strip()
+        parts = authorization.split()
+
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authorization header format. Expected Bearer token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        token = parts[1]
+
+        # Validate OIDC token
+        try:
+            issuer = get_oidc_issuer()
+            audience = get_oidc_audience()
+            jwks_uri = get_oidc_jwks_uri()
+
+            payload = await validate_oidc_token(token, issuer, audience, jwks_uri)
+
+            if payload is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid or expired OIDC token",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            # Extract username from preferred_username or sub claim
+            username = payload.get("preferred_username") or payload.get("sub")
+            if username is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Could not extract user identity from token",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            return username
+
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"OIDC validation error: {e}",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from e
+
     # Azure Static Web Apps EasyAuth
     if auth_method in (AuthMethod.AZURE_SWA, AuthMethod.AZURE_AD):
         principal_header = request.headers.get("x-ms-client-principal")
@@ -474,13 +535,12 @@ async def authentication_middleware(request: Request, call_next):
         response = await call_next(request)
         return response
 
-    # JWT, Azure SWA, and APIM authentication - handled by dependencies, not middleware
+    # JWT, OIDC, Azure SWA, Azure AD, and APIM authentication - handled by dependencies, not middleware
     # Pass through to let get_current_user dependency handle it
-    if auth_method in (AuthMethod.JWT, AuthMethod.AZURE_SWA, AuthMethod.APIM):
+    if auth_method in (AuthMethod.JWT, AuthMethod.OIDC, AuthMethod.AZURE_SWA, AuthMethod.AZURE_AD, AuthMethod.APIM):
         response = await call_next(request)
         return response
 
-    # Future: Azure AD, etc.
     # Unknown auth method
     return Response(
         content='{"detail":"Authentication method not implemented"}',
