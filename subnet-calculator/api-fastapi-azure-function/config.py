@@ -17,6 +17,7 @@ class AuthMethod(str, Enum):
     AZURE_SWA = "azure_swa"  # Azure Static Web Apps EasyAuth
     APIM = "apim"  # Azure API Management (trust APIM validation)
     AZURE_AD = "azure_ad"  # Direct Azure AD/Entra ID integration
+    OIDC = "oidc"  # OpenID Connect (Keycloak, Okta, Auth0, etc.)
 
 
 # JWT Configuration Functions
@@ -221,6 +222,67 @@ def get_allowed_swa_hosts() -> list[str]:
     return hosts
 
 
+def get_oidc_issuer() -> str:
+    """
+    Get OIDC issuer URL from environment.
+
+    Returns:
+        str: OIDC issuer URL (e.g., https://keycloak.example.com/realms/my-realm)
+
+    Raises:
+        ValueError: If AUTH_METHOD=oidc but OIDC_ISSUER not set
+    """
+    auth_method = get_auth_method()
+
+    if auth_method != AuthMethod.OIDC:
+        return ""
+
+    issuer = os.getenv("OIDC_ISSUER", "").strip()
+
+    if not issuer:
+        raise ValueError("OIDC_ISSUER environment variable required when AUTH_METHOD=oidc")
+
+    return issuer
+
+
+def get_oidc_audience() -> str:
+    """
+    Get expected OIDC token audience from environment.
+
+    Returns:
+        str: Expected audience value (client ID of this API)
+
+    Raises:
+        ValueError: If AUTH_METHOD=oidc but OIDC_AUDIENCE not set
+    """
+    auth_method = get_auth_method()
+
+    if auth_method != AuthMethod.OIDC:
+        return ""
+
+    audience = os.getenv("OIDC_AUDIENCE", "").strip()
+
+    if not audience:
+        raise ValueError("OIDC_AUDIENCE environment variable required when AUTH_METHOD=oidc")
+
+    return audience
+
+
+def get_oidc_jwks_uri() -> str:
+    """
+    Get OIDC JWKS URI from environment.
+
+    Returns:
+        str: JWKS URI (e.g., https://keycloak.example.com/realms/my-realm/protocol/openid-connect/certs)
+             If not set, will be auto-discovered from issuer metadata
+
+    Note:
+        If OIDC_JWKS_URI is not provided, the JWKS URI will be fetched from the
+        OIDC discovery endpoint at {issuer}/.well-known/openid-configuration
+    """
+    return os.getenv("OIDC_JWKS_URI", "").strip()
+
+
 def validate_configuration():
     """
     Validate authentication configuration at startup.
@@ -239,3 +301,8 @@ def validate_configuration():
         get_jwt_secret_key()
         # Validate algorithm is supported
         get_jwt_algorithm()
+
+    elif auth_method == AuthMethod.OIDC:
+        # This will raise ValueError if OIDC settings are missing
+        get_oidc_issuer()
+        get_oidc_audience()

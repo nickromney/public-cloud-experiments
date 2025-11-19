@@ -43,6 +43,13 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Check authentication before making API call
+    if (!isAuthenticated && APP_CONFIG.auth.method === 'oidc') {
+      setError('authentication_required')
+      return
+    }
+
     setIsLoading(true)
     setError(null)
     setResults(null)
@@ -185,7 +192,18 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
         {/* Error */}
         {error && (
           <div id="error" className="alert alert-error" role="alert">
-            <strong>Error:</strong> {error}
+            {error === 'authentication_required' ? (
+              <>
+                <strong>Authentication Required:</strong> Please log in to use the calculator.{' '}
+                <button type="button" onClick={login} className="ml-sm">
+                  Log In
+                </button>
+              </>
+            ) : (
+              <>
+                <strong>Error:</strong> {error}
+              </>
+            )}
           </div>
         )}
 

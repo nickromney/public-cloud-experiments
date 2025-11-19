@@ -7,6 +7,7 @@ import { TokenManager } from '@subnet-calculator/shared-frontend'
 import type { IApiClient } from '@subnet-calculator/shared-frontend/api'
 import { getApiPrefix, handleFetchError, isIpv6, parseJsonResponse } from '@subnet-calculator/shared-frontend/api'
 import { getEasyAuthAccessToken } from '../auth/easyAuthProvider'
+import { getOidcAccessToken } from '../auth/oidcAuthProvider'
 import { APP_CONFIG } from '../config'
 import type {
   ApiCallTiming,
@@ -18,6 +19,9 @@ import type {
   SubnetInfoResponse,
   ValidateResponse,
 } from '../types'
+
+// Error message constants
+const AUTH_REQUIRED_ERROR = 'Please log in to use the calculator'
 
 class ApiClient implements IApiClient {
   private baseUrl: string
@@ -38,19 +42,34 @@ class ApiClient implements IApiClient {
   }
 
   /**
-   * Get authentication headers (Authorization bearer token for JWT)
+   * Get authentication headers (Authorization bearer token for JWT/OIDC)
    */
   private async getAuthHeaders(): Promise<Record<string, string>> {
-    if (!this.tokenManager) {
-      if (await this.shouldAttachEasyAuthToken()) {
-        const token = await this.getEasyAuthAuthHeader()
-        if (token) {
-          return token
+    // OIDC authentication
+    if (APP_CONFIG.auth.method === 'oidc') {
+      const token = await getOidcAccessToken()
+      if (token) {
+        return {
+          Authorization: `Bearer ${token}`,
         }
       }
       return {}
     }
-    return await this.tokenManager.getAuthHeaders()
+
+    // JWT authentication with token manager
+    if (this.tokenManager) {
+      return await this.tokenManager.getAuthHeaders()
+    }
+
+    // Easy Auth token handling
+    if (await this.shouldAttachEasyAuthToken()) {
+      const token = await this.getEasyAuthAuthHeader()
+      if (token) {
+        return token
+      }
+    }
+
+    return {}
   }
 
   private async shouldAttachEasyAuthToken(): Promise<boolean> {
@@ -131,6 +150,10 @@ class ApiClient implements IApiClient {
       })
 
       if (!response.ok) {
+        // User-friendly error for authentication failures
+        if (response.status === 401) {
+          throw new Error(AUTH_REQUIRED_ERROR)
+        }
         const errorData = await response.json().catch(() => ({ detail: response.statusText }))
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
@@ -155,6 +178,10 @@ class ApiClient implements IApiClient {
       })
 
       if (!response.ok) {
+        // User-friendly error for authentication failures
+        if (response.status === 401) {
+          throw new Error(AUTH_REQUIRED_ERROR)
+        }
         const errorData = await response.json().catch(() => ({ detail: response.statusText }))
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
@@ -180,6 +207,10 @@ class ApiClient implements IApiClient {
       })
 
       if (!response.ok) {
+        // User-friendly error for authentication failures
+        if (response.status === 401) {
+          throw new Error(AUTH_REQUIRED_ERROR)
+        }
         const errorData = await response.json().catch(() => ({ detail: response.statusText }))
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
@@ -205,6 +236,10 @@ class ApiClient implements IApiClient {
       })
 
       if (!response.ok) {
+        // User-friendly error for authentication failures
+        if (response.status === 401) {
+          throw new Error(AUTH_REQUIRED_ERROR)
+        }
         const errorData = await response.json().catch(() => ({ detail: response.statusText }))
         throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
       }

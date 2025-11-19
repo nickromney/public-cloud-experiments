@@ -6,3 +6,8 @@ body {
 }
 
 /* Remove default Vite styles - Pico CSS provides better defaults */
+
+/* Utility classes */
+.ml-sm {
+  margin-left: 0.5rem;
+}

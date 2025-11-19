@@ -40,6 +40,24 @@ A full-stack IPv4/IPv6 subnet calculator with multiple backend and frontend impl
    - Auth: None
    - Tools: TypeScript, Vite, Playwright, Biome
 
+**Authentication Stacks:**
+
+11. **React + Keycloak OIDC** (Stack 11) - Client-side OAuth/OIDC authentication
+    - Port: 3006
+    - Backend: Azure Function API with OIDC validation (port 8081)
+    - Auth: Client-side OIDC (oidc-client-ts)
+    - Provider: Keycloak (port 8180) simulating Azure Entra ID
+    - Pattern: Standard SPA - users see UI before authenticating
+    - Docs: See compose.yml Stack 11 section
+
+12. **React + OAuth2 Proxy** (Stack 12) - Server-side authentication (Easy Auth simulation)
+    - Port: 3007
+    - Backend: Azure Function API with OIDC validation (port 8081)
+    - Auth: OAuth2 Proxy sidecar (forced login upfront)
+    - Provider: Keycloak (port 8180) simulating Azure Entra ID
+    - Pattern: Simulates Azure Easy Auth - users must login before seeing UI
+    - Docs: [Stack12-OAuth2Proxy.md](./subnet-calculator/docs/Stack12-OAuth2Proxy.md)
+
 **Quick Start (All Stacks):**
 
 ```bash
@@ -49,15 +67,37 @@ podman-compose up -d
 # Stack 2: http://localhost:8001
 # Stack 3: http://localhost:8002
 # Stack 4: http://localhost:3000
+# Stack 11: http://localhost:3006 (Keycloak: http://localhost:8180)
+# Stack 12: http://localhost:3007 (forced login)
 ```
 
-**Quick Start (Stack 4 - Recommended):**
+**Quick Start (Stack 4 - Recommended for Development):**
 
 ```bash
 cd subnet-calculator
 podman-compose up api-fastapi-container-app frontend-typescript-vite
 # Access at http://localhost:3000
 # API docs at http://localhost:8090/api/v1/docs
+```
+
+**Quick Start (Stack 11 - Client-Side OIDC):**
+
+```bash
+cd subnet-calculator
+podman-compose up -d keycloak api-fastapi-keycloak frontend-react-keycloak
+# Access at http://localhost:3006
+# Login: demo / password123
+# Keycloak admin: http://localhost:8180 (admin / admin123)
+```
+
+**Quick Start (Stack 12 - OAuth2 Proxy / Easy Auth Simulation):**
+
+```bash
+cd subnet-calculator
+podman-compose up -d keycloak api-fastapi-keycloak frontend-react-keycloak-protected oauth2-proxy-frontend
+# Access at http://localhost:3007 (will redirect to login)
+# Login: demo / password123
+# See docs/Stack12-OAuth2Proxy.md for details
 ```
 
 **Backend Development (Azure Function):**
