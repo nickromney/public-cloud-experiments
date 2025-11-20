@@ -27,6 +27,9 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
   const [apiError, setApiError] = useState<string | null>(null)
   const [apiChecked, setApiChecked] = useState(false)
 
+  const shouldShowLoginButton =
+    !isAuthenticated && APP_CONFIG.auth.method !== 'none' && APP_CONFIG.auth.method !== 'oidc'
+
   // Check API health when authentication state permits it
   useEffect(() => {
     const requiresSpaLogin = APP_CONFIG.auth.method === 'oidc' && !hasApiSession
@@ -53,6 +56,7 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
         setApiChecked(true)
       } catch (err) {
         if (err instanceof Error && err.message.includes('401')) {
+          console.debug('API authentication required, waiting for user session')
           setApiHealth(null)
           setApiError(null)
           setApiChecked(false)
@@ -116,7 +120,7 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
             </button>
           </div>
         )}
-        {APP_CONFIG.auth.method !== 'oidc' && !isAuthenticated && APP_CONFIG.auth.method !== 'none' && (
+        {shouldShowLoginButton && (
           <button type="button" onClick={login}>
             Login
           </button>

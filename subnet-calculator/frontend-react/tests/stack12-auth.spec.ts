@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 const KEYCLOAK_URL_PATTERN = /realms\/subnet-calculator\/protocol\/openid-connect\/auth/i
+const EXTENDED_TIMEOUT_MS = 30000
 
 const demoUser = {
   username: process.env.STACK12_USERNAME || 'demo',
@@ -9,7 +10,7 @@ const demoUser = {
 
 test.describe('Stack 12 - OAuth2 Proxy + APIM simulator', () => {
   test('user must authenticate before accessing frontend and API calls succeed', async ({ page }, testInfo) => {
-    testInfo.setTimeout(testInfo.timeout + 30000)
+    testInfo.setTimeout(testInfo.timeout + EXTENDED_TIMEOUT_MS)
     page.on('console', (message) => {
       // eslint-disable-next-line no-console
       console.log('[browser]', message.text())

@@ -8,6 +8,7 @@ It injects Easy Auth style headers so downstream services can identify the calle
 from __future__ import annotations
 
 import base64
+from contextlib import asynccontextmanager
 import json
 import logging
 import os
@@ -15,7 +16,7 @@ from typing import Any, Dict
 
 import httpx
 import jwt
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from jwt import InvalidTokenError, PyJWKClient
 
@@ -29,19 +30,14 @@ OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", "api-app")
 OIDC_JWKS_URI = os.getenv(
     "OIDC_JWKS_URI", "http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/certs"
 )
-ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3007").split(",") if origin.strip()]
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3007").split(",")
+    if origin.strip()
+]
 
 if not ALLOWED_ORIGINS:
     ALLOWED_ORIGINS = ["*"]
-
-app = FastAPI(title="Subnet Calculator APIM Simulator", version="0.1.0")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 jwks_client = PyJWKClient(OIDC_JWKS_URI)
 HOP_BY_HOP_HEADERS = {
@@ -57,8 +53,9 @@ HOP_BY_HOP_HEADERS = {
 }
 
 
-@app.on_event("startup")
-async def startup_event() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     app.state.http_client = httpx.AsyncClient(timeout=httpx.Timeout(30.0))
     logger.info(
         "APIM simulator ready | backend=%s | issuer=%s | audience=%s | origins=%s",
@@ -67,12 +64,20 @@ async def startup_event() -> None:
         OIDC_AUDIENCE,
         ALLOWED_ORIGINS,
     )
-
-
-@app.on_event("shutdown")
-async def shutdown_event() -> None:
+    yield
+    # Shutdown
     http_client: httpx.AsyncClient = app.state.http_client
     await http_client.aclose()
+
+
+app = FastAPI(title="Subnet Calculator APIM Simulator", version="0.1.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def build_client_principal(claims: Dict[str, Any]) -> str:
@@ -92,6 +97,7 @@ def build_client_principal(claims: Dict[str, Any]) -> str:
 
 def validate_subscription_key(request: Request) -> None:
     if not APIM_SUBSCRIPTION_KEY:
+        logger.warning("APIM_SUBSCRIPTION_KEY not set - subscription key validation is disabled")
         return
 
     provided_key = request.headers.get("ocp-apim-subscription-key") or request.headers.get("x-ocp-apim-subscription-key")
@@ -159,7 +165,7 @@ async def proxy_request(full_path: str, request: Request) -> Response:
 
     claims = authenticate_request(request)
 
-    upstream_url = f"{API_BACKEND_BASE_URL}/api/{full_path}" if full_path else f"{API_BACKEND_BASE_URL}/api"
+    upstream_url = f"{API_BACKEND_BASE_URL}/api/{full_path}"
     body = await request.body()
     headers = build_upstream_headers(request, claims)
     client: httpx.AsyncClient = request.app.state.http_client

@@ -160,8 +160,8 @@ curl http://localhost:3007/ping
 curl -i http://localhost:8082/api/v1/health
 
 # 4. Call APIM simulator with headers (still 401 without bearer token)
-curl -i http://localhost:8082/api/v1/health \\
-  -H \"Ocp-Apim-Subscription-Key: stack12-demo-key\"
+curl -i http://localhost:8082/api/v1/health \
+  -H "Ocp-Apim-Subscription-Key: stack12-demo-key"
 
 # 5. Try to access frontend directly (should fail - not exposed)
 curl http://localhost/

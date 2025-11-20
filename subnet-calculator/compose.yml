@@ -421,7 +421,7 @@ services:
       context: .
       dockerfile: ./frontend-react/Dockerfile
       args:
-        # Use proxy mode - API calls are relative and go through OAuth2 Proxy
+        # API calls go directly to APIM simulator on :8082 (proxy mode disabled)
         VITE_API_URL: http://localhost:8082
         VITE_API_PROXY_ENABLED: "false"
         VITE_AUTH_METHOD: "oidc"
@@ -436,7 +436,7 @@ services:
     expose:
       - "80"
     environment:
-      # Use proxy mode - API calls are relative and go through OAuth2 Proxy
+      # API calls go directly to APIM simulator on :8082 (proxy mode disabled)
       VITE_API_URL: http://localhost:8082
       VITE_API_PROXY_ENABLED: "false"
       VITE_AUTH_METHOD: "oidc"
