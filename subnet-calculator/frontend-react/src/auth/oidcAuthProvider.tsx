@@ -4,7 +4,7 @@
  */
 
 import type { UserInfo } from '@subnet-calculator/shared-frontend'
-import { type ReactNode, createContext, useContext, useEffect, useState } from 'react'
+import { type ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
 import { UserManager, WebStorageStateStore } from 'oidc-client-ts'
 import { APP_CONFIG } from '../config'
 
@@ -17,6 +17,7 @@ interface OidcAuthContextType {
   user: UserInfo | null
   login: () => Promise<void>
   logout: () => void
+  hasApiSession: boolean
 }
 
 const OidcAuthContext = createContext<OidcAuthContextType | undefined>(undefined)
@@ -63,37 +64,57 @@ export function OidcAuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [user, setUser] = useState<UserInfo | null>(null)
+  const [hasApiSession, setHasApiSession] = useState(false)
+  const autoLoginAttemptedRef = useRef(false)
 
   useEffect(() => {
+    ;(window as Window & { __OIDC_AUTO_LOGIN__?: boolean }).__OIDC_AUTO_LOGIN__ = APP_CONFIG.auth.oidcAutoLogin
     const initAuth = async () => {
       try {
         const manager = getUserManager()
+        let authenticated = false
+
+        const setUserFromOidc = (oidcUser: any) => {
+          setIsAuthenticated(true)
+          setUser({
+            name: oidcUser.profile.name || oidcUser.profile.preferred_username || 'Unknown',
+            email: oidcUser.profile.email || '',
+            username: oidcUser.profile.preferred_username || oidcUser.profile.sub || '',
+          })
+          setHasApiSession(true)
+        }
 
         // Handle redirect from OIDC provider
         if (window.location.search.includes('code=') || window.location.search.includes('state=')) {
           try {
             const oidcUser = await manager.signinRedirectCallback()
-            setIsAuthenticated(true)
-            setUser({
-              name: oidcUser.profile.name || oidcUser.profile.preferred_username || 'Unknown',
-              email: oidcUser.profile.email || '',
-              username: oidcUser.profile.preferred_username || oidcUser.profile.sub || '',
-            })
+            setUserFromOidc(oidcUser)
+            authenticated = true
             // Clean up URL
             window.history.replaceState({}, document.title, window.location.pathname)
           } catch (error) {
             console.error('Error handling OIDC callback:', error)
+            setHasApiSession(false)
           }
         } else {
           // Check if user is already authenticated
           const oidcUser = await manager.getUser()
           if (oidcUser && !oidcUser.expired) {
-            setIsAuthenticated(true)
-            setUser({
-              name: oidcUser.profile.name || oidcUser.profile.preferred_username || 'Unknown',
-              email: oidcUser.profile.email || '',
-              username: oidcUser.profile.preferred_username || oidcUser.profile.sub || '',
-            })
+            setUserFromOidc(oidcUser)
+            authenticated = true
+          } else {
+            setIsAuthenticated(false)
+            setUser(null)
+            setHasApiSession(false)
+          }
+        }
+
+        if (!authenticated && APP_CONFIG.auth.oidcAutoLogin && !autoLoginAttemptedRef.current) {
+          autoLoginAttemptedRef.current = true
+          try {
+            await manager.signinRedirect()
+          } catch (error) {
+            console.error('Error triggering automatic OIDC login:', error)
           }
         }
       } catch (error) {
@@ -114,6 +135,9 @@ export function OidcAuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     const manager = getUserManager()
     manager.signoutRedirect()
+    setIsAuthenticated(false)
+    setUser(null)
+    setHasApiSession(false)
   }
 
   const value: OidcAuthContextType = {
@@ -122,6 +146,7 @@ export function OidcAuthProvider({ children }: { children: ReactNode }) {
     user,
     login,
     logout,
+    hasApiSession,
   }
 
   return <OidcAuthContext.Provider value={value}>{children}</OidcAuthContext.Provider>

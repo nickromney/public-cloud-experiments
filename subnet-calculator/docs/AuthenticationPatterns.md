@@ -38,7 +38,7 @@ http://localhost:3006
 
 ```bash
 # Start
-podman-compose up -d keycloak api-fastapi-keycloak frontend-react-keycloak-protected oauth2-proxy-frontend
+podman-compose up -d keycloak api-fastapi-keycloak apim-simulator frontend-react-keycloak-protected oauth2-proxy-frontend
 
 # Access
 http://localhost:3007
@@ -46,9 +46,10 @@ http://localhost:3007
 # Behavior
 - User is redirected to login immediately
 - Cannot see UI without authenticating
-- OAuth2 Proxy handles authentication
-- Session cookie set after login
-- User identity headers forwarded to frontend
+- OAuth2 Proxy handles authentication + static asset protection
+- React SPA silently acquires a Keycloak token via OIDC
+- API calls are sent to the APIM simulator on :8082 with subscription key + bearer token
+- Session cookie set after login, identity headers forwarded to frontend
 
 # Similar to
 - Azure Easy Auth (App Service, Function Apps, Container Apps)
@@ -132,7 +133,7 @@ containers:
 
 ### Easy Auth Headers (Azure)
 
-```
+```text
 X-MS-CLIENT-PRINCIPAL: <base64-encoded-user-info>
 X-MS-CLIENT-PRINCIPAL-ID: <user-object-id>
 X-MS-CLIENT-PRINCIPAL-NAME: <user-email>
@@ -142,7 +143,7 @@ X-MS-TOKEN-AAD-ID-TOKEN: <id-token>
 
 ### OAuth2 Proxy Headers (Stack 12, AKS)
 
-```
+```text
 X-Auth-Request-User: <user-email>
 X-Auth-Request-Email: <user-email>
 X-Auth-Request-Preferred-Username: <username>
@@ -152,7 +153,7 @@ X-Forwarded-User: <user-email>
 
 ### OIDC Headers (Stack 11)
 
-```
+```text
 Authorization: Bearer <jwt-token>
 (Client-side only - no server-side headers)
 ```
@@ -161,25 +162,25 @@ Authorization: Bearer <jwt-token>
 
 ### Choose Stack 11 (Client-Side OIDC) When
 
-- ✅ Users can browse before logging in
-- ✅ Progressive authentication (login only when needed)
-- ✅ Standard SPA pattern preferred
-- ✅ Deploying to Azure Static Web Apps (custom auth)
-- ✅ Simple deployment requirements
+- Users can browse before logging in
+- Progressive authentication (login only when needed)
+- Standard SPA pattern preferred
+- Deploying to Azure Static Web Apps (custom auth)
+- Simple deployment requirements
 
 ### Choose Stack 12 (OAuth2 Proxy) When
 
-- ✅ Must enforce login before viewing any content
-- ✅ Testing Azure Easy Auth patterns locally
-- ✅ Preparing for AKS deployment
-- ✅ Security requirement: "no access without authentication"
-- ✅ Need to simulate Azure App Service / Container Apps behavior
+- Must enforce login before viewing any content
+- Testing Azure Easy Auth patterns locally
+- Preparing for AKS deployment
+- Security requirement: "no access without authentication"
+- Need to simulate Azure App Service / Container Apps behavior
 
 ## Architecture Diagrams
 
 ### Stack 11 (Client-Side OIDC)
 
-```
+```text
 ┌──────────────┐
 │ User Browser │
 └──────┬───────┘
@@ -218,7 +219,7 @@ Authorization: Bearer <jwt-token>
 
 ### Stack 12 (OAuth2 Proxy)
 
-```
+```text
 ┌──────────────┐
 │ User Browser │
 └──────┬───────┘
@@ -305,7 +306,7 @@ open http://localhost:3007
 
 #### Pattern 1: Stack 11 → Azure Static Web Apps
 
-```
+```text
 Local:  React SPA with oidc-client-ts
         ↓
 Azure:  Azure Static Web Apps with custom auth provider
@@ -316,7 +317,7 @@ Azure:  Azure Static Web Apps with custom auth provider
 
 #### Pattern 2: Stack 12 → Azure Container Apps
 
-```
+```text
 Local:  OAuth2 Proxy + Frontend
         ↓
 Azure:  Azure Container Apps with Easy Auth
@@ -328,7 +329,7 @@ Azure:  Azure Container Apps with Easy Auth
 
 #### Pattern 3: Stack 12 → Azure AKS
 
-```
+```text
 Local:  OAuth2 Proxy + Frontend
         ↓
 Azure:  AKS with OAuth2 Proxy sidecar
@@ -342,7 +343,7 @@ Azure:  AKS with OAuth2 Proxy sidecar
 
 ### Issue: Redirect Loop (Stack 12)
 
-```
+```text
 Cause: OAuth2 Proxy redirect URL doesn't match Keycloak config
 
 Solution:
@@ -353,7 +354,7 @@ Solution:
 
 ### Issue: JWT Validation Fails (Stack 11)
 
-```
+```text
 Cause: Token issuer doesn't match API configuration
 
 Solution:
@@ -364,7 +365,7 @@ Solution:
 
 ### Issue: CORS Errors (Both Stacks)
 
-```
+```text
 Cause: API doesn't allow requests from frontend origin
 
 Solution:
@@ -388,7 +389,7 @@ podman-compose up -d keycloak api-fastapi-keycloak frontend-react-keycloak
 open http://localhost:3006
 
 # Stack 12 (OAuth2 Proxy)
-podman-compose up -d keycloak api-fastapi-keycloak frontend-react-keycloak-protected oauth2-proxy-frontend
+podman-compose up -d keycloak api-fastapi-keycloak apim-simulator frontend-react-keycloak-protected oauth2-proxy-frontend
 open http://localhost:3007
 
 # View logs
@@ -401,5 +402,5 @@ podman-compose restart oauth2-proxy-frontend            # Stack 12
 
 # Stop services
 podman-compose down keycloak api-fastapi-keycloak frontend-react-keycloak  # Stack 11
-podman-compose down oauth2-proxy-frontend frontend-react-keycloak-protected # Stack 12
+podman-compose down oauth2-proxy-frontend apim-simulator frontend-react-keycloak-protected # Stack 12
 ```

@@ -421,29 +421,37 @@ services:
       context: .
       dockerfile: ./frontend-react/Dockerfile
       args:
-        # Use proxy mode - API calls are relative and go through OAuth2 Proxy
-        VITE_API_PROXY_ENABLED: "true"
+        # API calls go directly to APIM simulator on :8082 (proxy mode disabled)
+        VITE_API_URL: http://localhost:8082
+        VITE_API_PROXY_ENABLED: "false"
         VITE_AUTH_METHOD: "oidc"
         VITE_OIDC_AUTHORITY: "http://localhost:8180/realms/subnet-calculator"
         VITE_OIDC_CLIENT_ID: "frontend-app"
         VITE_OIDC_REDIRECT_URI: "http://localhost:3007"
+        VITE_APIM_SUBSCRIPTION_KEY: stack12-demo-key
+        VITE_OIDC_AUTO_LOGIN: "true"
     platform: linux/amd64
     image: subnet-calculator-frontend-react-protected:latest
     # No ports exposed - only accessible through oauth2-proxy
     expose:
       - "80"
     environment:
-      # Use proxy mode - API calls are relative and go through OAuth2 Proxy
-      VITE_API_PROXY_ENABLED: "true"
+      # API calls go directly to APIM simulator on :8082 (proxy mode disabled)
+      VITE_API_URL: http://localhost:8082
+      VITE_API_PROXY_ENABLED: "false"
       VITE_AUTH_METHOD: "oidc"
       VITE_OIDC_AUTHORITY: "http://localhost:8180/realms/subnet-calculator"
       VITE_OIDC_CLIENT_ID: "frontend-app"
       VITE_OIDC_REDIRECT_URI: "http://localhost:3007"
+      VITE_OIDC_AUTO_LOGIN: "true"
+      VITE_APIM_SUBSCRIPTION_KEY: stack12-demo-key
     depends_on:
       api-fastapi-keycloak:
         condition: service_healthy
       keycloak:
         condition: service_healthy
+      apim-simulator:
+        condition: service_started
 
   # OAuth2 Proxy - Acts like Azure Easy Auth
   oauth2-proxy-frontend:
@@ -480,33 +488,19 @@ services:
       - --validate-url=http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/userinfo
 
       # ---------------------------------------------------------------------------------
-      # Upstreams (proxy both frontend and API)
+      # Upstream (frontend only - API traffic now flows through apim-simulator:8082)
       #
-      # This OAuth2 Proxy instance is configured with TWO upstreams to protect both the
-      # frontend and API through a single proxy instance (sidecar pattern):
-      #
-      # 1. Frontend: http://frontend-react-keycloak-protected:80
-      #    - Serves static React SPA assets (HTML, CSS, JS)
-      #    - Not directly accessible from browser (no ports exposed)
-      #
-      # 2. API: http://api-fastapi-keycloak:80/api
-      #    - Proxies API requests to /api/* path
-      #    - Adds authentication headers to upstream requests
+      # OAuth2 Proxy protects access to the static assets and injects user headers.
+      # The React SPA then talks directly to the APIM simulator on port 8082.
       #
       # ROUTING BEHAVIOR:
-      # - Requests to /api/* → Routed to api-fastapi-keycloak:80/api
-      # - All other requests → Routed to frontend-react-keycloak-protected:80
+      # - All browser requests → Routed to frontend-react-keycloak-protected:80
+      # - API requests → Sent from the SPA to http://localhost:8082 (APIM simulator)
       #
-      # This differs from the typical single-upstream pattern. The proxy determines
-      # which upstream to use based on the request path. For more details, see:
-      # https://oauth2-proxy.github.io/oauth2-proxy/docs/configuration/overview/#upstream-configuration
-      #
-      # AUTHENTICATION:
-      # All requests require authentication before reaching either upstream.
-      # This simulates Azure Easy Auth's "forced login upfront" behavior.
+      # This mirrors the Azure pattern of having Easy Auth in front of the frontend
+      # while Application Gateway/API Management sit in front of the backend APIs.
       # ---------------------------------------------------------------------------------
       - --upstream=http://frontend-react-keycloak-protected:80
-      - --upstream=http://api-fastapi-keycloak:80/api
 
       # Listen address
       - --http-address=0.0.0.0:4180
@@ -546,5 +540,27 @@ services:
     depends_on:
       frontend-react-keycloak-protected:
         condition: service_started
+      keycloak:
+        condition: service_healthy
+
+  # API Management simulator - validates tokens then forwards to the FastAPI backend
+  apim-simulator:
+    build:
+      context: ./api-apim-simulator
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    image: subnet-calculator-apim-simulator:latest
+    ports:
+      - "8082:8000"
+    environment:
+      - BACKEND_BASE_URL=http://api-fastapi-keycloak:80
+      - OIDC_ISSUER=http://localhost:8180/realms/subnet-calculator
+      - OIDC_AUDIENCE=api-app
+      - OIDC_JWKS_URI=http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/certs
+      - APIM_SUBSCRIPTION_KEY=stack12-demo-key
+      - ALLOWED_ORIGINS=http://localhost:3007
+    depends_on:
+      api-fastapi-keycloak:
+        condition: service_healthy
       keycloak:
         condition: service_healthy

@@ -14,7 +14,8 @@
     "preview": "vite preview",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
-    "test:ui": "playwright test --ui"
+    "test:ui": "playwright test --ui",
+    "test:stack12": "playwright test tests/stack12-auth.spec.ts -c playwright.stack12.config.ts"
   },
   "dependencies": {
     "@azure/identity": "^4.6.0",
