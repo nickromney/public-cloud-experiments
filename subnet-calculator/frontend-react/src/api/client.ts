@@ -41,6 +41,14 @@ class ApiClient implements IApiClient {
     }
   }
 
+  private getBaseHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {}
+    if (APP_CONFIG.apimSubscriptionKey) {
+      headers['Ocp-Apim-Subscription-Key'] = APP_CONFIG.apimSubscriptionKey
+    }
+    return headers
+  }
+
   /**
    * Get authentication headers (Authorization bearer token for JWT/OIDC)
    */
@@ -121,7 +129,10 @@ class ApiClient implements IApiClient {
     try {
       const authHeaders = await this.getAuthHeaders()
       const response = await fetch(`${this.baseUrl}/api/v1/health`, {
-        headers: authHeaders,
+        headers: {
+          ...this.getBaseHeaders(),
+          ...authHeaders,
+        },
         signal: AbortSignal.timeout(5000), // 5 second timeout
       })
 
@@ -143,6 +154,7 @@ class ApiClient implements IApiClient {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...this.getBaseHeaders(),
           ...authHeaders,
         },
         body: JSON.stringify({ address }),
@@ -171,6 +183,7 @@ class ApiClient implements IApiClient {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...this.getBaseHeaders(),
           ...authHeaders,
         },
         body: JSON.stringify({ address }),
@@ -200,6 +213,7 @@ class ApiClient implements IApiClient {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...this.getBaseHeaders(),
           ...authHeaders,
         },
         body: JSON.stringify({ address }),
@@ -229,6 +243,7 @@ class ApiClient implements IApiClient {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...this.getBaseHeaders(),
           ...authHeaders,
         },
         body: JSON.stringify({ network, mode }),

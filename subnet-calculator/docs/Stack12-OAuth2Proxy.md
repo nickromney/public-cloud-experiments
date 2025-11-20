@@ -8,7 +8,7 @@ Stack 12 demonstrates the **OAuth2 Proxy sidecar pattern** - a local simulation 
 
 ### Stack 11 (Client-Side Auth)
 
-```
+```text
 User → Frontend :3006 (nginx)
        ↓ (React loads immediately)
 User sees UI → Clicks "Login" button
@@ -26,7 +26,7 @@ API calls with JWT → Backend :8081
 
 ### Stack 12 (OAuth2 Proxy - Easy Auth Simulation)
 
-```
+```text
 User → OAuth2 Proxy :3007
        ↓ (checks authentication cookie)
        ↓ (if not authenticated)
@@ -38,7 +38,9 @@ OAuth2 Proxy :3007 (validates cookie)
        ↓ (authenticated - forwards request)
 Frontend :80 (nginx - NOT directly exposed)
        ↓ (React loads - user already authenticated)
-API calls with JWT → Backend :8081
+OIDC flow in browser reuses SSO → SPA receives token
+       ↓
+API calls with JWT → APIM Simulator :8082 → FastAPI Backend :8081
 ```
 
 **Behavior:**
@@ -65,12 +67,12 @@ The `frontend-react-keycloak-protected` container:
 
 - Does NOT have exposed ports (no `ports:` section)
 - Only accessible through OAuth2 Proxy (via `expose: ["80"]`)
-- Uses `AUTH_METHOD=none` (no client-side auth needed)
+- Builds with `AUTH_METHOD=oidc` so the SPA can silently acquire tokens after OAuth2 Proxy signs the user in
 - Cannot be accessed directly by users
 
 ### 3. Traffic Flow
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │ User's Browser                                          │
 │                                                         │
@@ -105,7 +107,16 @@ The `frontend-react-keycloak-protected` container:
 │                                                         │
 │ 10. Nginx serves React SPA                             │
 │ 11. React loads (no client-side auth needed)           │
-│ 12. React makes API calls to http://localhost:8081     │
+│ 12. React makes API calls to http://localhost:8082     │
+└─────────────────────────────────────────────────────────┘
+         │
+         ↓
+┌─────────────────────────────────────────────────────────┐
+│ APIM Simulator (:8082)                                  │
+│                                                         │
+│ 13. Validates subscription key + OIDC token            │
+│ 14. Injects X-MS-CLIENT-PRINCIPAL headers               │
+│ 15. Forwards to FastAPI backend :8081                   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -117,7 +128,7 @@ The `frontend-react-keycloak-protected` container:
 cd subnet-calculator
 
 # Start Stack 12 services
-podman-compose up -d keycloak api-fastapi-keycloak frontend-react-keycloak-protected oauth2-proxy-frontend
+podman-compose up -d keycloak api-fastapi-keycloak apim-simulator frontend-react-keycloak-protected oauth2-proxy-frontend
 
 # Check status
 podman-compose ps
@@ -145,11 +156,18 @@ curl -v http://localhost:3007
 # 2. Check OAuth2 Proxy health
 curl http://localhost:3007/ping
 
-# 3. Try to access frontend directly (should fail - not exposed)
+# 3. Call APIM simulator (fails without headers)
+curl -i http://localhost:8082/api/v1/health
+
+# 4. Call APIM simulator with headers (still 401 without bearer token)
+curl -i http://localhost:8082/api/v1/health \\
+  -H \"Ocp-Apim-Subscription-Key: stack12-demo-key\"
+
+# 5. Try to access frontend directly (should fail - not exposed)
 curl http://localhost/
 # curl: (7) Failed to connect to localhost port 80: Connection refused
 
-# 4. After browser login, check your cookies
+# 6. After browser login, check your cookies
 # Look for: _oauth2_proxy cookie
 ```
 
@@ -180,6 +198,27 @@ command:
   - --set-xauthrequest=true
 ```
 
+### APIM Simulator (API Gateway) Settings
+
+The `apim-simulator` container emulates Azure API Management in front of the FastAPI backend:
+
+```yaml
+environment:
+  - BACKEND_BASE_URL=http://api-fastapi-keycloak:80
+  - OIDC_ISSUER=http://localhost:8180/realms/subnet-calculator
+  - OIDC_AUDIENCE=api-app
+  - OIDC_JWKS_URI=http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/certs
+  - APIM_SUBSCRIPTION_KEY=stack12-demo-key
+  - ALLOWED_ORIGINS=http://localhost:3007
+```
+
+Behavior:
+
+- Rejects requests without `Ocp-Apim-Subscription-Key: stack12-demo-key`
+- Validates OAuth2 access tokens against Keycloak JWKS
+- Adds Easy Auth-style headers (`x-ms-client-principal`, `x-apim-user-email`, etc.)
+- Proxies traffic to the FastAPI backend on port 8081
+
 ### Headers Added by OAuth2 Proxy
 
 When proxying authenticated requests to the frontend, OAuth2 Proxy adds:
@@ -208,15 +247,15 @@ OAuth2 Proxy uses cookies for session management:
 
 | Feature | Stack 12 (OAuth2 Proxy) | Azure Easy Auth |
 |---------|------------------------|-----------------|
-| **Forced Login** | ✅ Yes | ✅ Yes |
-| **Server-Side Auth** | ✅ Yes | ✅ Yes |
-| **Session Cookies** | ✅ Yes | ✅ Yes |
-| **User Headers** | ✅ Yes (`X-Auth-Request-*`) | ✅ Yes (`X-MS-CLIENT-PRINCIPAL-*`) |
-| **Token Refresh** | ✅ Yes (automatic) | ✅ Yes (automatic) |
-| **OIDC/OAuth Support** | ✅ Yes (many providers) | ✅ Yes (Entra ID, Google, etc.) |
+| **Forced Login** | Yes | Yes |
+| **Server-Side Auth** | Yes | Yes |
+| **Session Cookies** | Yes | Yes |
+| **User Headers** | Yes (`X-Auth-Request-*`) | Yes (`X-MS-CLIENT-PRINCIPAL-*`) |
+| **Token Refresh** | Yes (automatic) | Yes (automatic) |
+| **OIDC/OAuth Support** | Yes (many providers) | Yes (Entra ID, Google, etc.) |
 | **Configuration** | Container args | Portal / ARM template |
 | **Hosting** | Any platform | Azure-specific services |
-| **Local Development** | ✅ Easy (this stack!) | ❌ Difficult to simulate |
+| **Local Development** | Easy (this stack!) | Difficult to simulate |
 
 ## Stack 12 vs Stack 11
 
@@ -256,19 +295,19 @@ Stack 12 is ideal for testing patterns before deploying to Azure:
 
 ### Local (Stack 12)
 
-```
+```text
 User → OAuth2 Proxy (Podman) → Frontend → API
 ```
 
 ### Azure Container Apps
 
-```
+```text
 User → Built-in Easy Auth → Frontend → API
 ```
 
 ### Azure AKS
 
-```
+```text
 User → Ingress → OAuth2 Proxy (Sidecar) → Frontend → API
 ```
 
@@ -481,7 +520,7 @@ resources:
 
 ```bash
 # 1. Start Stack 12
-podman-compose up -d keycloak api-fastapi-keycloak frontend-react-keycloak-protected oauth2-proxy-frontend
+podman-compose up -d keycloak api-fastapi-keycloak apim-simulator frontend-react-keycloak-protected oauth2-proxy-frontend
 
 # 2. Wait for services to be healthy
 watch podman-compose ps
@@ -501,9 +540,9 @@ open http://localhost:3007
 ### Automated Testing
 
 ```bash
-# Test OAuth flow (requires browser automation)
+# Test OAuth flow end-to-end (requires browser automation)
 cd frontend-react
-npm run test:oauth2-proxy
+npm run test:stack12
 
 # Or use curl to test endpoints
 curl -v http://localhost:3007/ping  # Should return OK
@@ -552,12 +591,12 @@ This stack helps you test authentication patterns before deploying to Azure:
 
 Stack 12 demonstrates:
 
-- ✅ "Forced login upfront" behavior (like Azure Easy Auth)
-- ✅ OAuth2 Proxy as authentication gateway
-- ✅ Server-side authentication enforcement
-- ✅ Local testing of AKS deployment patterns
-- ✅ Session management with cookies
-- ✅ Automatic token refresh
+- "Forced login upfront" behavior (like Azure Easy Auth)
+- OAuth2 Proxy as authentication gateway
+- Server-side authentication enforcement
+- Local testing of AKS deployment patterns
+- Session management with cookies
+- Automatic token refresh
 
 This pattern is production-ready and can be deployed to:
 

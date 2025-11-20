@@ -16,7 +16,7 @@ interface SubnetCalculatorProps {
 }
 
 export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps) {
-  const { user, isAuthenticated, isLoading: authLoading, login, logout } = useAuth()
+  const { user, isAuthenticated, isLoading: authLoading, login, logout, hasApiSession } = useAuth()
 
   const [ipAddress, setIpAddress] = useState('')
   const [cloudMode, setCloudMode] = useState<CloudMode>('Azure')
@@ -25,21 +25,46 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
   const [results, setResults] = useState<LookupResult | null>(null)
   const [apiHealth, setApiHealth] = useState<HealthResponse | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
+  const [apiChecked, setApiChecked] = useState(false)
 
-  // Check API health on mount
+  // Check API health when authentication state permits it
   useEffect(() => {
+    const requiresSpaLogin = APP_CONFIG.auth.method === 'oidc' && !hasApiSession
+    if (requiresSpaLogin) {
+      setApiHealth(null)
+      setApiError(null)
+      setApiChecked(false)
+      return
+    }
+
+    const shouldCheckHealth = APP_CONFIG.auth.method === 'none' || isAuthenticated
+    if (!shouldCheckHealth) {
+      setApiHealth(null)
+      setApiError(null)
+      setApiChecked(false)
+      return
+    }
+
     const checkHealth = async () => {
       try {
         const health = await apiClient.checkHealth()
         setApiHealth(health)
         setApiError(null)
+        setApiChecked(true)
       } catch (err) {
+        if (err instanceof Error && err.message.includes('401')) {
+          setApiHealth(null)
+          setApiError(null)
+          setApiChecked(false)
+          return
+        }
         setApiError(err instanceof Error ? err.message : 'API unavailable')
+        setApiChecked(true)
       }
     }
 
     checkHealth()
-  }, [])
+  }, [isAuthenticated, hasApiSession])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,7 +108,7 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
         <button id="theme-switcher" type="button" onClick={onToggleTheme}>
           <span id="theme-icon">{theme === 'dark' ? '☀️' : '🌙'}</span> Toggle Theme
         </button>
-        {isAuthenticated && user && (
+        {isAuthenticated && hasApiSession && user && (
           <div id="user-info" className="user-info">
             <span>Welcome, {user.name}</span>
             <button type="button" onClick={logout}>
@@ -91,7 +116,7 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
             </button>
           </div>
         )}
-        {!isAuthenticated && APP_CONFIG.auth.method !== 'none' && (
+        {APP_CONFIG.auth.method !== 'oidc' && !isAuthenticated && APP_CONFIG.auth.method !== 'none' && (
           <button type="button" onClick={login}>
             Login
           </button>
@@ -106,7 +131,12 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
         </header>
 
         {/* API Status */}
-        {apiHealth && (
+        {APP_CONFIG.auth.method === 'oidc' && !hasApiSession && (
+          <div id="api-status" className="alert" role="alert">
+            <strong>Authentication Required:</strong> Click Login to finish signing in and load API status.
+          </div>
+        )}
+        {apiChecked && apiHealth && (
           <div id="api-status" className="alert alert-success">
             <strong>API Status:</strong> healthy | <strong>Backend:</strong> {apiHealth.service} |{' '}
             <strong>Version:</strong> {apiHealth.version}
@@ -116,7 +146,7 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
             </small>
           </div>
         )}
-        {apiError && (
+        {apiChecked && apiError && (
           <div id="api-status" className="alert alert-error" role="alert">
             <strong>API Offline:</strong> {apiError}
           </div>

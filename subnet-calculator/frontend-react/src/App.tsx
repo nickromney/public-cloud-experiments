@@ -23,6 +23,11 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-auth-method', APP_CONFIG.auth.method)
+    document.documentElement.setAttribute('data-oidc-auto-login', APP_CONFIG.auth.oidcAutoLogin ? 'true' : 'false')
+  }, [])
+
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark'
     setTheme(newTheme)
@@ -30,12 +35,22 @@ function App() {
     document.documentElement.setAttribute('data-theme', newTheme)
   }
 
+  const debugMetadata = (
+    <div
+      id="auth-debug"
+      data-auth-method={APP_CONFIG.auth.method}
+      data-oidc-auto-login={APP_CONFIG.auth.oidcAutoLogin ? 'true' : 'false'}
+      style={{ display: 'none' }}
+    />
+  )
+
   // Wrap with MsalProvider only if using MSAL
   if (APP_CONFIG.auth.method === 'msal' && msalInstance) {
     return (
       <MsalProvider instance={msalInstance}>
         <AuthProvider>
           <SubnetCalculator theme={theme} onToggleTheme={toggleTheme} />
+          {debugMetadata}
         </AuthProvider>
       </MsalProvider>
     )
@@ -45,6 +60,7 @@ function App() {
   return (
     <AuthProvider>
       <SubnetCalculator theme={theme} onToggleTheme={toggleTheme} />
+      {debugMetadata}
     </AuthProvider>
   )
 }

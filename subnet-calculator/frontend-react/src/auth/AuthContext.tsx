@@ -25,6 +25,7 @@ interface AuthContextType {
   login: () => void
   logout: () => void
   authMethod: string
+  hasApiSession: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -32,6 +33,7 @@ const EMPTY_ACCOUNTS: AccountInfo[] = []
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authMethod = APP_CONFIG.auth.method
+  ;(window as Window & { __AUTH_METHOD__?: string }).__AUTH_METHOD__ = authMethod
 
   // For JWT auth, use the specialized JWT provider
   if (authMethod === 'jwt') {
@@ -68,6 +70,7 @@ function JwtAuthBridge({ children }: { children: React.ReactNode }) {
     },
     logout: jwtAuth.logout,
     authMethod: 'jwt',
+    hasApiSession: jwtAuth.isAuthenticated,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
@@ -86,6 +89,7 @@ function OidcAuthBridge({ children }: { children: React.ReactNode }) {
     },
     logout: oidcAuth.logout,
     authMethod: 'oidc',
+    hasApiSession: oidcAuth.hasApiSession,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
@@ -209,6 +213,7 @@ function StandardAuthProvider({ children }: { children: React.ReactNode }) {
     login,
     logout,
     authMethod,
+    hasApiSession: isAuthenticated,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

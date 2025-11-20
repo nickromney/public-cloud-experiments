@@ -24,6 +24,8 @@ declare global {
       OIDC_AUTHORITY?: string
       OIDC_CLIENT_ID?: string
       OIDC_REDIRECT_URI?: string
+      OIDC_AUTO_LOGIN?: string | boolean
+      APIM_SUBSCRIPTION_KEY?: string
     }
   }
 }
@@ -39,6 +41,7 @@ export interface AuthConfig {
   oidcAuthority?: string
   oidcClientId?: string
   oidcRedirectUri?: string
+  oidcAutoLogin?: boolean
 }
 
 export interface AppConfig {
@@ -46,6 +49,7 @@ export interface AppConfig {
   auth: AuthConfig
   stackName: string
   apiProxyEnabled: boolean
+  apimSubscriptionKey?: string
 }
 
 /**
@@ -116,6 +120,10 @@ export function getAuthMethod(): AuthConfig['method'] {
 export function getAppConfig(): AppConfig {
   const runtimeProxyFlag = window.RUNTIME_CONFIG?.API_PROXY_ENABLED ?? import.meta.env.VITE_API_PROXY_ENABLED
   const apiProxyEnabled = `${runtimeProxyFlag ?? ''}`.toLowerCase() === 'true'
+  const apimSubscriptionKey =
+    window.RUNTIME_CONFIG?.APIM_SUBSCRIPTION_KEY ?? import.meta.env.VITE_APIM_SUBSCRIPTION_KEY ?? ''
+  const oidcAutoLoginFlag = window.RUNTIME_CONFIG?.OIDC_AUTO_LOGIN ?? import.meta.env.VITE_OIDC_AUTO_LOGIN
+  const oidcAutoLogin = `${oidcAutoLoginFlag ?? ''}`.toLowerCase() === 'true'
 
   const authMethod = getAuthMethod()
 
@@ -164,9 +172,11 @@ export function getAppConfig(): AppConfig {
       jwtUsername,
       jwtPassword,
       easyAuthResourceId,
+      oidcAutoLogin,
     },
     stackName,
     apiProxyEnabled,
+    apimSubscriptionKey,
   }
 }
 
@@ -186,6 +196,10 @@ export function getConfig(): AppConfig {
 
     const runtimeProxyFlag = window.RUNTIME_CONFIG?.API_PROXY_ENABLED ?? import.meta.env.VITE_API_PROXY_ENABLED
     const apiProxyEnabled = `${runtimeProxyFlag ?? ''}`.toLowerCase() === 'true'
+    const apimSubscriptionKey =
+      window.RUNTIME_CONFIG?.APIM_SUBSCRIPTION_KEY ?? import.meta.env.VITE_APIM_SUBSCRIPTION_KEY ?? ''
+    const oidcAutoLoginFlag = window.RUNTIME_CONFIG?.OIDC_AUTO_LOGIN ?? import.meta.env.VITE_OIDC_AUTO_LOGIN
+    const oidcAutoLogin = `${oidcAutoLoginFlag ?? ''}`.toLowerCase() === 'true'
 
     if (apiProxyEnabled) {
       apiBaseUrl = ''
@@ -219,9 +233,11 @@ export function getConfig(): AppConfig {
         oidcClientId: window.RUNTIME_CONFIG?.OIDC_CLIENT_ID ?? (import.meta.env.VITE_OIDC_CLIENT_ID || ''),
         oidcRedirectUri:
           window.RUNTIME_CONFIG?.OIDC_REDIRECT_URI ?? (import.meta.env.VITE_OIDC_REDIRECT_URI || window.location.origin),
+        oidcAutoLogin,
       },
       stackName: `React + TypeScript + Vite${authSuffix}`,
       apiProxyEnabled,
+      apimSubscriptionKey,
     }
   }
   return _cachedConfig
