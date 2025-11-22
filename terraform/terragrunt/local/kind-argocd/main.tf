@@ -454,6 +454,7 @@ EOT
 }
 
 data "local_file" "gitea_known_hosts" {
+  count      = var.enable_gitea ? 1 : 0
   filename   = local.gitea_known_hosts
   depends_on = [null_resource.gitea_known_hosts[0]]
 }
@@ -474,7 +475,7 @@ resource "null_resource" "seed_gitea_repo" {
 
   triggers = {
     repo_id    = null_resource.gitea_create_repo[0].id
-    host_key   = md5(data.local_file.gitea_known_hosts.content)
+    host_key   = md5(data.local_file.gitea_known_hosts[0].content)
     repo_files = local.policies_checksum
   }
 
@@ -502,7 +503,7 @@ EOT
   depends_on = [
     null_resource.gitea_add_deploy_key[0],
     null_resource.gitea_known_hosts[0],
-    data.local_file.gitea_known_hosts,
+    data.local_file.gitea_known_hosts[0],
     local_sensitive_file.gitea_repo_private_key[0]
   ]
 }
@@ -522,14 +523,14 @@ resource "kubernetes_secret" "argocd_repo_gitea" {
   data = {
     url           = "ssh://git@127.0.0.1:${var.gitea_ssh_node_port}/${var.gitea_admin_username}/policies.git"
     sshPrivateKey = tls_private_key.gitea_repo[0].private_key_pem
-    sshKnownHosts = data.local_file.gitea_known_hosts.content
+    sshKnownHosts = data.local_file.gitea_known_hosts[0].content
     insecure      = "false"
   }
 
   depends_on = [
     null_resource.gitea_add_deploy_key[0],
     null_resource.gitea_known_hosts[0],
-    data.local_file.gitea_known_hosts,
+    data.local_file.gitea_known_hosts[0],
     null_resource.seed_gitea_repo[0],
     local_sensitive_file.kubeconfig
   ]
