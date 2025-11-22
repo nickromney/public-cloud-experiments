@@ -101,3 +101,31 @@ variable "ssh_public_key_path" {
   description = "Path to write the generated SSH public key."
   type        = string
 }
+
+# -----------------------------------------------------------------------------
+# Feature toggles for staged deployment
+# -----------------------------------------------------------------------------
+
+variable "enable_cilium" {
+  description = "Enable Cilium CNI installation (includes Hubble)."
+  type        = bool
+  default     = true
+}
+
+variable "enable_namespaces" {
+  description = "Enable creation of Kubernetes namespaces."
+  type        = bool
+  default     = true
+}
+
+variable "enable_argocd" {
+  description = "Enable Argo CD installation."
+  type        = bool
+  default     = true
+}
+
+variable "enable_gitea" {
+  description = "Enable Gitea and policy seeding."
+  type        = bool
+  default     = true
+}

@@ -182,6 +182,8 @@ resource "local_sensitive_file" "kubeconfig" {
 }
 
 resource "kubernetes_namespace" "gitea" {
+  count = var.enable_namespaces ? 1 : 0
+
   metadata {
     name = "gitea"
     labels = {
@@ -196,6 +198,8 @@ resource "kubernetes_namespace" "gitea" {
 }
 
 resource "kubernetes_namespace" "cilium_team_a" {
+  count = var.enable_namespaces ? 1 : 0
+
   metadata {
     name = "cilium-team-a"
     labels = {
@@ -211,6 +215,8 @@ resource "kubernetes_namespace" "cilium_team_a" {
 }
 
 resource "kubernetes_namespace" "cilium_team_b" {
+  count = var.enable_namespaces ? 1 : 0
+
   metadata {
     name = "cilium-team-b"
     labels = {
@@ -226,6 +232,8 @@ resource "kubernetes_namespace" "cilium_team_b" {
 }
 
 resource "kubernetes_namespace" "kyverno" {
+  count = var.enable_namespaces ? 1 : 0
+
   metadata {
     name = "kyverno"
     labels = {
@@ -240,6 +248,8 @@ resource "kubernetes_namespace" "kyverno" {
 }
 
 resource "kubernetes_namespace" "kyverno_sandbox" {
+  count = var.enable_namespaces ? 1 : 0
+
   metadata {
     name = "kyverno-sandbox"
     labels = {
@@ -255,6 +265,9 @@ resource "kubernetes_namespace" "kyverno_sandbox" {
 }
 
 resource "kubernetes_namespace" "argocd" {
+  count = var.enable_namespaces ? 1 : 0
+
+
   metadata {
     name = var.argocd_namespace
     labels = {
@@ -269,6 +282,8 @@ resource "kubernetes_namespace" "argocd" {
 }
 
 resource "helm_release" "cilium" {
+  count = var.enable_cilium ? 1 : 0
+
   name       = "cilium"
   repository = "https://helm.cilium.io"
   chart      = "cilium"
@@ -284,6 +299,8 @@ resource "helm_release" "cilium" {
 }
 
 resource "helm_release" "argocd" {
+  count = var.enable_argocd ? 1 : 0
+
   name             = "argocd"
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"
@@ -302,6 +319,9 @@ resource "helm_release" "argocd" {
 }
 
 resource "null_resource" "wait_for_gitea" {
+  count = var.enable_gitea ? 1 : 0
+
+
   triggers = {
     gitea_app = sha1(kubectl_manifest.argocd_app_gitea.yaml_body)
   }
@@ -329,10 +349,16 @@ EOT
 }
 
 resource "tls_private_key" "gitea_repo" {
+  count = var.enable_gitea ? 1 : 0
+
+
   algorithm = "ED25519"
 }
 
 resource "null_resource" "gitea_create_repo" {
+  count = var.enable_gitea ? 1 : 0
+
+
   triggers = {
     rollout = null_resource.wait_for_gitea.id
   }
@@ -362,6 +388,9 @@ EOT
 }
 
 resource "null_resource" "gitea_add_deploy_key" {
+  count = var.enable_gitea ? 1 : 0
+
+
   triggers = {
     repo    = null_resource.gitea_create_repo.id
     ssh_key = tls_private_key.gitea_repo.public_key_openssh
@@ -395,6 +424,9 @@ EOT
 }
 
 resource "null_resource" "gitea_known_hosts" {
+  count = var.enable_gitea ? 1 : 0
+
+
   triggers = {
     gitea_repo = null_resource.gitea_create_repo.id
   }
@@ -425,6 +457,9 @@ data "local_file" "gitea_known_hosts" {
 }
 
 resource "local_sensitive_file" "gitea_repo_private_key" {
+  count = var.enable_gitea ? 1 : 0
+
+
   content              = tls_private_key.gitea_repo.private_key_pem
   filename             = local.gitea_repo_key_path
   file_permission      = "0600"
@@ -432,6 +467,9 @@ resource "local_sensitive_file" "gitea_repo_private_key" {
 }
 
 resource "null_resource" "seed_gitea_repo" {
+  count = var.enable_gitea ? 1 : 0
+
+
   triggers = {
     repo_id    = null_resource.gitea_create_repo.id
     host_key   = md5(data.local_file.gitea_known_hosts.content)
@@ -468,6 +506,9 @@ EOT
 }
 
 resource "kubernetes_secret" "argocd_repo_gitea" {
+  count = var.enable_gitea ? 1 : 0
+
+
   metadata {
     name      = "repo-gitea-policies"
     namespace = var.argocd_namespace
@@ -512,6 +553,8 @@ resource "local_file" "ssh_public_key" {
 }
 
 resource "kubectl_manifest" "argocd_app_gitea" {
+  count = var.enable_gitea ? 1 : 0
+
   yaml_body = <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -575,6 +618,9 @@ EOF
 }
 
 resource "kubectl_manifest" "argocd_app_cilium_policies" {
+  count = var.enable_gitea ? 1 : 0
+
+
   yaml_body = <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -613,6 +659,9 @@ EOF
 }
 
 resource "kubectl_manifest" "argocd_app_kyverno" {
+  count = var.enable_gitea ? 1 : 0
+
+
   yaml_body = <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -659,6 +708,9 @@ EOF
 }
 
 resource "kubectl_manifest" "argocd_app_kyverno_policies" {
+  count = var.enable_gitea ? 1 : 0
+
+
   yaml_body = <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: Application
