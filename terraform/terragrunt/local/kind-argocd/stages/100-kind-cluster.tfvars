@@ -17,9 +17,11 @@ kubeconfig_path  = "./.run/kubeconfig"
 # -----------------------------------------------------------------------------
 
 enable_cilium     = false
+enable_hubble     = false
 enable_namespaces = false
 enable_argocd     = false
 enable_gitea      = false
+enable_policies   = false
 
 # -----------------------------------------------------------------------------
 # Versions (not used in this stage but required)

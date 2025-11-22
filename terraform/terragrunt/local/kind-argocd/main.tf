@@ -100,7 +100,7 @@ locals {
     }
   }
 
-  cilium_values = {
+  cilium_values_base = {
     kubeProxyReplacement  = false
     routingMode           = "native"
     autoDirectNodeRoutes  = true
@@ -111,6 +111,12 @@ locals {
     ipam = {
       mode = "kubernetes"
     }
+    operator = {
+      replicas = 1
+    }
+  }
+
+  hubble_values = var.enable_hubble ? {
     hubble = {
       enabled = true
       relay = {
@@ -124,10 +130,9 @@ locals {
         }
       }
     }
-    operator = {
-      replicas = 1
-    }
-  }
+  } : {}
+
+  cilium_values = merge(local.cilium_values_base, local.hubble_values)
 }
 
 resource "local_file" "kind_config" {
@@ -621,7 +626,7 @@ EOF
 }
 
 resource "kubectl_manifest" "argocd_app_cilium_policies" {
-  count = var.enable_gitea ? 1 : 0
+  count = var.enable_policies ? 1 : 0
 
 
   yaml_body = <<EOF
@@ -662,7 +667,7 @@ EOF
 }
 
 resource "kubectl_manifest" "argocd_app_kyverno" {
-  count = var.enable_gitea ? 1 : 0
+  count = var.enable_policies ? 1 : 0
 
 
   yaml_body = <<EOF
@@ -711,7 +716,7 @@ EOF
 }
 
 resource "kubectl_manifest" "argocd_app_kyverno_policies" {
-  count = var.enable_gitea ? 1 : 0
+  count = var.enable_policies ? 1 : 0
 
 
   yaml_body = <<EOF

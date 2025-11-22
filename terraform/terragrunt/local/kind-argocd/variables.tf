@@ -107,7 +107,13 @@ variable "ssh_public_key_path" {
 # -----------------------------------------------------------------------------
 
 variable "enable_cilium" {
-  description = "Enable Cilium CNI installation (includes Hubble)."
+  description = "Enable Cilium CNI installation."
+  type        = bool
+  default     = true
+}
+
+variable "enable_hubble" {
+  description = "Enable Hubble UI (requires enable_cilium = true)."
   type        = bool
   default     = true
 }
@@ -125,7 +131,13 @@ variable "enable_argocd" {
 }
 
 variable "enable_gitea" {
-  description = "Enable Gitea and policy seeding."
+  description = "Enable Gitea installation and repository setup."
+  type        = bool
+  default     = true
+}
+
+variable "enable_policies" {
+  description = "Enable Cilium and Kyverno policy deployment (requires enable_gitea = true)."
   type        = bool
   default     = true
 }

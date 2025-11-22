@@ -1,6 +1,6 @@
-# Stage 200 - Kind Cluster + Cilium CNI
-# Adds Cilium CNI (without Hubble UI) on top of stage 100
-# This enables networking in the cluster
+# Stage 300 - Kind Cluster + Cilium + Hubble UI
+# Adds Hubble UI on top of stage 200 (helm upgrade to enable Hubble)
+# Provides network observability via Hubble UI at http://localhost:30007
 
 # -----------------------------------------------------------------------------
 # Core Configuration
@@ -13,11 +13,11 @@ kind_config_path = "./kind-config.yaml"
 kubeconfig_path  = "./.run/kubeconfig"
 
 # -----------------------------------------------------------------------------
-# Feature Toggles - Stage 200 adds Cilium CNI only
+# Feature Toggles - Stage 300 adds Hubble UI
 # -----------------------------------------------------------------------------
 
-enable_cilium     = true  # NEW: Cilium CNI (networking only)
-enable_hubble     = false # Hubble UI not yet enabled
+enable_cilium     = true
+enable_hubble     = true # NEW: Enable Hubble UI (helm upgrade)
 enable_namespaces = false
 enable_argocd     = false
 enable_gitea      = false
@@ -43,3 +43,9 @@ gitea_ssh_node_port     = 30022
 generate_repo_ssh_key = false
 ssh_private_key_path  = "./.run/argocd-repo.id_ed25519"
 ssh_public_key_path   = "./.run/argocd-repo.id_ed25519.pub"
+
+# -----------------------------------------------------------------------------
+# Exposed Services
+# -----------------------------------------------------------------------------
+# - Hubble UI: http://localhost:30007
+# -----------------------------------------------------------------------------
