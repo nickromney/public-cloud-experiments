@@ -52,6 +52,9 @@ terraform/reference/
 
 # Ignore tfwrapper's Azure CLI cache directory
 terraform/claranet-tfwrapper/.run/
+# Terragrunt local runs/state for non-Azure contexts
+terraform/terragrunt/.run/
+terraform/terragrunt/**/.run/
 
 # tfwrapper state.tf files (contain subscription IDs, tenant IDs, potentially client secrets)
 terraform/claranet-tfwrapper/**/state.tf

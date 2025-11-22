@@ -1,0 +1,44 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: enforce-namespace-isolation
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: generate-default-deny
+      match:
+        any:
+          - resources:
+              kinds: ["Namespace"]
+              selector:
+                matchLabels:
+                  kyverno.io/isolate: "true"
+      generate:
+        kind: NetworkPolicy
+        name: default-deny-cross-namespace
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: default-deny-cross-namespace
+          spec:
+            podSelector: {}
+            policyTypes:
+              - Ingress
+              - Egress
+            ingress:
+              - from:
+                  - podSelector: {} # same namespace only
+            egress:
+              - to:
+                  - podSelector: {} # same namespace only
+              - to:
+                  - namespaceSelector:
+                      matchLabels:
+                        kubernetes.io/metadata.name: kube-system
+                    podSelector:
+                      matchLabels:
+                        k8s-app: kube-dns

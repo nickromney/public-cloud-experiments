@@ -1,0 +1,3 @@
+resources:
+  - team-a-policy.yaml
+  - team-b-policy.yaml

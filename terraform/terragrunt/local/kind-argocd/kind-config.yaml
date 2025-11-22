@@ -1,0 +1,24 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  disableDefaultCNI: true
+  kubeProxyMode: "iptables"
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 30080
+        protocol: TCP
+      - containerPort: 30090
+        hostPort: 30090
+        protocol: TCP
+      - containerPort: 30022
+        hostPort: 30022
+        protocol: TCP
+      - containerPort: 30007
+        hostPort: 30007
+        protocol: TCP
+  - role: worker
+  - role: worker
+  - role: worker
+  - role: worker
