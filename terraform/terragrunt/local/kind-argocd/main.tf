@@ -26,6 +26,10 @@ terraform {
       source  = "gavinbunney/kubectl"
       version = "~> 1.14"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
+    }
   }
 }
 
@@ -48,8 +52,6 @@ provider "kubectl" {
 
 locals {
   kind_workers        = range(var.worker_count)
-  repo_url            = "https://github.com/nickromney/public-cloud-experiments.git"
-  target_rev          = "main"
   gitea_known_hosts   = "${path.module}/.run/gitea_known_hosts"
   gitea_repo_key_path = "${path.module}/.run/gitea-repo.id_ed25519"
   policy_files        = fileset("${path.module}/policies", "**")
@@ -313,8 +315,8 @@ resource "helm_release" "argocd" {
   depends_on = [
     kind_cluster.local,
     local_sensitive_file.kubeconfig,
-    kubernetes_namespace.argocd,
-    helm_release.cilium
+    kubernetes_namespace.argocd[0],
+    helm_release.cilium[0]
   ]
 }
 
@@ -323,7 +325,7 @@ resource "null_resource" "wait_for_gitea" {
 
 
   triggers = {
-    gitea_app = sha1(kubectl_manifest.argocd_app_gitea.yaml_body)
+    gitea_app = sha1(kubectl_manifest.argocd_app_gitea[0].yaml_body)
   }
 
   provisioner "local-exec" {
@@ -343,8 +345,8 @@ EOT
   }
 
   depends_on = [
-    helm_release.argocd,
-    kubectl_manifest.argocd_app_gitea
+    helm_release.argocd[0],
+    kubectl_manifest.argocd_app_gitea[0]
   ]
 }
 
@@ -360,7 +362,7 @@ resource "null_resource" "gitea_create_repo" {
 
 
   triggers = {
-    rollout = null_resource.wait_for_gitea.id
+    rollout = null_resource.wait_for_gitea[0].id
   }
 
   provisioner "local-exec" {
@@ -384,7 +386,7 @@ EOT
     interpreter = ["/bin/bash", "-c"]
   }
 
-  depends_on = [null_resource.wait_for_gitea]
+  depends_on = [null_resource.wait_for_gitea[0]]
 }
 
 resource "null_resource" "gitea_add_deploy_key" {
@@ -392,8 +394,8 @@ resource "null_resource" "gitea_add_deploy_key" {
 
 
   triggers = {
-    repo    = null_resource.gitea_create_repo.id
-    ssh_key = tls_private_key.gitea_repo.public_key_openssh
+    repo    = null_resource.gitea_create_repo[0].id
+    ssh_key = tls_private_key.gitea_repo[0].public_key_openssh
   }
 
   provisioner "local-exec" {
@@ -403,7 +405,7 @@ for i in {1..20}; do
   status=$(curl -s -o /dev/null -w "%%{http_code}" -X POST \
     -u "${var.gitea_admin_username}:${var.gitea_admin_password}" \
     -H "Content-Type: application/json" \
-    -d '{"title":"argocd-repo-key","key":"${tls_private_key.gitea_repo.public_key_openssh}","read_only":false}' \
+    -d '{"title":"argocd-repo-key","key":"${tls_private_key.gitea_repo[0].public_key_openssh}","read_only":false}' \
     http://127.0.0.1:${var.gitea_http_node_port}/api/v1/repos/${var.gitea_admin_username}/policies/keys)
   if echo "$status" | grep -Eq "200|201|409|422"; then
     exit 0
@@ -418,8 +420,8 @@ EOT
   }
 
   depends_on = [
-    null_resource.gitea_create_repo,
-    tls_private_key.gitea_repo
+    null_resource.gitea_create_repo[0],
+    tls_private_key.gitea_repo[0]
   ]
 }
 
@@ -428,7 +430,7 @@ resource "null_resource" "gitea_known_hosts" {
 
 
   triggers = {
-    gitea_repo = null_resource.gitea_create_repo.id
+    gitea_repo = null_resource.gitea_create_repo[0].id
   }
 
   provisioner "local-exec" {
@@ -448,19 +450,19 @@ EOT
     interpreter = ["/bin/bash", "-c"]
   }
 
-  depends_on = [null_resource.gitea_create_repo]
+  depends_on = [null_resource.gitea_create_repo[0]]
 }
 
 data "local_file" "gitea_known_hosts" {
   filename   = local.gitea_known_hosts
-  depends_on = [null_resource.gitea_known_hosts]
+  depends_on = [null_resource.gitea_known_hosts[0]]
 }
 
 resource "local_sensitive_file" "gitea_repo_private_key" {
   count = var.enable_gitea ? 1 : 0
 
 
-  content              = tls_private_key.gitea_repo.private_key_pem
+  content              = tls_private_key.gitea_repo[0].private_key_pem
   filename             = local.gitea_repo_key_path
   file_permission      = "0600"
   directory_permission = "0700"
@@ -471,7 +473,7 @@ resource "null_resource" "seed_gitea_repo" {
 
 
   triggers = {
-    repo_id    = null_resource.gitea_create_repo.id
+    repo_id    = null_resource.gitea_create_repo[0].id
     host_key   = md5(data.local_file.gitea_known_hosts.content)
     repo_files = local.policies_checksum
   }
@@ -498,10 +500,10 @@ EOT
   }
 
   depends_on = [
-    null_resource.gitea_add_deploy_key,
-    null_resource.gitea_known_hosts,
+    null_resource.gitea_add_deploy_key[0],
+    null_resource.gitea_known_hosts[0],
     data.local_file.gitea_known_hosts,
-    local_sensitive_file.gitea_repo_private_key
+    local_sensitive_file.gitea_repo_private_key[0]
   ]
 }
 
@@ -519,16 +521,16 @@ resource "kubernetes_secret" "argocd_repo_gitea" {
 
   data = {
     url           = "ssh://git@127.0.0.1:${var.gitea_ssh_node_port}/${var.gitea_admin_username}/policies.git"
-    sshPrivateKey = tls_private_key.gitea_repo.private_key_pem
+    sshPrivateKey = tls_private_key.gitea_repo[0].private_key_pem
     sshKnownHosts = data.local_file.gitea_known_hosts.content
     insecure      = "false"
   }
 
   depends_on = [
-    null_resource.gitea_add_deploy_key,
-    null_resource.gitea_known_hosts,
+    null_resource.gitea_add_deploy_key[0],
+    null_resource.gitea_known_hosts[0],
     data.local_file.gitea_known_hosts,
-    null_resource.seed_gitea_repo,
+    null_resource.seed_gitea_repo[0],
     local_sensitive_file.kubeconfig
   ]
 }
@@ -543,7 +545,7 @@ resource "local_sensitive_file" "ssh_private_key" {
   count      = var.generate_repo_ssh_key ? 1 : 0
   content    = tls_private_key.argocd_repo[0].private_key_pem
   filename   = var.ssh_private_key_path
-  depends_on = [tls_private_key.argocd_repo]
+  depends_on = [tls_private_key.argocd_repo[0]]
 }
 
 resource "local_file" "ssh_public_key" {
@@ -564,7 +566,7 @@ metadata:
 spec:
   project: default
   destination:
-    namespace: ${kubernetes_namespace.gitea.metadata[0].name}
+    namespace: ${kubernetes_namespace.gitea[0].metadata[0].name}
     server: https://kubernetes.default.svc
   source:
     repoURL: https://dl.gitea.io/charts/
@@ -612,8 +614,8 @@ EOF
   server_side_apply = false
 
   depends_on = [
-    helm_release.argocd,
-    kubernetes_namespace.gitea
+    helm_release.argocd[0],
+    kubernetes_namespace.gitea[0]
   ]
 }
 
@@ -652,9 +654,9 @@ EOF
   server_side_apply = false
 
   depends_on = [
-    helm_release.argocd,
-    kubernetes_namespace.cilium_team_a,
-    kubernetes_namespace.cilium_team_b
+    helm_release.argocd[0],
+    kubernetes_namespace.cilium_team_a[0],
+    kubernetes_namespace.cilium_team_b[0]
   ]
 }
 
@@ -671,7 +673,7 @@ metadata:
 spec:
   project: default
   destination:
-    namespace: ${kubernetes_namespace.kyverno.metadata[0].name}
+    namespace: ${kubernetes_namespace.kyverno[0].metadata[0].name}
     server: https://kubernetes.default.svc
   source:
     repoURL: https://kyverno.github.io/kyverno/
@@ -702,8 +704,8 @@ EOF
   server_side_apply = false
 
   depends_on = [
-    helm_release.argocd,
-    kubernetes_namespace.kyverno
+    helm_release.argocd[0],
+    kubernetes_namespace.kyverno[0]
   ]
 }
 
@@ -742,7 +744,7 @@ EOF
   server_side_apply = false
 
   depends_on = [
-    helm_release.argocd,
-    kubernetes_namespace.kyverno_sandbox
+    helm_release.argocd[0],
+    kubernetes_namespace.kyverno_sandbox[0]
   ]
 }
