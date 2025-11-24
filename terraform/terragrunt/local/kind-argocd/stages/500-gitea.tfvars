@@ -16,6 +16,7 @@ kubeconfig_path  = "./.run/kubeconfig"
 # Feature Toggles - Stage 500 adds Gitea
 # -----------------------------------------------------------------------------
 
+enable_kind       = true
 enable_cilium     = true
 enable_hubble     = true
 enable_namespaces = true

@@ -16,6 +16,7 @@ kubeconfig_path  = "./.run/kubeconfig"
 # Feature Toggles - Stage 300 adds Hubble UI
 # -----------------------------------------------------------------------------
 
+enable_kind       = true
 enable_cilium     = true
 enable_hubble     = true # NEW: Enable Hubble UI (helm upgrade)
 enable_namespaces = false

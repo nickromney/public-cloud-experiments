@@ -16,6 +16,7 @@ kubeconfig_path  = "./.run/kubeconfig"
 # Feature Toggles
 # -----------------------------------------------------------------------------
 
+enable_kind       = true
 enable_cilium     = false
 enable_hubble     = false
 enable_namespaces = false

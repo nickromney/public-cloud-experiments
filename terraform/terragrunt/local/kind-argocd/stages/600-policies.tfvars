@@ -17,6 +17,7 @@ kubeconfig_path  = "./.run/kubeconfig"
 # Feature Toggles - Stage 600 adds all policies
 # -----------------------------------------------------------------------------
 
+enable_kind       = true
 enable_cilium     = true
 enable_hubble     = true
 enable_namespaces = true

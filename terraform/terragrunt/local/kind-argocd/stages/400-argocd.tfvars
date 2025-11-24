@@ -16,6 +16,7 @@ kubeconfig_path  = "./.run/kubeconfig"
 # Feature Toggles - Stage 400 adds namespaces and Argo CD
 # -----------------------------------------------------------------------------
 
+enable_kind       = true
 enable_cilium     = true
 enable_hubble     = true
 enable_namespaces = true # NEW: Create all namespaces

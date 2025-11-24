@@ -25,7 +25,7 @@ SCRIPTS_DIR ?= $(ROOT_DIR)deployment-scripts
 # Stack name mappings (short-name -> directory)
 # Format: <project>/<stack-alias>=<directory-path>
 # Note: Using spaces to separate entries for filter to work correctly
-STACK_MAP := subnet-calc/react-webapp=personal-sub/subnet-calc-react-webapp subnet-calc/react-webapp-easyauth=personal-sub/subnet-calc-react-webapp-easyauth subnet-calc/react-easyauth-e2e=personal-sub/subnet-calc-react-easyauth-e2e subnet-calc/react-easyauth-proxied=personal-sub/subnet-calc-react-easyauth-proxied subnet-calc/react-apim=personal-sub/subnet-calc-react-webapp-apim subnet-calc/internal-apim=personal-sub/subnet-calc-internal-apim subnet-calc/static-web-apps=personal-sub/subnet-calc-static-web-apps subnet-calc/shared-components=personal-sub/subnet-calc-shared-components
+STACK_MAP := subnet-calc/react-webapp=personal-sub/subnet-calc-react-webapp subnet-calc/react-webapp-easyauth=personal-sub/subnet-calc-react-webapp-easyauth subnet-calc/react-easyauth-e2e=personal-sub/subnet-calc-react-easyauth-e2e subnet-calc/react-easyauth-proxied=personal-sub/subnet-calc-react-easyauth-proxied subnet-calc/react-apim=personal-sub/subnet-calc-react-webapp-apim subnet-calc/internal-apim=personal-sub/subnet-calc-internal-apim subnet-calc/static-web-apps=personal-sub/subnet-calc-static-web-apps subnet-calc/shared-components=personal-sub/subnet-calc-shared-components local/kind=local/kind-argocd
 
 # Function to resolve stack directory from project and stack alias
 # Matches the exact key and extracts the value
@@ -137,6 +137,8 @@ help:
 	@echo -e "  make subnet-calc react-easyauth-e2e 100 apply           # Apply stage 100"
 	@echo -e "  make subnet-calc react-easyauth-e2e 200 apply AUTO_APPROVE=1"
 	@echo -e "  make subnet-calc react-easyauth-e2e 400 plan            # Use stages/400-all.tfvars"
+	@echo -e "  make local kind 100 plan                                # Local kind/Cilium/ArgoCD staged stack"
+	@echo -e "  make local kind 200 apply AUTO_APPROVE=1                # Continue staging locally"
 	@echo -e ""
 	@echo -e "$(YELLOW)Advanced Options:$(NC)"
 	@echo -e "  make subnet-calc react-apim plan VAR_FILE=stages/200-create-observability.tfvars"
@@ -160,7 +162,7 @@ help:
 	@echo -e "  make secure-app-apply         Apply secure-app/dev/uksouth stack"
 	@echo -e "  make secure-app-destroy       Destroy secure-app/dev/uksouth stack"
 	@echo -e ""
-	@echo -e "$(YELLOW)Environment Variables (Required):$(NC)"
+	@echo -e "$(YELLOW)Environment Variables (Required for subnet-calc Azure stacks):$(NC)"
 	@echo -e "  ARM_SUBSCRIPTION_ID           Azure subscription ID"
 	@echo -e "  ARM_TENANT_ID                 Azure tenant ID"
 	@echo -e "  TF_BACKEND_RG                 Backend resource group name"
@@ -175,36 +177,40 @@ help:
 # Check required environment variables
 .PHONY: check-env
 check-env:
-	@missing_vars=""; \
-	for var in ARM_SUBSCRIPTION_ID ARM_TENANT_ID TF_BACKEND_RG TF_BACKEND_SA TF_BACKEND_CONTAINER; do \
-		if [ -z "$${!var}" ]; then \
-			missing_vars="$$missing_vars $$var"; \
+	@if [ "$(PROJECT)" = "subnet-calc" ]; then \
+		missing_vars=""; \
+		for var in ARM_SUBSCRIPTION_ID ARM_TENANT_ID TF_BACKEND_RG TF_BACKEND_SA TF_BACKEND_CONTAINER; do \
+			if [ -z "$${!var}" ]; then \
+				missing_vars="$$missing_vars $$var"; \
+			fi; \
+		done; \
+		if [ -n "$$missing_vars" ]; then \
+			echo -e "$(YELLOW)❌ Missing required environment variables:$$missing_vars$(NC)"; \
+			echo -e ""; \
+			echo -e "$(CYAN)Run the following to set up your environment:$(NC)"; \
+			echo -e "  source ./setup-env.sh"; \
+			echo -e ""; \
+			echo -e "$(CYAN)Or export manually (Bash):$(NC)"; \
+			echo -e "  export ARM_SUBSCRIPTION_ID=<your-subscription-id>"; \
+			echo -e "  export ARM_TENANT_ID=<your-tenant-id>"; \
+			echo -e "  export TF_BACKEND_RG=<backend-resource-group>"; \
+			echo -e "  export TF_BACKEND_SA=<backend-storage-account>"; \
+			echo -e "  export TF_BACKEND_CONTAINER=<backend-container-name>"; \
+			echo -e ""; \
+			echo -e "$(CYAN)Or in Nushell:$(NC)"; \
+			echo -e "  \$$env.ARM_SUBSCRIPTION_ID = \"<your-subscription-id>\""; \
+			echo -e "  \$$env.ARM_TENANT_ID = \"<your-tenant-id>\""; \
+			echo -e "  \$$env.TF_BACKEND_RG = \"<backend-resource-group>\""; \
+			echo -e "  \$$env.TF_BACKEND_SA = \"<backend-storage-account>\""; \
+			echo -e "  \$$env.TF_BACKEND_CONTAINER = \"<backend-container-name>\""; \
+			echo -e ""; \
+			echo -e "$(YELLOW)Note:$(NC) This assumes you're using Azure CLI authentication (az login)."; \
+			echo -e "If using service principal auth, also set ARM_CLIENT_ID and ARM_CLIENT_SECRET."; \
+			echo -e ""; \
+			exit 1; \
 		fi; \
-	done; \
-	if [ -n "$$missing_vars" ]; then \
-		echo -e "$(YELLOW)❌ Missing required environment variables:$$missing_vars$(NC)"; \
-		echo -e ""; \
-		echo -e "$(CYAN)Run the following to set up your environment:$(NC)"; \
-		echo -e "  source ./setup-env.sh"; \
-		echo -e ""; \
-		echo -e "$(CYAN)Or export manually (Bash):$(NC)"; \
-		echo -e "  export ARM_SUBSCRIPTION_ID=<your-subscription-id>"; \
-		echo -e "  export ARM_TENANT_ID=<your-tenant-id>"; \
-		echo -e "  export TF_BACKEND_RG=<backend-resource-group>"; \
-		echo -e "  export TF_BACKEND_SA=<backend-storage-account>"; \
-		echo -e "  export TF_BACKEND_CONTAINER=<backend-container-name>"; \
-		echo -e ""; \
-		echo -e "$(CYAN)Or in Nushell:$(NC)"; \
-		echo -e "  \$$env.ARM_SUBSCRIPTION_ID = \"<your-subscription-id>\""; \
-		echo -e "  \$$env.ARM_TENANT_ID = \"<your-tenant-id>\""; \
-		echo -e "  \$$env.TF_BACKEND_RG = \"<backend-resource-group>\""; \
-		echo -e "  \$$env.TF_BACKEND_SA = \"<backend-storage-account>\""; \
-		echo -e "  \$$env.TF_BACKEND_CONTAINER = \"<backend-container-name>\""; \
-		echo -e ""; \
-		echo -e "$(YELLOW)Note:$(NC) This assumes you're using Azure CLI authentication (az login)."; \
-		echo -e "If using service principal auth, also set ARM_CLIENT_ID and ARM_CLIENT_SECRET."; \
-		echo -e ""; \
-		exit 1; \
+	else \
+		echo -e "$(CYAN)Skipping Azure env check for non-subnet-calc stack$(NC)"; \
 	fi
 
 # Setup environment
@@ -317,7 +323,7 @@ _parse-args:
 			else \
 				PARSED_COMPONENT=$$arg; \
 			fi; \
-		elif [ "$$arg" = "subnet-calc" ]; then \
+		elif [ "$$arg" = "subnet-calc" ] || [ "$$arg" = "local" ]; then \
 			PARSED_PROJECT=$$arg; \
 		elif [ -z "$$PARSED_STACK" ] && [ -n "$$PARSED_PROJECT" ]; then \
 			PARSED_STACK=$$arg; \
@@ -335,6 +341,10 @@ _parse-args:
 # Project-based routing (traditional: make subnet-calc <stack> [stage] <verb>)
 subnet-calc:
 	@$(MAKE) --no-print-directory _parse-args ARG1=subnet-calc ARG2=$(word 2,$(MAKECMDGOALS)) ARG3=$(word 3,$(MAKECMDGOALS)) ARG4=$(word 4,$(MAKECMDGOALS)) ARG5=$(word 5,$(MAKECMDGOALS))
+
+.PHONY: local
+local:
+	@$(MAKE) --no-print-directory _parse-args ARG1=local ARG2=$(word 2,$(MAKECMDGOALS)) ARG3=$(word 3,$(MAKECMDGOALS)) ARG4=$(word 4,$(MAKECMDGOALS)) ARG5=$(word 5,$(MAKECMDGOALS))
 
 # Verb-based routing (alternative: make <verb> [stage] subnet-calc <stack>)
 # Note: 'test' is excluded as it conflicts with global test target
@@ -370,6 +380,7 @@ _route:
 		echo -e "  subnet-calc/react-apim"; \
 		echo -e "  subnet-calc/internal-apim"; \
 		echo -e "  subnet-calc/static-web-apps"; \
+		echo -e "  local/kind"; \
 		exit 1; \
 	fi; \
 	echo -e "$(VALID_VERBS)" | grep -qw "$(VERB)" || { \

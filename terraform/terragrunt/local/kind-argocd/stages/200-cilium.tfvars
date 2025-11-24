@@ -16,6 +16,7 @@ kubeconfig_path  = "./.run/kubeconfig"
 # Feature Toggles - Stage 200 adds Cilium CNI only
 # -----------------------------------------------------------------------------
 
+enable_kind       = true
 enable_cilium     = true  # NEW: Cilium CNI (networking only)
 enable_hubble     = false # Hubble UI not yet enabled
 enable_namespaces = false
