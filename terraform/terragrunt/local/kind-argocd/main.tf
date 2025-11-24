@@ -4,27 +4,27 @@ terraform {
   required_providers {
     kind = {
       source  = "tehcyx/kind"
-      version = "~> 0.6.0"
+      version = "~> 0.10.0"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
-      version = "~> 2.32"
+      version = "~> 2.38"
     }
     helm = {
       source  = "hashicorp/helm"
-      version = "~> 2.12"
+      version = "~> 3.1"
     }
     tls = {
       source  = "hashicorp/tls"
-      version = "~> 4.0"
+      version = "~> 4.1"
     }
     local = {
       source  = "hashicorp/local"
-      version = "~> 2.5"
+      version = "~> 2.6"
     }
     kubectl = {
       source  = "gavinbunney/kubectl"
-      version = "~> 1.14"
+      version = "~> 1.19"
     }
     null = {
       source  = "hashicorp/null"
@@ -39,7 +39,7 @@ provider "kubernetes" {
 }
 
 provider "helm" {
-  kubernetes {
+  kubernetes = {
     config_path    = var.kubeconfig_path
     config_context = "kind-${var.cluster_name}"
   }
@@ -145,7 +145,7 @@ resource "local_file" "kind_config" {
 
 resource "kind_cluster" "local" {
   name            = var.cluster_name
-  wait_for_ready  = true
+  wait_for_ready  = var.enable_cilium  # Only wait when CNI is enabled
   kubeconfig_path = var.kubeconfig_path
   node_image      = var.node_image
 

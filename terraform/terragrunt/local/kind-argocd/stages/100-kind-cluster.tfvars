@@ -10,7 +10,7 @@ cluster_name     = "kind-local"
 worker_count     = 4
 node_image       = "kindest/node:v1.29.2"
 kind_config_path = "./kind-config.yaml"
-kubeconfig_path  = "./.run/kubeconfig"
+kubeconfig_path  = "~/.kube/config"
 
 # -----------------------------------------------------------------------------
 # Feature Toggles

@@ -43,7 +43,7 @@ STAGE ?= 000
 STAGE_DEFAULT := 000
 
 # Valid verbs for argument parsing
-VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock
+VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create
 
 # Shell function to find stage file
 # Usage: $(call find_stage_file,STAGE,STACK_DIR)
@@ -669,6 +669,24 @@ _exec-unlock: check-env
 	fi
 	@echo -e "$(YELLOW)Force unlocking state with ID: $(COMPONENT)$(NC)"
 	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) force-unlock -force $(COMPONENT)
+
+_exec-create:
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		echo -e "$(CYAN)  Creating kind cluster$(NC)"; \
+		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		cd $(STACK_DIR) && KIND_EXPERIMENTAL_PROVIDER=podman kind create cluster --name kind-local --config kind-config.yaml; \
+		echo ""; \
+		kubectl cluster-info --context kind-kind-local; \
+		echo ""; \
+		kubectl get nodes; \
+		echo ""; \
+		echo -e "$(GREEN)✓ Cluster created successfully$(NC)"; \
+		echo -e "$(YELLOW)Note: Nodes will show NotReady until Cilium is installed (stage 200)$(NC)"; \
+	else \
+		echo -e "$(YELLOW)The 'create' verb is only supported for local/kind$(NC)"; \
+		exit 1; \
+	fi
 
 # Suppress "Nothing to be done" messages for command arguments
 %:
