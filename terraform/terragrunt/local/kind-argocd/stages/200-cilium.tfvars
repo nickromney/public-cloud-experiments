@@ -1,22 +1,18 @@
-# Stage 200 - Kind Cluster + Cilium CNI
-# Adds Cilium CNI (without Hubble UI) on top of stage 100
+# Stage 200 - Cilium CNI
+# Installs Cilium CNI on the existing kind cluster (created by `make local kind create`)
 # This enables networking in the cluster
 
 # -----------------------------------------------------------------------------
 # Core Configuration
 # -----------------------------------------------------------------------------
 
-cluster_name     = "kind-local"
-worker_count     = 4
-node_image       = "kindest/node:v1.29.2"
-kind_config_path = "./kind-config.yaml"
-kubeconfig_path  = "./.run/kubeconfig"
+cluster_name    = "kind-local"
+kubeconfig_path = "~/.kube/config"
 
 # -----------------------------------------------------------------------------
 # Feature Toggles - Stage 200 adds Cilium CNI only
 # -----------------------------------------------------------------------------
 
-enable_kind       = true
 enable_cilium     = true  # NEW: Cilium CNI (networking only)
 enable_hubble     = false # Hubble UI not yet enabled
 enable_namespaces = false

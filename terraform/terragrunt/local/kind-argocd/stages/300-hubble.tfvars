@@ -1,4 +1,4 @@
-# Stage 300 - Kind Cluster + Cilium + Hubble UI
+# Stage 300 - Cilium + Hubble UI
 # Adds Hubble UI on top of stage 200 (helm upgrade to enable Hubble)
 # Provides network observability via Hubble UI at http://localhost:30007
 
@@ -6,17 +6,13 @@
 # Core Configuration
 # -----------------------------------------------------------------------------
 
-cluster_name     = "kind-local"
-worker_count     = 4
-node_image       = "kindest/node:v1.29.2"
-kind_config_path = "./kind-config.yaml"
-kubeconfig_path  = "./.run/kubeconfig"
+cluster_name    = "kind-local"
+kubeconfig_path = "~/.kube/config"
 
 # -----------------------------------------------------------------------------
 # Feature Toggles - Stage 300 adds Hubble UI
 # -----------------------------------------------------------------------------
 
-enable_kind       = true
 enable_cilium     = true
 enable_hubble     = true # NEW: Enable Hubble UI (helm upgrade)
 enable_namespaces = false

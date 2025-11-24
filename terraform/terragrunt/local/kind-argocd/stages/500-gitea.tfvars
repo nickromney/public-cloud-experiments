@@ -1,4 +1,4 @@
-# Stage 500 - Kind Cluster + Cilium + Hubble + Namespaces + Argo CD + Gitea
+# Stage 500 - Gitea
 # Adds Gitea on top of stage 400
 # Gitea is deployed via Argo CD and hosts the policy repository
 
@@ -6,17 +6,13 @@
 # Core Configuration
 # -----------------------------------------------------------------------------
 
-cluster_name     = "kind-local"
-worker_count     = 4
-node_image       = "kindest/node:v1.29.2"
-kind_config_path = "./kind-config.yaml"
-kubeconfig_path  = "./.run/kubeconfig"
+cluster_name    = "kind-local"
+kubeconfig_path = "~/.kube/config"
 
 # -----------------------------------------------------------------------------
 # Feature Toggles - Stage 500 adds Gitea
 # -----------------------------------------------------------------------------
 
-enable_kind       = true
 enable_cilium     = true
 enable_hubble     = true
 enable_namespaces = true
