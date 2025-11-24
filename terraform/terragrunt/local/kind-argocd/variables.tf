@@ -80,7 +80,7 @@ variable "gitea_admin_username" {
 }
 
 variable "gitea_admin_password" {
-  description = "Gitea admin password."
+  description = "Gitea admin password. WARNING: The default is insecure and only suitable for local development. Change this for any environment exposed to a network."
   type        = string
   default     = "ChangeMe123!"
   sensitive   = true
@@ -116,6 +116,11 @@ variable "enable_hubble" {
   description = "Enable Hubble UI (requires enable_cilium = true)."
   type        = bool
   default     = true
+
+  validation {
+    condition     = !var.enable_hubble || var.enable_cilium
+    error_message = "enable_hubble requires enable_cilium to be true, as Hubble is a component of Cilium."
+  }
 }
 
 variable "enable_namespaces" {
@@ -128,16 +133,31 @@ variable "enable_argocd" {
   description = "Enable Argo CD installation."
   type        = bool
   default     = true
+
+  validation {
+    condition     = !var.enable_argocd || var.enable_namespaces
+    error_message = "enable_argocd requires enable_namespaces to be true, as the argocd namespace must be created first."
+  }
 }
 
 variable "enable_gitea" {
   description = "Enable Gitea installation and repository setup."
   type        = bool
   default     = true
+
+  validation {
+    condition     = !var.enable_gitea || var.enable_argocd
+    error_message = "enable_gitea requires enable_argocd to be true, as Gitea is deployed via Argo CD."
+  }
 }
 
 variable "enable_policies" {
   description = "Enable Cilium and Kyverno policy deployment (requires enable_gitea = true)."
   type        = bool
   default     = true
+
+  validation {
+    condition     = !var.enable_policies || var.enable_gitea
+    error_message = "enable_policies requires enable_gitea to be true, as policies are sourced from the Gitea repository."
+  }
 }

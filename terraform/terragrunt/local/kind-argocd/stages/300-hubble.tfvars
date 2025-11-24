@@ -35,7 +35,8 @@ gitea_http_node_port    = 30090
 gitea_ssh_node_port     = 30022
 
 # -----------------------------------------------------------------------------
-# SSH Keys (required variable, not used in this stage)
+# SSH Keys (required by variable definition, not used until stage 500)
+# Placeholder values provided to satisfy variable requirements.
 # -----------------------------------------------------------------------------
 
 generate_repo_ssh_key = false

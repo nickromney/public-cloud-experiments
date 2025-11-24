@@ -626,7 +626,7 @@ EOF
 }
 
 resource "kubectl_manifest" "argocd_app_cilium_policies" {
-  count = var.enable_policies ? 1 : 0
+  count = var.enable_policies && var.enable_gitea ? 1 : 0
 
 
   yaml_body = <<EOF
@@ -662,7 +662,9 @@ EOF
   depends_on = [
     helm_release.argocd[0],
     kubernetes_namespace.cilium_team_a[0],
-    kubernetes_namespace.cilium_team_b[0]
+    kubernetes_namespace.cilium_team_b[0],
+    kubernetes_secret.argocd_repo_gitea,
+    null_resource.seed_gitea_repo
   ]
 }
 
@@ -716,7 +718,7 @@ EOF
 }
 
 resource "kubectl_manifest" "argocd_app_kyverno_policies" {
-  count = var.enable_policies ? 1 : 0
+  count = var.enable_policies && var.enable_gitea ? 1 : 0
 
 
   yaml_body = <<EOF
@@ -751,6 +753,9 @@ EOF
 
   depends_on = [
     helm_release.argocd[0],
-    kubernetes_namespace.kyverno_sandbox[0]
+    kubernetes_namespace.kyverno_sandbox[0],
+    kubectl_manifest.argocd_app_kyverno[0],
+    kubernetes_secret.argocd_repo_gitea,
+    null_resource.seed_gitea_repo
   ]
 }

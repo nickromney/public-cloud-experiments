@@ -35,7 +35,10 @@ gitea_http_node_port    = 30090
 gitea_ssh_node_port     = 30022
 
 # -----------------------------------------------------------------------------
-# SSH Keys (not used in this stage, but required for argocd namespace creation)
+# SSH Keys for Argo CD repository access
+# These variables define SSH keys for Argo CD to access private Git repositories.
+# They are not required for namespace creation, and can be left unset unless
+# you need Argo CD to access private repositories via SSH (used in stage 500).
 # -----------------------------------------------------------------------------
 
 generate_repo_ssh_key = true
