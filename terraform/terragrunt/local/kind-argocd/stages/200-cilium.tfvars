@@ -6,8 +6,9 @@
 # Core Configuration
 # -----------------------------------------------------------------------------
 
-cluster_name    = "kind-local"
-kubeconfig_path = "~/.kube/config"
+cluster_name     = "kind-local"
+kubeconfig_path  = "~/.kube/config"
+kind_config_path = "./kind-config.yaml"
 
 # -----------------------------------------------------------------------------
 # Feature Toggles - Stage 200 adds Cilium CNI only
@@ -34,7 +35,7 @@ gitea_http_node_port    = 30090
 gitea_ssh_node_port     = 30022
 
 # -----------------------------------------------------------------------------
-# SSH Keys (not used in this stage)
+# SSH Keys (required variable, not used in this stage)
 # -----------------------------------------------------------------------------
 
 generate_repo_ssh_key = false

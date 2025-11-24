@@ -7,8 +7,9 @@
 # Core Configuration
 # -----------------------------------------------------------------------------
 
-cluster_name    = "kind-local"
-kubeconfig_path = "~/.kube/config"
+cluster_name     = "kind-local"
+kubeconfig_path  = "~/.kube/config"
+kind_config_path = "./kind-config.yaml"
 
 # -----------------------------------------------------------------------------
 # Feature Toggles - Stage 600 adds all policies
