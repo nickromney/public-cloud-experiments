@@ -52,8 +52,8 @@ provider "kubectl" {
 
 locals {
   kind_workers        = range(var.worker_count)
-  gitea_known_hosts   = "${path.module}/.run/gitea_known_hosts"
-  gitea_repo_key_path = "${path.module}/.run/gitea-repo.id_ed25519"
+  gitea_known_hosts   = abspath("${path.module}/.run/gitea_known_hosts")
+  gitea_repo_key_path = abspath("${path.module}/.run/gitea-repo.id_ed25519")
   policy_files        = fileset("${path.module}/policies", "**")
   policies_checksum = sha256(join("", [
     for file in local.policy_files : filesha256("${path.module}/policies/${file}")
@@ -468,7 +468,7 @@ resource "local_sensitive_file" "gitea_repo_private_key" {
   count = var.enable_gitea ? 1 : 0
 
 
-  content              = tls_private_key.gitea_repo[0].private_key_pem
+  content              = tls_private_key.gitea_repo[0].private_key_openssh
   filename             = local.gitea_repo_key_path
   file_permission      = "0600"
   directory_permission = "0700"
@@ -486,7 +486,7 @@ resource "null_resource" "seed_gitea_repo" {
 
   provisioner "local-exec" {
     environment = {
-      GIT_SSH_COMMAND = "ssh -i ${local.gitea_repo_key_path} -o UserKnownHostsFile=${local.gitea_known_hosts} -o StrictHostKeyChecking=yes"
+      GIT_SSH_COMMAND = "ssh -i ${local.gitea_repo_key_path} -o UserKnownHostsFile=${local.gitea_known_hosts} -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes"
     }
     command     = <<EOT
 set -euo pipefail
@@ -527,7 +527,7 @@ resource "kubernetes_secret" "argocd_repo_gitea" {
 
   data = {
     url           = "ssh://git@127.0.0.1:${var.gitea_ssh_node_port}/${var.gitea_admin_username}/policies.git"
-    sshPrivateKey = tls_private_key.gitea_repo[0].private_key_pem
+    sshPrivateKey = tls_private_key.gitea_repo[0].private_key_openssh
     sshKnownHosts = data.local_file.gitea_known_hosts[0].content
     insecure      = "false"
   }
