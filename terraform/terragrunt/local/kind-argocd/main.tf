@@ -51,9 +51,10 @@ provider "kubectl" {
 }
 
 locals {
-  kind_workers        = range(var.worker_count)
-  gitea_known_hosts   = abspath("${path.module}/.run/gitea_known_hosts")
-  gitea_repo_key_path = abspath("${path.module}/.run/gitea-repo.id_ed25519")
+  kind_workers              = range(var.worker_count)
+  gitea_known_hosts         = abspath("${path.module}/.run/gitea_known_hosts")
+  gitea_known_hosts_cluster = abspath("${path.module}/.run/gitea_known_hosts_cluster")
+  gitea_repo_key_path       = abspath("${path.module}/.run/gitea-repo.id_ed25519")
   policy_files        = fileset("${path.module}/policies", "**")
   policies_checksum = sha256(join("", [
     for file in local.policy_files : filesha256("${path.module}/policies/${file}")
@@ -94,6 +95,14 @@ locals {
         type     = "NodePort"
         nodePort = var.argocd_server_node_port
       }
+    }
+    repoServer = {
+      extraEnv = [
+        {
+          name  = "ARGOCD_GIT_MODULES_ENABLED"
+          value = "false"
+        }
+      ]
     }
     redis-ha = {
       enabled = false
@@ -145,7 +154,7 @@ resource "local_file" "kind_config" {
 
 resource "kind_cluster" "local" {
   name            = var.cluster_name
-  wait_for_ready  = var.enable_cilium  # Only wait when CNI is enabled
+  wait_for_ready  = var.enable_cilium # Only wait when CNI is enabled
   kubeconfig_path = var.kubeconfig_path
   node_image      = var.node_image
 
@@ -430,9 +439,9 @@ EOT
   ]
 }
 
+# Local known_hosts for git operations from host machine (127.0.0.1:30022)
 resource "null_resource" "gitea_known_hosts" {
   count = var.enable_gitea ? 1 : 0
-
 
   triggers = {
     gitea_repo = null_resource.gitea_create_repo[0].id
@@ -458,10 +467,46 @@ EOT
   depends_on = [null_resource.gitea_create_repo[0]]
 }
 
+# Cluster-internal known_hosts for ArgoCD (gitea-ssh.gitea.svc.cluster.local:22)
+resource "null_resource" "gitea_known_hosts_cluster" {
+  count = var.enable_gitea ? 1 : 0
+
+  triggers = {
+    gitea_repo = null_resource.gitea_create_repo[0].id
+  }
+
+  provisioner "local-exec" {
+    command     = <<EOT
+set -euo pipefail
+mkdir -p "${path.module}/.run"
+for i in {1..20}; do
+  if kubectl run ssh-keyscan-$$ --image=alpine:latest --rm -i --restart=Never -q -- \
+    sh -c "apk add --no-cache openssh-client >/dev/null 2>&1 && ssh-keyscan -p 22 gitea-ssh.gitea.svc.cluster.local 2>/dev/null" \
+    > "${local.gitea_known_hosts_cluster}" 2>/dev/null && [ -s "${local.gitea_known_hosts_cluster}" ]; then
+    exit 0
+  fi
+  echo "ssh-keyscan (cluster) failed, retrying... ($i/20)" >&2
+  sleep 5
+done
+echo "Failed to capture Gitea SSH host key (cluster)" >&2
+exit 1
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+
+  depends_on = [null_resource.gitea_create_repo[0]]
+}
+
 data "local_file" "gitea_known_hosts" {
   count      = var.enable_gitea ? 1 : 0
   filename   = local.gitea_known_hosts
   depends_on = [null_resource.gitea_known_hosts[0]]
+}
+
+data "local_file" "gitea_known_hosts_cluster" {
+  count      = var.enable_gitea ? 1 : 0
+  filename   = local.gitea_known_hosts_cluster
+  depends_on = [null_resource.gitea_known_hosts_cluster[0]]
 }
 
 resource "local_sensitive_file" "gitea_repo_private_key" {
@@ -521,21 +566,22 @@ resource "kubernetes_secret" "argocd_repo_gitea" {
     name      = "repo-gitea-policies"
     namespace = var.argocd_namespace
     labels = {
-      "argocd.argoproj.io/secret-type" = "repo"
+      "argocd.argoproj.io/secret-type" = "repository"
     }
   }
 
   data = {
-    url           = "ssh://git@127.0.0.1:${var.gitea_ssh_node_port}/${var.gitea_admin_username}/policies.git"
+    type          = "git"
+    url           = "ssh://git@gitea-ssh.gitea.svc.cluster.local:22/${var.gitea_admin_username}/policies.git"
     sshPrivateKey = tls_private_key.gitea_repo[0].private_key_openssh
-    sshKnownHosts = data.local_file.gitea_known_hosts[0].content
+    sshKnownHosts = data.local_file.gitea_known_hosts_cluster[0].content
     insecure      = "false"
   }
 
   depends_on = [
     null_resource.gitea_add_deploy_key[0],
-    null_resource.gitea_known_hosts[0],
-    data.local_file.gitea_known_hosts[0],
+    null_resource.gitea_known_hosts_cluster[0],
+    data.local_file.gitea_known_hosts_cluster[0],
     null_resource.seed_gitea_repo[0],
     local_sensitive_file.kubeconfig
   ]
@@ -641,7 +687,7 @@ spec:
     namespace: ${var.argocd_namespace}
     server: https://kubernetes.default.svc
   source:
-    repoURL: ssh://git@127.0.0.1:${var.gitea_ssh_node_port}/${var.gitea_admin_username}/policies.git
+    repoURL: ssh://git@gitea-ssh.gitea.svc.cluster.local:22/${var.gitea_admin_username}/policies.git
     targetRevision: main
     path: cilium
     directory:
@@ -678,6 +724,8 @@ kind: Application
 metadata:
   name: kyverno
   namespace: ${var.argocd_namespace}
+  annotations:
+    argocd.argoproj.io/refresh: hard
 spec:
   project: default
   destination:
@@ -698,12 +746,28 @@ spec:
           replicas: 1
         cleanupController:
           replicas: 1
+        cleanupJobs:
+          admissionReports:
+            enabled: false
+          clusterAdmissionReports:
+            enabled: false
+          ephemeralReports:
+            enabled: false
+          clusterEphemeralReports:
+            enabled: false
+          updateRequests:
+            enabled: false
+        webhooksCleanup:
+          enabled: false
+        policyReportsCleanup:
+          enabled: false
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
 EOF
 
   wait              = true
@@ -733,7 +797,7 @@ spec:
     namespace: ${var.argocd_namespace}
     server: https://kubernetes.default.svc
   source:
-    repoURL: ssh://git@127.0.0.1:${var.gitea_ssh_node_port}/${var.gitea_admin_username}/policies.git
+    repoURL: ssh://git@gitea-ssh.gitea.svc.cluster.local:22/${var.gitea_admin_username}/policies.git
     targetRevision: main
     path: kyverno
     directory:
