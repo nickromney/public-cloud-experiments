@@ -55,7 +55,7 @@ locals {
   gitea_known_hosts         = abspath("${path.module}/.run/gitea_known_hosts")
   gitea_known_hosts_cluster = abspath("${path.module}/.run/gitea_known_hosts_cluster")
   gitea_repo_key_path       = abspath("${path.module}/.run/gitea-repo.id_ed25519")
-  policy_files        = fileset("${path.module}/policies", "**")
+  policy_files              = fileset("${path.module}/policies", "**")
   policies_checksum = sha256(join("", [
     for file in local.policy_files : filesha256("${path.module}/policies/${file}")
   ]))
@@ -509,6 +509,49 @@ data "local_file" "gitea_known_hosts_cluster" {
   depends_on = [null_resource.gitea_known_hosts_cluster[0]]
 }
 
+# Add Gitea SSH host key to ArgoCD's global known_hosts configmap
+resource "null_resource" "argocd_add_gitea_known_host" {
+  count = var.enable_gitea ? 1 : 0
+
+  triggers = {
+    gitea_host_key = md5(data.local_file.gitea_known_hosts_cluster[0].content)
+  }
+
+  provisioner "local-exec" {
+    command     = <<EOT
+set -euo pipefail
+export KUBECONFIG=${var.kubeconfig_path}
+
+# Get current known_hosts from configmap
+kubectl get configmap argocd-ssh-known-hosts-cm -n ${var.argocd_namespace} \
+  -o jsonpath='{.data.ssh_known_hosts}' > /tmp/argocd-known-hosts.txt
+
+# Extract any non-comment key line (supports ssh-rsa, ssh-ed25519, ecdsa, etc.)
+GITEA_KEY=$(grep -E "^[^#]" "${local.gitea_known_hosts_cluster}" | grep "gitea-ssh.gitea.svc.cluster.local" | head -1)
+
+# Check if already present
+if ! grep -q "gitea-ssh.gitea.svc.cluster.local" /tmp/argocd-known-hosts.txt; then
+  echo "$GITEA_KEY" >> /tmp/argocd-known-hosts.txt
+  kubectl create configmap argocd-ssh-known-hosts-cm -n ${var.argocd_namespace} \
+    --from-file=ssh_known_hosts=/tmp/argocd-known-hosts.txt \
+    --dry-run=client -o yaml | kubectl apply -f -
+  # Restart repo-server to pick up new known hosts
+  kubectl rollout restart deployment argocd-repo-server -n ${var.argocd_namespace}
+  kubectl rollout status deployment argocd-repo-server -n ${var.argocd_namespace} --timeout=60s
+fi
+rm -f /tmp/argocd-known-hosts.txt
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+
+  depends_on = [
+    helm_release.argocd[0],
+    null_resource.gitea_known_hosts_cluster[0],
+    data.local_file.gitea_known_hosts_cluster[0]
+  ]
+}
+
+
 resource "local_sensitive_file" "gitea_repo_private_key" {
   count = var.enable_gitea ? 1 : 0
 
@@ -710,7 +753,8 @@ EOF
     kubernetes_namespace.cilium_team_a[0],
     kubernetes_namespace.cilium_team_b[0],
     kubernetes_secret.argocd_repo_gitea,
-    null_resource.seed_gitea_repo
+    null_resource.seed_gitea_repo,
+    null_resource.argocd_add_gitea_known_host[0]
   ]
 }
 
@@ -820,6 +864,7 @@ EOF
     kubernetes_namespace.kyverno_sandbox[0],
     kubectl_manifest.argocd_app_kyverno[0],
     kubernetes_secret.argocd_repo_gitea,
-    null_resource.seed_gitea_repo
+    null_resource.seed_gitea_repo,
+    null_resource.argocd_add_gitea_known_host[0]
   ]
 }
