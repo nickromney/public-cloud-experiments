@@ -56,9 +56,11 @@ locals {
   gitea_known_hosts_cluster = abspath("${path.module}/.run/gitea_known_hosts_cluster")
   gitea_repo_key_path       = abspath("${path.module}/.run/gitea-repo.id_ed25519")
   policy_files              = fileset("${path.module}/policies", "**")
-  policies_checksum = sha256(join("", [
-    for file in local.policy_files : filesha256("${path.module}/policies/${file}")
-  ]))
+  apps_files                = fileset("${path.module}/apps", "**")
+  repo_checksum = sha256(join("", concat(
+    [for file in local.policy_files : filesha256("${path.module}/policies/${file}")],
+    [for file in local.apps_files : filesha256("${path.module}/apps/${file}")]
+  )))
   extra_port_mappings = [
     {
       name           = "argocd"
@@ -569,7 +571,7 @@ resource "null_resource" "seed_gitea_repo" {
   triggers = {
     repo_id    = null_resource.gitea_create_repo[0].id
     host_key   = md5(data.local_file.gitea_known_hosts[0].content)
-    repo_files = local.policies_checksum
+    repo_files = local.repo_checksum
   }
 
   provisioner "local-exec" {
@@ -579,11 +581,13 @@ resource "null_resource" "seed_gitea_repo" {
     command     = <<EOT
 set -euo pipefail
 TMP_DIR=$(mktemp -d)
-cp -r ${path.module}/policies/* "$TMP_DIR"/
+cp -r ${path.module}/apps "$TMP_DIR"/
+cp -r ${path.module}/policies "$TMP_DIR"/
 cd "$TMP_DIR"
 git init -q
 git config user.email "argocd@gitea.local"
 git config user.name "argocd"
+git config commit.gpgsign false
 git add .
 git commit -q -m "Seed policies"
 git branch -M main
@@ -714,16 +718,19 @@ EOF
   ]
 }
 
-resource "kubectl_manifest" "argocd_app_cilium_policies" {
+# App of Apps - root application that manages all child applications
+# Child apps are defined in apps/ and synced from Gitea
+resource "kubectl_manifest" "argocd_app_of_apps" {
   count = var.enable_policies && var.enable_gitea ? 1 : 0
-
 
   yaml_body = <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cilium-policies
+  name: app-of-apps
   namespace: ${var.argocd_namespace}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   destination:
@@ -732,9 +739,9 @@ spec:
   source:
     repoURL: ssh://git@gitea-ssh.gitea.svc.cluster.local:22/${var.gitea_admin_username}/policies.git
     targetRevision: main
-    path: cilium
+    path: apps
     directory:
-      recurse: true
+      recurse: false
   syncPolicy:
     automated:
       prune: true
@@ -750,119 +757,10 @@ EOF
 
   depends_on = [
     helm_release.argocd[0],
+    kubernetes_namespace.kyverno[0],
+    kubernetes_namespace.kyverno_sandbox[0],
     kubernetes_namespace.cilium_team_a[0],
     kubernetes_namespace.cilium_team_b[0],
-    kubernetes_secret.argocd_repo_gitea,
-    null_resource.seed_gitea_repo,
-    null_resource.argocd_add_gitea_known_host[0]
-  ]
-}
-
-resource "kubectl_manifest" "argocd_app_kyverno" {
-  count = var.enable_policies ? 1 : 0
-
-
-  yaml_body = <<EOF
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: kyverno
-  namespace: ${var.argocd_namespace}
-  annotations:
-    argocd.argoproj.io/refresh: hard
-spec:
-  project: default
-  destination:
-    namespace: ${kubernetes_namespace.kyverno[0].metadata[0].name}
-    server: https://kubernetes.default.svc
-  source:
-    repoURL: https://kyverno.github.io/kyverno/
-    chart: kyverno
-    targetRevision: 3.2.7
-    helm:
-      releaseName: kyverno
-      values: |
-        crds:
-          install: true
-        admissionController:
-          replicas: 1
-        backgroundController:
-          replicas: 1
-        cleanupController:
-          replicas: 1
-        cleanupJobs:
-          admissionReports:
-            enabled: false
-          clusterAdmissionReports:
-            enabled: false
-          ephemeralReports:
-            enabled: false
-          clusterEphemeralReports:
-            enabled: false
-          updateRequests:
-            enabled: false
-        webhooksCleanup:
-          enabled: false
-        policyReportsCleanup:
-          enabled: false
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
-EOF
-
-  wait              = true
-  validate_schema   = false
-  force_conflicts   = false
-  server_side_apply = false
-
-  depends_on = [
-    helm_release.argocd[0],
-    kubernetes_namespace.kyverno[0]
-  ]
-}
-
-resource "kubectl_manifest" "argocd_app_kyverno_policies" {
-  count = var.enable_policies && var.enable_gitea ? 1 : 0
-
-
-  yaml_body = <<EOF
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: kyverno-policies
-  namespace: ${var.argocd_namespace}
-spec:
-  project: default
-  destination:
-    namespace: ${var.argocd_namespace}
-    server: https://kubernetes.default.svc
-  source:
-    repoURL: ssh://git@gitea-ssh.gitea.svc.cluster.local:22/${var.gitea_admin_username}/policies.git
-    targetRevision: main
-    path: kyverno
-    directory:
-      recurse: true
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=false
-EOF
-
-  wait              = true
-  validate_schema   = false
-  force_conflicts   = false
-  server_side_apply = false
-
-  depends_on = [
-    helm_release.argocd[0],
-    kubernetes_namespace.kyverno_sandbox[0],
-    kubectl_manifest.argocd_app_kyverno[0],
     kubernetes_secret.argocd_repo_gitea,
     null_resource.seed_gitea_repo,
     null_resource.argocd_add_gitea_known_host[0]

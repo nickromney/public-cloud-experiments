@@ -30,7 +30,7 @@ cilium_version          = "1.18.4"
 argocd_chart_version    = "7.5.2"
 argocd_namespace        = "argocd"
 argocd_server_node_port = 30080
-hubble_ui_node_port     = 30007
+hubble_ui_node_port     = 31235
 gitea_chart_version     = "12.4.0"
 gitea_http_node_port    = 30090
 gitea_ssh_node_port     = 30022
@@ -47,7 +47,7 @@ ssh_public_key_path   = "./.run/argocd-repo.id_ed25519.pub"
 # Exposed Services
 # -----------------------------------------------------------------------------
 # - Argo CD UI: http://localhost:30080 (admin password via: kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d)
-# - Hubble UI: http://localhost:30007
+# - Hubble UI: http://localhost:31235
 # - Gitea UI: http://localhost:30090 (gitea-admin / ChangeMe123!)
 # - Gitea SSH: ssh://localhost:30022
 #
