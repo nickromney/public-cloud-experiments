@@ -52,7 +52,7 @@ variable "argocd_server_node_port" {
 variable "hubble_ui_node_port" {
   description = "NodePort to expose the Hubble UI service."
   type        = number
-  default     = 30007
+  default     = 31235
 }
 
 variable "gitea_http_node_port" {
