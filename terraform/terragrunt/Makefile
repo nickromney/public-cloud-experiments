@@ -418,7 +418,7 @@ _exec-apply: check-env
 			echo -e "$(CYAN)kind-local not found; cleaning local state and preparing stub kubeconfig$(NC)"; \
 			mkdir -p $$HOME/.kube; \
 			if [ ! -f "$$HOME/.kube/config" ]; then \
-				cat > $$HOME/.kube/config <<'EOF'\napiVersion: v1\nclusters: []\ncontexts: []\ncurrent-context: ""\nkind: Config\npreferences: {}\nusers: []\nEOF\n; \
+				printf '%s\n' 'apiVersion: v1' 'clusters: []' 'contexts: []' 'current-context: ""' 'kind: Config' 'preferences: {}' 'users: []' > $$HOME/.kube/config; \
 			fi; \
 			kubectl config set-cluster kind-kind-local --server=https://127.0.0.1:6550 --insecure-skip-tls-verify=true --kubeconfig=$$HOME/.kube/config >/dev/null; \
 			kubectl config set-credentials kind-kind-local --username=dummy --password=dummy --kubeconfig=$$HOME/.kube/config >/dev/null; \
