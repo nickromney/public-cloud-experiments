@@ -20,6 +20,8 @@ enable_namespaces = true
 enable_argocd     = true
 enable_gitea      = true # NEW: Install Gitea via Argo CD
 enable_policies   = false
+enable_azure_auth_sim = true # enable Azure auth simulation app (Argo CD)
+enable_azure_auth_ports = true
 
 # -----------------------------------------------------------------------------
 # Versions

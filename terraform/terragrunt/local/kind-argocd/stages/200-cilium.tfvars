@@ -14,12 +14,14 @@ kind_config_path = "./kind-config.yaml"
 # Feature Toggles - Stage 200 adds Cilium CNI only
 # -----------------------------------------------------------------------------
 
-enable_cilium     = true  # NEW: Cilium CNI (networking only)
+enable_cilium     = true  # Cilium CNI (networking only)
 enable_hubble     = false # Hubble UI not yet enabled
 enable_namespaces = false
 enable_argocd     = false
 enable_gitea      = false
 enable_policies   = false
+enable_azure_auth_sim = false
+enable_azure_auth_ports = true
 
 # -----------------------------------------------------------------------------
 # Versions

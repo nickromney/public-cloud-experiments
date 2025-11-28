@@ -179,7 +179,7 @@ kubectl apply -f manifests/
 open http://localhost:30080
 
 # Gitea (if already deployed)
-open http://localhost:30030
+open http://localhost:30090
 
 # Hubble UI
 open http://localhost:31235
@@ -217,9 +217,13 @@ These ports are exposed from the kind cluster to localhost:
 | Service | Port | URL |
 |---------|------|-----|
 | ArgoCD UI | 30080 | http://localhost:30080 |
-| Gitea HTTP | 30030 | http://localhost:30030 |
+| Gitea HTTP | 30090 | http://localhost:30090 |
 | Gitea SSH | 30022 | ssh://git@localhost:30022 |
 | Hubble UI | 31235 | http://localhost:31235 |
+| Stack 12 OAuth2 Proxy | 3007 | http://localhost:3007 |
+| Stack 12 Keycloak | 8180 | http://localhost:8180 |
+| Stack 12 APIM simulator | 8082 | http://localhost:8082 |
+| Stack 12 FastAPI backend | 8081 | http://localhost:8081 |
 
 ## Notes
 

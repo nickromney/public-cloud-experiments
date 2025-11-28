@@ -20,6 +20,8 @@ enable_namespaces = true # NEW: Create all namespaces
 enable_argocd     = true # NEW: Install Argo CD
 enable_gitea      = false
 enable_policies   = false
+enable_azure_auth_sim = false
+enable_azure_auth_ports = true
 
 # -----------------------------------------------------------------------------
 # Versions

@@ -35,6 +35,7 @@ get-stack-dir = $(strip $(patsubst $(1)/$(2)=%,%,$(filter $(1)/$(2)=%,$(STACK_MA
 RESOURCE_GROUP ?= rg-subnet-calc
 PERSONAL_SUB_REGION ?= uksouth
 AUTO_APPROVE ?= 0
+SKIP_AZURE_AUTH_PREREQS ?= 0
 
 # Terragrunt wrapper arguments
 TG_ARGS ?=
@@ -43,7 +44,7 @@ STAGE ?= 000
 STAGE_DEFAULT := 000
 
 # Valid verbs for argument parsing
-VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create
+VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create prereqs
 
 # Shell function to find stage file
 # Usage: $(call find_stage_file,STAGE,STACK_DIR)
@@ -139,6 +140,7 @@ help:
 	@echo -e "  make subnet-calc react-easyauth-e2e 400 plan            # Use stages/400-all.tfvars"
 	@echo -e "  make local kind 100 plan                                # Local kind/Cilium/ArgoCD staged stack"
 	@echo -e "  make local kind 200 apply AUTO_APPROVE=1                # Continue staging locally"
+	@echo -e "  make local kind prereqs                                 # Build/load Stack12 images into kind"
 	@echo -e ""
 	@echo -e "$(YELLOW)Advanced Options:$(NC)"
 	@echo -e "  make subnet-calc react-apim plan VAR_FILE=stages/200-create-observability.tfvars"
@@ -349,8 +351,8 @@ local:
 # Verb-based routing (alternative: make <verb> [stage] subnet-calc <stack>)
 # Note: 'test' is excluded as it conflicts with global test target
 # These targets only execute if they are the FIRST word in MAKECMDGOALS to prevent double-execution
-.PHONY: init plan apply destroy validate output deploy show get unlock
-init plan apply destroy validate output:
+.PHONY: init plan apply destroy validate output prereqs deploy show get unlock
+init plan apply destroy validate output prereqs:
 	@if [ "$(firstword $(MAKECMDGOALS))" = "$@" ]; then \
 		$(MAKE) --no-print-directory _parse-args ARG1=$(firstword $(MAKECMDGOALS)) ARG2=$(word 2,$(MAKECMDGOALS)) ARG3=$(word 3,$(MAKECMDGOALS)) ARG4=$(word 4,$(MAKECMDGOALS)) ARG5=$(word 5,$(MAKECMDGOALS)); \
 	fi
@@ -399,12 +401,38 @@ _exec-init: check-env
 
 _exec-plan: check-env
 	@echo -e "$(YELLOW)Planning $(STACK_DIR)...$(NC)"
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ] && [ "$(STAGE)" -ge "200" ]; then \
+		if ! kind get clusters 2>/dev/null | grep -qx "kind-local"; then \
+			echo -e "$(YELLOW)kind-local not found. Run 'make local kind 100 apply AUTO_APPROVE=1' first, then rerun the plan (plan does not auto-create the cluster).$(NC)"; \
+			exit 1; \
+		fi; \
+	fi
 	@$(call find_stage_file,$(STAGE),$(STACK_DIR)); \
 	[ -z "$(VAR_FILE)" ] || STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
 	cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) plan $$STAGE_VAR_FILE_ARG
 
 _exec-apply: check-env
 	@echo -e "$(YELLOW)Applying $(STACK_DIR)...$(NC)"
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		if ! kind get clusters 2>/dev/null | grep -qx "kind-local"; then \
+			echo -e "$(CYAN)kind-local not found; cleaning local state and preparing stub kubeconfig$(NC)"; \
+			mkdir -p $$HOME/.kube; \
+			if [ ! -f "$$HOME/.kube/config" ]; then \
+				cat > $$HOME/.kube/config <<'EOF'\napiVersion: v1\nclusters: []\ncontexts: []\ncurrent-context: ""\nkind: Config\npreferences: {}\nusers: []\nEOF\n; \
+			fi; \
+			kubectl config set-cluster kind-kind-local --server=https://127.0.0.1:6550 --insecure-skip-tls-verify=true --kubeconfig=$$HOME/.kube/config >/dev/null; \
+			kubectl config set-credentials kind-kind-local --username=dummy --password=dummy --kubeconfig=$$HOME/.kube/config >/dev/null; \
+			kubectl config set-context kind-kind-local --cluster=kind-kind-local --user=kind-kind-local --kubeconfig=$$HOME/.kube/config >/dev/null; \
+			kubectl config use-context kind-kind-local --kubeconfig=$$HOME/.kube/config >/dev/null; \
+			rm -f $(ROOT_DIR).run/local/kind-argocd/terraform.tfstate $(ROOT_DIR).run/local/kind-argocd/terraform.tfstate.backup >/dev/null 2>&1 || true; \
+			cd $(ROOT_DIR)$(STACK_DIR) && $(TERRAGRUNT) state rm kind_cluster.local local_sensitive_file.kubeconfig >/dev/null 2>&1 || true; \
+			if [ "$(STAGE)" -ge "200" ]; then \
+				echo -e "$(CYAN)Creating kind-local via stage 100 (auto-approve)$(NC)"; \
+				cd $(ROOT_DIR)$(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) apply -var-file=stages/100-kind.tfvars -auto-approve; \
+				echo -e "$(GREEN)✓ kind-local created (stage 100)$(NC)"; \
+			fi; \
+		fi; \
+	fi
 	@for resource in $(SLOW_PROVISION_RESOURCES); do \
 		if echo "$(STACK_DIR)" | grep -q "$$resource"; then \
 			case "$$resource" in \
@@ -415,6 +443,12 @@ _exec-apply: check-env
 			break; \
 		fi; \
 	done
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ] && [ "$(SKIP_AZURE_AUTH_PREREQS)" != "1" ]; then \
+		if [ "$(STAGE)" -ge "500" ]; then \
+			echo -e "$(CYAN)Running azure-auth-sim prereqs (local images build+load) before apply$(NC)"; \
+			$(MAKE) --no-print-directory local kind prereqs; \
+		fi; \
+	fi
 	@STAGE_VAR_FILE_ARG=""; \
 	$(call find_stage_file,$(STAGE),$(STACK_DIR)); \
 	[ -z "$(VAR_FILE)" ] || STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
@@ -685,6 +719,57 @@ _exec-create:
 		echo -e "$(YELLOW)Note: Nodes will show NotReady until Cilium is installed (stage 200)$(NC)"; \
 	else \
 		echo -e "$(YELLOW)The 'create' verb is only supported for local/kind$(NC)"; \
+		exit 1; \
+	fi
+
+_exec-prereqs:
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		set -euo pipefail; \
+		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		echo -e "$(CYAN)  Building + loading azure-auth-sim images into kind$(NC)"; \
+		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		cd $(REPO_ROOT)/subnet-calculator; \
+		build_image() { \
+			local image_name="$$1"; shift; \
+			if podman image exists "$$image_name"; then \
+				echo -e "$(GREEN)✔ $$image_name already present$(NC)"; \
+			else \
+				echo -e "$(YELLOW)Building $$image_name ...$(NC)"; \
+				podman build "$$@" || { echo -e "$(YELLOW)❌ Failed to build $$image_name$(NC)"; exit 1; }; \
+			fi; \
+		}; \
+		build_image localhost/subnet-calculator-api-fastapi-keycloak:latest \
+			--platform linux/amd64 \
+			-t localhost/subnet-calculator-api-fastapi-keycloak:latest \
+			-f api-fastapi-azure-function/Dockerfile api-fastapi-azure-function; \
+		build_image localhost/subnet-calculator-apim-simulator:latest \
+			--platform linux/amd64 \
+			-t localhost/subnet-calculator-apim-simulator:latest \
+			-f api-apim-simulator/Dockerfile api-apim-simulator; \
+		build_image localhost/subnet-calculator-frontend-react-protected:latest \
+			--platform linux/amd64 \
+			-t localhost/subnet-calculator-frontend-react-protected:latest \
+			-f frontend-react/Dockerfile . \
+			--build-arg VITE_API_URL=http://localhost:8082 \
+			--build-arg VITE_API_PROXY_ENABLED=false \
+			--build-arg VITE_AUTH_METHOD=oidc \
+			--build-arg VITE_OIDC_AUTHORITY=http://localhost:8180/realms/subnet-calculator \
+			--build-arg VITE_OIDC_CLIENT_ID=frontend-app \
+			--build-arg VITE_OIDC_REDIRECT_URI=http://localhost:3007 \
+			--build-arg VITE_APIM_SUBSCRIPTION_KEY=azure-auth-demo-key \
+			--build-arg VITE_OIDC_AUTO_LOGIN=true; \
+		if ! kind get clusters 2>/dev/null | grep -qx "kind-local"; then \
+			echo -e "$(YELLOW)❌ kind-local cluster not found. Run 'make local kind 100 apply AUTO_APPROVE=1' first.$(NC)"; \
+			exit 1; \
+		fi; \
+		echo -e "$(CYAN)Loading images into kind-local ...$(NC)"; \
+		kind load docker-image --name kind-local \
+			localhost/subnet-calculator-api-fastapi-keycloak:latest \
+			localhost/subnet-calculator-apim-simulator:latest \
+			localhost/subnet-calculator-frontend-react-protected:latest; \
+		echo -e "$(GREEN)✓ Images loaded into kind-local$(NC)"; \
+	else \
+		echo -e "$(YELLOW)The 'prereqs' verb is only supported for local/kind$(NC)"; \
 		exit 1; \
 	fi
 

@@ -21,6 +21,8 @@ enable_namespaces = true
 enable_argocd     = true
 enable_gitea      = true
 enable_policies   = true # NEW: Deploy Cilium policies, Kyverno, and Kyverno policies
+enable_azure_auth_sim = true
+enable_azure_auth_ports = true
 
 # -----------------------------------------------------------------------------
 # Versions

@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: azure-auth-sim
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    namespace: azure-auth-sim
+    server: https://kubernetes.default.svc
+  source:
+    repoURL: ssh://git@gitea-ssh.gitea.svc.cluster.local:22/gitea-admin/policies.git
+    targetRevision: main
+    path: apps/azure-auth-sim
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

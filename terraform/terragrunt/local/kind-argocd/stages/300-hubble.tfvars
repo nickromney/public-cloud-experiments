@@ -15,11 +15,13 @@ kind_config_path = "./kind-config.yaml"
 # -----------------------------------------------------------------------------
 
 enable_cilium     = true
-enable_hubble     = true # NEW: Enable Hubble UI (helm upgrade)
+enable_hubble     = true # Enable Hubble UI (helm upgrade)
 enable_namespaces = false
 enable_argocd     = false
 enable_gitea      = false
 enable_policies   = false
+enable_azure_auth_sim = false
+enable_azure_auth_ports = true
 
 # -----------------------------------------------------------------------------
 # Versions

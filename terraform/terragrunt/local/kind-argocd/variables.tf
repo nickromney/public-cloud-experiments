@@ -25,6 +25,12 @@ variable "kubeconfig_path" {
   type        = string
 }
 
+variable "kubeconfig_context" {
+  description = "Kubeconfig context to use for Kubernetes/Helm providers (empty string to use current context)."
+  type        = string
+  default     = ""
+}
+
 variable "cilium_version" {
   description = "Cilium Helm chart version to install."
   type        = string
@@ -53,6 +59,60 @@ variable "hubble_ui_node_port" {
   description = "NodePort to expose the Hubble UI service."
   type        = number
   default     = 31235
+}
+
+variable "azure_auth_namespace" {
+  description = "Namespace for the azure auth simulation workload (Keycloak + OAuth2 Proxy + APIM simulator)."
+  type        = string
+  default     = "azure-auth-sim"
+}
+
+variable "azure_auth_oauth2_proxy_host_port" {
+  description = "Host port to expose the azure auth simulation OAuth2 Proxy service."
+  type        = number
+  default     = 3007
+}
+
+variable "azure_auth_oauth2_proxy_node_port" {
+  description = "NodePort to expose the azure auth simulation OAuth2 Proxy service."
+  type        = number
+  default     = 30070
+}
+
+variable "azure_auth_apim_host_port" {
+  description = "Host port to expose the azure auth simulation APIM simulator."
+  type        = number
+  default     = 8082
+}
+
+variable "azure_auth_apim_node_port" {
+  description = "NodePort to expose the azure auth simulation APIM simulator."
+  type        = number
+  default     = 30082
+}
+
+variable "azure_auth_api_host_port" {
+  description = "Host port to expose the azure auth simulation FastAPI backend."
+  type        = number
+  default     = 8081
+}
+
+variable "azure_auth_api_node_port" {
+  description = "NodePort to expose the azure auth simulation FastAPI backend."
+  type        = number
+  default     = 30081
+}
+
+variable "azure_auth_keycloak_host_port" {
+  description = "Host port to expose Keycloak for azure auth simulation."
+  type        = number
+  default     = 8180
+}
+
+variable "azure_auth_keycloak_node_port" {
+  description = "NodePort to expose Keycloak for azure auth simulation."
+  type        = number
+  default     = 30180
 }
 
 variable "gitea_http_node_port" {
@@ -160,4 +220,21 @@ variable "enable_policies" {
     condition     = !var.enable_policies || var.enable_gitea
     error_message = "enable_policies requires enable_gitea to be true, as policies are sourced from the Gitea repository."
   }
+}
+
+variable "enable_azure_auth_sim" {
+  description = "Enable deployment of the azure auth simulation (Keycloak + OAuth2 Proxy + APIM simulator + protected frontend)."
+  type        = bool
+  default     = true
+
+  validation {
+    condition     = !var.enable_azure_auth_sim || (var.enable_gitea && var.enable_argocd)
+    error_message = "enable_azure_auth_sim requires enable_gitea and enable_argocd to be true because the workload is deployed via Argo CD from the seeded repository."
+  }
+}
+
+variable "enable_azure_auth_ports" {
+  description = "Expose azure auth simulation NodePorts/host ports on the kind control plane. Keep this true from stage 100 onward to avoid cluster recreation when enabling the workload later."
+  type        = bool
+  default     = true
 }
