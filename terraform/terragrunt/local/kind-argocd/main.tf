@@ -33,25 +33,9 @@ terraform {
   }
 }
 
-provider "kubernetes" {
-  config_path    = var.kubeconfig_path
-  config_context = "kind-${var.cluster_name}"
-}
-
-provider "helm" {
-  kubernetes = {
-    config_path    = var.kubeconfig_path
-    config_context = "kind-${var.cluster_name}"
-  }
-}
-
-provider "kubectl" {
-  config_path    = var.kubeconfig_path
-  config_context = "kind-${var.cluster_name}"
-}
-
 locals {
   kind_workers              = range(var.worker_count)
+  kubeconfig_path_expanded  = abspath(pathexpand(var.kubeconfig_path))
   gitea_known_hosts         = abspath("${path.module}/.run/gitea_known_hosts")
   gitea_known_hosts_cluster = abspath("${path.module}/.run/gitea_known_hosts_cluster")
   gitea_repo_key_path       = abspath("${path.module}/.run/gitea-repo.id_ed25519")
@@ -61,7 +45,7 @@ locals {
     [for file in local.policy_files : filesha256("${path.module}/policies/${file}")],
     [for file in local.apps_files : filesha256("${path.module}/apps/${file}")]
   )))
-  extra_port_mappings = [
+  extra_port_mappings = concat([
     {
       name           = "argocd"
       container_port = var.argocd_server_node_port
@@ -86,7 +70,32 @@ locals {
       host_port      = var.hubble_ui_node_port
       protocol       = "TCP"
     },
-  ]
+    ], var.enable_azure_auth_ports ? [
+    {
+      name           = "azure-auth-sim-oauth2-proxy"
+      container_port = var.azure_auth_oauth2_proxy_node_port
+      host_port      = var.azure_auth_oauth2_proxy_host_port
+      protocol       = "TCP"
+    },
+    {
+      name           = "azure-auth-sim-apim"
+      container_port = var.azure_auth_apim_node_port
+      host_port      = var.azure_auth_apim_host_port
+      protocol       = "TCP"
+    },
+    {
+      name           = "azure-auth-sim-api"
+      container_port = var.azure_auth_api_node_port
+      host_port      = var.azure_auth_api_host_port
+      protocol       = "TCP"
+    },
+    {
+      name           = "azure-auth-sim-keycloak"
+      container_port = var.azure_auth_keycloak_node_port
+      host_port      = var.azure_auth_keycloak_host_port
+      protocol       = "TCP"
+    },
+  ] : [])
 
   argocd_values = {
     controller = {
@@ -146,6 +155,23 @@ locals {
   cilium_values = merge(local.cilium_values_base, local.hubble_values)
 }
 
+provider "kubernetes" {
+  config_path    = local.kubeconfig_path_expanded
+  config_context = length(trimspace(var.kubeconfig_context)) > 0 ? var.kubeconfig_context : null
+}
+
+provider "helm" {
+  kubernetes = {
+    config_path    = local.kubeconfig_path_expanded
+    config_context = length(trimspace(var.kubeconfig_context)) > 0 ? var.kubeconfig_context : null
+  }
+}
+
+provider "kubectl" {
+  config_path    = local.kubeconfig_path_expanded
+  config_context = length(trimspace(var.kubeconfig_context)) > 0 ? var.kubeconfig_context : null
+}
+
 resource "local_file" "kind_config" {
   filename = var.kind_config_path
   content = templatefile("${path.module}/templates/kind-config.yaml.tpl", {
@@ -156,8 +182,8 @@ resource "local_file" "kind_config" {
 
 resource "kind_cluster" "local" {
   name            = var.cluster_name
-  wait_for_ready  = var.enable_cilium # Only wait when CNI is enabled
-  kubeconfig_path = var.kubeconfig_path
+  wait_for_ready  = false # avoid replacements between stages; kubernetes provider connects once API is up
+  kubeconfig_path = local.kubeconfig_path_expanded
   node_image      = var.node_image
 
   kind_config {
@@ -193,7 +219,7 @@ resource "kind_cluster" "local" {
 
 resource "local_sensitive_file" "kubeconfig" {
   content              = kind_cluster.local.kubeconfig
-  filename             = var.kubeconfig_path
+  filename             = local.kubeconfig_path_expanded
   file_permission      = "0600"
   directory_permission = "0700"
   depends_on           = [kind_cluster.local]
@@ -721,7 +747,7 @@ EOF
 # App of Apps - root application that manages all child applications
 # Child apps are defined in apps/ and synced from Gitea
 resource "kubectl_manifest" "argocd_app_of_apps" {
-  count = var.enable_policies && var.enable_gitea ? 1 : 0
+  count = var.enable_gitea && (var.enable_policies || var.enable_azure_auth_sim) ? 1 : 0
 
   yaml_body = <<EOF
 apiVersion: argoproj.io/v1alpha1
