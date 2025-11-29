@@ -756,7 +756,7 @@ _exec-prereqs:
 			--build-arg VITE_OIDC_AUTHORITY=http://localhost:8180/realms/subnet-calculator \
 			--build-arg VITE_OIDC_CLIENT_ID=frontend-app \
 			--build-arg VITE_OIDC_REDIRECT_URI=http://localhost:3007 \
-			--build-arg VITE_APIM_SUBSCRIPTION_KEY=azure-auth-demo-key \
+			--build-arg VITE_APIM_SUBSCRIPTION_KEY=stack12-demo-key \
 			--build-arg VITE_OIDC_AUTO_LOGIN=true; \
 		if ! kind get clusters 2>/dev/null | grep -qx "kind-local"; then \
 			echo -e "$(YELLOW)❌ kind-local cluster not found. Run 'make local kind 100 apply AUTO_APPROVE=1' first.$(NC)"; \
