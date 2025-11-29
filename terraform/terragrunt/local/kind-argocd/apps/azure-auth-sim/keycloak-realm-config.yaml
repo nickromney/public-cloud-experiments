@@ -32,9 +32,6 @@ data:
           "publicClient": false,
           "secret": "frontend-secret",
           "protocol": "openid-connect",
-          "attributes": {
-            "pkce.code.challenge.method": "S256"
-          },
           "directAccessGrantsEnabled": false,
           "standardFlowEnabled": true,
           "implicitFlowEnabled": false,

@@ -25,14 +25,14 @@ spec:
             # OIDC Provider (Keycloak)
             # Note: client-secret passed via OAUTH2_PROXY_CLIENT_SECRET env var
             - --provider=oidc
-            - --oidc-issuer-url=http://localhost:8180/realms/subnet-calculator
+            - --oidc-issuer-url=http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator
             - --client-id=frontend-app
             - --redirect-url=http://localhost:3007/oauth2/callback
             - --code-challenge-method=S256
 
             # Skip discovery and pin endpoints to the Keycloak service
             - --skip-oidc-discovery=true
-            - --login-url=http://localhost:8180/realms/subnet-calculator/protocol/openid-connect/auth
+            - --login-url=http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/auth
             - --redeem-url=http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/token
             - --oidc-jwks-url=http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
             - --validate-url=http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/userinfo
