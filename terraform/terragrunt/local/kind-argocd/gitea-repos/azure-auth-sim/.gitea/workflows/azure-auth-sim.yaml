@@ -26,6 +26,7 @@ jobs:
         env:
           KEY_B64: ${{ secrets.CHECKOUT_SSH_KEY_B64 }}
           KNOWN_B64: ${{ secrets.CHECKOUT_KNOWN_HOSTS_B64 }}
+          REGISTRY_CA_B64: ${{ secrets.REGISTRY_CA_B64 }}
         run: |
           echo "${KEY_B64}" | base64 -d > /tmp/ci_key
           chmod 600 /tmp/ci_key
@@ -42,6 +43,9 @@ jobs:
             echo "known_hosts<<EOF"
             cat /tmp/ci_known_hosts
             echo "EOF"
+            echo "registry_ca<<EOF"
+            echo "${REGISTRY_CA_B64}" | base64 -d
+            echo "EOF"
           } >> "$GITHUB_OUTPUT"
       - name: Clone repo via SSH
         run: |
@@ -52,6 +56,9 @@ jobs:
       - name: Docker info
         working-directory: /workspace/azure-auth-sim
         run: |
+          install -d /etc/docker/certs.d/host.containers.internal:30090
+          echo "${{ steps.prep_ssh.outputs.registry_ca }}" > /etc/docker/certs.d/host.containers.internal:30090/ca.crt
+          cat /etc/docker/certs.d/host.containers.internal:30090/ca.crt >> /etc/ssl/certs/ca-certificates.crt || true
           docker info
 
       - name: Install binfmt for amd64
