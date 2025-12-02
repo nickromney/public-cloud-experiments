@@ -43,20 +43,19 @@ jobs:
             cat /tmp/ci_known_hosts
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
-      - name: Checkout (SSH)
-        uses: actions/checkout@v4
-        with:
-          repository: ssh://git@host.containers.internal:30022/gitea-admin/azure-auth-sim
-          ref: main
-          ssh-key: ${{ steps.prep_ssh.outputs.ssh_key }}
-          ssh-known-hosts: ${{ steps.prep_ssh.outputs.known_hosts }}
-          persist-credentials: false
-          fetch-depth: 1
+      - name: Clone repo via SSH
+        run: |
+          GIT_SSH_COMMAND="ssh -i /tmp/ci_key -o UserKnownHostsFile=/tmp/ci_known_hosts -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -p 30022" \
+            git clone ssh://git@host.containers.internal:30022/gitea-admin/azure-auth-sim /workspace/azure-auth-sim
+          cd /workspace/azure-auth-sim
+          git checkout main
       - name: Docker info
+        working-directory: /workspace/azure-auth-sim
         run: |
           docker info
 
       - name: Install binfmt for amd64
+        working-directory: /workspace/azure-auth-sim
         run: |
           docker run --privileged --rm --pull=always tonistiigi/binfmt:latest --install linux/amd64
 
@@ -75,8 +74,8 @@ jobs:
       - name: Build FastAPI (Keycloak)
         uses: docker/build-push-action@v6
         with:
-          context: api-fastapi-azure-function
-          file: api-fastapi-azure-function/Dockerfile
+          context: /workspace/azure-auth-sim/api-fastapi-azure-function
+          file: /workspace/azure-auth-sim/api-fastapi-azure-function/Dockerfile
           tags: |
             ${{ env.REGISTRY_HOST }}/gitea-admin/azure-auth-sim-api:latest
           push: true
@@ -86,8 +85,8 @@ jobs:
       - name: Build APIM simulator
         uses: docker/build-push-action@v6
         with:
-          context: api-apim-simulator
-          file: api-apim-simulator/Dockerfile
+          context: /workspace/azure-auth-sim/api-apim-simulator
+          file: /workspace/azure-auth-sim/api-apim-simulator/Dockerfile
           tags: |
             ${{ env.REGISTRY_HOST }}/gitea-admin/azure-auth-sim-apim:latest
           push: true
@@ -97,8 +96,8 @@ jobs:
       - name: Build protected frontend
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: frontend-react/Dockerfile
+          context: /workspace/azure-auth-sim
+          file: /workspace/azure-auth-sim/frontend-react/Dockerfile
           tags: |
             ${{ env.REGISTRY_HOST }}/gitea-admin/azure-auth-sim-frontend:latest
           push: true
