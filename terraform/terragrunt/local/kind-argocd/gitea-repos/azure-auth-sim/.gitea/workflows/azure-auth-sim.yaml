@@ -1,0 +1,117 @@
+name: Build azure-auth-sim images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - api-apim-simulator/**
+      - api-fastapi-azure-function/**
+      - frontend-react/**
+      - shared-frontend/**
+      - .gitea/workflows/**
+  workflow_dispatch:
+
+env:
+  REGISTRY_HOST: host.containers.internal:30090
+  REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+  REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+  DOCKER_HOST: tcp://host.containers.internal:23750
+
+jobs:
+  build:
+    runs-on: [ubuntu-latest]
+    steps:
+      - name: Prepare SSH key
+        id: prep_ssh
+        env:
+          KEY_B64: ${{ secrets.CHECKOUT_SSH_KEY_B64 }}
+          KNOWN_B64: ${{ secrets.CHECKOUT_KNOWN_HOSTS_B64 }}
+        run: |
+          echo "${KEY_B64}" | base64 -d > /tmp/ci_key
+          chmod 600 /tmp/ci_key
+          echo "${KNOWN_B64}" | base64 -d > /tmp/ci_known_hosts
+          ls -l /tmp/ci_key /tmp/ci_known_hosts
+          if [ ! -s /tmp/ci_key ] || [ ! -s /tmp/ci_known_hosts ]; then
+            echo "Decoded SSH key or known_hosts is empty" >&2
+            exit 1
+          fi
+          {
+            echo "ssh_key<<EOF"
+            cat /tmp/ci_key
+            echo "EOF"
+            echo "known_hosts<<EOF"
+            cat /tmp/ci_known_hosts
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Checkout (SSH)
+        uses: actions/checkout@v4
+        with:
+          repository: ssh://git@host.containers.internal:30022/gitea-admin/azure-auth-sim
+          ref: main
+          ssh-key: ${{ steps.prep_ssh.outputs.ssh_key }}
+          ssh-known-hosts: ${{ steps.prep_ssh.outputs.known_hosts }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Docker info
+        run: |
+          docker info
+
+      - name: Install binfmt for amd64
+        run: |
+          docker run --privileged --rm --pull=always tonistiigi/binfmt:latest --install linux/amd64
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
+
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY_HOST }}
+          username: ${{ env.REGISTRY_USERNAME }}
+          password: ${{ env.REGISTRY_PASSWORD }}
+
+      - name: Build FastAPI (Keycloak)
+        uses: docker/build-push-action@v6
+        with:
+          context: api-fastapi-azure-function
+          file: api-fastapi-azure-function/Dockerfile
+          tags: |
+            ${{ env.REGISTRY_HOST }}/gitea-admin/azure-auth-sim-api:latest
+          push: true
+          provenance: false
+          platforms: linux/amd64
+
+      - name: Build APIM simulator
+        uses: docker/build-push-action@v6
+        with:
+          context: api-apim-simulator
+          file: api-apim-simulator/Dockerfile
+          tags: |
+            ${{ env.REGISTRY_HOST }}/gitea-admin/azure-auth-sim-apim:latest
+          push: true
+          provenance: false
+          platforms: linux/amd64
+
+      - name: Build protected frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend-react/Dockerfile
+          tags: |
+            ${{ env.REGISTRY_HOST }}/gitea-admin/azure-auth-sim-frontend:latest
+          push: true
+          provenance: false
+          platforms: linux/amd64
+          build-args: |
+            VITE_API_URL=http://localhost:8082
+            VITE_API_PROXY_ENABLED=false
+            VITE_AUTH_METHOD=oidc
+            VITE_OIDC_AUTHORITY=http://localhost:8180/realms/subnet-calculator
+            VITE_OIDC_CLIENT_ID=frontend-app
+            VITE_OIDC_REDIRECT_URI=http://localhost:3007
+            VITE_APIM_SUBSCRIPTION_KEY=stack12-demo-key
+            VITE_OIDC_AUTO_LOGIN=true
+            NODE_OPTIONS=--max-old-space-size=1024
+          outputs: type=registry,registry.insecure=true
