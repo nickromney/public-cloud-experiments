@@ -17,7 +17,9 @@ GITEA_ADMIN_PASS="${GITEA_ADMIN_PASS:-ChangeMe123!}"
 REGISTRY="${REGISTRY:-localhost:3000}"
 SSH_KEY="${RUN_DIR}/argocd-repo.id_ed25519"
 KNOWN_HOSTS="${RUN_DIR}/gitea_known_hosts"
-RUNNER_IMAGE="${RUNNER_IMAGE:-ghcr.io/catthehacker/ubuntu:act-22.04}"
+RUNNER_IMAGE="${RUNNER_IMAGE:-ghcr.io/catthehacker/ubuntu:full-24.04}"
+RUNNER_EXECUTOR="${RUNNER_EXECUTOR:-docker}"
+RUNNER_PLATFORM="${RUNNER_PLATFORM:-linux/arm64}"
 REGISTRY_HOST_INTERNAL="${REGISTRY_HOST_INTERNAL:-host.containers.internal:3000}"
 HOST_DOCKER_SOCK="${HOST_DOCKER_SOCK:-/var/run/docker.sock}"
 CONTAINER_DOCKER_SOCK="/run/podman/podman.sock"
@@ -67,7 +69,7 @@ log:
 runner:
   file: .runner
   capacity: 1
-  executor: host
+  executor: ${RUNNER_EXECUTOR}
   envs:
     GIT_SSL_CAINFO: "${ROOT_DIR}/certs/ca.crt"
     CURL_CA_BUNDLE: "${ROOT_DIR}/certs/ca.crt"
@@ -82,6 +84,16 @@ runner:
     - "self-hosted"
     - "local"
     - "darwin"
+  docker:
+    image: "${RUNNER_IMAGE}"
+    platform: "${RUNNER_PLATFORM}"
+    privileged: true
+    options:
+      - "--volume=${docker_sock_real}:${docker_sock_real}"
+      - "--env=DOCKER_HOST=unix://${docker_sock_real}"
+      - "--env=GIT_SSL_CAINFO=${ROOT_DIR}/certs/ca.crt"
+      - "--env=CURL_CA_BUNDLE=${ROOT_DIR}/certs/ca.crt"
+      - "--env=SSL_CERT_FILE=${ROOT_DIR}/certs/ca.crt"
 cache:
   enabled: true
 EOF
