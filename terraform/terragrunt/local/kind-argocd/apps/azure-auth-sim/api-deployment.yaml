@@ -17,10 +17,12 @@ spec:
         app.kubernetes.io/name: api-fastapi-keycloak
         app.kubernetes.io/component: backend
     spec:
+      imagePullSecrets:
+        - name: gitea-registry-creds
       containers:
         - name: api-fastapi-keycloak
-          image: localhost/subnet-calculator-api-fastapi-keycloak:latest
-          imagePullPolicy: IfNotPresent
+          image: host.containers.internal:3000/gitea-admin/azure-auth-sim-api:latest
+          imagePullPolicy: Always
           env:
             - name: AUTH_METHOD
               value: oidc
