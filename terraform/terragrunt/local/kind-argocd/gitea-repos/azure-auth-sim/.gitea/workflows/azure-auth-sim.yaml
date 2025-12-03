@@ -22,6 +22,9 @@ env:
 jobs:
   build:
     runs-on: [self-hosted, local]
+    container:
+      image: ghcr.io/catthehacker/ubuntu:full-24.04
+      options: --entrypoint ""
     defaults:
       run:
         shell: sh
