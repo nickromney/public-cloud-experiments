@@ -60,8 +60,8 @@ jobs:
       - name: Clone repo via SSH
         run: |
           GIT_SSH_COMMAND="ssh -i /tmp/ci_key -o UserKnownHostsFile=/tmp/ci_known_hosts -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -p 30022" \
-            git clone ssh://gitea-admin@127.0.0.1:30022/gitea-admin/azure-auth-sim \"${WORKSPACE_DIR}\"
-          cd \"${WORKSPACE_DIR}\"
+            git clone ssh://gitea-admin@127.0.0.1:30022/gitea-admin/azure-auth-sim "${WORKSPACE_DIR}"
+          cd "${WORKSPACE_DIR}"
           git checkout main
       - name: Docker info
         working-directory: ${{ env.WORKSPACE_DIR }}
@@ -85,11 +85,6 @@ jobs:
             cat /tmp/registry-ca.crt >> /etc/ssl/certs/ca-certificates.crt || true
           fi
           docker info
-
-      - name: Install binfmt for amd64
-        working-directory: ${{ env.WORKSPACE_DIR }}
-        run: |
-          podman machine ssh -- sudo podman run --privileged --rm --pull=always tonistiigi/binfmt:latest --install linux/amd64
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -167,5 +162,5 @@ jobs:
             VITE_APIM_SUBSCRIPTION_KEY=stack12-demo-key
             VITE_OIDC_AUTO_LOGIN=true
             NODE_OPTIONS=--max-old-space-size=1024
-          outputs: type=registry,registry.insecure=true
+          outputs: type=registry
           pull: false

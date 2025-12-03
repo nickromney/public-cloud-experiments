@@ -10,6 +10,8 @@ services:
       - GITEA__database__DB_TYPE=sqlite3
       - GITEA__database__PATH=/data/gitea/gitea.db
       - GITEA__security__INSTALL_LOCK=true
+      # WARNING: SECRET_KEY is hardcoded for local development only.
+      # You MUST change this value for any non-local or production environment!
       - GITEA__security__SECRET_KEY=local-dev-secret
       - GITEA__server__PROTOCOL=https
       - GITEA__server__DOMAIN=host.containers.internal

@@ -44,7 +44,6 @@ make local kind 400 apply AUTO_APPROVE=1   # install Cilium
 make local kind 500 apply AUTO_APPROVE=1   # enable Hubble UI
 make local kind 600 apply AUTO_APPROVE=1   # namespaces + Argo CD
 make local kind 700 apply AUTO_APPROVE=1   # policies (optional)
-make local kind 800 apply AUTO_APPROVE=1   # (reserved)
 make local kind 900 apply AUTO_APPROVE=1   # azure-auth-sim (expects images built via CI)
 ```
 

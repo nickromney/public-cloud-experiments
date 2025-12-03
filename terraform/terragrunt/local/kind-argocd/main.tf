@@ -61,7 +61,13 @@ locals {
     var.enable_azure_auth_sim ? [] : ["azure-auth-sim", "azure-auth-sim.yaml"],
     var.enable_actions_runner ? [] : ["gitea-actions-runner.yaml"]
   )
-  apps_files = [for file in local.apps_files_all : file if length([for prefix in local.apps_skip_prefixes : prefix if startswith(file, prefix)]) == 0]
+  apps_files = [
+    for file in local.apps_files_all : file
+    if length([
+      for prefix in local.apps_skip_prefixes : prefix
+      if file == prefix || startswith(file, "${prefix}/")
+    ]) == 0
+  ]
   azure_auth_repo_dirs = [
     "api-apim-simulator",
     "api-fastapi-azure-function",
@@ -222,7 +228,8 @@ data "http" "external_gitea_health" {
     Accept = "application/json"
   }
 
-  # Homebrew Gitea uses a self-signed cert; skip verification for local dev
+  # WARNING: insecure=true skips TLS verification. Only use for local dev with self-signed certs.
+  # For production, configure proper CA trust and set insecure=false.
   insecure = true
 
   retry {
@@ -916,7 +923,7 @@ resource "kubernetes_secret" "argocd_repo_gitea" {
 
   lifecycle {
     precondition {
-      condition     = !var.use_external_gitea || (length(data.http.external_gitea_health) > 0 && data.http.external_gitea_health[0].status_code < 500)
+      condition     = !var.use_external_gitea || (length(data.http.external_gitea_health) > 0 && data.http.external_gitea_health[0].status_code == 200)
       error_message = "External Gitea is not reachable at ${var.gitea_http_scheme}://${var.gitea_http_host_local}:${var.gitea_http_port}. Start it before applying."
     }
   }

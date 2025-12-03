@@ -271,17 +271,13 @@ ensure_ssh_material() {
       fi
       sleep 2
     done
+    # Fallback: try podman machine ssh for host.containers.internal if direct keyscan failed
     if [ "${added}" -eq 0 ] && [ "${host}" = "host.containers.internal" ] && command -v podman >/dev/null 2>&1; then
       if podman machine inspect >/dev/null 2>&1; then
         podman machine ssh -- ssh-keyscan -t rsa -p "${GITEA_SSH_PORT}" host.containers.internal >> "${KNOWN_HOSTS}" 2>/dev/null && ok=1 || true
       fi
     fi
   done
-  if [ "${ok}" -eq 0 ] && command -v podman >/dev/null 2>&1; then
-    if podman machine inspect >/dev/null 2>&1; then
-      podman machine ssh -- ssh-keyscan -t rsa -p "${GITEA_SSH_PORT}" host.containers.internal >> "${KNOWN_HOSTS}" 2>/dev/null && ok=1 || true
-    fi
-  fi
   if [ "${ok}" -eq 0 ]; then
     echo "Failed to capture SSH host keys for Gitea" >&2
     exit 1
@@ -314,7 +310,7 @@ seed_repo() {
     git config commit.gpgsign false && \
     git add . && git commit -q -m "Seed ${name}" && \
     git branch -M main && \
-    GIT_SSH_COMMAND="ssh -i ${SSH_KEY} -o IdentitiesOnly=yes -o UserKnownHostsFile=${KNOWN_HOSTS} -o StrictHostKeyChecking=yes -o HostkeyAlgorithms=ssh-rsa,rsa-sha2-256,rsa-sha2-512 -o PubkeyAcceptedAlgorithms=ssh-ed25519,ssh-rsa,rsa-sha2-256,rsa-sha2-512" \
+    GIT_SSH_COMMAND="ssh -i ${SSH_KEY} -o IdentitiesOnly=yes -o UserKnownHostsFile=${KNOWN_HOSTS} -o StrictHostKeyChecking=yes -o HostKeyAlgorithms=ssh-rsa,rsa-sha2-256,rsa-sha2-512 -o PubkeyAcceptedAlgorithms=ssh-ed25519,ssh-rsa,rsa-sha2-256,rsa-sha2-512" \
       git push -f "ssh://${GITEA_SSH_USER}@${GITEA_SSH_HOST}:${GITEA_SSH_PORT}/${GITEA_ADMIN_USER}/${name}.git" main)
   rm -rf "${tmp}"
 }

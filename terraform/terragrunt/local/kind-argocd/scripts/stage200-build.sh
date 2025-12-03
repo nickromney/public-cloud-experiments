@@ -29,7 +29,14 @@ trap cleanup EXIT
 
 ensure_runner_token() {
   for i in {1..10}; do
-    token=$(curl -sk -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" -X POST \
+    # Use CA cert for TLS verification if available, otherwise fall back to insecure for local dev
+    local curl_opts="-s"
+    if [ -f "${ROOT_DIR}/certs/ca.crt" ]; then
+      curl_opts="${curl_opts} --cacert ${ROOT_DIR}/certs/ca.crt"
+    else
+      curl_opts="${curl_opts} -k"
+    fi
+    token=$(curl ${curl_opts} -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" -X POST \
       "${GITEA_HTTP_HOST}/api/v1/admin/actions/runners/registration-token" | jq -r '.token // empty')
     if [ -n "${token}" ]; then
       echo "${token}"
@@ -67,7 +74,7 @@ runner:
     DOCKER_HOST: "unix://${docker_sock_real}"
   timeout: 3h
   shutdown_timeout: 0s
-  insecure: true
+  insecure: false
   fetch_timeout: 5s
   fetch_interval: 2s
   labels:
@@ -139,13 +146,11 @@ trigger_workflow() {
   git config user.email "argocd@gitea.local"
   git config user.name "argocd"
   git config commit.gpgsign false
-  # Remove explicit shell definition to let runner decide
+  # Remove explicit shell definitions (more precise pattern to match YAML shell: directives)
   if [ "$(uname)" = "Darwin" ]; then
-      sed -i '' '/shell: sh/d' .gitea/workflows/azure-auth-sim.yaml || true
-      sed -i '' '/shell: bash/d' .gitea/workflows/azure-auth-sim.yaml || true
+      sed -i '' '/^[[:space:]]*shell:[[:space:]]*\(sh\|bash\)[[:space:]]*$/d' .gitea/workflows/azure-auth-sim.yaml || true
   else
-      sed -i '/shell: sh/d' .gitea/workflows/azure-auth-sim.yaml || true
-      sed -i '/shell: bash/d' .gitea/workflows/azure-auth-sim.yaml || true
+      sed -i '/^[[:space:]]*shell:[[:space:]]*\(sh\|bash\)[[:space:]]*$/d' .gitea/workflows/azure-auth-sim.yaml || true
   fi
   git add .gitea/workflows/azure-auth-sim.yaml
   date > .gitea/workflows/.ci-trigger
@@ -204,7 +209,7 @@ main() {
   local docker_sock
   docker_sock=$(resolve_host_docker_sock)
   local docker_sock_real
-  docker_sock_real=$(python3 -c 'import os,sys; path=sys.argv[1] if len(sys.argv)>1 else ""; import os; print(os.path.realpath(path) if path else path)' "${docker_sock}")
+  docker_sock_real=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${docker_sock}")
   if [ ! -S "${docker_sock}" ]; then
     # On macOS the path is inside the Podman VM; tolerate missing socket on the host filesystem.
     if command -v podman >/dev/null 2>&1 && podman machine ssh -- test -S "${docker_sock}"; then

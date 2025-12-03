@@ -442,7 +442,7 @@ _exec-apply: check-env
 			if [ "$(STAGE)" -ge "300" ]; then \
 				echo -e "$(CYAN)Creating kind-local via stage 300 (auto-approve)$(NC)"; \
 				cd $(ROOT_DIR)$(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) apply -var-file=stages/300-kind.tfvars -auto-approve; \
-				echo -e "$(GREEN)✓ kind-local created (stage 100)$(NC)"; \
+				echo -e "$(GREEN)✓ kind-local created (stage 300)$(NC)"; \
 			fi; \
 		fi; \
 	fi
