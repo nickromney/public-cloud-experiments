@@ -17,10 +17,12 @@ spec:
         app.kubernetes.io/name: frontend-react-keycloak-protected
         app.kubernetes.io/component: frontend
     spec:
+      imagePullSecrets:
+        - name: gitea-registry-creds
       containers:
         - name: frontend-react-keycloak-protected
-          image: localhost/subnet-calculator-frontend-react-protected:latest
-          imagePullPolicy: IfNotPresent
+          image: host.containers.internal:3000/gitea-admin/azure-auth-sim-frontend:latest
+          imagePullPolicy: Always
           env:
             - name: VITE_API_URL
               value: http://localhost:8082

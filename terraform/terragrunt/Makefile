@@ -138,9 +138,15 @@ help:
 	@echo -e "  make subnet-calc react-easyauth-e2e 100 apply           # Apply stage 100"
 	@echo -e "  make subnet-calc react-easyauth-e2e 200 apply AUTO_APPROVE=1"
 	@echo -e "  make subnet-calc react-easyauth-e2e 400 plan            # Use stages/400-all.tfvars"
-	@echo -e "  make local kind 100 plan                                # Local kind/Cilium/ArgoCD staged stack"
-	@echo -e "  make local kind 200 apply AUTO_APPROVE=1                # Continue staging locally"
-	@echo -e "  make local kind prereqs                                 # Build/load Stack12 images into kind"
+	@echo -e "  make local kind 100                                     # Stage 100: start external Gitea + seed repos"
+	@echo -e "  make local kind 200                                     # Stage 200: trigger CI build/push for images"
+	@echo -e "  make local kind 300 apply AUTO_APPROVE=1                # Stage 300: create kind cluster"
+	@echo -e "  make local kind 400 apply AUTO_APPROVE=1                # Stage 400: Cilium"
+	@echo -e "  make local kind 500 apply AUTO_APPROVE=1                # Stage 500: Hubble UI"
+	@echo -e "  make local kind 600 apply AUTO_APPROVE=1                # Stage 600: Argo CD + namespaces"
+	@echo -e "  make local kind 700 apply AUTO_APPROVE=1                # Stage 700: Policies"
+	@echo -e "  make local kind 800 apply AUTO_APPROVE=1                # Stage 800: (reserved)"
+	@echo -e "  make local kind 900 apply AUTO_APPROVE=1                # Stage 900: Azure auth sim (Argo CD)"
 	@echo -e ""
 	@echo -e "$(YELLOW)Advanced Options:$(NC)"
 	@echo -e "  make subnet-calc react-apim plan VAR_FILE=stages/200-create-observability.tfvars"
@@ -414,6 +420,13 @@ _exec-plan: check-env
 _exec-apply: check-env
 	@echo -e "$(YELLOW)Applying $(STACK_DIR)...$(NC)"
 	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		if [ "$(STAGE)" = "100" ]; then \
+			cd $(STACK_DIR) && bash ./scripts/stage100-gitea.sh; \
+			exit 0; \
+		elif [ "$(STAGE)" = "200" ]; then \
+			cd $(STACK_DIR) && bash ./scripts/stage200-build.sh; \
+			exit 0; \
+		fi; \
 		if ! kind get clusters 2>/dev/null | grep -qx "kind-local"; then \
 			echo -e "$(CYAN)kind-local not found; cleaning local state and preparing stub kubeconfig$(NC)"; \
 			mkdir -p $$HOME/.kube; \
@@ -426,10 +439,10 @@ _exec-apply: check-env
 			kubectl config use-context kind-kind-local --kubeconfig=$$HOME/.kube/config >/dev/null; \
 			rm -f $(ROOT_DIR).run/local/kind-argocd/terraform.tfstate $(ROOT_DIR).run/local/kind-argocd/terraform.tfstate.backup >/dev/null 2>&1 || true; \
 			cd $(ROOT_DIR)$(STACK_DIR) && $(TERRAGRUNT) state rm kind_cluster.local local_sensitive_file.kubeconfig >/dev/null 2>&1 || true; \
-			if [ "$(STAGE)" -ge "200" ]; then \
-				echo -e "$(CYAN)Creating kind-local via stage 100 (auto-approve)$(NC)"; \
-				cd $(ROOT_DIR)$(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) apply -var-file=stages/100-kind.tfvars -auto-approve; \
-				echo -e "$(GREEN)✓ kind-local created (stage 100)$(NC)"; \
+			if [ "$(STAGE)" -ge "300" ]; then \
+				echo -e "$(CYAN)Creating kind-local via stage 300 (auto-approve)$(NC)"; \
+				cd $(ROOT_DIR)$(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) apply -var-file=stages/300-kind.tfvars -auto-approve; \
+				echo -e "$(GREEN)✓ kind-local created (stage 300)$(NC)"; \
 			fi; \
 		fi; \
 	fi
@@ -443,12 +456,7 @@ _exec-apply: check-env
 			break; \
 		fi; \
 	done
-	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ] && [ "$(SKIP_AZURE_AUTH_PREREQS)" != "1" ]; then \
-		if [ "$(STAGE)" -ge "500" ]; then \
-			echo -e "$(CYAN)Running azure-auth-sim prereqs (local images build+load) before apply$(NC)"; \
-			$(MAKE) --no-print-directory local kind prereqs; \
-		fi; \
-	fi
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ] && [ "$(SKIP_AZURE_AUTH_PREREQS)" != "1" ]; then :; fi
 	@STAGE_VAR_FILE_ARG=""; \
 	$(call find_stage_file,$(STAGE),$(STACK_DIR)); \
 	[ -z "$(VAR_FILE)" ] || STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
@@ -725,6 +733,11 @@ _exec-create:
 _exec-prereqs:
 	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
 		set -euo pipefail; \
+		echo -e "$(CYAN)Checking external Gitea (expected at http://localhost:3000)...$(NC)"; \
+		if ! curl -sf -o /dev/null http://localhost:3000/api/healthz; then \
+			echo -e "$(YELLOW)❌ External Gitea is not reachable on http://localhost:3000. Start it manually and retry.$(NC)"; \
+			exit 1; \
+		fi; \
 		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
 		echo -e "$(CYAN)  Building + loading azure-auth-sim images into kind$(NC)"; \
 		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \

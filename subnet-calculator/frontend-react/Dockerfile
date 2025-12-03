@@ -5,6 +5,8 @@ WORKDIR /app
 
 # Upgrade npm to latest version
 RUN npm install -g npm@latest
+# esbuild on Alpine needs glibc compatibility
+RUN apk add --no-cache libc6-compat
 
 # Build arguments for Vite environment variables
 ARG VITE_API_URL=http://localhost:7071
@@ -35,6 +37,7 @@ ENV VITE_OIDC_CLIENT_ID=$VITE_OIDC_CLIENT_ID
 ENV VITE_OIDC_REDIRECT_URI=$VITE_OIDC_REDIRECT_URI
 ENV VITE_APIM_SUBSCRIPTION_KEY=$VITE_APIM_SUBSCRIPTION_KEY
 ENV VITE_OIDC_AUTO_LOGIN=$VITE_OIDC_AUTO_LOGIN
+ENV NODE_OPTIONS=--max-old-space-size=1024
 
 # Copy shared-frontend package first
 COPY ./shared-frontend /shared-frontend

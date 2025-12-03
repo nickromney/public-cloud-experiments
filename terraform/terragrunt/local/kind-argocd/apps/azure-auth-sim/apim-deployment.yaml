@@ -17,10 +17,12 @@ spec:
         app.kubernetes.io/name: apim-simulator
         app.kubernetes.io/component: gateway
     spec:
+      imagePullSecrets:
+        - name: gitea-registry-creds
       containers:
         - name: apim-simulator
-          image: localhost/subnet-calculator-apim-simulator:latest
-          imagePullPolicy: IfNotPresent
+          image: host.containers.internal:3000/gitea-admin/azure-auth-sim-apim:latest
+          imagePullPolicy: Always
           env:
             - name: BACKEND_BASE_URL
               value: http://api-fastapi-keycloak.azure-auth-sim.svc.cluster.local

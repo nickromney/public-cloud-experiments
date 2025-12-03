@@ -1,6 +1,6 @@
 # Local Terragrunt Context (kind + ArgoCD + Cilium + Gitea + Kyverno)
 
-This context provisions a five-node kind cluster on Podman (Apple Silicon friendly), installs Argo CD via Helm, wires in Cilium 1.18.4 with Hubble UI, installs Gitea, seeds a policies repo over SSH, deploys the “azure auth simulation” workload, and syncs Cilium/Kyverno policies via Argo CD. OpenTofu is used automatically via `root-local.hcl`.
+This context provisions a five-node kind cluster on Podman (Apple Silicon friendly), installs Argo CD via Helm, wires in Cilium 1.18.4 with Hubble UI, uses an external Gitea (Podman/Docker compose) to host the repos, optionally deploys the “azure auth simulation” workload, and syncs Cilium/Kyverno policies via Argo CD. OpenTofu is used automatically via `root-local.hcl`.
 
 ## Prerequisites
 
@@ -36,27 +36,22 @@ This context provisions a five-node kind cluster on Podman (Apple Silicon friend
 ## Usage
 
 ```bash
-# From repo root
-make local kind 100 apply AUTO_APPROVE=1   # create kind cluster via provider (replaces `make local kind create`)
-make local kind 200 apply AUTO_APPROVE=1   # install Cilium
-make local kind 300 apply AUTO_APPROVE=1   # enable Hubble UI
-make local kind 400 apply AUTO_APPROVE=1   # namespaces + Argo CD
-make local kind 500 apply AUTO_APPROVE=1   # Gitea
-make local kind 600 apply AUTO_APPROVE=1   # policies (optional)
+# From repo root (external Gitea will be auto-started via compose if not running)
+make local kind 100                        # start external Gitea + seed repos
+make local kind 200                        # trigger CI build/push for azure-auth images (host runner)
+make local kind 300 apply AUTO_APPROVE=1   # create kind cluster
+make local kind 400 apply AUTO_APPROVE=1   # install Cilium
+make local kind 500 apply AUTO_APPROVE=1   # enable Hubble UI
+make local kind 600 apply AUTO_APPROVE=1   # namespaces + Argo CD
+make local kind 700 apply AUTO_APPROVE=1   # policies (optional)
+make local kind 900 apply AUTO_APPROVE=1   # azure-auth-sim (expects images built via CI)
 ```
 
 All state and generated artifacts stay under `terraform/terragrunt/.run/local/kind-argocd/` (state) and `terraform/terragrunt/local/kind-argocd/.run/` (SSH keys, known_hosts), both gitignored. Kubeconfig is written to `~/.kube/config` by default.
 
 ### Azure auth simulation images (former “stack 12”)
 
-Stages `500`/`600` (when `enable_azure_auth_sim=true`) auto-run a “batteries included” prereq step that builds and `kind load`s the three azure auth simulation images. If the cluster was deleted, any stage ≥200 **apply** will auto-run stage 100 to recreate it first; plans will bail and ask you to run stage 100 apply manually. You can also run the prereqs manually:
-
-```bash
-# Builds the three images and loads them into kind-local
-make local kind prereqs
-```
-
-To skip (e.g., if pointing manifests at an external registry), set `SKIP_AZURE_AUTH_PREREQS=1` when calling `make local kind <stage> apply`.
+Stage `700` builds the API, APIM simulator, and protected frontend from source using Gitea Actions (host runner) and pushes them to the external Gitea container registry. Argo CD then deploys the workload from the repo seeded by Terragrunt. The legacy `make local kind prereqs` helper still exists for manual, local image builds but is no longer run automatically. Experiments and caveats for the host-runner/DinD path are captured in `kind-argocd/EXPERIMENTS.md`.
 
 ## Access and debugging
 

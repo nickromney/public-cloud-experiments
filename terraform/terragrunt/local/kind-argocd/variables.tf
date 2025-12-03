@@ -133,6 +133,66 @@ variable "gitea_chart_version" {
   default     = "12.4.0"
 }
 
+variable "use_external_gitea" {
+  description = "If true, use an external/hosted Gitea instance instead of deploying Gitea inside the cluster."
+  type        = bool
+  default     = true
+}
+
+variable "gitea_http_host" {
+  description = "Host/IP for Gitea HTTP endpoint as reachable from the cluster."
+  type        = string
+  default     = "host.containers.internal"
+}
+
+variable "gitea_http_scheme" {
+  description = "Scheme for external Gitea HTTP endpoint (http or https)."
+  type        = string
+  default     = "http"
+}
+
+variable "gitea_http_port" {
+  description = "Port for external Gitea HTTP endpoint."
+  type        = number
+  default     = 3000
+}
+
+variable "gitea_ssh_host" {
+  description = "Host/IP for external Gitea SSH endpoint as reachable from the cluster."
+  type        = string
+  default     = "host.containers.internal"
+}
+
+variable "gitea_ssh_port" {
+  description = "Port for external Gitea SSH endpoint."
+  type        = number
+  default     = 30022
+}
+
+variable "gitea_ssh_username" {
+  description = "SSH username for interacting with external Gitea."
+  type        = string
+  default     = "git"
+}
+
+variable "gitea_http_host_local" {
+  description = "Host/IP for Gitea HTTP endpoint as reachable from the host running Terraform."
+  type        = string
+  default     = "127.0.0.1"
+}
+
+variable "gitea_ssh_host_local" {
+  description = "Host/IP for Gitea SSH endpoint as reachable from the host running Terraform."
+  type        = string
+  default     = "127.0.0.1"
+}
+
+variable "gitea_registry_host" {
+  description = "Host:port for the Gitea container registry as reachable from the cluster."
+  type        = string
+  default     = "host.containers.internal:3000"
+}
+
 variable "gitea_admin_username" {
   description = "Gitea admin username."
   type        = string
@@ -207,7 +267,7 @@ variable "enable_gitea" {
 
   validation {
     condition     = !var.enable_gitea || var.enable_argocd
-    error_message = "enable_gitea requires enable_argocd to be true, as Gitea is deployed via Argo CD."
+    error_message = "enable_gitea requires enable_argocd to be true, as Argo CD consumes the repo."
   }
 }
 
@@ -222,10 +282,21 @@ variable "enable_policies" {
   }
 }
 
+variable "enable_actions_runner" {
+  description = "Deploy a Gitea Actions runner (requires enable_gitea = true)."
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.enable_actions_runner || var.enable_gitea
+    error_message = "enable_actions_runner requires enable_gitea to be true."
+  }
+}
+
 variable "enable_azure_auth_sim" {
   description = "Enable deployment of the azure auth simulation (Keycloak + OAuth2 Proxy + APIM simulator + protected frontend)."
   type        = bool
-  default     = true
+  default     = false
 
   validation {
     condition     = !var.enable_azure_auth_sim || (var.enable_gitea && var.enable_argocd)
@@ -236,5 +307,5 @@ variable "enable_azure_auth_sim" {
 variable "enable_azure_auth_ports" {
   description = "Expose azure auth simulation NodePorts/host ports on the kind control plane. Keep this true from stage 100 onward to avoid cluster recreation when enabling the workload later."
   type        = bool
-  default     = true
+  default     = false
 }
