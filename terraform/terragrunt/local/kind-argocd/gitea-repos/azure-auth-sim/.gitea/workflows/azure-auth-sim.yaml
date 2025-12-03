@@ -21,7 +21,7 @@ env:
 
 jobs:
   build:
-    runs-on: [self-hosted, local]
+    runs-on: [local]
     container:
       image: ghcr.io/catthehacker/ubuntu:full-24.04
       options: --entrypoint ""
