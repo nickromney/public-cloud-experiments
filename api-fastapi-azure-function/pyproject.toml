@@ -1,0 +1,43 @@
+[project]
+name = "subnet-calculator-python-api"
+version = "0.1.0"
+description = "IPv4/IPv6 subnet validation and analysis API with cloud provider support"
+readme = "README.md"
+requires-python = ">=3.11"
+
+dependencies = [
+    "azure-functions>=1.23.0",
+    "fastapi[standard]>=0.118.0",
+    "pwdlib[argon2]>=0.2.0",
+    "pyjwt>=2.10.1",
+    "python-jose[cryptography]>=3.3.0",
+    "httpx>=0.28.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.8.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
