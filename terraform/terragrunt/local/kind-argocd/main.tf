@@ -242,6 +242,7 @@ resource "local_file" "kind_config" {
   content = templatefile("${path.module}/templates/kind-config.yaml.tpl", {
     workers = local.kind_workers
     ports   = local.extra_port_mappings
+    extra_mounts = [] # no hostPath mounts by default; keep template inputs satisfied
   })
 }
 

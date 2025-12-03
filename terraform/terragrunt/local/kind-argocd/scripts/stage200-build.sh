@@ -7,6 +7,7 @@ RUNNER_DATA_DIR="${RUN_DIR}/act-runner"
 DIND_DATA_DIR="${RUN_DIR}/act-runner/docker"
 GITEA_HTTP_HOST="${GITEA_HTTP_HOST:-https://localhost:3000}"
 GITEA_HTTP_CONTAINER="${GITEA_HTTP_CONTAINER:-https://host.containers.internal:3000}"
+GITEA_HTTP_HOST_HOST="${GITEA_HTTP_HOST_HOST:-https://localhost:3000}"
 GITEA_SSH_HOST_HOST="${GITEA_SSH_HOST_HOST:-127.0.0.1}"
 GITEA_SSH_HOST="${GITEA_SSH_HOST:-host.containers.internal}"
 GITEA_SSH_PORT="${GITEA_SSH_PORT:-30022}"
@@ -74,7 +75,7 @@ runner:
     DOCKER_HOST: "unix://${docker_sock_real}"
   timeout: 3h
   shutdown_timeout: 0s
-  insecure: false
+  insecure: true
   fetch_timeout: 5s
   fetch_interval: 2s
   labels:
@@ -140,8 +141,14 @@ start_host_runner() {
 
 trigger_workflow() {
   local repo="${1}"
-  GIT_SSH_COMMAND="ssh -i ${SSH_KEY} -o IdentitiesOnly=yes -o UserKnownHostsFile=${KNOWN_HOSTS} -o StrictHostKeyChecking=yes" \
-    git clone "ssh://${GITEA_SSH_USER}@${GITEA_SSH_HOST_HOST}:${GITEA_SSH_PORT}/${GITEA_ADMIN_USER}/${repo}.git" "${WORK_DIR}/${repo}"
+  export GIT_SSL_CAINFO="${ROOT_DIR}/certs/ca.crt"
+  local host_base="${GITEA_HTTP_HOST_HOST#https://}"
+  host_base="${host_base#http://}"
+  local clone_url="https://${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}@${host_base}/${GITEA_ADMIN_USER}/${repo}.git"
+  if [[ "${GITEA_HTTP_HOST_HOST}" == http://* ]]; then
+    clone_url="http://${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}@${host_base}/${GITEA_ADMIN_USER}/${repo}.git"
+  fi
+  git -c http.sslCAInfo="${ROOT_DIR}/certs/ca.crt" clone "${clone_url}" "${WORK_DIR}/${repo}"
   pushd "${WORK_DIR}/${repo}" >/dev/null
   git config user.email "argocd@gitea.local"
   git config user.name "argocd"
