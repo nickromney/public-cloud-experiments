@@ -26,6 +26,12 @@ jobs:
       run:
         shell: sh
     steps:
+      - name: Ensure /bin/bash exists
+        run: |
+          # Some act-runner images lack /bin/bash; symlink to /bin/sh so actions don't fail.
+          if [ ! -x /bin/bash ] && [ -x /bin/sh ]; then
+            sudo ln -sf /bin/sh /bin/bash || ln -sf /bin/sh /bin/bash
+          fi
       - name: Prepare SSH key
         id: prep_ssh
         env:
