@@ -5,11 +5,11 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_DIR="${ROOT_DIR}/.run"
 RUNNER_DATA_DIR="${RUN_DIR}/act-runner"
 DIND_DATA_DIR="${RUN_DIR}/act-runner/docker"
-GITEA_HTTP_HOST="${GITEA_HTTP_HOST:-https://localhost:3000}"
-GITEA_HTTP_CONTAINER="${GITEA_HTTP_CONTAINER:-https://host.containers.internal:3000}"
-GITEA_HTTP_HOST_HOST="${GITEA_HTTP_HOST_HOST:-https://localhost:3000}"
+GITEA_HTTP_HOST="${GITEA_HTTP_HOST:-https://host.docker.internal:3000}"
+GITEA_HTTP_CONTAINER="${GITEA_HTTP_CONTAINER:-https://host.docker.internal:3000}"
+GITEA_HTTP_HOST_HOST="${GITEA_HTTP_HOST_HOST:-https://host.docker.internal:3000}"
 GITEA_SSH_HOST_HOST="${GITEA_SSH_HOST_HOST:-127.0.0.1}"
-GITEA_SSH_HOST="${GITEA_SSH_HOST:-host.containers.internal}"
+GITEA_SSH_HOST="${GITEA_SSH_HOST:-host.docker.internal}"
 GITEA_SSH_PORT="${GITEA_SSH_PORT:-30022}"
 GITEA_SSH_USER="${GITEA_SSH_USER:-gitea-admin}"
 GITEA_ADMIN_USER="${GITEA_ADMIN_USER:-gitea-admin}"
@@ -18,11 +18,11 @@ REGISTRY="${REGISTRY:-localhost:3000}"
 SSH_KEY="${RUN_DIR}/argocd-repo.id_ed25519"
 KNOWN_HOSTS="${RUN_DIR}/gitea_known_hosts"
 RUNNER_IMAGE="${RUNNER_IMAGE:-ghcr.io/catthehacker/ubuntu:full-24.04}"
-RUNNER_EXECUTOR="${RUNNER_EXECUTOR:-docker}"
+RUNNER_EXECUTOR="${RUNNER_EXECUTOR:-host}"
 RUNNER_PLATFORM="${RUNNER_PLATFORM:-linux/arm64}"
-REGISTRY_HOST_INTERNAL="${REGISTRY_HOST_INTERNAL:-host.containers.internal:3000}"
+REGISTRY_HOST_INTERNAL="${REGISTRY_HOST_INTERNAL:-host.docker.internal:3000}"
 HOST_DOCKER_SOCK="${HOST_DOCKER_SOCK:-/var/run/docker.sock}"
-CONTAINER_DOCKER_SOCK="/run/podman/podman.sock"
+CONTAINER_DOCKER_SOCK="/var/run/docker.sock"
 ACT_RUNNER_VERSION="${ACT_RUNNER_VERSION:-0.2.13}"
 ACT_RUNNER_BIN="${RUNNER_DATA_DIR}/act_runner"
 
@@ -30,15 +30,37 @@ WORK_DIR="$(mktemp -d)"
 cleanup() { rm -rf "${WORK_DIR}"; }
 trap cleanup EXIT
 
+get_curl_opts() {
+  local opts="-s"
+  if [ -f "${ROOT_DIR}/certs/ca.crt" ]; then
+    opts="${opts} --cacert ${ROOT_DIR}/certs/ca.crt"
+  else
+    opts="${opts} -k"
+  fi
+  echo "${opts}"
+}
+
+ensure_registry_access_token() {
+  # Create a Gitea access token for Docker registry auth (password auth is unreliable)
+  local curl_opts
+  curl_opts=$(get_curl_opts)
+  local token_name="docker-registry-$(date +%s)"
+  local token
+  token=$(curl ${curl_opts} -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" -X POST \
+    -H "Content-Type: application/json" \
+    -d "{\"name\":\"${token_name}\",\"scopes\":[\"write:package\"]}" \
+    "${GITEA_HTTP_HOST}/api/v1/users/${GITEA_ADMIN_USER}/tokens" 2>/dev/null | jq -r '.sha1 // empty')
+  if [ -z "${token}" ]; then
+    echo "Failed to create registry access token" >&2
+    exit 1
+  fi
+  echo "${token}"
+}
+
 ensure_runner_token() {
+  local curl_opts
+  curl_opts=$(get_curl_opts)
   for i in {1..10}; do
-    # Use CA cert for TLS verification if available, otherwise fall back to insecure for local dev
-    local curl_opts="-s"
-    if [ -f "${ROOT_DIR}/certs/ca.crt" ]; then
-      curl_opts="${curl_opts} --cacert ${ROOT_DIR}/certs/ca.crt"
-    else
-      curl_opts="${curl_opts} -k"
-    fi
     token=$(curl ${curl_opts} -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" -X POST \
       "${GITEA_HTTP_HOST}/api/v1/admin/actions/runners/registration-token" | jq -r '.token // empty')
     if [ -n "${token}" ]; then
@@ -181,18 +203,28 @@ trigger_workflow() {
 }
 
 ensure_repo_secrets() {
+  local curl_opts
+  curl_opts=$(get_curl_opts)
+  local ssh_key_b64
+  local known_hosts_b64
+  local registry_ca_b64
+  local registry_token
   ssh_key_b64=$(base64 -i "${SSH_KEY}" | tr -d '\n')
   known_hosts_b64=$(base64 -i "${KNOWN_HOSTS}" | tr -d '\n')
   registry_ca_b64=$(base64 -i "${ROOT_DIR}/certs/ca.crt" | tr -d '\n')
-  curl -sk -o /dev/null -w "%{http_code}" -X PUT \
+  # Create access token for registry (password auth is unreliable with Docker)
+  registry_token=$(ensure_registry_access_token)
+  curl ${curl_opts} -o /dev/null -w "%{http_code}" -X PUT \
     -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" \
     -H "Content-Type: application/json" \
     -d "{\"data\":\"${GITEA_ADMIN_USER}\"}" \
     "${GITEA_HTTP_HOST}/api/v1/repos/${GITEA_ADMIN_USER}/azure-auth-sim/actions/secrets/REGISTRY_USERNAME" >/dev/null
-  curl -sk -o /dev/null -w "%{http_code}" -X PUT \
+  # Use access token instead of password for registry auth
+  echo "{\"data\":\"${registry_token}\"}" > "${WORK_DIR}/secret.json"
+  curl ${curl_opts} -o /dev/null -w "%{http_code}" -X PUT \
     -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" \
     -H "Content-Type: application/json" \
-    -d "{\"data\":\"${GITEA_ADMIN_PASS}\"}" \
+    -d @"${WORK_DIR}/secret.json" \
     "${GITEA_HTTP_HOST}/api/v1/repos/${GITEA_ADMIN_USER}/azure-auth-sim/actions/secrets/REGISTRY_PASSWORD" >/dev/null
   curl -sk -o /dev/null -w "%{http_code}" -X PUT \
     -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" \
@@ -230,16 +262,13 @@ main() {
   local docker_sock_real
   docker_sock_real=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${docker_sock}")
   if [ ! -S "${docker_sock}" ]; then
-    # On macOS the path is inside the Podman VM; tolerate missing socket on the host filesystem.
-    if command -v podman >/dev/null 2>&1 && podman machine ssh -- test -S "${docker_sock}"; then
-      :
-    else
-      echo "Docker/Podman socket not found at ${docker_sock}. Set HOST_DOCKER_SOCK to your socket path." >&2
-      exit 1
-    fi
+    echo "Docker socket not found at ${docker_sock}. Set HOST_DOCKER_SOCK to your socket path." >&2
+    exit 1
   fi
-  if command -v podman >/dev/null 2>&1 && [ "${docker_sock}" = "/run/podman/podman.sock" ]; then
-    podman machine ssh -- sudo chmod 666 "${docker_sock}" >/dev/null 2>&1 || true
+  if command -v sudo >/dev/null 2>&1; then
+    sudo chmod 666 "${docker_sock}" >/dev/null 2>&1 || true
+  else
+    chmod 666 "${docker_sock}" >/dev/null 2>&1 || true
   fi
   echo "Using host Docker socket at ${docker_sock_real} (no DinD)."
   ensure_repo_secrets

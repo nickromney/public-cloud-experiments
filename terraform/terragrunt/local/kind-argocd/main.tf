@@ -46,6 +46,7 @@ locals {
   gitea_known_hosts_cluster = abspath("${path.module}/.run/gitea_known_hosts_cluster")
   gitea_repo_key_path       = abspath("${path.module}/.run/gitea-repo.id_ed25519")
   azure_auth_repo_key_path  = abspath("${path.module}/.run/azure-auth-repo.id_ed25519")
+  external_ssh_key_path     = abspath(var.ssh_private_key_path)
   gitea_http_host           = var.use_external_gitea ? var.gitea_http_host : "127.0.0.1"
   gitea_http_host_local     = var.use_external_gitea ? var.gitea_http_host_local : "127.0.0.1"
   gitea_http_port           = var.use_external_gitea ? var.gitea_http_port : var.gitea_http_node_port
@@ -237,12 +238,26 @@ data "http" "external_gitea_health" {
   }
 }
 
+locals {
+  # CA cert path for external Gitea registry - used by Kind nodes for containerd TLS
+  gitea_ca_cert_path = abspath("${path.module}/certs/ca.crt")
+
+  # Extra mounts for Kind nodes - mount CA cert when using external Gitea
+  kind_extra_mounts = var.use_external_gitea ? [
+    {
+      host_path      = local.gitea_ca_cert_path
+      container_path = "/etc/containerd/certs.d/${var.gitea_registry_host}/ca.crt"
+      read_only      = true
+    }
+  ] : []
+}
+
 resource "local_file" "kind_config" {
   filename = var.kind_config_path
   content = templatefile("${path.module}/templates/kind-config.yaml.tpl", {
-    workers = local.kind_workers
-    ports   = local.extra_port_mappings
-    extra_mounts = [] # no hostPath mounts by default; keep template inputs satisfied
+    workers      = local.kind_workers
+    ports        = local.extra_port_mappings
+    extra_mounts = local.kind_extra_mounts
   })
 }
 
@@ -255,6 +270,14 @@ resource "kind_cluster" "local" {
   kind_config {
     kind        = "Cluster"
     api_version = "kind.x-k8s.io/v1alpha4"
+
+    # Configure containerd to trust the Gitea registry CA cert
+    containerd_config_patches = var.use_external_gitea ? [
+      <<-EOT
+      [plugins."io.containerd.grpc.v1.cri".registry.configs."${var.gitea_registry_host}".tls]
+        ca_file = "/etc/containerd/certs.d/${var.gitea_registry_host}/ca.crt"
+      EOT
+    ] : []
 
     networking {
       disable_default_cni = true
@@ -272,12 +295,30 @@ resource "kind_cluster" "local" {
           protocol       = try(extra_port_mappings.value.protocol, "TCP")
         }
       }
+
+      dynamic "extra_mounts" {
+        for_each = local.kind_extra_mounts
+        content {
+          host_path      = extra_mounts.value.host_path
+          container_path = extra_mounts.value.container_path
+          read_only      = extra_mounts.value.read_only
+        }
+      }
     }
 
     dynamic "node" {
       for_each = local.kind_workers
       content {
         role = "worker"
+
+        dynamic "extra_mounts" {
+          for_each = local.kind_extra_mounts
+          content {
+            host_path      = extra_mounts.value.host_path
+            container_path = extra_mounts.value.container_path
+            read_only      = extra_mounts.value.read_only
+          }
+        }
       }
     }
   }
@@ -483,24 +524,24 @@ EOT
 }
 
 resource "tls_private_key" "gitea_repo" {
-  count = var.enable_gitea ? 1 : 0
+  count = var.enable_gitea && !var.use_external_gitea ? 1 : 0
 
 
   algorithm = "ED25519"
 }
 
 resource "tls_private_key" "gitea_repo_azure_auth" {
-  count = var.enable_gitea && var.enable_actions_runner ? 1 : 0
+  count = var.enable_gitea && var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
 
   algorithm = "ED25519"
 }
 
 resource "null_resource" "gitea_create_repo" {
-  count = var.enable_gitea ? 1 : 0
+  count = var.enable_gitea && !var.use_external_gitea ? 1 : 0
 
 
   triggers = {
-    rollout = var.use_external_gitea ? "external" : null_resource.wait_for_gitea[0].id
+    rollout = null_resource.wait_for_gitea[0].id
   }
 
   provisioner "local-exec" {
@@ -527,11 +568,11 @@ EOT
 }
 
 resource "null_resource" "gitea_create_repo_azure_auth" {
-  count = var.enable_gitea && var.enable_actions_runner ? 1 : 0
+  count = var.enable_gitea && var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
 
 
   triggers = {
-    rollout = var.use_external_gitea ? "external" : null_resource.wait_for_gitea[0].id
+    rollout = null_resource.wait_for_gitea[0].id
   }
 
   provisioner "local-exec" {
@@ -558,7 +599,7 @@ EOT
 }
 
 resource "null_resource" "gitea_add_deploy_key" {
-  count = var.enable_gitea ? 1 : 0
+  count = var.enable_gitea && !var.use_external_gitea ? 1 : 0
 
 
   triggers = {
@@ -594,7 +635,7 @@ EOT
 }
 
 resource "null_resource" "gitea_add_deploy_key_azure_auth" {
-  count = var.enable_gitea && var.enable_actions_runner ? 1 : 0
+  count = var.enable_gitea && var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
 
 
   triggers = {
@@ -630,8 +671,9 @@ EOT
 }
 
 # Local known_hosts for git operations from host machine (127.0.0.1:30022)
+# Skipped when use_external_gitea=true because stage100 creates .run/gitea_known_hosts
 resource "null_resource" "gitea_known_hosts" {
-  count = var.enable_gitea ? 1 : 0
+  count = var.enable_gitea && !var.use_external_gitea ? 1 : 0
 
   triggers = {
     gitea_repo = null_resource.gitea_create_repo[0].id
@@ -658,11 +700,13 @@ EOT
 }
 
 # Cluster-internal known_hosts for ArgoCD (gitea-ssh.gitea.svc.cluster.local:22)
+# Still needed for external Gitea - ArgoCD needs to SSH to Gitea from inside cluster
 resource "null_resource" "gitea_known_hosts_cluster" {
   count = var.enable_gitea ? 1 : 0
 
   triggers = {
-    gitea_repo = null_resource.gitea_create_repo[0].id
+    # For external Gitea, use static trigger; for in-cluster, depend on repo creation
+    gitea_setup = var.use_external_gitea ? "external" : null_resource.gitea_create_repo[0].id
   }
 
   provisioner "local-exec" {
@@ -684,13 +728,14 @@ EOT
     interpreter = ["/bin/bash", "-c"]
   }
 
-  depends_on = [null_resource.gitea_create_repo[0]]
+  depends_on = [null_resource.gitea_create_repo]
 }
 
 data "local_file" "gitea_known_hosts" {
-  count      = var.enable_gitea ? 1 : 0
-  filename   = local.gitea_known_hosts
-  depends_on = [null_resource.gitea_known_hosts[0]]
+  count    = var.enable_gitea ? 1 : 0
+  filename = local.gitea_known_hosts
+  # For external Gitea, stage100 creates this file; for in-cluster, null_resource creates it
+  depends_on = [null_resource.gitea_known_hosts]
 }
 
 data "local_file" "gitea_known_hosts_cluster" {
@@ -743,7 +788,7 @@ EOT
 
 
 resource "local_sensitive_file" "gitea_repo_private_key" {
-  count = var.enable_gitea ? 1 : 0
+  count = var.enable_gitea && !var.use_external_gitea ? 1 : 0
 
 
   content              = tls_private_key.gitea_repo[0].private_key_openssh
@@ -753,7 +798,7 @@ resource "local_sensitive_file" "gitea_repo_private_key" {
 }
 
 resource "local_sensitive_file" "gitea_azure_auth_repo_private_key" {
-  count = var.enable_gitea && var.enable_actions_runner ? 1 : 0
+  count = var.enable_gitea && var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
 
   content              = tls_private_key.gitea_repo_azure_auth[0].private_key_openssh
   filename             = local.azure_auth_repo_key_path
@@ -762,7 +807,7 @@ resource "local_sensitive_file" "gitea_azure_auth_repo_private_key" {
 }
 
 resource "null_resource" "seed_gitea_repo" {
-  count = var.enable_gitea ? 1 : 0
+  count = var.enable_gitea && !var.use_external_gitea ? 1 : 0
 
 
   triggers = {
@@ -813,7 +858,7 @@ EOT
 }
 
 resource "null_resource" "seed_gitea_repo_azure_auth" {
-  count = var.enable_gitea && var.enable_actions_runner ? 1 : 0
+  count = var.enable_gitea && var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
 
 
   triggers = {
@@ -859,8 +904,10 @@ EOT
   ]
 }
 
+# Skipped when use_external_gitea=true because stage200 creates secrets with access tokens
+# (password-based auth is unreliable for Docker registry)
 resource "null_resource" "gitea_azure_auth_repo_secrets" {
-  count = var.enable_gitea && var.enable_actions_runner ? 1 : 0
+  count = var.enable_gitea && var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
 
 
   triggers = {
@@ -915,9 +962,10 @@ resource "kubernetes_secret" "argocd_repo_gitea" {
   }
 
   data = {
-    type          = "git"
-    url           = "ssh://${var.gitea_ssh_username}@${local.gitea_ssh_host}:${local.gitea_ssh_port}/${var.gitea_admin_username}/policies.git"
-    sshPrivateKey = tls_private_key.gitea_repo[0].private_key_openssh
+    type = "git"
+    url  = "ssh://${var.gitea_ssh_username}@${local.gitea_ssh_host}:${local.gitea_ssh_port}/${var.gitea_admin_username}/policies.git"
+    # Use Terraform-generated SSH key (added to Gitea admin user for external, or as deploy key for in-cluster)
+    sshPrivateKey = var.use_external_gitea ? tls_private_key.argocd_repo[0].private_key_openssh : tls_private_key.gitea_repo[0].private_key_openssh
     sshKnownHosts = data.local_file.gitea_known_hosts_cluster[0].content
     insecure      = "false"
   }
@@ -930,10 +978,11 @@ resource "kubernetes_secret" "argocd_repo_gitea" {
   }
 
   depends_on = [
-    null_resource.gitea_add_deploy_key[0],
-    null_resource.gitea_known_hosts_cluster[0],
-    data.local_file.gitea_known_hosts_cluster[0],
-    null_resource.seed_gitea_repo[0],
+    null_resource.gitea_add_deploy_key,
+    null_resource.gitea_add_user_ssh_key,
+    null_resource.gitea_known_hosts_cluster,
+    data.local_file.gitea_known_hosts_cluster,
+    null_resource.seed_gitea_repo,
     local_sensitive_file.kubeconfig
   ]
 }
@@ -966,6 +1015,7 @@ resource "kubernetes_secret" "azure_auth_registry_credentials" {
   ]
 }
 
+# SSH key for ArgoCD to access Gitea repos (generated regardless of external Gitea)
 resource "tls_private_key" "argocd_repo" {
   count = var.generate_repo_ssh_key ? 1 : 0
 
@@ -973,16 +1023,60 @@ resource "tls_private_key" "argocd_repo" {
 }
 
 resource "local_sensitive_file" "ssh_private_key" {
-  count      = var.generate_repo_ssh_key ? 1 : 0
-  content    = tls_private_key.argocd_repo[0].private_key_pem
-  filename   = var.ssh_private_key_path
-  depends_on = [tls_private_key.argocd_repo[0]]
+  count           = var.generate_repo_ssh_key ? 1 : 0
+  content         = tls_private_key.argocd_repo[0].private_key_openssh
+  filename        = var.ssh_private_key_path
+  file_permission = "0600"
+  depends_on      = [tls_private_key.argocd_repo]
 }
 
 resource "local_file" "ssh_public_key" {
   count    = var.generate_repo_ssh_key ? 1 : 0
   content  = tls_private_key.argocd_repo[0].public_key_openssh
   filename = var.ssh_public_key_path
+}
+
+# For external Gitea, add the Terraform-generated SSH key to admin user
+# Uses access token because basic auth doesn't work for /user/keys endpoint
+resource "null_resource" "gitea_add_user_ssh_key" {
+  count = var.enable_gitea && var.use_external_gitea && var.generate_repo_ssh_key ? 1 : 0
+
+  triggers = {
+    ssh_key = tls_private_key.argocd_repo[0].public_key_openssh
+  }
+
+  provisioner "local-exec" {
+    command     = <<EOT
+set -euo pipefail
+# Create access token for API calls (basic auth doesn't work for /user/keys)
+TOKEN=$(curl ${local.gitea_curl_insecure} -s -u "${var.gitea_admin_username}:${var.gitea_admin_password}" -X POST \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"argocd-ssh-key-$(date +%s)\",\"scopes\":[\"write:user\"]}" \
+  ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/users/${var.gitea_admin_username}/tokens | jq -r '.sha1 // empty')
+if [ -z "$TOKEN" ]; then
+  echo "Failed to create access token" >&2
+  exit 1
+fi
+# Add SSH key using token
+for i in {1..10}; do
+  status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X POST \
+    -H "Authorization: token $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"title":"argocd-terraform-key","key":"${chomp(tls_private_key.argocd_repo[0].public_key_openssh)}"}' \
+    ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/user/keys)
+  if echo "$status" | grep -Eq "200|201|422"; then
+    exit 0
+  fi
+  echo "Adding SSH key to Gitea user returned HTTP $status, retrying... ($i/10)" >&2
+  sleep 3
+done
+echo "Failed to add SSH key to Gitea user" >&2
+exit 1
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+
+  depends_on = [tls_private_key.argocd_repo]
 }
 
 resource "kubectl_manifest" "argocd_app_gitea" {

@@ -123,3 +123,9 @@ test-results/
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude Code cache
+.cache/
+
+# Gitea Actions runner registration
+.runner

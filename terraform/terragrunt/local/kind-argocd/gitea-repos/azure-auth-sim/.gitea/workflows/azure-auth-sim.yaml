@@ -59,6 +59,7 @@ jobs:
           # Use REGISTRY_HOST which is reachable from inside the container (e.g., host.docker.internal:3000)
           CLONE_HOST="${GITEA_HOST:-host.docker.internal:3000}"
           echo "Cloning from https://${CLONE_HOST}/gitea-admin/azure-auth-sim"
+          rm -rf "${WORKSPACE_DIR}"
           git -c http.sslVerify=false clone "https://${GITEA_USER}:${GITEA_PASS}@${CLONE_HOST}/gitea-admin/azure-auth-sim" "${WORKSPACE_DIR}"
           cd "${WORKSPACE_DIR}"
           git checkout main
@@ -77,9 +78,9 @@ jobs:
           cp /tmp/registry-ca.crt "${cert_dir}/127.0.0.1:${REGISTRY_PORT}/ca.crt"
           cp /tmp/registry-ca.crt "${cert_dir}/localhost:${REGISTRY_PORT}/ca.crt"
           cp /tmp/registry-ca.crt "${cert_dir}/host.docker.internal:${REGISTRY_PORT}/ca.crt"
-          # Best effort: add to system trust if available
+          # Best effort: add to system trust if available (may fail without root)
           if [ -d /usr/local/share/ca-certificates ]; then
-            cp /tmp/registry-ca.crt /usr/local/share/ca-certificates/gitea-ca.crt
+            cp /tmp/registry-ca.crt /usr/local/share/ca-certificates/gitea-ca.crt || true
             update-ca-certificates || true
           fi
           if [ -f /etc/ssl/certs/ca-certificates.crt ]; then

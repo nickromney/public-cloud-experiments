@@ -7,14 +7,14 @@
 ## What we tried
 
 ### Phase 1: HTTP Registry + DinD
-- External Gitea with registry over HTTP (`ROOT_URL=http://host.containers.internal:30090/`, container packages enabled).
-- Host-runner using `gitea/act_runner:0.2.13` + DinD (`docker:dind`) on `tcp://host.containers.internal:23750`.
+- External Gitea with registry over HTTP (`ROOT_URL=http://host.docker.internal:30090/`, container packages enabled).
+- Host-runner using `gitea/act_runner:0.2.13` + DinD (`docker:dind`) on `tcp://host.docker.internal:23750`.
 - Runner labels include `ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-latest`; buildx driver `docker`; binfmt installed.
 - Workflow tweaks:
-  - Registry host `host.containers.internal:30090`, docker/login `insecure: true`.
+  - Registry host `host.docker.internal:30090`, docker/login `insecure: true`.
   - Buildx driver docker; frontend build uses `NODE_OPTIONS=--max-old-space-size=1024`.
   - Removed HTTPS schemes from tags; attempted `registry.insecure=true` outputs.
-- DinD config via `/etc/docker/daemon.json` with `"insecure-registries": ["host.containers.internal:30090"]`.
+- DinD config via `/etc/docker/daemon.json` with `"insecure-registries": ["host.docker.internal:30090"]`.
 
 ### Phase 2: HTTPS Registry + Self-Signed CA (December 2024)
 - Switched Gitea registry to HTTPS with self-signed CA (`certs/ca.crt`).
@@ -41,7 +41,7 @@
 
 5. **tmpfs workaround causes memory pressure**: Using `--tmpfs /var/lib/docker:size=20g` avoids virtiofs issues but puts significant memory pressure on the host, causing Gitea to become unresponsive (29-second SQL queries, 500 errors).
 
-6. **SSH known_hosts hostname mismatch**: Workflow runs inside containers connect to `host.containers.internal:30022`, but known_hosts generated from host only had entries for `127.0.0.1:30022`. Fixed by adding both hostnames to known_hosts.
+6. **SSH known_hosts hostname mismatch**: Workflow runs inside containers connect to `host.docker.internal:30022`, but known_hosts generated from host only had entries for `127.0.0.1:30022`. Fixed by adding both hostnames to known_hosts.
 
 7. **ARM64 platform mismatch**: Mac Apple Silicon pulls ARM64 images by default, but `mcr.microsoft.com/azure-functions/python` only has AMD64. Fixed with `--platform linux/amd64` on docker pull commands.
 
@@ -50,7 +50,7 @@
 - HTTPS with self-signed CA: Registry push/pull works when CA is properly trusted.
 - tmpfs for `/var/lib/docker`: Avoids virtiofs xattr/overlay issues (overlayfs works in tmpfs).
 - Pre-pull with retry and platform specification: `--platform linux/amd64` fixes ARM64 mismatch.
-- Dual-hostname known_hosts: Adding both `127.0.0.1` and `host.containers.internal` entries.
+- Dual-hostname known_hosts: Adding both `127.0.0.1` and `host.docker.internal` entries.
 - `pull: false` in buildx: Uses pre-pulled images instead of re-pulling during build.
 
 ## Conclusion
@@ -67,4 +67,4 @@ DinD inside Podman on macOS (Apple Silicon) is fundamentally problematic:
 
 - `scripts/stage200-build.sh`: DinD setup, pre-pull with retry, tmpfs configuration
 - `gitea-repos/azure-auth-sim/.gitea/workflows/azure-auth-sim.yaml`: Pre-pull step, platform flags, pull:false
-- `.run/gitea_known_hosts`: Added `host.containers.internal` entries
+- `.run/gitea_known_hosts`: Added `host.docker.internal` entries
