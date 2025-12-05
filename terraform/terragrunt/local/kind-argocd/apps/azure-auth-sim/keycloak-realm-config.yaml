@@ -27,14 +27,16 @@ data:
         {
           "clientId": "frontend-app",
           "name": "React Frontend",
-          "description": "React SPA frontend application",
+          "description": "React SPA frontend application (OAuth2 Proxy + oidc-client-ts)",
           "enabled": true,
-          "publicClient": false,
-          "secret": "frontend-secret",
+          "publicClient": true,
           "protocol": "openid-connect",
           "directAccessGrantsEnabled": false,
           "standardFlowEnabled": true,
           "implicitFlowEnabled": false,
+          "attributes": {
+            "pkce.code.challenge.method": "S256"
+          },
           "redirectUris": [
             "http://localhost:3006/*",
             "http://localhost:3007/*"
