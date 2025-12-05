@@ -1,14 +1,4 @@
-# Local Terragrunt root for on-device experiments (kind on Podman + OpenTofu)
-
-terraform {
-  # Ensure the kind provider uses Podman without extra shell exports
-  extra_arguments "kind_podman_provider" {
-    commands = ["init", "plan", "apply", "destroy"]
-    env_vars = {
-      KIND_EXPERIMENTAL_PROVIDER = "podman"
-    }
-  }
-}
+# Local Terragrunt root for on-device experiments (kind + OpenTofu)
 
 # Keep state in-repo under .run/ to avoid Azure backend requirements
 remote_state {

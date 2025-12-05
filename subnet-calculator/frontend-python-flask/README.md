@@ -168,12 +168,12 @@ Run the container:
 ```bash
 # Connect to local API running via Azure Functions (port 7071)
 podman run -p 8000:8000 \
-  -e API_BASE_URL=http://host.containers.internal:7071/api/v1 \
+  -e API_BASE_URL=http://host.docker.internal:7071/api/v1 \
   subnet-calculator-frontend
 
 # Connect to containerized API (port 8080)
 podman run -p 8000:8000 \
-  -e API_BASE_URL=http://host.containers.internal:8080/api/v1 \
+  -e API_BASE_URL=http://host.docker.internal:8080/api/v1 \
   subnet-calculator-frontend
 
 # Connect to deployed API (production)
@@ -182,7 +182,7 @@ podman run -p 8000:8000 \
   subnet-calculator-frontend
 ```
 
-**Note**: Podman uses `host.containers.internal` instead of `host.docker.internal`.
+**Note**: On macOS with Docker Desktop the host is exposed as `host.docker.internal`; adjust the host alias if your container runtime uses a different name.
 
 ### Running Both Containers Together
 

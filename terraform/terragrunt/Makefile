@@ -717,7 +717,7 @@ _exec-create:
 		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
 		echo -e "$(CYAN)  Creating kind cluster$(NC)"; \
 		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
-		cd $(STACK_DIR) && KIND_EXPERIMENTAL_PROVIDER=podman kind create cluster --name kind-local --config kind-config.yaml; \
+		cd $(STACK_DIR) && kind create cluster --name kind-local --config kind-config.yaml; \
 		echo ""; \
 		kubectl cluster-info --context kind-kind-local; \
 		echo ""; \
@@ -744,11 +744,11 @@ _exec-prereqs:
 		cd $(REPO_ROOT)/subnet-calculator; \
 		build_image() { \
 			local image_name="$$1"; shift; \
-			if podman image exists "$$image_name"; then \
+			if docker image inspect "$$image_name" >/dev/null 2>&1; then \
 				echo -e "$(GREEN)✔ $$image_name already present$(NC)"; \
 			else \
 				echo -e "$(YELLOW)Building $$image_name ...$(NC)"; \
-				podman build "$$@" || { echo -e "$(YELLOW)❌ Failed to build $$image_name$(NC)"; exit 1; }; \
+				docker build "$$@" || { echo -e "$(YELLOW)❌ Failed to build $$image_name$(NC)"; exit 1; }; \
 			fi; \
 		}; \
 		build_image localhost/subnet-calculator-api-fastapi-keycloak:latest \
