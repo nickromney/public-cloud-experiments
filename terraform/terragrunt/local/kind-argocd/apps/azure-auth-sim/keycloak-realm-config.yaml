@@ -27,7 +27,7 @@ data:
         {
           "clientId": "frontend-app",
           "name": "React Frontend",
-          "description": "React SPA frontend application (OAuth2 Proxy + oidc-client-ts)",
+          "description": "React SPA frontend. OAuth2 Proxy handles server-side auth; oidc-client-ts manages browser token flow.",
           "enabled": true,
           "publicClient": true,
           "protocol": "openid-connect",

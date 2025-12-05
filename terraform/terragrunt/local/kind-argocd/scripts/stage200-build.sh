@@ -18,6 +18,7 @@ REGISTRY="${REGISTRY:-localhost:3000}"
 SSH_KEY="${RUN_DIR}/argocd-repo.id_ed25519"
 KNOWN_HOSTS="${RUN_DIR}/gitea_known_hosts"
 RUNNER_IMAGE="${RUNNER_IMAGE:-ghcr.io/catthehacker/ubuntu:full-24.04}"
+# Runner executor mode: "host" runs directly on macOS, "docker" runs in container
 RUNNER_EXECUTOR="${RUNNER_EXECUTOR:-host}"
 RUNNER_PLATFORM="${RUNNER_PLATFORM:-linux/arm64}"
 REGISTRY_HOST_INTERNAL="${REGISTRY_HOST_INTERNAL:-host.docker.internal:3000}"
@@ -99,7 +100,7 @@ runner:
     DOCKER_HOST: "unix://${docker_sock_real}"
   timeout: 3h
   shutdown_timeout: 0s
-  insecure: true
+  insecure: false
   fetch_timeout: 5s
   fetch_interval: 2s
   labels:
@@ -226,22 +227,22 @@ ensure_repo_secrets() {
     -H "Content-Type: application/json" \
     -d @"${WORK_DIR}/secret.json" \
     "${GITEA_HTTP_HOST}/api/v1/repos/${GITEA_ADMIN_USER}/azure-auth-sim/actions/secrets/REGISTRY_PASSWORD" >/dev/null
-  curl -sk -o /dev/null -w "%{http_code}" -X PUT \
+  curl ${curl_opts} -o /dev/null -w "%{http_code}" -X PUT \
     -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" \
     -H "Content-Type: application/json" \
     -d "{\"data\":\"${REGISTRY_HOST_INTERNAL}\"}" \
     "${GITEA_HTTP_HOST}/api/v1/repos/${GITEA_ADMIN_USER}/azure-auth-sim/actions/secrets/REGISTRY_HOST" >/dev/null
-  curl -sk -o /dev/null -w "%{http_code}" -X PUT \
+  curl ${curl_opts} -o /dev/null -w "%{http_code}" -X PUT \
     -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" \
     -H "Content-Type: application/json" \
     -d "{\"data\":\"${ssh_key_b64}\"}" \
     "${GITEA_HTTP_HOST}/api/v1/repos/${GITEA_ADMIN_USER}/azure-auth-sim/actions/secrets/CHECKOUT_SSH_KEY_B64" >/dev/null
-  curl -sk -o /dev/null -w "%{http_code}" -X PUT \
+  curl ${curl_opts} -o /dev/null -w "%{http_code}" -X PUT \
     -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" \
     -H "Content-Type: application/json" \
     -d "{\"data\":\"${known_hosts_b64}\"}" \
     "${GITEA_HTTP_HOST}/api/v1/repos/${GITEA_ADMIN_USER}/azure-auth-sim/actions/secrets/CHECKOUT_KNOWN_HOSTS_B64" >/dev/null
-  curl -sk -o /dev/null -w "%{http_code}" -X PUT \
+  curl ${curl_opts} -o /dev/null -w "%{http_code}" -X PUT \
     -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" \
     -H "Content-Type: application/json" \
     -d "{\"data\":\"${registry_ca_b64}\"}" \
@@ -265,10 +266,17 @@ main() {
     echo "Docker socket not found at ${docker_sock}. Set HOST_DOCKER_SOCK to your socket path." >&2
     exit 1
   fi
+  # Ensure Docker socket is accessible - prefer group-based access over world-writable
   if command -v sudo >/dev/null 2>&1; then
-    sudo chmod 666 "${docker_sock}" >/dev/null 2>&1 || true
+    sudo chgrp docker "${docker_sock}" >/dev/null 2>&1 || true
+    sudo chmod 660 "${docker_sock}" >/dev/null 2>&1 || true
   else
-    chmod 666 "${docker_sock}" >/dev/null 2>&1 || true
+    chgrp docker "${docker_sock}" >/dev/null 2>&1 || true
+    chmod 660 "${docker_sock}" >/dev/null 2>&1 || true
+  fi
+  # Warn if current user may not have access
+  if ! id -nG 2>/dev/null | grep -qw docker; then
+    echo "Note: User may not be in 'docker' group; socket access might fail." >&2
   fi
   echo "Using host Docker socket at ${docker_sock_real} (no DinD)."
   ensure_repo_secrets

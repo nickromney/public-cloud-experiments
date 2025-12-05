@@ -378,10 +378,13 @@ build_policies_tree() {
 }
 
 check_etc_hosts() {
+  # Docker Desktop on macOS automatically provides host.docker.internal resolution.
+  # On Linux without Docker Desktop, /etc/hosts must be manually configured.
   if ! grep -q "host.docker.internal" /etc/hosts 2>/dev/null; then
     echo "WARNING: /etc/hosts does not contain 'host.docker.internal'" >&2
-    echo "For Docker Desktop registry access, add this line to /etc/hosts:" >&2
+    echo "On Linux (or macOS without Docker Desktop), add this line to /etc/hosts:" >&2
     echo "  127.0.0.1 host.docker.internal" >&2
+    echo "(Docker Desktop on macOS handles this automatically)" >&2
     echo "" >&2
     return 1
   fi

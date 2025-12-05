@@ -243,10 +243,12 @@ locals {
   gitea_ca_cert_path = abspath("${path.module}/certs/ca.crt")
 
   # Extra mounts for Kind nodes - mount CA cert when using external Gitea
+  # registry_host is explicitly passed for containerd config (avoids path parsing in template)
   kind_extra_mounts = var.use_external_gitea ? [
     {
       host_path      = local.gitea_ca_cert_path
       container_path = "/etc/containerd/certs.d/${var.gitea_registry_host}/ca.crt"
+      registry_host  = var.gitea_registry_host
       read_only      = true
     }
   ] : []
@@ -1016,6 +1018,9 @@ resource "kubernetes_secret" "azure_auth_registry_credentials" {
 }
 
 # SSH key for ArgoCD to access Gitea repos (generated regardless of external Gitea)
+# NOTE: Uses OpenSSH format (private_key_openssh) instead of PEM format for better
+# compatibility with modern SSH clients. If you have existing deployments expecting
+# PEM format, use tls_private_key.argocd_repo[0].private_key_pem instead.
 resource "tls_private_key" "argocd_repo" {
   count = var.generate_repo_ssh_key ? 1 : 0
 

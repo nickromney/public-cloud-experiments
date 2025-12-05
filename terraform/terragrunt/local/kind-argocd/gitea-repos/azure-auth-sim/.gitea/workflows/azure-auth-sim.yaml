@@ -60,7 +60,10 @@ jobs:
           CLONE_HOST="${GITEA_HOST:-host.docker.internal:3000}"
           echo "Cloning from https://${CLONE_HOST}/gitea-admin/azure-auth-sim"
           rm -rf "${WORKSPACE_DIR}"
-          git -c http.sslVerify=false clone "https://${GITEA_USER}:${GITEA_PASS}@${CLONE_HOST}/gitea-admin/azure-auth-sim" "${WORKSPACE_DIR}"
+          # Use credential helper to avoid embedding credentials in clone URL
+          git config --global credential.helper store
+          printf "protocol=https\nhost=%s\nusername=%s\npassword=%s\n" "${CLONE_HOST}" "${GITEA_USER}" "${GITEA_PASS}" | git credential-store store
+          git -c http.sslVerify=false clone "https://${CLONE_HOST}/gitea-admin/azure-auth-sim" "${WORKSPACE_DIR}"
           cd "${WORKSPACE_DIR}"
           git checkout main
       - name: Docker info

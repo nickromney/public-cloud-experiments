@@ -2,6 +2,7 @@
 .run/
 .runner
 certs/
+kind-config.yaml
 
 # Terraform/Terragrunt
 .terraform/

@@ -7,8 +7,10 @@ networking:
 containerdConfigPatches:
   - |-
 %{ for mnt in extra_mounts ~}
-    [plugins."io.containerd.grpc.v1.cri".registry.configs."${replace(mnt.container_path, "/etc/containerd/certs.d/", "")}".tls]
+%{ if try(mnt.registry_host, "") != "" ~}
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."${mnt.registry_host}".tls]
       ca_file = "${mnt.container_path}"
+%{ endif ~}
 %{ endfor ~}
 %{ endif ~}
 nodes:
