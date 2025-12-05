@@ -21,7 +21,7 @@ spec:
         - name: gitea-registry-creds
       containers:
         - name: apim-simulator
-          image: host.containers.internal:3000/gitea-admin/azure-auth-sim-apim:latest
+          image: host.docker.internal:3000/gitea-admin/azure-auth-sim-apim:latest
           imagePullPolicy: Always
           env:
             - name: BACKEND_BASE_URL

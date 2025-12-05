@@ -21,7 +21,7 @@ spec:
         - name: gitea-registry-creds
       containers:
         - name: api-fastapi-keycloak
-          image: host.containers.internal:3000/gitea-admin/azure-auth-sim-api:latest
+          image: host.docker.internal:3000/gitea-admin/azure-auth-sim-api:latest
           imagePullPolicy: Always
           env:
             - name: AUTH_METHOD

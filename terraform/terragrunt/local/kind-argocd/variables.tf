@@ -10,9 +10,9 @@ variable "worker_count" {
 }
 
 variable "node_image" {
-  description = "Kind node image (supports Apple Silicon when using podman)."
+  description = "Kind node image."
   type        = string
-  default     = "kindest/node:v1.29.2"
+  default     = "kindest/node:v1.34.0"
 }
 
 variable "kind_config_path" {
@@ -142,7 +142,7 @@ variable "use_external_gitea" {
 variable "gitea_http_host" {
   description = "Host/IP for Gitea HTTP endpoint as reachable from the cluster."
   type        = string
-  default     = "host.containers.internal"
+  default     = "host.docker.internal"
 }
 
 variable "gitea_http_scheme" {
@@ -160,7 +160,7 @@ variable "gitea_http_port" {
 variable "gitea_ssh_host" {
   description = "Host/IP for external Gitea SSH endpoint as reachable from the cluster."
   type        = string
-  default     = "host.containers.internal"
+  default     = "host.docker.internal"
 }
 
 variable "gitea_ssh_port" {
@@ -190,7 +190,7 @@ variable "gitea_ssh_host_local" {
 variable "gitea_registry_host" {
   description = "Host:port for the Gitea container registry as reachable from the cluster."
   type        = string
-  default     = "host.containers.internal:3000"
+  default     = "host.docker.internal:3000"
 }
 
 variable "gitea_admin_username" {

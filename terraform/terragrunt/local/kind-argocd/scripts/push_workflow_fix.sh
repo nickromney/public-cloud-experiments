@@ -3,22 +3,23 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_DIR="${ROOT_DIR}/.run"
-GITEA_SSH_HOST_HOST="${GITEA_SSH_HOST_HOST:-127.0.0.1}"
-GITEA_SSH_PORT="${GITEA_SSH_PORT:-30022}"
+GITEA_HTTP_HOST_HOST="${GITEA_HTTP_HOST_HOST:-https://localhost:3000}"
 GITEA_ADMIN_USER="${GITEA_ADMIN_USER:-gitea-admin}"
-SSH_KEY="${RUN_DIR}/argocd-repo.id_ed25519"
-echo "SSH_KEY: ${SSH_KEY}"
-ls -l "${SSH_KEY}"
-KNOWN_HOSTS="${RUN_DIR}/gitea_known_hosts"
+GITEA_ADMIN_PASS="${GITEA_ADMIN_PASS:-ChangeMe123!}"
 SOURCE_WORKFLOW="${ROOT_DIR}/gitea-repos/azure-auth-sim/.gitea/workflows/azure-auth-sim.yaml"
 
 WORK_DIR="$(mktemp -d)"
 cleanup() { rm -rf "${WORK_DIR}"; }
 trap cleanup EXIT
 
-echo "Cloning azure-auth-sim..."
-GIT_SSH_COMMAND="ssh -v -i ${SSH_KEY} -o IdentitiesOnly=yes -o UserKnownHostsFile=${KNOWN_HOSTS} -o StrictHostKeyChecking=yes" \
-  git clone "ssh://${GITEA_ADMIN_USER}@${GITEA_SSH_HOST_HOST}:${GITEA_SSH_PORT}/${GITEA_ADMIN_USER}/azure-auth-sim.git" "${WORK_DIR}/azure-auth-sim"
+echo "Cloning azure-auth-sim (HTTPS)..."
+HOST_BASE="${GITEA_HTTP_HOST_HOST#https://}"
+HOST_BASE="${HOST_BASE#http://}"
+CLONE_URL="https://${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}@${HOST_BASE}/${GITEA_ADMIN_USER}/azure-auth-sim.git"
+if [[ "${GITEA_HTTP_HOST_HOST}" == http://* ]]; then
+  CLONE_URL="http://${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}@${HOST_BASE}/${GITEA_ADMIN_USER}/azure-auth-sim.git"
+fi
+git -c http.sslCAInfo="${ROOT_DIR}/certs/ca.crt" clone "${CLONE_URL}" "${WORK_DIR}/azure-auth-sim"
 
 echo "Updating workflow file..."
 cp "${SOURCE_WORKFLOW}" "${WORK_DIR}/azure-auth-sim/.gitea/workflows/azure-auth-sim.yaml"
@@ -32,10 +33,9 @@ fi
 git config user.email "admin@gitea.local"
 git config user.name "Gitea Admin"
 git add .
-git commit -m "fix: update workflow shell to bash"
+git commit -m "fix: use /bin/sh for actions runner"
 
 echo "Pushing changes..."
-GIT_SSH_COMMAND="ssh -i ${SSH_KEY} -o IdentitiesOnly=yes -o UserKnownHostsFile=${KNOWN_HOSTS} -o StrictHostKeyChecking=yes" \
-  git push origin main
+git -c http.sslCAInfo="${ROOT_DIR}/certs/ca.crt" push origin main
 
 echo "Workflow updated and pushed."

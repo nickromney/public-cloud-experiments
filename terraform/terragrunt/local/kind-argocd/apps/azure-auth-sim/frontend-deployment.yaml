@@ -21,7 +21,7 @@ spec:
         - name: gitea-registry-creds
       containers:
         - name: frontend-react-keycloak-protected
-          image: host.containers.internal:3000/gitea-admin/azure-auth-sim-frontend:latest
+          image: host.docker.internal:3000/gitea-admin/azure-auth-sim-frontend:latest
           imagePullPolicy: Always
           env:
             - name: VITE_API_URL

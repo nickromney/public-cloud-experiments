@@ -21,46 +21,49 @@ env:
 
 jobs:
   build:
-    runs-on: [self-hosted, local]
+    runs-on: [local]
     defaults:
       run:
-        shell: bash
+        shell: sh
     steps:
-      - name: Prepare SSH key
-        id: prep_ssh
+      - name: Prepare registry CA
+        id: prep_ca
         env:
-          KEY_B64: ${{ secrets.CHECKOUT_SSH_KEY_B64 }}
-          KNOWN_B64: ${{ secrets.CHECKOUT_KNOWN_HOSTS_B64 }}
           REGISTRY_CA_B64: ${{ secrets.REGISTRY_CA_B64 }}
         run: |
-          if [ -z "${KEY_B64}" ] || [ -z "${KNOWN_B64}" ] || [ -z "${REGISTRY_CA_B64}" ]; then
-            echo "Required secret missing (ssh key / known hosts / registry CA)" >&2
+          if [ -z "${REGISTRY_CA_B64}" ]; then
+            echo "Required secret missing (registry CA)" >&2
             exit 1
           fi
-          echo "${KEY_B64}" | base64 -d > /tmp/ci_key
-          chmod 600 /tmp/ci_key
-          echo "${KNOWN_B64}" | base64 -d > /tmp/ci_known_hosts
           echo "${REGISTRY_CA_B64}" | base64 -d > /tmp/ci_registry_ca.crt
-          ls -l /tmp/ci_key /tmp/ci_known_hosts
-          if [ ! -s /tmp/ci_key ] || [ ! -s /tmp/ci_known_hosts ] || [ ! -s /tmp/ci_registry_ca.crt ]; then
-            echo "Decoded SSH key, known_hosts or registry CA is empty" >&2
+          if [ ! -s /tmp/ci_registry_ca.crt ]; then
+            echo "Decoded registry CA is empty" >&2
             exit 1
           fi
           {
-            echo "ssh_key<<EOF"
-            cat /tmp/ci_key
-            echo "EOF"
-            echo "known_hosts<<EOF"
-            cat /tmp/ci_known_hosts
-            echo "EOF"
             echo "registry_ca<<EOF"
             cat /tmp/ci_registry_ca.crt
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
-      - name: Clone repo via SSH
+
+      - name: Clone repo via HTTPS
+        env:
+          GITEA_USER: ${{ secrets.REGISTRY_USERNAME }}
+          GITEA_PASS: ${{ secrets.REGISTRY_PASSWORD }}
+          GITEA_HOST: ${{ secrets.REGISTRY_HOST }}
         run: |
-          GIT_SSH_COMMAND="ssh -i /tmp/ci_key -o UserKnownHostsFile=/tmp/ci_known_hosts -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -p 30022" \
-            git clone ssh://gitea-admin@127.0.0.1:30022/gitea-admin/azure-auth-sim "${WORKSPACE_DIR}"
+          if [ -z "${GITEA_USER}" ] || [ -z "${GITEA_PASS}" ]; then
+            echo "Missing Gitea credentials" >&2
+            exit 1
+          fi
+          # Use REGISTRY_HOST which is reachable from inside the container (e.g., host.docker.internal:3000)
+          CLONE_HOST="${GITEA_HOST:-host.docker.internal:3000}"
+          echo "Cloning from https://${CLONE_HOST}/gitea-admin/azure-auth-sim"
+          rm -rf "${WORKSPACE_DIR}"
+          # Use credential helper to avoid embedding credentials in clone URL
+          git config --global credential.helper store
+          printf "protocol=https\nhost=%s\nusername=%s\npassword=%s\n" "${CLONE_HOST}" "${GITEA_USER}" "${GITEA_PASS}" | git credential-store store
+          git -c http.sslVerify=false clone "https://${CLONE_HOST}/gitea-admin/azure-auth-sim" "${WORKSPACE_DIR}"
           cd "${WORKSPACE_DIR}"
           git checkout main
       - name: Docker info
@@ -71,14 +74,16 @@ jobs:
           install -d \
             "${cert_dir}/${REGISTRY_HOST}" \
             "${cert_dir}/127.0.0.1:${REGISTRY_PORT}" \
-            "${cert_dir}/localhost:${REGISTRY_PORT}"
-          echo "${{ steps.prep_ssh.outputs.registry_ca }}" > /tmp/registry-ca.crt
+            "${cert_dir}/localhost:${REGISTRY_PORT}" \
+            "${cert_dir}/host.docker.internal:${REGISTRY_PORT}"
+          echo "${{ steps.prep_ca.outputs.registry_ca }}" > /tmp/registry-ca.crt
           cp /tmp/registry-ca.crt "${cert_dir}/${REGISTRY_HOST}/ca.crt"
           cp /tmp/registry-ca.crt "${cert_dir}/127.0.0.1:${REGISTRY_PORT}/ca.crt"
           cp /tmp/registry-ca.crt "${cert_dir}/localhost:${REGISTRY_PORT}/ca.crt"
-          # Best effort: add to system trust if available
+          cp /tmp/registry-ca.crt "${cert_dir}/host.docker.internal:${REGISTRY_PORT}/ca.crt"
+          # Best effort: add to system trust if available (may fail without root)
           if [ -d /usr/local/share/ca-certificates ]; then
-            cp /tmp/registry-ca.crt /usr/local/share/ca-certificates/gitea-ca.crt
+            cp /tmp/registry-ca.crt /usr/local/share/ca-certificates/gitea-ca.crt || true
             update-ca-certificates || true
           fi
           if [ -f /etc/ssl/certs/ca-certificates.crt ]; then

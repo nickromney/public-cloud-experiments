@@ -11,7 +11,7 @@ spec:
     namespace: azure-auth-sim
     server: https://kubernetes.default.svc
   source:
-    repoURL: ssh://gitea-admin@host.containers.internal:30022/gitea-admin/policies.git
+    repoURL: ssh://gitea-admin@host.docker.internal:30022/gitea-admin/policies.git
     targetRevision: main
     path: apps/azure-auth-sim
   syncPolicy:
