@@ -8,13 +8,13 @@ POLICIES_DIR="${ROOT_DIR}/policies"
 APPS_DIR="${ROOT_DIR}/apps"
 AZ_REPO_DIR="${ROOT_DIR}/gitea-repos/azure-auth-sim"
 SUBNET_ROOT="$(cd "${ROOT_DIR}/../../../../subnet-calculator" && pwd)"
-GITEA_HTTP="${GITEA_HTTP:-https://localhost:3000}"
+GITEA_HTTP="${GITEA_HTTP:-https://host.docker.internal:3000}"
 GITEA_SSH_HOST="${GITEA_SSH_HOST:-127.0.0.1}"
 GITEA_SSH_PORT="${GITEA_SSH_PORT:-30022}"
 GITEA_ADMIN_USER="${GITEA_ADMIN_USER:-gitea-admin}"
 GITEA_ADMIN_PASS="${GITEA_ADMIN_PASS:-ChangeMe123!}"
 GITEA_ADMIN_EMAIL="${GITEA_ADMIN_EMAIL:-admin@gitea.local}"
-GITEA_CERT_HOSTS="${GITEA_CERT_HOSTS:-localhost,host.containers.internal,127.0.0.1}"
+GITEA_CERT_HOSTS="${GITEA_CERT_HOSTS:-localhost,host.docker.internal,host.containers.internal,127.0.0.1}"
 USE_HOMEBREW_GITEA="${USE_HOMEBREW_GITEA:-auto}"
 SSH_KEY="${RUN_DIR}/argocd-repo.id_ed25519"
 KNOWN_HOSTS="${RUN_DIR}/gitea_known_hosts"
@@ -90,7 +90,7 @@ configure_homebrew_gitea_https() {
   if [ ! -f "${HOMEBREW_GITEA_CERT}" ] || [ ! -f "${HOMEBREW_GITEA_KEY}" ]; then
     regenerate=1
   else
-    if ! openssl x509 -in "${HOMEBREW_GITEA_CERT}" -noout -text 2>/dev/null | grep -q "DNS:host.containers.internal"; then
+  if ! openssl x509 -in "${HOMEBREW_GITEA_CERT}" -noout -text 2>/dev/null | grep -q "DNS:host.docker.internal"; then
       regenerate=1
     fi
   fi
@@ -184,6 +184,19 @@ PY
     need_restart=1
   fi
 
+  # Ensure PASSWORD_HASH_ALGO is set to argon2 (pbkdf2 has issues with basic auth)
+  if grep -q "PASSWORD_HASH_ALGO = pbkdf2" "${HOMEBREW_GITEA_CONFIG}"; then
+    sed -i '' 's/PASSWORD_HASH_ALGO = pbkdf2/PASSWORD_HASH_ALGO = argon2/' "${HOMEBREW_GITEA_CONFIG}"
+    need_restart=1
+  elif ! grep -q "PASSWORD_HASH_ALGO" "${HOMEBREW_GITEA_CONFIG}"; then
+    # Add PASSWORD_HASH_ALGO to [security] section if not present
+    if grep -q "^\[security\]" "${HOMEBREW_GITEA_CONFIG}"; then
+      sed -i '' '/^\[security\]/a\
+PASSWORD_HASH_ALGO = argon2' "${HOMEBREW_GITEA_CONFIG}"
+    fi
+    need_restart=1
+  fi
+
   if homebrew_gitea_running; then
     if [ "${need_restart}" -eq 1 ]; then
       brew services restart gitea >/dev/null
@@ -191,6 +204,42 @@ PY
   else
     brew services start gitea >/dev/null
   fi
+}
+
+setup_docker_registry_certs() {
+  # Set up Docker registry certs for both Docker Desktop and Podman
+  # Docker uses ~/.docker/certs.d/<registry>/ca.crt
+  local cert_source
+  if [ "${GITEA_RUNTIME}" = "homebrew" ]; then
+    cert_source="${HOMEBREW_GITEA_CERT}"
+  else
+    # For container-based Gitea, cert would be in a different location
+    cert_source="${ROOT_DIR}/certs/ca.crt"
+  fi
+
+  if [ ! -f "${cert_source}" ]; then
+    echo "Warning: Gitea cert not found at ${cert_source}, skipping Docker cert setup" >&2
+    return 0
+  fi
+
+  local docker_certs_base="${HOME}/.docker/certs.d"
+  local parsed_port
+  parsed_port=$(echo "${GITEA_HTTP}" | sed -n 's|.*:\([0-9]*\).*|\1|p')
+  parsed_port="${parsed_port:-3000}"
+
+  # Set up certs for all hostnames that might be used to access the registry
+  local registry_hosts=("localhost:${parsed_port}" "host.docker.internal:${parsed_port}" "host.containers.internal:${parsed_port}" "127.0.0.1:${parsed_port}")
+
+  for host in "${registry_hosts[@]}"; do
+    mkdir -p "${docker_certs_base}/${host}"
+    cp "${cert_source}" "${docker_certs_base}/${host}/ca.crt"
+  done
+
+  # Also copy to the project certs directory for reference
+  mkdir -p "${ROOT_DIR}/certs"
+  cp "${cert_source}" "${ROOT_DIR}/certs/ca.crt"
+
+  echo "Docker registry certs installed for: ${registry_hosts[*]}"
 }
 
 wait_health() {
@@ -258,7 +307,7 @@ ensure_ssh_material() {
     ssh-keygen -t ed25519 -N "" -f "${SSH_KEY}" >/dev/null
   fi
   : > "${KNOWN_HOSTS}"
-  local targets=("${GITEA_SSH_HOST}" "host.containers.internal")
+  local targets=("${GITEA_SSH_HOST}" "host.docker.internal")
   local ok=0
   for host in "${targets[@]}"; do
     [ -z "${host}" ] && continue
@@ -271,12 +320,6 @@ ensure_ssh_material() {
       fi
       sleep 2
     done
-    # Fallback: try podman machine ssh for host.containers.internal if direct keyscan failed
-    if [ "${added}" -eq 0 ] && [ "${host}" = "host.containers.internal" ] && command -v podman >/dev/null 2>&1; then
-      if podman machine inspect >/dev/null 2>&1; then
-        podman machine ssh -- ssh-keyscan -t rsa -p "${GITEA_SSH_PORT}" host.containers.internal >> "${KNOWN_HOSTS}" 2>/dev/null && ok=1 || true
-      fi
-    fi
   done
   if [ "${ok}" -eq 0 ]; then
     echo "Failed to capture SSH host keys for Gitea" >&2
@@ -334,7 +377,19 @@ build_policies_tree() {
   find "${tmp}" -maxdepth 1 -type f ! -name "README.md" -delete || true
 }
 
+check_etc_hosts() {
+  if ! grep -q "host.docker.internal" /etc/hosts 2>/dev/null; then
+    echo "WARNING: /etc/hosts does not contain 'host.docker.internal'" >&2
+    echo "For Docker Desktop registry access, add this line to /etc/hosts:" >&2
+    echo "  127.0.0.1 host.docker.internal" >&2
+    echo "" >&2
+    return 1
+  fi
+  return 0
+}
+
 main() {
+  check_etc_hosts || true
   if homebrew_gitea_available; then
     echo "Using Homebrew Gitea at ${HOMEBREW_GITEA_CONFIG}"
     GITEA_RUNTIME="homebrew"
@@ -350,6 +405,7 @@ main() {
     GITEA_SSH_USER="${GITEA_ADMIN_USER}"
   fi
   wait_health
+  setup_docker_registry_certs
   ensure_ssh_material
   ensure_admin
   ensure_admin_ssh_key
