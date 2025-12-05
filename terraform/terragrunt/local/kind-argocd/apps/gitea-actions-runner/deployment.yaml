@@ -25,8 +25,9 @@ spec:
           effect: "NoSchedule"
       initContainers:
         # Download Docker CLI and buildx plugin for the runner to use
+        # Pinned to 27.5-cli for reproducibility (buildx at /usr/local/libexec/docker/cli-plugins/)
         - name: install-docker-cli
-          image: docker:27-cli
+          image: docker:27.5-cli
           command:
             - sh
             - -c
@@ -48,7 +49,7 @@ spec:
               mountPath: /tools
         # Register runner with Gitea before starting daemon
         - name: register
-          image: gitea/act_runner:latest
+          image: gitea/act_runner:0.2.13
           command:
             - sh
             - -c
@@ -87,7 +88,7 @@ spec:
               mountPath: /var/run/docker.sock
       containers:
         - name: runner
-          image: gitea/act_runner:latest
+          image: gitea/act_runner:0.2.13
           command:
             - act_runner
             - daemon

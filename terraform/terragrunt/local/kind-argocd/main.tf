@@ -56,13 +56,13 @@ locals {
   gitea_ssh_host_local      = var.use_external_gitea ? var.gitea_ssh_host_local : "127.0.0.1"
   gitea_ssh_port            = var.use_external_gitea ? var.gitea_ssh_port : var.gitea_ssh_node_port
   # Cluster-internal access (for pods inside Kubernetes, e.g., ArgoCD, kubectl run ssh-keyscan)
-  gitea_ssh_host_cluster    = var.use_external_gitea ? var.gitea_ssh_host : var.gitea_ssh_host_cluster
-  gitea_ssh_port_cluster    = var.use_external_gitea ? var.gitea_ssh_port : var.gitea_ssh_port_cluster
-  gitea_http_host_cluster   = var.use_external_gitea ? var.gitea_http_host : var.gitea_http_host_cluster
-  gitea_http_port_cluster   = var.use_external_gitea ? var.gitea_http_port : var.gitea_http_port_cluster
-  gitea_registry_host       = var.gitea_registry_host
-  policy_files              = fileset("${path.module}/policies", "**")
-  apps_files_all            = fileset("${path.module}/apps", "**")
+  gitea_ssh_host_cluster  = var.use_external_gitea ? var.gitea_ssh_host : var.gitea_ssh_host_cluster
+  gitea_ssh_port_cluster  = var.use_external_gitea ? var.gitea_ssh_port : var.gitea_ssh_port_cluster
+  gitea_http_host_cluster = var.use_external_gitea ? var.gitea_http_host : var.gitea_http_host_cluster
+  gitea_http_port_cluster = var.use_external_gitea ? var.gitea_http_port : var.gitea_http_port_cluster
+  gitea_registry_host     = var.gitea_registry_host
+  policy_files            = fileset("${path.module}/policies", "**")
+  apps_files_all          = fileset("${path.module}/apps", "**")
   apps_skip_prefixes = concat(
     # Skip azure-auth-sim apps if not enabled
     var.enable_azure_auth_sim ? [] : ["azure-auth-sim", "azure-auth-sim.yaml", "azure-auth-sim-internal.yaml"],
@@ -789,7 +789,7 @@ EOT
     interpreter = ["/bin/bash", "-c"]
   }
 
-  depends_on = [null_resource.gitea_create_repo[0]]
+  depends_on = [null_resource.gitea_create_repo]
 }
 
 # Cluster-internal known_hosts for ArgoCD (gitea-ssh.gitea.svc.cluster.local:22)
@@ -834,7 +834,7 @@ data "local_file" "gitea_known_hosts" {
 data "local_file" "gitea_known_hosts_cluster" {
   count      = var.enable_gitea ? 1 : 0
   filename   = local.gitea_known_hosts_cluster
-  depends_on = [null_resource.gitea_known_hosts_cluster[0]]
+  depends_on = [null_resource.gitea_known_hosts_cluster]
 }
 
 # Add Gitea SSH host key to ArgoCD's global known_hosts configmap
@@ -931,12 +931,8 @@ TMP_DIR=$(mktemp -d)
 # Copy base apps directory (non-templated files: services, kustomization, etc.)
 cp -r ${path.module}/apps "$TMP_DIR"/
 
-# Remove old static app YAML files that are now templated
-rm -f "$TMP_DIR/apps/azure-auth-sim.yaml" \
-      "$TMP_DIR/apps/azure-auth-sim-internal.yaml" \
-      "$TMP_DIR/apps/cilium-policies.yaml" \
-      "$TMP_DIR/apps/kyverno-policies.yaml" \
-      "$TMP_DIR/apps/gitea-actions-runner.yaml"
+# Remove all old static app YAML files that are now templated
+rm -f "$TMP_DIR/apps/"*.yaml
 
 # Remove the kustomize overlay (no longer needed - URLs are templated)
 rm -rf "$TMP_DIR/apps/azure-auth-sim/overlays"
@@ -1377,13 +1373,13 @@ EOT
     interpreter = ["/bin/bash", "-c"]
   }
 
-  depends_on = [null_resource.wait_for_gitea[0]]
+  depends_on = [null_resource.wait_for_gitea]
 }
 
 data "local_file" "gitea_runner_token" {
   count      = var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
   filename   = "${path.module}/.run/runner_token"
-  depends_on = [null_resource.gitea_runner_token[0]]
+  depends_on = [null_resource.gitea_runner_token]
 }
 
 # Create secret for runner registration (before ArgoCD deploys the runner)

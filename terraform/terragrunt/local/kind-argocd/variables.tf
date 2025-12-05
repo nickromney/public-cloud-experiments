@@ -341,13 +341,13 @@ variable "enable_azure_auth_ports" {
 }
 
 variable "docker_socket_path" {
-  description = "Path to Docker socket on the host. Used for in-cluster Actions runner to build images."
+  description = "Path to Docker socket on the host for in-cluster Actions runner. Default '/var/run/docker.sock' works on Linux and macOS with Docker Desktop. WARNING: Mounting the Docker socket grants full host Docker access - use only in trusted local development environments."
   type        = string
   default     = "/var/run/docker.sock"
 }
 
 variable "actions_runner_image" {
-  description = "Container image for the Gitea Actions runner."
+  description = "Container image for the Gitea Actions runner. Pinned to specific version for reproducibility."
   type        = string
-  default     = "gitea/act_runner:latest"
+  default     = "gitea/act_runner:0.2.13"
 }

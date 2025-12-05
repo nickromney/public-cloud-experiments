@@ -54,7 +54,8 @@ jobs:
         env:
           GITEA_USER: ${{ secrets.REGISTRY_USERNAME }}
           GITEA_PASS: ${{ secrets.REGISTRY_PASSWORD }}
-          # Use GITEAHOST (cluster-internal) for git clone, not REGISTRY_HOST (NodePort for Docker)
+          # GITEAHOST contains the cluster-internal service DNS name for git clone.
+          # REGISTRY_HOST contains the NodePort-accessible address for Docker operations.
           # Note: GITEA_HOST is reserved in Gitea Actions, so we use GITEAHOST (no underscore)
           GITEA_HOST: ${{ secrets.GITEAHOST }}
         run: |
