@@ -55,12 +55,22 @@ locals {
   gitea_ssh_host            = var.use_external_gitea ? var.gitea_ssh_host : "127.0.0.1"
   gitea_ssh_host_local      = var.use_external_gitea ? var.gitea_ssh_host_local : "127.0.0.1"
   gitea_ssh_port            = var.use_external_gitea ? var.gitea_ssh_port : var.gitea_ssh_node_port
+  # Cluster-internal access (for pods inside Kubernetes, e.g., ArgoCD, kubectl run ssh-keyscan)
+  gitea_ssh_host_cluster    = var.use_external_gitea ? var.gitea_ssh_host : var.gitea_ssh_host_cluster
+  gitea_ssh_port_cluster    = var.use_external_gitea ? var.gitea_ssh_port : var.gitea_ssh_port_cluster
+  gitea_http_host_cluster   = var.use_external_gitea ? var.gitea_http_host : var.gitea_http_host_cluster
+  gitea_http_port_cluster   = var.use_external_gitea ? var.gitea_http_port : var.gitea_http_port_cluster
   gitea_registry_host       = var.gitea_registry_host
   policy_files              = fileset("${path.module}/policies", "**")
   apps_files_all            = fileset("${path.module}/apps", "**")
   apps_skip_prefixes = concat(
-    var.enable_azure_auth_sim ? [] : ["azure-auth-sim", "azure-auth-sim.yaml"],
-    var.enable_actions_runner ? [] : ["gitea-actions-runner.yaml"]
+    # Skip azure-auth-sim apps if not enabled
+    var.enable_azure_auth_sim ? [] : ["azure-auth-sim", "azure-auth-sim.yaml", "azure-auth-sim-internal.yaml"],
+    # For external Gitea, skip internal variant; for in-cluster, skip external variant
+    var.enable_azure_auth_sim && var.use_external_gitea ? ["azure-auth-sim-internal.yaml"] : [],
+    var.enable_azure_auth_sim && !var.use_external_gitea ? ["azure-auth-sim.yaml"] : [],
+    # Skip runner for external Gitea (uses host runner via stage200) or if not enabled
+    !var.enable_actions_runner || var.use_external_gitea ? ["gitea-actions-runner.yaml", "gitea-actions-runner"] : []
   )
   apps_files = [
     for file in local.apps_files_all : file
@@ -201,6 +211,64 @@ locals {
   } : {}
 
   cilium_values = merge(local.cilium_values_base, local.hubble_values)
+
+  # Template variables for generated app YAML files
+  # All cluster-internal addressing is configured here from tfvars
+  app_template_vars = {
+    gitea_ssh_username   = var.gitea_ssh_username
+    gitea_ssh_host       = local.gitea_ssh_host_cluster
+    gitea_ssh_port       = local.gitea_ssh_port_cluster
+    gitea_admin_username = var.gitea_admin_username
+    registry_host        = var.gitea_registry_host
+  }
+
+  # Staging directory for generated app files
+  generated_apps_dir = "${path.module}/.run/generated-apps"
+}
+
+# -----------------------------------------------------------------------------
+# Generated App YAML Files (templated with correct URLs from tfvars)
+# -----------------------------------------------------------------------------
+
+resource "local_file" "app_azure_auth_sim" {
+  count    = var.enable_azure_auth_sim ? 1 : 0
+  filename = "${local.generated_apps_dir}/azure-auth-sim.yaml"
+  content  = templatefile("${path.module}/templates/apps/azure-auth-sim.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "app_cilium_policies" {
+  filename = "${local.generated_apps_dir}/cilium-policies.yaml"
+  content  = templatefile("${path.module}/templates/apps/cilium-policies.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "app_kyverno_policies" {
+  filename = "${local.generated_apps_dir}/kyverno-policies.yaml"
+  content  = templatefile("${path.module}/templates/apps/kyverno-policies.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "app_gitea_actions_runner" {
+  count    = var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
+  filename = "${local.generated_apps_dir}/gitea-actions-runner.yaml"
+  content  = templatefile("${path.module}/templates/apps/gitea-actions-runner.yaml.tpl", local.app_template_vars)
+}
+
+# Azure Auth Sim deployment files
+resource "local_file" "azure_auth_api_deployment" {
+  count    = var.enable_azure_auth_sim ? 1 : 0
+  filename = "${local.generated_apps_dir}/azure-auth-sim/api-deployment.yaml"
+  content  = templatefile("${path.module}/templates/apps/azure-auth-sim/api-deployment.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "azure_auth_apim_deployment" {
+  count    = var.enable_azure_auth_sim ? 1 : 0
+  filename = "${local.generated_apps_dir}/azure-auth-sim/apim-deployment.yaml"
+  content  = templatefile("${path.module}/templates/apps/azure-auth-sim/apim-deployment.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "azure_auth_frontend_deployment" {
+  count    = var.enable_azure_auth_sim ? 1 : 0
+  filename = "${local.generated_apps_dir}/azure-auth-sim/frontend-deployment.yaml"
+  content  = templatefile("${path.module}/templates/apps/azure-auth-sim/frontend-deployment.yaml.tpl", local.app_template_vars)
 }
 
 provider "kubernetes" {
@@ -242,16 +310,30 @@ locals {
   # CA cert path for external Gitea registry - used by Kind nodes for containerd TLS
   gitea_ca_cert_path = abspath("${path.module}/certs/ca.crt")
 
-  # Extra mounts for Kind nodes - mount CA cert when using external Gitea
-  # registry_host is explicitly passed for containerd config (avoids path parsing in template)
-  kind_extra_mounts = var.use_external_gitea ? [
+  # Docker socket mount for in-cluster Actions runner (host socket approach)
+  # This allows the runner pod to build images using the host's Docker daemon
+  docker_socket_mount = var.enable_actions_runner && !var.use_external_gitea ? [
     {
-      host_path      = local.gitea_ca_cert_path
-      container_path = "/etc/containerd/certs.d/${var.gitea_registry_host}/ca.crt"
-      registry_host  = var.gitea_registry_host
-      read_only      = true
+      host_path      = var.docker_socket_path
+      container_path = "/var/run/docker.sock"
+      registry_host  = ""
+      read_only      = false
     }
   ] : []
+
+  # Extra mounts for Kind nodes - mount CA cert when using external Gitea
+  # registry_host is explicitly passed for containerd config (avoids path parsing in template)
+  kind_extra_mounts = concat(
+    var.use_external_gitea ? [
+      {
+        host_path      = local.gitea_ca_cert_path
+        container_path = "/etc/containerd/certs.d/${var.gitea_registry_host}/ca.crt"
+        registry_host  = var.gitea_registry_host
+        read_only      = true
+      }
+    ] : [],
+    local.docker_socket_mount
+  )
 }
 
 resource "local_file" "kind_config" {
@@ -260,6 +342,8 @@ resource "local_file" "kind_config" {
     workers      = local.kind_workers
     ports        = local.extra_port_mappings
     extra_mounts = local.kind_extra_mounts
+    # For in-cluster Gitea, configure containerd to allow HTTP registry
+    insecure_registry = var.use_external_gitea ? "" : "gitea-http.gitea.svc.cluster.local:3000"
   })
 }
 
@@ -273,13 +357,20 @@ resource "kind_cluster" "local" {
     kind        = "Cluster"
     api_version = "kind.x-k8s.io/v1alpha4"
 
-    # Configure containerd to trust the Gitea registry CA cert
+    # Configure containerd registry access:
+    # - External Gitea: trust the CA cert for HTTPS registry
+    # - In-cluster Gitea: allow insecure HTTP registry
     containerd_config_patches = var.use_external_gitea ? [
       <<-EOT
       [plugins."io.containerd.grpc.v1.cri".registry.configs."${var.gitea_registry_host}".tls]
         ca_file = "/etc/containerd/certs.d/${var.gitea_registry_host}/ca.crt"
       EOT
-    ] : []
+      ] : [
+      <<-EOT
+      [plugins."io.containerd.grpc.v1.cri".registry.configs."gitea-http.gitea.svc.cluster.local:3000".tls]
+        insecure_skip_verify = true
+      EOT
+    ]
 
     networking {
       disable_default_cni = true
@@ -717,7 +808,7 @@ set -euo pipefail
 mkdir -p "${path.module}/.run"
 for i in {1..20}; do
   if kubectl run ssh-keyscan-$$ --image=alpine:latest --rm -i --restart=Never -q -- \
-    sh -c "apk add --no-cache openssh-client >/dev/null 2>&1 && ssh-keyscan -p ${local.gitea_ssh_port} ${local.gitea_ssh_host} 2>/dev/null" \
+    sh -c "apk add --no-cache openssh-client >/dev/null 2>&1 && ssh-keyscan -p ${local.gitea_ssh_port_cluster} ${local.gitea_ssh_host_cluster} 2>/dev/null" \
     > "${local.gitea_known_hosts_cluster}" 2>/dev/null && [ -s "${local.gitea_known_hosts_cluster}" ]; then
     exit 0
   fi
@@ -764,10 +855,10 @@ kubectl get configmap argocd-ssh-known-hosts-cm -n ${var.argocd_namespace} \
   -o jsonpath='{.data.ssh_known_hosts}' > /tmp/argocd-known-hosts.txt
 
 # Extract any non-comment key line (supports ssh-rsa, ssh-ed25519, ecdsa, etc.)
-GITEA_KEY=$(grep -E "^[^#]" "${local.gitea_known_hosts_cluster}" | grep "${local.gitea_ssh_host}" | head -1)
+GITEA_KEY=$(grep -E "^[^#]" "${local.gitea_known_hosts_cluster}" | grep "${local.gitea_ssh_host_cluster}" | head -1)
 
 # Check if already present
-if ! grep -q "${local.gitea_ssh_host}" /tmp/argocd-known-hosts.txt; then
+if ! grep -q "${local.gitea_ssh_host_cluster}" /tmp/argocd-known-hosts.txt; then
   echo "$GITEA_KEY" >> /tmp/argocd-known-hosts.txt
   kubectl create configmap argocd-ssh-known-hosts-cm -n ${var.argocd_namespace} \
     --from-file=ssh_known_hosts=/tmp/argocd-known-hosts.txt \
@@ -816,6 +907,13 @@ resource "null_resource" "seed_gitea_repo" {
     repo_id    = null_resource.gitea_create_repo[0].id
     host_key   = md5(data.local_file.gitea_known_hosts[0].content)
     repo_files = local.repo_checksum
+    # Trigger on generated file changes
+    generated_files = md5(join("", [
+      local_file.app_cilium_policies.content,
+      local_file.app_kyverno_policies.content,
+      var.enable_azure_auth_sim ? local_file.app_azure_auth_sim[0].content : "",
+      var.enable_actions_runner && !var.use_external_gitea ? local_file.app_gitea_actions_runner[0].content : "",
+    ]))
   }
 
   provisioner "local-exec" {
@@ -829,13 +927,31 @@ if [ "${var.use_external_gitea}" = "true" ]; then
   exit 0
 fi
 TMP_DIR=$(mktemp -d)
+
+# Copy base apps directory (non-templated files: services, kustomization, etc.)
 cp -r ${path.module}/apps "$TMP_DIR"/
+
+# Remove old static app YAML files that are now templated
+rm -f "$TMP_DIR/apps/azure-auth-sim.yaml" \
+      "$TMP_DIR/apps/azure-auth-sim-internal.yaml" \
+      "$TMP_DIR/apps/cilium-policies.yaml" \
+      "$TMP_DIR/apps/kyverno-policies.yaml" \
+      "$TMP_DIR/apps/gitea-actions-runner.yaml"
+
+# Remove the kustomize overlay (no longer needed - URLs are templated)
+rm -rf "$TMP_DIR/apps/azure-auth-sim/overlays"
+
+# Copy generated templated files (with correct URLs from tfvars)
+cp -r ${local.generated_apps_dir}/* "$TMP_DIR/apps/"
+
 if [ "${var.enable_azure_auth_sim}" != "true" ]; then
   rm -rf "$TMP_DIR/apps/azure-auth-sim" "$TMP_DIR/apps/azure-auth-sim.yaml"
 fi
-if [ "${var.enable_actions_runner}" != "true" ]; then
+if [ "${var.enable_actions_runner}" != "true" ] || [ "${var.use_external_gitea}" = "true" ]; then
   rm -f "$TMP_DIR/apps/gitea-actions-runner.yaml"
+  rm -rf "$TMP_DIR/apps/gitea-actions-runner"
 fi
+
 cp -r ${path.module}/policies "$TMP_DIR"/
 cd "$TMP_DIR"
 git init -q
@@ -855,7 +971,14 @@ EOT
     null_resource.gitea_add_deploy_key[0],
     null_resource.gitea_known_hosts[0],
     data.local_file.gitea_known_hosts[0],
-    local_sensitive_file.gitea_repo_private_key[0]
+    local_sensitive_file.gitea_repo_private_key[0],
+    local_file.app_cilium_policies,
+    local_file.app_kyverno_policies,
+    local_file.app_azure_auth_sim,
+    local_file.app_gitea_actions_runner,
+    local_file.azure_auth_api_deployment,
+    local_file.azure_auth_apim_deployment,
+    local_file.azure_auth_frontend_deployment,
   ]
 }
 
@@ -965,7 +1088,7 @@ resource "kubernetes_secret" "argocd_repo_gitea" {
 
   data = {
     type = "git"
-    url  = "ssh://${var.gitea_ssh_username}@${local.gitea_ssh_host}:${local.gitea_ssh_port}/${var.gitea_admin_username}/policies.git"
+    url  = "ssh://${var.gitea_ssh_username}@${local.gitea_ssh_host_cluster}:${local.gitea_ssh_port_cluster}/${var.gitea_admin_username}/policies.git"
     # Use Terraform-generated SSH key (added to Gitea admin user for external, or as deploy key for in-cluster)
     sshPrivateKey = var.use_external_gitea ? tls_private_key.argocd_repo[0].private_key_openssh : tls_private_key.gitea_repo[0].private_key_openssh
     sshKnownHosts = data.local_file.gitea_known_hosts_cluster[0].content
@@ -1173,7 +1296,7 @@ spec:
     namespace: ${var.argocd_namespace}
     server: https://kubernetes.default.svc
   source:
-    repoURL: ssh://${var.gitea_ssh_username}@${local.gitea_ssh_host}:${local.gitea_ssh_port}/${var.gitea_admin_username}/policies.git
+    repoURL: ssh://${var.gitea_ssh_username}@${local.gitea_ssh_host_cluster}:${local.gitea_ssh_port_cluster}/${var.gitea_admin_username}/policies.git
     targetRevision: main
     path: apps
     directory:
@@ -1200,5 +1323,137 @@ EOF
     kubernetes_secret.argocd_repo_gitea[0],
     null_resource.seed_gitea_repo[0],
     null_resource.argocd_add_gitea_known_host[0]
+  ]
+}
+
+# -----------------------------------------------------------------------------
+# In-cluster Gitea Actions Runner
+# Deploys runner with host Docker socket access for building images
+# -----------------------------------------------------------------------------
+
+resource "kubernetes_namespace" "gitea_runner" {
+  count = var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
+
+  metadata {
+    name = "gitea-runner"
+    labels = {
+      "app.kubernetes.io/name"       = "gitea-actions-runner"
+      "app.kubernetes.io/part-of"    = "gitea"
+      "app.kubernetes.io/managed-by" = "terraform"
+    }
+  }
+
+  depends_on = [
+    kind_cluster.local,
+    local_sensitive_file.kubeconfig
+  ]
+}
+
+# Get runner registration token from in-cluster Gitea
+resource "null_resource" "gitea_runner_token" {
+  count = var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
+
+  triggers = {
+    gitea_ready = null_resource.wait_for_gitea[0].id
+  }
+
+  provisioner "local-exec" {
+    command     = <<EOT
+set -euo pipefail
+mkdir -p "${path.module}/.run"
+for i in {1..20}; do
+  token=$(curl ${local.gitea_curl_insecure} -s -u "${var.gitea_admin_username}:${var.gitea_admin_password}" -X POST \
+    "${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/admin/actions/runners/registration-token" | jq -r '.token // empty')
+  if [ -n "$token" ]; then
+    echo -n "$token" > "${path.module}/.run/runner_token"
+    exit 0
+  fi
+  echo "Failed to get runner token, retrying... ($i/20)" >&2
+  sleep 5
+done
+echo "Failed to obtain runner registration token" >&2
+exit 1
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+
+  depends_on = [null_resource.wait_for_gitea[0]]
+}
+
+data "local_file" "gitea_runner_token" {
+  count      = var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
+  filename   = "${path.module}/.run/runner_token"
+  depends_on = [null_resource.gitea_runner_token[0]]
+}
+
+# Create secret for runner registration (before ArgoCD deploys the runner)
+resource "kubernetes_secret" "gitea_runner" {
+  count = var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
+
+  metadata {
+    name      = "act-runner-secret"
+    namespace = kubernetes_namespace.gitea_runner[0].metadata[0].name
+  }
+
+  data = {
+    # In-cluster Gitea URL (HTTP service in gitea namespace)
+    gitea_url    = "http://gitea-http.gitea.svc.cluster.local:3000"
+    runner_token = trimspace(data.local_file.gitea_runner_token[0].content)
+  }
+
+  depends_on = [
+    kubernetes_namespace.gitea_runner[0],
+    null_resource.gitea_runner_token[0],
+    data.local_file.gitea_runner_token[0]
+  ]
+}
+
+# Create repo secrets for the azure-auth-sim workflow (in-cluster registry)
+resource "null_resource" "gitea_azure_auth_repo_secrets_internal" {
+  count = var.enable_gitea && var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
+
+  triggers = {
+    repo_id  = null_resource.gitea_create_repo_azure_auth[0].id
+    password = md5(var.gitea_admin_password)
+  }
+
+  provisioner "local-exec" {
+    command     = <<EOT
+set -euo pipefail
+create_secret() {
+  local name="$1"
+  local value="$2"
+  for i in {1..5}; do
+    status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X PUT \
+      -u "${var.gitea_admin_username}:${var.gitea_admin_password}" \
+      -H "Content-Type: application/json" \
+      -d "{\"data\":\"$${value}\"}" \
+      ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/azure-auth-sim/actions/secrets/$${name})
+    if echo "$status" | grep -Eq "200|201|204"; then
+      return 0
+    fi
+    echo "Setting secret $${name} returned HTTP $status, retrying... ($i/5)" >&2
+    sleep 3
+  done
+  echo "Failed to create/update secret $${name}" >&2
+  exit 1
+}
+
+# For in-cluster Gitea, we need two different addresses:
+# 1. GITEA_HOST: cluster-internal address for git clone (runs inside runner pod)
+# 2. REGISTRY_HOST: NodePort address for docker operations (via Docker Desktop socket)
+# Docker Desktop cannot resolve Kubernetes service names, so docker login/push use NodePort.
+create_secret "REGISTRY_USERNAME" "${var.gitea_admin_username}"
+create_secret "REGISTRY_PASSWORD" "${var.gitea_admin_password}"
+create_secret "REGISTRY_HOST" "127.0.0.1:${var.gitea_http_node_port}"
+# Note: GITEA_HOST is a reserved prefix in Gitea, so we use GITEAHOST (no underscore)
+create_secret "GITEAHOST" "gitea-http.gitea.svc.cluster.local:${var.gitea_http_port_cluster}"
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+
+  depends_on = [
+    null_resource.gitea_create_repo_azure_auth[0],
+    null_resource.wait_for_gitea[0]
   ]
 }

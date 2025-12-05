@@ -193,6 +193,36 @@ variable "gitea_registry_host" {
   default     = "host.docker.internal:3000"
 }
 
+# -----------------------------------------------------------------------------
+# Cluster-internal Gitea addresses (for pods running inside Kubernetes)
+# These are used when running commands from inside the cluster, e.g., ArgoCD
+# connecting to Gitea, or kubectl run for ssh-keyscan.
+# -----------------------------------------------------------------------------
+
+variable "gitea_ssh_host_cluster" {
+  description = "Host for Gitea SSH as reachable from inside the cluster (Kubernetes service name)."
+  type        = string
+  default     = "gitea-ssh.gitea.svc.cluster.local"
+}
+
+variable "gitea_ssh_port_cluster" {
+  description = "Port for Gitea SSH as reachable from inside the cluster."
+  type        = number
+  default     = 22
+}
+
+variable "gitea_http_host_cluster" {
+  description = "Host for Gitea HTTP as reachable from inside the cluster (Kubernetes service name)."
+  type        = string
+  default     = "gitea-http.gitea.svc.cluster.local"
+}
+
+variable "gitea_http_port_cluster" {
+  description = "Port for Gitea HTTP as reachable from inside the cluster."
+  type        = number
+  default     = 3000
+}
+
 variable "gitea_admin_username" {
   description = "Gitea admin username."
   type        = string
@@ -308,4 +338,16 @@ variable "enable_azure_auth_ports" {
   description = "Expose azure auth simulation NodePorts/host ports on the kind control plane. Keep this true from stage 100 onward to avoid cluster recreation when enabling the workload later."
   type        = bool
   default     = false
+}
+
+variable "docker_socket_path" {
+  description = "Path to Docker socket on the host. Used for in-cluster Actions runner to build images."
+  type        = string
+  default     = "/var/run/docker.sock"
+}
+
+variable "actions_runner_image" {
+  description = "Container image for the Gitea Actions runner."
+  type        = string
+  default     = "gitea/act_runner:latest"
 }

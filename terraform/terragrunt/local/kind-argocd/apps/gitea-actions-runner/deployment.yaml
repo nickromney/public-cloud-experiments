@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: act-runner
+  namespace: gitea-runner
+  labels:
+    app.kubernetes.io/name: act-runner
+    app.kubernetes.io/part-of: gitea
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: act-runner
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: act-runner
+    spec:
+      # Run on control-plane where Docker socket is mounted
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: ""
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+      initContainers:
+        # Download Docker CLI and buildx plugin for the runner to use
+        - name: install-docker-cli
+          image: docker:27-cli
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Copying Docker CLI to shared volume..."
+              cp /usr/local/bin/docker /tools/docker
+              chmod +x /tools/docker
+              echo "Docker CLI installed: $(/tools/docker --version)"
+
+              # Install buildx plugin
+              echo "Installing buildx plugin..."
+              mkdir -p /tools/.docker/cli-plugins
+              cp /usr/local/libexec/docker/cli-plugins/docker-buildx /tools/.docker/cli-plugins/
+              chmod +x /tools/.docker/cli-plugins/docker-buildx
+              echo "Buildx installed: $(/tools/.docker/cli-plugins/docker-buildx version)"
+          volumeMounts:
+            - name: tools
+              mountPath: /tools
+        # Register runner with Gitea before starting daemon
+        - name: register
+          image: gitea/act_runner:latest
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              if [ -f /data/.runner ]; then
+                echo "Runner already registered, skipping..."
+                exit 0
+              fi
+              echo "Registering runner with Gitea..."
+              act_runner register \
+                --config /config/config.yaml \
+                --instance "${GITEA_URL}" \
+                --token "${RUNNER_TOKEN}" \
+                --name "in-cluster-runner" \
+                --no-interactive
+          env:
+            - name: GITEA_URL
+              valueFrom:
+                secretKeyRef:
+                  name: act-runner-secret
+                  key: gitea_url
+            - name: RUNNER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: act-runner-secret
+                  key: runner_token
+            - name: DOCKER_HOST
+              value: "unix:///var/run/docker.sock"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+      containers:
+        - name: runner
+          image: gitea/act_runner:latest
+          command:
+            - act_runner
+            - daemon
+            - --config
+            - /config/config.yaml
+          env:
+            - name: DOCKER_HOST
+              value: "unix:///var/run/docker.sock"
+            - name: DOCKER_CONFIG
+              value: "/tools/.docker"
+            - name: PATH
+              value: "/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+            - name: tools
+              mountPath: /tools
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      volumes:
+        - name: config
+          configMap:
+            name: act-runner-config
+        - name: data
+          emptyDir: {}
+        - name: tools
+          emptyDir: {}
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket

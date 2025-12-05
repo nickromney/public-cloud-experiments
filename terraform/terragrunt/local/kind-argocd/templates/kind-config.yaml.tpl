@@ -3,7 +3,7 @@ apiVersion: kind.x-k8s.io/v1alpha4
 networking:
   disableDefaultCNI: true
   kubeProxyMode: "iptables"
-%{ if length(extra_mounts) > 0 ~}
+%{ if length(extra_mounts) > 0 || try(insecure_registry, "") != "" ~}
 containerdConfigPatches:
   - |-
 %{ for mnt in extra_mounts ~}
@@ -12,6 +12,10 @@ containerdConfigPatches:
       ca_file = "${mnt.container_path}"
 %{ endif ~}
 %{ endfor ~}
+%{ if try(insecure_registry, "") != "" ~}
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."${insecure_registry}".tls]
+      insecure_skip_verify = true
+%{ endif ~}
 %{ endif ~}
 nodes:
   - role: control-plane
