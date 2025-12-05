@@ -5,20 +5,22 @@ networking:
   kubeProxyMode: "iptables"
 containerdConfigPatches:
   - |-
-    [plugins."io.containerd.grpc.v1.cri".registry.configs."host.docker.internal:3000".tls]
-      ca_file = "/etc/containerd/certs.d/host.docker.internal:3000/ca.crt"
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."gitea-http.gitea.svc.cluster.local:3000".tls]
+      insecure_skip_verify = true
 nodes:
   - role: control-plane
-    extraMounts:
-      - hostPath: ./certs/ca.crt
-        containerPath: /etc/containerd/certs.d/host.docker.internal:3000/ca.crt
-        readOnly: true
     extraPortMappings:
       - containerPort: 30080
         hostPort: 30080
         protocol: TCP
       - containerPort: 31235
         hostPort: 31235
+        protocol: TCP
+      - containerPort: 30090
+        hostPort: 30090
+        protocol: TCP
+      - containerPort: 30022
+        hostPort: 30022
         protocol: TCP
       - containerPort: 30070
         hostPort: 3007
@@ -32,23 +34,27 @@ nodes:
       - containerPort: 30180
         hostPort: 8180
         protocol: TCP
+    extraMounts:
+      - hostPath: /var/run/docker.sock
+        containerPath: /var/run/docker.sock
+        readOnly: false
   - role: worker
     extraMounts:
-      - hostPath: ./certs/ca.crt
-        containerPath: /etc/containerd/certs.d/host.docker.internal:3000/ca.crt
-        readOnly: true
+      - hostPath: /var/run/docker.sock
+        containerPath: /var/run/docker.sock
+        readOnly: false
   - role: worker
     extraMounts:
-      - hostPath: ./certs/ca.crt
-        containerPath: /etc/containerd/certs.d/host.docker.internal:3000/ca.crt
-        readOnly: true
+      - hostPath: /var/run/docker.sock
+        containerPath: /var/run/docker.sock
+        readOnly: false
   - role: worker
     extraMounts:
-      - hostPath: ./certs/ca.crt
-        containerPath: /etc/containerd/certs.d/host.docker.internal:3000/ca.crt
-        readOnly: true
+      - hostPath: /var/run/docker.sock
+        containerPath: /var/run/docker.sock
+        readOnly: false
   - role: worker
     extraMounts:
-      - hostPath: ./certs/ca.crt
-        containerPath: /etc/containerd/certs.d/host.docker.internal:3000/ca.crt
-        readOnly: true
+      - hostPath: /var/run/docker.sock
+        containerPath: /var/run/docker.sock
+        readOnly: false

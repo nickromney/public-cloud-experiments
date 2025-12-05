@@ -21,7 +21,8 @@ env:
 
 jobs:
   build:
-    runs-on: [local]
+    # Runs on self-hosted runners with host executor (no Node.js required)
+    runs-on: [self-hosted]
     defaults:
       run:
         shell: sh
@@ -31,14 +32,17 @@ jobs:
         env:
           REGISTRY_CA_B64: ${{ secrets.REGISTRY_CA_B64 }}
         run: |
+          # CA cert is optional - not needed for in-cluster HTTP registry
           if [ -z "${REGISTRY_CA_B64}" ]; then
-            echo "Required secret missing (registry CA)" >&2
-            exit 1
+            echo "No registry CA provided (OK for HTTP registries)"
+            echo "registry_ca=" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           echo "${REGISTRY_CA_B64}" | base64 -d > /tmp/ci_registry_ca.crt
           if [ ! -s /tmp/ci_registry_ca.crt ]; then
-            echo "Decoded registry CA is empty" >&2
-            exit 1
+            echo "Decoded registry CA is empty (OK for HTTP registries)"
+            echo "registry_ca=" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           {
             echo "registry_ca<<EOF"
@@ -46,55 +50,73 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Clone repo via HTTPS
+      - name: Clone repo
         env:
           GITEA_USER: ${{ secrets.REGISTRY_USERNAME }}
           GITEA_PASS: ${{ secrets.REGISTRY_PASSWORD }}
-          GITEA_HOST: ${{ secrets.REGISTRY_HOST }}
+          # GITEAHOST contains the cluster-internal service DNS name for git clone.
+          # REGISTRY_HOST contains the NodePort-accessible address for Docker operations.
+          # Note: GITEA_HOST is reserved in Gitea Actions, so we use GITEAHOST (no underscore)
+          GITEA_HOST: ${{ secrets.GITEAHOST }}
         run: |
           if [ -z "${GITEA_USER}" ] || [ -z "${GITEA_PASS}" ]; then
             echo "Missing Gitea credentials" >&2
             exit 1
           fi
-          # Use REGISTRY_HOST which is reachable from inside the container (e.g., host.docker.internal:3000)
           CLONE_HOST="${GITEA_HOST:-host.docker.internal:3000}"
-          echo "Cloning from https://${CLONE_HOST}/gitea-admin/azure-auth-sim"
           rm -rf "${WORKSPACE_DIR}"
+          # Detect protocol based on host - internal k8s services use HTTP
+          if echo "${CLONE_HOST}" | grep -q "\.svc\."; then
+            PROTOCOL="http"
+            SSL_VERIFY="true"
+          else
+            PROTOCOL="https"
+            SSL_VERIFY="false"
+          fi
+          echo "Cloning from ${PROTOCOL}://${CLONE_HOST}/gitea-admin/azure-auth-sim"
           # Use credential helper to avoid embedding credentials in clone URL
           git config --global credential.helper store
-          printf "protocol=https\nhost=%s\nusername=%s\npassword=%s\n" "${CLONE_HOST}" "${GITEA_USER}" "${GITEA_PASS}" | git credential-store store
-          git -c http.sslVerify=false clone "https://${CLONE_HOST}/gitea-admin/azure-auth-sim" "${WORKSPACE_DIR}"
+          printf "protocol=%s\nhost=%s\nusername=%s\npassword=%s\n" "${PROTOCOL}" "${CLONE_HOST}" "${GITEA_USER}" "${GITEA_PASS}" | git credential-store store
+          git -c http.sslVerify=${SSL_VERIFY} clone "${PROTOCOL}://${CLONE_HOST}/gitea-admin/azure-auth-sim" "${WORKSPACE_DIR}"
           cd "${WORKSPACE_DIR}"
           git checkout main
-      - name: Docker info
+
+      - name: Setup Docker registry
         working-directory: ${{ env.WORKSPACE_DIR }}
+        env:
+          REGISTRY_CA: ${{ steps.prep_ca.outputs.registry_ca }}
         run: |
           REGISTRY_PORT="${REGISTRY_PORT:-${REGISTRY_HOST#*:}}"
-          cert_dir="${HOME}/.docker/certs.d"
-          install -d \
-            "${cert_dir}/${REGISTRY_HOST}" \
-            "${cert_dir}/127.0.0.1:${REGISTRY_PORT}" \
-            "${cert_dir}/localhost:${REGISTRY_PORT}" \
-            "${cert_dir}/host.docker.internal:${REGISTRY_PORT}"
-          echo "${{ steps.prep_ca.outputs.registry_ca }}" > /tmp/registry-ca.crt
-          cp /tmp/registry-ca.crt "${cert_dir}/${REGISTRY_HOST}/ca.crt"
-          cp /tmp/registry-ca.crt "${cert_dir}/127.0.0.1:${REGISTRY_PORT}/ca.crt"
-          cp /tmp/registry-ca.crt "${cert_dir}/localhost:${REGISTRY_PORT}/ca.crt"
-          cp /tmp/registry-ca.crt "${cert_dir}/host.docker.internal:${REGISTRY_PORT}/ca.crt"
-          # Best effort: add to system trust if available (may fail without root)
-          if [ -d /usr/local/share/ca-certificates ]; then
-            cp /tmp/registry-ca.crt /usr/local/share/ca-certificates/gitea-ca.crt || true
-            update-ca-certificates || true
-          fi
-          if [ -f /etc/ssl/certs/ca-certificates.crt ]; then
-            cat /tmp/registry-ca.crt >> /etc/ssl/certs/ca-certificates.crt || true
+          # Only setup CA certs if provided (HTTPS registries)
+          if [ -n "${REGISTRY_CA}" ]; then
+            cert_dir="${HOME}/.docker/certs.d"
+            install -d \
+              "${cert_dir}/${REGISTRY_HOST}" \
+              "${cert_dir}/127.0.0.1:${REGISTRY_PORT}" \
+              "${cert_dir}/localhost:${REGISTRY_PORT}" \
+              "${cert_dir}/host.docker.internal:${REGISTRY_PORT}"
+            echo "${REGISTRY_CA}" > /tmp/registry-ca.crt
+            cp /tmp/registry-ca.crt "${cert_dir}/${REGISTRY_HOST}/ca.crt"
+            cp /tmp/registry-ca.crt "${cert_dir}/127.0.0.1:${REGISTRY_PORT}/ca.crt"
+            cp /tmp/registry-ca.crt "${cert_dir}/localhost:${REGISTRY_PORT}/ca.crt"
+            cp /tmp/registry-ca.crt "${cert_dir}/host.docker.internal:${REGISTRY_PORT}/ca.crt"
+            # Best effort: add to system trust if available
+            if [ -d /usr/local/share/ca-certificates ]; then
+              cp /tmp/registry-ca.crt /usr/local/share/ca-certificates/gitea-ca.crt || true
+              update-ca-certificates || true
+            fi
+            if [ -f /etc/ssl/certs/ca-certificates.crt ]; then
+              cat /tmp/registry-ca.crt >> /etc/ssl/certs/ca-certificates.crt || true
+            fi
+          else
+            echo "Skipping CA setup (HTTP registry)"
           fi
           docker info
 
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver: docker
+      - name: Log in to registry
+        run: |
+          echo "${REGISTRY_PASSWORD}" | docker login "${REGISTRY_HOST}" -u "${REGISTRY_USERNAME}" --password-stdin
+          echo "Logged in to ${REGISTRY_HOST}"
 
       - name: Pre-pull base images
         run: |
@@ -116,56 +138,51 @@ jobs:
           done
           docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}"
 
-      - name: Log in to registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY_HOST }}
-          username: ${{ env.REGISTRY_USERNAME }}
-          password: ${{ env.REGISTRY_PASSWORD }}
-
       - name: Build FastAPI (Keycloak)
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ env.WORKSPACE_DIR }}/api-fastapi-azure-function
-          file: ${{ env.WORKSPACE_DIR }}/api-fastapi-azure-function/Dockerfile
-          tags: |
-            ${{ env.REGISTRY_HOST }}/gitea-admin/azure-auth-sim-api:latest
-          push: true
-          provenance: false
-          platforms: linux/amd64
-          pull: false
+        working-directory: ${{ env.WORKSPACE_DIR }}
+        run: |
+          echo "Building API image..."
+          docker build \
+            --platform linux/amd64 \
+            --provenance=false \
+            -t "${REGISTRY_HOST}/gitea-admin/azure-auth-sim-api:latest" \
+            -f api-fastapi-azure-function/Dockerfile \
+            api-fastapi-azure-function
+          docker push "${REGISTRY_HOST}/gitea-admin/azure-auth-sim-api:latest"
+          echo "Pushed ${REGISTRY_HOST}/gitea-admin/azure-auth-sim-api:latest"
 
       - name: Build APIM simulator
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ env.WORKSPACE_DIR }}/api-apim-simulator
-          file: ${{ env.WORKSPACE_DIR }}/api-apim-simulator/Dockerfile
-          tags: |
-            ${{ env.REGISTRY_HOST }}/gitea-admin/azure-auth-sim-apim:latest
-          push: true
-          provenance: false
-          platforms: linux/amd64
-          pull: false
+        working-directory: ${{ env.WORKSPACE_DIR }}
+        run: |
+          echo "Building APIM simulator image..."
+          docker build \
+            --platform linux/amd64 \
+            --provenance=false \
+            -t "${REGISTRY_HOST}/gitea-admin/azure-auth-sim-apim:latest" \
+            -f api-apim-simulator/Dockerfile \
+            api-apim-simulator
+          docker push "${REGISTRY_HOST}/gitea-admin/azure-auth-sim-apim:latest"
+          echo "Pushed ${REGISTRY_HOST}/gitea-admin/azure-auth-sim-apim:latest"
 
       - name: Build protected frontend
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ env.WORKSPACE_DIR }}
-          file: ${{ env.WORKSPACE_DIR }}/frontend-react/Dockerfile
-          tags: |
-            ${{ env.REGISTRY_HOST }}/gitea-admin/azure-auth-sim-frontend:latest
-          push: true
-          provenance: false
-          platforms: linux/amd64
-          build-args: |
-            VITE_API_URL=http://localhost:8082
-            VITE_API_PROXY_ENABLED=false
-            VITE_AUTH_METHOD=oidc
-            VITE_OIDC_AUTHORITY=http://localhost:8180/realms/subnet-calculator
-            VITE_OIDC_CLIENT_ID=frontend-app
-            VITE_OIDC_REDIRECT_URI=http://localhost:3007
-            VITE_APIM_SUBSCRIPTION_KEY=stack12-demo-key
-            VITE_OIDC_AUTO_LOGIN=true
-            NODE_OPTIONS=--max-old-space-size=1024
-          outputs: type=registry
-          pull: false
+        working-directory: ${{ env.WORKSPACE_DIR }}
+        run: |
+          echo "Building frontend image..."
+          # --provenance=false fixes cross-platform multi-stage build content digest issues
+          docker build \
+            --platform linux/amd64 \
+            --provenance=false \
+            --build-arg VITE_API_URL=http://localhost:8082 \
+            --build-arg VITE_API_PROXY_ENABLED=false \
+            --build-arg VITE_AUTH_METHOD=oidc \
+            --build-arg VITE_OIDC_AUTHORITY=http://localhost:8180/realms/subnet-calculator \
+            --build-arg VITE_OIDC_CLIENT_ID=frontend-app \
+            --build-arg VITE_OIDC_REDIRECT_URI=http://localhost:3007 \
+            --build-arg VITE_APIM_SUBSCRIPTION_KEY=stack12-demo-key \
+            --build-arg VITE_OIDC_AUTO_LOGIN=true \
+            --build-arg NODE_OPTIONS=--max-old-space-size=1024 \
+            -t "${REGISTRY_HOST}/gitea-admin/azure-auth-sim-frontend:latest" \
+            -f frontend-react/Dockerfile \
+            .
+          docker push "${REGISTRY_HOST}/gitea-admin/azure-auth-sim-frontend:latest"
+          echo "Pushed ${REGISTRY_HOST}/gitea-admin/azure-auth-sim-frontend:latest"

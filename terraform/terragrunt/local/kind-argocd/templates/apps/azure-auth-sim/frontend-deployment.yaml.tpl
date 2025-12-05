@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-react-keycloak-protected
+  labels:
+    app.kubernetes.io/name: frontend-react-keycloak-protected
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend-react-keycloak-protected
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frontend-react-keycloak-protected
+        app.kubernetes.io/component: frontend
+    spec:
+      imagePullSecrets:
+        - name: gitea-registry-creds
+      containers:
+        - name: frontend-react-keycloak-protected
+          image: ${registry_host}/${gitea_admin_username}/azure-auth-sim-frontend:latest
+          imagePullPolicy: Always
+          env:
+            - name: VITE_API_URL
+              value: http://localhost:8082
+            - name: VITE_API_PROXY_ENABLED
+              value: "false"
+            - name: VITE_AUTH_METHOD
+              value: oidc
+            - name: VITE_OIDC_AUTHORITY
+              value: http://localhost:8180/realms/subnet-calculator
+            - name: VITE_OIDC_CLIENT_ID
+              value: frontend-app
+            - name: VITE_OIDC_REDIRECT_URI
+              value: http://localhost:3007
+            - name: VITE_OIDC_AUTO_LOGIN
+              value: "true"
+            - name: VITE_APIM_SUBSCRIPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: azure-auth-secrets
+                  key: apim-subscription-key
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6

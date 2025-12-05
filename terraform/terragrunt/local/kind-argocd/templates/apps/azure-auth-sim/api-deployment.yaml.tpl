@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-fastapi-keycloak
+  labels:
+    app.kubernetes.io/name: api-fastapi-keycloak
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api-fastapi-keycloak
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: api-fastapi-keycloak
+        app.kubernetes.io/component: backend
+    spec:
+      imagePullSecrets:
+        - name: gitea-registry-creds
+      containers:
+        - name: api-fastapi-keycloak
+          image: ${registry_host}/${gitea_admin_username}/azure-auth-sim-api:latest
+          imagePullPolicy: Always
+          env:
+            - name: AUTH_METHOD
+              value: oidc
+            - name: OIDC_ISSUER
+              value: http://localhost:8180/realms/subnet-calculator
+            - name: OIDC_AUDIENCE
+              value: api-app
+            - name: OIDC_JWKS_URI
+              value: http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
+            - name: CORS_ORIGINS
+              value: http://localhost:3007
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3

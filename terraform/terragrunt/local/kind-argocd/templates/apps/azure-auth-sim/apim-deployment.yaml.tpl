@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apim-simulator
+  labels:
+    app.kubernetes.io/name: apim-simulator
+    app.kubernetes.io/component: gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: apim-simulator
+      app.kubernetes.io/component: gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apim-simulator
+        app.kubernetes.io/component: gateway
+    spec:
+      imagePullSecrets:
+        - name: gitea-registry-creds
+      containers:
+        - name: apim-simulator
+          image: ${registry_host}/${gitea_admin_username}/azure-auth-sim-apim:latest
+          imagePullPolicy: Always
+          env:
+            - name: BACKEND_BASE_URL
+              value: http://api-fastapi-keycloak.azure-auth-sim.svc.cluster.local
+            - name: OIDC_ISSUER
+              value: http://localhost:8180/realms/subnet-calculator
+            - name: OIDC_AUDIENCE
+              value: api-app
+            - name: OIDC_JWKS_URI
+              value: http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
+            - name: ALLOWED_ORIGINS
+              value: http://localhost:3007
+            - name: APIM_SUBSCRIPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: azure-auth-secrets
+                  key: apim-subscription-key
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /apim/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /apim/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
