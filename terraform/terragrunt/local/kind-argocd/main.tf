@@ -311,8 +311,8 @@ locals {
   gitea_ca_cert_path = abspath("${path.module}/certs/ca.crt")
 
   # Docker socket mount for in-cluster Actions runner (host socket approach)
-  # This allows the runner pod to build images using the host's Docker daemon
-  docker_socket_mount = var.enable_actions_runner && !var.use_external_gitea ? [
+  # Kept independent from enable_actions_runner so the Kind cluster config stays stable across stages
+  docker_socket_mount = var.enable_docker_socket_mount && !var.use_external_gitea ? [
     {
       host_path      = var.docker_socket_path
       container_path = "/var/run/docker.sock"

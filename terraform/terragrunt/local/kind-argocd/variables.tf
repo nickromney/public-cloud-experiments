@@ -323,6 +323,12 @@ variable "enable_actions_runner" {
   }
 }
 
+variable "enable_docker_socket_mount" {
+  description = "Mount the host Docker socket into Kind nodes so the in-cluster Actions runner can build images via the host daemon. Keep this consistent across stages to avoid Kind cluster replacement."
+  type        = bool
+  default     = true
+}
+
 variable "enable_azure_auth_sim" {
   description = "Enable deployment of the azure auth simulation (Keycloak + OAuth2 Proxy + APIM simulator + protected frontend)."
   type        = bool

@@ -41,6 +41,7 @@ inputs = {
   ssh_private_key_path  = "${get_terragrunt_dir()}/.run/argocd-repo.id_ed25519"
   ssh_public_key_path   = "${get_terragrunt_dir()}/.run/argocd-repo.id_ed25519.pub"
   enable_actions_runner        = false
+  enable_docker_socket_mount   = true
   enable_azure_auth_sim        = false
   enable_azure_auth_ports      = false
   azure_auth_namespace         = "azure-auth-sim"

@@ -20,6 +20,7 @@ enable_argocd           = true
 enable_gitea            = true
 enable_policies         = true
 enable_actions_runner   = true
+enable_docker_socket_mount = true
 enable_azure_auth_sim   = true
 enable_azure_auth_ports = true
 use_external_gitea      = false
