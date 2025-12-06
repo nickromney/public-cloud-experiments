@@ -22,7 +22,7 @@ spec:
       containers:
         - name: apim-simulator
           image: ${registry_host}/${gitea_admin_username}/azure-auth-sim-apim:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           env:
             - name: BACKEND_BASE_URL
               value: http://api-fastapi-keycloak.azure-auth-sim.svc.cluster.local
@@ -34,6 +34,8 @@ spec:
               value: http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
             - name: ALLOWED_ORIGINS
               value: http://localhost:3007
+            - name: ALLOW_ANONYMOUS
+              value: "true"
             - name: APIM_SUBSCRIPTION_KEY
               valueFrom:
                 secretKeyRef:

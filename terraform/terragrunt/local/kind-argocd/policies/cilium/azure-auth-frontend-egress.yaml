@@ -1,0 +1,26 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-frontend-egress
+  namespace: azure-auth-sim
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: frontend-react-keycloak-protected
+  egressDeny:
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": "azure-auth-sim"
+            app.kubernetes.io/name: api-fastapi-keycloak
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": "azure-auth-sim"
+            app.kubernetes.io/name: apim-simulator
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": "kube-system"
+            "k8s:k8s-app": "kube-dns"
+    - toEntities:
+        - kube-apiserver
+        - host

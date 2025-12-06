@@ -1,3 +1,5 @@
 resources:
   - team-a-policy.yaml
   - team-b-policy.yaml
+  - azure-auth-namespace.yaml
+  - azure-auth-frontend-egress.yaml
