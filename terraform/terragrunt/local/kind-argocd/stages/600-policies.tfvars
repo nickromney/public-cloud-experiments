@@ -1,5 +1,5 @@
-# Stage 100 - Kind Cluster Bootstrap (Terraform-driven)
-# Creates the Kind cluster with NodePort mappings for all services
+# Stage 600 - Policies
+# Deploys Cilium and Kyverno policies via Argo CD
 
 # -----------------------------------------------------------------------------
 # Core Configuration
@@ -13,12 +13,12 @@ kind_config_path = "./kind-config.yaml"
 # Feature Toggles
 # -----------------------------------------------------------------------------
 
-enable_cilium           = false
-enable_hubble           = false
-enable_namespaces       = false
-enable_argocd           = false
-enable_gitea            = false
-enable_policies         = false
+enable_cilium           = true
+enable_hubble           = true
+enable_namespaces       = true
+enable_argocd           = true
+enable_gitea            = true
+enable_policies         = true
 enable_actions_runner   = false
 enable_azure_auth_sim   = false
 enable_azure_auth_ports = true
@@ -67,7 +67,7 @@ gitea_registry_host     = "localhost:30090"
 # SSH Keys
 # -----------------------------------------------------------------------------
 
-generate_repo_ssh_key = false
+generate_repo_ssh_key = true
 ssh_private_key_path  = "./.run/argocd-repo.id_ed25519"
 ssh_public_key_path   = "./.run/argocd-repo.id_ed25519.pub"
 
