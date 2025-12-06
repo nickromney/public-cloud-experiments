@@ -19,3 +19,4 @@ spec:
             "k8s:k8s-app": "kube-dns"
     - toEntities:
         - kube-apiserver
+        - host

@@ -59,11 +59,12 @@ async def lifespan(app: FastAPI):
     # Startup
     app.state.http_client = httpx.AsyncClient(timeout=httpx.Timeout(30.0))
     logger.info(
-        "APIM simulator ready | backend=%s | issuer=%s | audience=%s | origins=%s",
+        "APIM simulator ready | backend=%s | issuer=%s | audience=%s | origins=%s | anonymous=%s",
         API_BACKEND_BASE_URL,
         OIDC_ISSUER,
         OIDC_AUDIENCE,
         ALLOWED_ORIGINS,
+        ALLOW_ANONYMOUS,
     )
     yield
     # Shutdown
