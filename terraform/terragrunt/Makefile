@@ -421,13 +421,6 @@ _exec-plan: check-env
 _exec-apply: check-env
 	@echo -e "$(YELLOW)Applying $(STACK_DIR)...$(NC)"
 	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
-		if [ "$(STAGE)" = "100" ]; then \
-			cd $(STACK_DIR) && bash ./scripts/stage100-gitea.sh; \
-			exit 0; \
-		elif [ "$(STAGE)" = "200" ]; then \
-			cd $(STACK_DIR) && bash ./scripts/stage200-build.sh; \
-			exit 0; \
-		fi; \
 		if ! kind get clusters 2>/dev/null | grep -qx "kind-local"; then \
 			echo -e "$(CYAN)kind-local not found; cleaning local state and preparing stub kubeconfig$(NC)"; \
 			mkdir -p $$HOME/.kube; \
@@ -440,10 +433,10 @@ _exec-apply: check-env
 			kubectl config use-context kind-kind-local --kubeconfig=$$HOME/.kube/config >/dev/null; \
 			rm -f $(ROOT_DIR).run/local/kind-argocd/terraform.tfstate $(ROOT_DIR).run/local/kind-argocd/terraform.tfstate.backup >/dev/null 2>&1 || true; \
 			cd $(ROOT_DIR)$(STACK_DIR) && $(TERRAGRUNT) state rm kind_cluster.local local_sensitive_file.kubeconfig >/dev/null 2>&1 || true; \
-			if [ "$(STAGE)" -ge "300" ]; then \
-				echo -e "$(CYAN)Creating kind-local via stage 300 (auto-approve)$(NC)"; \
-				cd $(ROOT_DIR)$(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) apply -var-file=stages/300-kind.tfvars -auto-approve; \
-				echo -e "$(GREEN)✓ kind-local created (stage 300)$(NC)"; \
+			if [ "$(STAGE)" -ge "200" ]; then \
+				echo -e "$(CYAN)Creating kind-local via stage 100 (auto-approve)$(NC)"; \
+				cd $(ROOT_DIR)$(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) apply -var-file=stages/100-kind.tfvars -auto-approve; \
+				echo -e "$(GREEN)✓ kind-local created (stage 100)$(NC)"; \
 				echo -e "$(CYAN)Clearing provider cache to pick up new kubeconfig...$(NC)"; \
 				rm -rf $(ROOT_DIR)$(STACK_DIR)/.terragrunt-cache $(ROOT_DIR)$(STACK_DIR)/.terraform; \
 			fi; \
