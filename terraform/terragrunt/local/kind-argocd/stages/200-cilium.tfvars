@@ -13,17 +13,17 @@ kind_config_path = "./kind-config.yaml"
 # Feature Toggles
 # -----------------------------------------------------------------------------
 
-enable_cilium           = true
-enable_hubble           = false
-enable_namespaces       = false
-enable_argocd           = false
-enable_gitea            = false
-enable_policies         = false
-enable_actions_runner   = false
+enable_cilium              = true
+enable_hubble              = false
+enable_namespaces          = false
+enable_argocd              = false
+enable_gitea               = false
+enable_policies            = false
+enable_actions_runner      = false
 enable_docker_socket_mount = true
-enable_azure_auth_sim   = false
-enable_azure_auth_ports = true
-use_external_gitea      = false
+enable_azure_auth_sim      = false
+enable_azure_auth_ports    = true
+use_external_gitea         = false
 
 # -----------------------------------------------------------------------------
 # Versions / Ports
