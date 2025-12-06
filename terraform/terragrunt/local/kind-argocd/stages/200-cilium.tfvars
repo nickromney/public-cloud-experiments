@@ -73,13 +73,13 @@ ssh_private_key_path  = "./.run/argocd-repo.id_ed25519"
 ssh_public_key_path   = "./.run/argocd-repo.id_ed25519.pub"
 
 # -----------------------------------------------------------------------------
-# Exposed Services
+# Exposed Services (ports pre-configured, available after respective stages)
 # -----------------------------------------------------------------------------
-# - Argo CD UI: http://localhost:30080
-# - Hubble UI: http://localhost:31235
-# - Gitea UI: http://localhost:30090
-# - Gitea SSH: ssh://localhost:30022
-# - Azure auth sim: http://localhost:3007
-# - Keycloak: http://localhost:8180
-# - APIM simulator: http://localhost:8082
-# - FastAPI backend: http://localhost:8081
+# - Argo CD UI: http://localhost:30080 (stage 400+)
+# - Hubble UI: http://localhost:31235 (stage 300+)
+# - Gitea UI: http://localhost:30090 (stage 500+)
+# - Gitea SSH: ssh://localhost:30022 (stage 500+)
+# - Azure auth sim: http://localhost:3007 (stage 700)
+# - Keycloak: http://localhost:8180 (stage 700)
+# - APIM simulator: http://localhost:8082 (stage 700)
+# - FastAPI backend: http://localhost:8081 (stage 700)

@@ -847,7 +847,7 @@ _exec-reset:
 		echo -e "$(GREEN)  ✓ Reset complete$(NC)"; \
 		echo -e "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"; \
 		echo -e ""; \
-		echo -e "You can now run: make local kind apply AUTO_APPROVE=1"; \
+		echo -e "You can now run: make local kind 100 apply AUTO_APPROVE=1"; \
 	else \
 		echo -e "$(YELLOW)The 'reset' verb is only supported for local/kind$(NC)"; \
 		exit 1; \

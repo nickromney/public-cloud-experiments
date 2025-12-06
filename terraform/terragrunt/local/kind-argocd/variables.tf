@@ -158,7 +158,7 @@ variable "gitea_http_port" {
 }
 
 variable "gitea_ssh_host" {
-  description = "Host/IP for Gitea SSH endpoint as reachable from the cluster."
+  description = "Host/IP for Gitea SSH endpoint. For in-cluster Gitea accessed locally, use 127.0.0.1."
   type        = string
   default     = "127.0.0.1"
 }

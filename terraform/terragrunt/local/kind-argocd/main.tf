@@ -69,7 +69,7 @@ locals {
     # For external Gitea, skip internal variant; for in-cluster, skip external variant
     var.enable_azure_auth_sim && var.use_external_gitea ? ["azure-auth-sim-internal.yaml"] : [],
     var.enable_azure_auth_sim && !var.use_external_gitea ? ["azure-auth-sim.yaml"] : [],
-    # Skip runner for external Gitea (uses host runner via stage200) or if not enabled
+    # Skip runner for external Gitea (uses host runner via external build process) or if not enabled
     !var.enable_actions_runner || var.use_external_gitea ? ["gitea-actions-runner.yaml", "gitea-actions-runner"] : []
   )
   apps_files = [
@@ -1027,10 +1027,10 @@ EOT
   ]
 }
 
-# For external Gitea where stage200 doesn't run (not currently used - stage200 handles this)
+# For external Gitea (not currently used - external build process handles this)
 # For in-cluster Gitea, use gitea_azure_auth_repo_secrets_internal instead
 resource "null_resource" "gitea_azure_auth_repo_secrets" {
-  count = 0 # Disabled: use _internal for in-cluster, stage200 for external
+  count = 0 # Disabled: use _internal for in-cluster, external build for external Gitea
 
 
   triggers = {
@@ -1352,7 +1352,8 @@ resource "null_resource" "argocd_refresh_app_of_apps" {
         echo "Waiting for app-of-apps to sync... (status: $STATUS, attempt $i/24)"
         sleep 5
       done
-      echo "Warning: app-of-apps did not reach Synced status within timeout"
+      echo "Error: app-of-apps did not reach Synced status within timeout"
+      exit 1
     EOT
     interpreter = ["/bin/bash", "-c"]
   }
