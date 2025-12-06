@@ -359,7 +359,9 @@ resource "kind_cluster" "local" {
 
     # Configure containerd registry access:
     # - External Gitea: trust the CA cert for HTTPS registry
-    # - In-cluster Gitea: allow insecure HTTP registry
+    # - In-cluster Gitea: allow insecure HTTP registry using gitea_registry_host (e.g., localhost:30090)
+    #   Note: containerd runs on nodes, not pods, so it cannot resolve Kubernetes DNS names.
+    #   For in-cluster Gitea, use localhost:NodePort which Kind nodes can access.
     containerd_config_patches = var.use_external_gitea ? [
       <<-EOT
       [plugins."io.containerd.grpc.v1.cri".registry.configs."${var.gitea_registry_host}".tls]
@@ -367,7 +369,7 @@ resource "kind_cluster" "local" {
       EOT
       ] : [
       <<-EOT
-      [plugins."io.containerd.grpc.v1.cri".registry.configs."gitea-http.gitea.svc.cluster.local:3000".tls]
+      [plugins."io.containerd.grpc.v1.cri".registry.configs."${var.gitea_registry_host}".tls]
         insecure_skip_verify = true
       EOT
     ]
@@ -1025,10 +1027,10 @@ EOT
   ]
 }
 
-# Skipped when use_external_gitea=true because stage200 creates secrets with access tokens
-# (password-based auth is unreliable for Docker registry)
+# For external Gitea where stage200 doesn't run (not currently used - stage200 handles this)
+# For in-cluster Gitea, use gitea_azure_auth_repo_secrets_internal instead
 resource "null_resource" "gitea_azure_auth_repo_secrets" {
-  count = var.enable_gitea && var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
+  count = 0 # Disabled: use _internal for in-cluster, stage200 for external
 
 
   triggers = {
@@ -1322,6 +1324,42 @@ EOF
   ]
 }
 
+# Force refresh app-of-apps after creation to ensure it syncs after repo-server restart
+# The repo-server restart (for known_hosts update) can leave the app in Unknown state
+resource "null_resource" "argocd_refresh_app_of_apps" {
+  count = var.enable_gitea && (var.enable_policies || var.enable_azure_auth_sim) ? 1 : 0
+
+  triggers = {
+    app_of_apps_id = kubectl_manifest.argocd_app_of_apps[0].id
+  }
+
+  provisioner "local-exec" {
+    command     = <<-EOT
+      set -euo pipefail
+      export KUBECONFIG=~/.kube/config
+      # Wait briefly for controller to stabilize after repo-server restart
+      sleep 5
+      # Force refresh the app-of-apps to trigger sync
+      kubectl annotate application app-of-apps -n ${var.argocd_namespace} \
+        argocd.argoproj.io/refresh=normal --overwrite
+      # Wait for sync to complete (up to 2 minutes)
+      for i in {1..24}; do
+        STATUS=$(kubectl get application app-of-apps -n ${var.argocd_namespace} -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
+        if [ "$STATUS" = "Synced" ]; then
+          echo "app-of-apps synced successfully"
+          exit 0
+        fi
+        echo "Waiting for app-of-apps to sync... (status: $STATUS, attempt $i/24)"
+        sleep 5
+      done
+      echo "Warning: app-of-apps did not reach Synced status within timeout"
+    EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+
+  depends_on = [kubectl_manifest.argocd_app_of_apps]
+}
+
 # -----------------------------------------------------------------------------
 # In-cluster Gitea Actions Runner
 # Deploys runner with host Docker socket access for building images
@@ -1436,12 +1474,12 @@ create_secret() {
 }
 
 # For in-cluster Gitea, we need two different addresses:
-# 1. GITEA_HOST: cluster-internal address for git clone (runs inside runner pod)
-# 2. REGISTRY_HOST: NodePort address for docker operations (via Docker Desktop socket)
-# Docker Desktop cannot resolve Kubernetes service names, so docker login/push use NodePort.
+# 1. GITEAHOST: cluster-internal address for git clone (runs inside runner pod)
+# 2. REGISTRY_HOST: Same as gitea_registry_host (e.g., localhost:30090) for docker operations
+#    Docker Desktop and containerd on Kind nodes both resolve localhost to the loopback interface.
 create_secret "REGISTRY_USERNAME" "${var.gitea_admin_username}"
 create_secret "REGISTRY_PASSWORD" "${var.gitea_admin_password}"
-create_secret "REGISTRY_HOST" "127.0.0.1:${var.gitea_http_node_port}"
+create_secret "REGISTRY_HOST" "${local.gitea_registry_host}"
 # Note: GITEA_HOST is a reserved prefix in Gitea, so we use GITEAHOST (no underscore)
 create_secret "GITEAHOST" "gitea-http.gitea.svc.cluster.local:${var.gitea_http_port_cluster}"
 EOT

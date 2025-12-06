@@ -25,6 +25,7 @@ crash.*.log
 !terraform/terragrunt/personal-sub/subnet-calc-react-easyauth-proxied/stages/*.tfvars
 !terraform/terragrunt/personal-sub/webapp-auth-test-csharp/terraform.tfvars
 !terraform/terragrunt/personal-sub/webapp-auth-test-csharp/stages/*.tfvars
+!terraform/terragrunt/local/kind-argocd/stages/*.tfvars
 
 # Ignore override files as they are usually used to override resources locally and so
 # are not checked in
