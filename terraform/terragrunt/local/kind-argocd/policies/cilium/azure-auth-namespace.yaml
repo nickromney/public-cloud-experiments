@@ -9,6 +9,9 @@ spec:
     - fromEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": "azure-auth-sim"
+    # Allow NodePort traffic forwarded between nodes in multi-node clusters
+    - fromEntities:
+        - remote-node
   egress:
     - toEndpoints:
         - matchLabels:
