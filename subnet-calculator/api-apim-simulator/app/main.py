@@ -30,6 +30,7 @@ OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", "api-app")
 OIDC_JWKS_URI = os.getenv(
     "OIDC_JWKS_URI", "http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/certs"
 )
+ALLOW_ANONYMOUS = os.getenv("ALLOW_ANONYMOUS", "false").lower() == "true"
 ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3007").split(",")
@@ -109,6 +110,17 @@ def validate_subscription_key(request: Request) -> None:
 
 
 def authenticate_request(request: Request) -> Dict[str, Any]:
+    if ALLOW_ANONYMOUS:
+        # Local/demo mode: bypass auth and use a fixed identity
+        return {
+            "sub": "anon-demo",
+            "email": "demo@example.com",
+            "name": "Demo User",
+            "preferred_username": "demo",
+            "iss": OIDC_ISSUER,
+            "aud": OIDC_AUDIENCE,
+        }
+
     validate_subscription_key(request)
 
     auth_header = request.headers.get("authorization")

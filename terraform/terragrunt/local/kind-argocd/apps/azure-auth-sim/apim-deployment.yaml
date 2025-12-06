@@ -34,6 +34,8 @@ spec:
               value: http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
             - name: ALLOWED_ORIGINS
               value: http://localhost:3007
+            - name: ALLOW_ANONYMOUS
+              value: "true"
             - name: APIM_SUBSCRIPTION_KEY
               valueFrom:
                 secretKeyRef:

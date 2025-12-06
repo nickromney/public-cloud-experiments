@@ -959,7 +959,7 @@ git config commit.gpgsign false
 git add .
 git commit -q -m "Seed policies"
 git branch -M main
-git remote add origin ssh://${var.gitea_ssh_username}@${local.gitea_ssh_host_local}:${local.gitea_ssh_port}/${var.gitea_admin_username}/policies.git
+git remote add origin http://${var.gitea_admin_username}:${var.gitea_admin_password}@${var.gitea_http_host_local}:${var.gitea_http_port}/${var.gitea_admin_username}/policies.git
 git push -f origin main
 EOT
     interpreter = ["/bin/bash", "-c"]
@@ -991,9 +991,6 @@ resource "null_resource" "seed_gitea_repo_azure_auth" {
   }
 
   provisioner "local-exec" {
-    environment = {
-      GIT_SSH_COMMAND = "ssh -i ${local.azure_auth_repo_key_path} -o UserKnownHostsFile=${local.gitea_known_hosts} -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes"
-    }
     command     = <<EOT
 set -euo pipefail
 if [ "${var.use_external_gitea}" = "true" ]; then
@@ -1013,7 +1010,7 @@ git config commit.gpgsign false
 git add .
 git commit -q -m "Seed azure-auth-sim sources"
 git branch -M main
-git remote add origin ssh://${var.gitea_ssh_username}@${local.gitea_ssh_host_local}:${local.gitea_ssh_port}/${var.gitea_admin_username}/azure-auth-sim.git
+git remote add origin http://${var.gitea_admin_username}:${var.gitea_admin_password}@${var.gitea_http_host_local}:${var.gitea_http_port}/${var.gitea_admin_username}/azure-auth-sim.git
 git push -f origin main
 EOT
     interpreter = ["/bin/bash", "-c"]

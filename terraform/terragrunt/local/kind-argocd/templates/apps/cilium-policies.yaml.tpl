@@ -15,7 +15,7 @@ spec:
   source:
     repoURL: ssh://${gitea_ssh_username}@${gitea_ssh_host}:${gitea_ssh_port}/${gitea_admin_username}/policies.git
     targetRevision: main
-    path: cilium
+    path: policies/cilium
   syncPolicy:
     automated:
       prune: true
