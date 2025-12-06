@@ -44,7 +44,7 @@ STAGE ?= 000
 STAGE_DEFAULT := 000
 
 # Valid verbs for argument parsing
-VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create prereqs
+VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create prereqs reset
 
 # Shell function to find stage file
 # Usage: $(call find_stage_file,STAGE,STACK_DIR)
@@ -121,6 +121,7 @@ help:
 	@echo -e "  get subscription-key          Display APIM subscription key"
 	@echo -e "  clean                         Remove Terragrunt cache"
 	@echo -e "  unlock <lock-id>              Force unlock Terraform state"
+	@echo -e "  reset                         (local/kind only) Delete cluster, state, and caches"
 	@echo -e ""
 	@echo -e "$(YELLOW)Examples:$(NC)"
 	@echo -e "  make subnet-calc react-webapp-easyauth plan"
@@ -138,15 +139,15 @@ help:
 	@echo -e "  make subnet-calc react-easyauth-e2e 100 apply           # Apply stage 100"
 	@echo -e "  make subnet-calc react-easyauth-e2e 200 apply AUTO_APPROVE=1"
 	@echo -e "  make subnet-calc react-easyauth-e2e 400 plan            # Use stages/400-all.tfvars"
-	@echo -e "  make local kind 100                                     # Stage 100: start external Gitea + seed repos"
-	@echo -e "  make local kind 200                                     # Stage 200: trigger CI build/push for images"
-	@echo -e "  make local kind 300 apply AUTO_APPROVE=1                # Stage 300: create kind cluster"
-	@echo -e "  make local kind 400 apply AUTO_APPROVE=1                # Stage 400: Cilium"
-	@echo -e "  make local kind 500 apply AUTO_APPROVE=1                # Stage 500: Hubble UI"
-	@echo -e "  make local kind 600 apply AUTO_APPROVE=1                # Stage 600: Argo CD + namespaces"
-	@echo -e "  make local kind 700 apply AUTO_APPROVE=1                # Stage 700: Policies"
-	@echo -e "  make local kind 800 apply AUTO_APPROVE=1                # Stage 800: (reserved)"
-	@echo -e "  make local kind 900 apply AUTO_APPROVE=1                # Stage 900: Azure auth sim (Argo CD)"
+	@echo -e "  make local kind 100 apply AUTO_APPROVE=1                # Stage 100: Kind cluster"
+	@echo -e "  make local kind 200 apply AUTO_APPROVE=1                # Stage 200: Cilium CNI"
+	@echo -e "  make local kind 300 apply AUTO_APPROVE=1                # Stage 300: Hubble UI"
+	@echo -e "  make local kind 400 apply AUTO_APPROVE=1                # Stage 400: Argo CD + namespaces"
+	@echo -e "  make local kind 500 apply AUTO_APPROVE=1                # Stage 500: Gitea (in-cluster)"
+	@echo -e "  make local kind 600 apply AUTO_APPROVE=1                # Stage 600: Policies (Cilium + Kyverno)"
+	@echo -e "  make local kind 700 apply AUTO_APPROVE=1                # Stage 700: Azure auth sim"
+	@echo -e "  make local kind reset                                  # Delete cluster, state, and caches"
+	@echo -e "  make local kind reset AUTO_APPROVE=1                   # Same, without confirmation prompt"
 	@echo -e ""
 	@echo -e "$(YELLOW)Advanced Options:$(NC)"
 	@echo -e "  make subnet-calc react-apim plan VAR_FILE=stages/200-create-observability.tfvars"
@@ -420,13 +421,6 @@ _exec-plan: check-env
 _exec-apply: check-env
 	@echo -e "$(YELLOW)Applying $(STACK_DIR)...$(NC)"
 	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
-		if [ "$(STAGE)" = "100" ]; then \
-			cd $(STACK_DIR) && bash ./scripts/stage100-gitea.sh; \
-			exit 0; \
-		elif [ "$(STAGE)" = "200" ]; then \
-			cd $(STACK_DIR) && bash ./scripts/stage200-build.sh; \
-			exit 0; \
-		fi; \
 		if ! kind get clusters 2>/dev/null | grep -qx "kind-local"; then \
 			echo -e "$(CYAN)kind-local not found; cleaning local state and preparing stub kubeconfig$(NC)"; \
 			mkdir -p $$HOME/.kube; \
@@ -439,10 +433,12 @@ _exec-apply: check-env
 			kubectl config use-context kind-kind-local --kubeconfig=$$HOME/.kube/config >/dev/null; \
 			rm -f $(ROOT_DIR).run/local/kind-argocd/terraform.tfstate $(ROOT_DIR).run/local/kind-argocd/terraform.tfstate.backup >/dev/null 2>&1 || true; \
 			cd $(ROOT_DIR)$(STACK_DIR) && $(TERRAGRUNT) state rm kind_cluster.local local_sensitive_file.kubeconfig >/dev/null 2>&1 || true; \
-			if [ "$(STAGE)" -ge "300" ]; then \
-				echo -e "$(CYAN)Creating kind-local via stage 300 (auto-approve)$(NC)"; \
-				cd $(ROOT_DIR)$(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) apply -var-file=stages/300-kind.tfvars -auto-approve; \
-				echo -e "$(GREEN)✓ kind-local created (stage 300)$(NC)"; \
+			if [ "$(STAGE)" -ge "200" ]; then \
+				echo -e "$(CYAN)Creating kind-local via stage 100 (auto-approve)$(NC)"; \
+				cd $(ROOT_DIR)$(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) apply -var-file=stages/100-kind.tfvars -auto-approve; \
+				echo -e "$(GREEN)✓ kind-local created (stage 100)$(NC)"; \
+				echo -e "$(CYAN)Clearing provider cache to pick up new kubeconfig...$(NC)"; \
+				rm -rf $(ROOT_DIR)$(STACK_DIR)/.terragrunt-cache $(ROOT_DIR)$(STACK_DIR)/.terraform; \
 			fi; \
 		fi; \
 	fi
@@ -783,6 +779,77 @@ _exec-prereqs:
 		echo -e "$(GREEN)✓ Images loaded into kind-local$(NC)"; \
 	else \
 		echo -e "$(YELLOW)The 'prereqs' verb is only supported for local/kind$(NC)"; \
+		exit 1; \
+	fi
+
+_exec-reset:
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		echo -e "$(YELLOW)═══════════════════════════════════════════════════════════════$(NC)"; \
+		echo -e "$(YELLOW)  ⚠️  DESTRUCTIVE ACTION: Reset local/kind environment$(NC)"; \
+		echo -e "$(YELLOW)═══════════════════════════════════════════════════════════════$(NC)"; \
+		echo -e ""; \
+		echo -e "This will:"; \
+		echo -e "  • Delete the kind-local cluster (if exists)"; \
+		echo -e "  • Remove terraform state files"; \
+		echo -e "  • Remove kubeconfig entries for kind-kind-local"; \
+		echo -e "  • Clean .terraform and .terragrunt-cache directories"; \
+		echo -e "  • Remove generated SSH keys and .runner files"; \
+		echo -e ""; \
+		if [ "$(AUTO_APPROVE)" != "1" ]; then \
+			echo -e "$(CYAN)Are you sure you want to proceed? [y/N]$(NC)"; \
+			read -r confirm; \
+			if [ "$$confirm" != "y" ] && [ "$$confirm" != "Y" ]; then \
+				echo -e "$(GREEN)Aborted.$(NC)"; \
+				exit 0; \
+			fi; \
+		fi; \
+		echo -e ""; \
+		echo -e "$(CYAN)Cleaning kubeconfig (before cluster deletion)...$(NC)"; \
+		KUBECONFIG_PATH="$${KUBECONFIG:-$$HOME/.kube/config}"; \
+		if [ -f "$$KUBECONFIG_PATH" ]; then \
+			CONTEXT_COUNT=$$(kubectl config get-contexts -o name 2>/dev/null | wc -l | tr -d ' '); \
+			CURRENT_CONTEXT=$$(kubectl config get-contexts -o name 2>/dev/null | head -1); \
+			if [ "$$CONTEXT_COUNT" = "1" ] && [ "$$CURRENT_CONTEXT" = "kind-kind-local" ]; then \
+				rm -f "$$KUBECONFIG_PATH"; \
+				echo -e "$(GREEN)✓ Deleted kubeconfig (was only kind-kind-local context)$(NC)"; \
+			else \
+				kubectl config delete-context kind-kind-local 2>/dev/null && echo -e "$(GREEN)✓ Deleted context kind-kind-local$(NC)" || echo -e "$(YELLOW)  Context kind-kind-local not found (skipped)$(NC)"; \
+				kubectl config delete-cluster kind-kind-local 2>/dev/null && echo -e "$(GREEN)✓ Deleted cluster kind-kind-local$(NC)" || echo -e "$(YELLOW)  Cluster kind-kind-local not found (skipped)$(NC)"; \
+				kubectl config delete-user kind-kind-local 2>/dev/null && echo -e "$(GREEN)✓ Deleted user kind-kind-local$(NC)" || echo -e "$(YELLOW)  User kind-kind-local not found (skipped)$(NC)"; \
+			fi; \
+		else \
+			echo -e "$(YELLOW)  No kubeconfig found at $$KUBECONFIG_PATH (skipped)$(NC)"; \
+		fi; \
+		echo -e ""; \
+		echo -e "$(CYAN)Deleting kind cluster...$(NC)"; \
+		if kind get clusters 2>/dev/null | grep -qx "kind-local"; then \
+			kind delete cluster --name kind-local; \
+			echo -e "$(GREEN)✓ kind-local cluster deleted$(NC)"; \
+		else \
+			echo -e "$(YELLOW)  kind-local cluster not found (skipped)$(NC)"; \
+		fi; \
+		echo -e ""; \
+		echo -e "$(CYAN)Removing terraform state...$(NC)"; \
+		rm -rf $(ROOT_DIR).run/local/kind-argocd 2>/dev/null && echo -e "$(GREEN)✓ Removed terraform state directory$(NC)" || echo -e "$(YELLOW)  No state directory found (skipped)$(NC)"; \
+		echo -e ""; \
+		echo -e "$(CYAN)Cleaning terraform/terragrunt caches...$(NC)"; \
+		rm -rf $(ROOT_DIR)$(STACK_DIR)/.terraform $(ROOT_DIR)$(STACK_DIR)/.terragrunt-cache $(ROOT_DIR)$(STACK_DIR)/.terraform.lock.hcl 2>/dev/null; \
+		echo -e "$(GREEN)✓ Removed .terraform, .terragrunt-cache, and .terraform.lock.hcl$(NC)"; \
+		echo -e ""; \
+		echo -e "$(CYAN)Removing generated files...$(NC)"; \
+		rm -rf $(ROOT_DIR)$(STACK_DIR)/.run 2>/dev/null && echo -e "$(GREEN)✓ Removed .run directory (SSH keys, kubeconfig, generated-apps)$(NC)" || echo -e "$(YELLOW)  No .run directory found (skipped)$(NC)"; \
+		rm -f $(ROOT_DIR)$(STACK_DIR)/.runner 2>/dev/null && echo -e "$(GREEN)✓ Removed .runner file$(NC)" || echo -e "$(YELLOW)  No .runner file found (skipped)$(NC)"; \
+		rm -f $(ROOT_DIR)$(STACK_DIR)/kind-config.yaml 2>/dev/null && echo -e "$(GREEN)✓ Removed kind-config.yaml$(NC)" || echo -e "$(YELLOW)  No kind-config.yaml found (skipped)$(NC)"; \
+		rm -f $(ROOT_DIR)$(STACK_DIR)/backend.tf 2>/dev/null && echo -e "$(GREEN)✓ Removed backend.tf (generated by Terragrunt)$(NC)" || echo -e "$(YELLOW)  No backend.tf found (skipped)$(NC)"; \
+		rm -rf $(ROOT_DIR)$(STACK_DIR)/certs 2>/dev/null && echo -e "$(GREEN)✓ Removed certs directory$(NC)" || echo -e "$(YELLOW)  No certs directory found (skipped)$(NC)"; \
+		echo -e ""; \
+		echo -e "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		echo -e "$(GREEN)  ✓ Reset complete$(NC)"; \
+		echo -e "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		echo -e ""; \
+		echo -e "You can now run: make local kind 100 apply AUTO_APPROVE=1"; \
+	else \
+		echo -e "$(YELLOW)The 'reset' verb is only supported for local/kind$(NC)"; \
 		exit 1; \
 	fi
 

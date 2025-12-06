@@ -136,31 +136,31 @@ variable "gitea_chart_version" {
 variable "use_external_gitea" {
   description = "If true, use an external/hosted Gitea instance instead of deploying Gitea inside the cluster."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "gitea_http_host" {
   description = "Host/IP for Gitea HTTP endpoint as reachable from the cluster."
   type        = string
-  default     = "host.docker.internal"
+  default     = "127.0.0.1"
 }
 
 variable "gitea_http_scheme" {
-  description = "Scheme for external Gitea HTTP endpoint (http or https)."
+  description = "Scheme for Gitea HTTP endpoint (http or https)."
   type        = string
   default     = "http"
 }
 
 variable "gitea_http_port" {
-  description = "Port for external Gitea HTTP endpoint."
+  description = "Port for Gitea HTTP endpoint. For in-cluster, this is the NodePort (30090). For external, typically 3000."
   type        = number
-  default     = 3000
+  default     = 30090
 }
 
 variable "gitea_ssh_host" {
-  description = "Host/IP for external Gitea SSH endpoint as reachable from the cluster."
+  description = "Host/IP for Gitea SSH endpoint. For in-cluster Gitea accessed locally, use 127.0.0.1."
   type        = string
-  default     = "host.docker.internal"
+  default     = "127.0.0.1"
 }
 
 variable "gitea_ssh_port" {
@@ -188,9 +188,9 @@ variable "gitea_ssh_host_local" {
 }
 
 variable "gitea_registry_host" {
-  description = "Host:port for the Gitea container registry as reachable from the cluster."
+  description = "Host:port for the Gitea container registry as reachable from Kind nodes (containerd). Use localhost:NodePort because containerd runs on nodes (not in pods) and cannot resolve Kubernetes DNS names."
   type        = string
-  default     = "host.docker.internal:3000"
+  default     = "localhost:30090"
 }
 
 # -----------------------------------------------------------------------------
@@ -321,6 +321,12 @@ variable "enable_actions_runner" {
     condition     = !var.enable_actions_runner || var.enable_gitea
     error_message = "enable_actions_runner requires enable_gitea to be true."
   }
+}
+
+variable "enable_docker_socket_mount" {
+  description = "Mount the host Docker socket into Kind nodes so the in-cluster Actions runner can build images via the host daemon. Keep this consistent across stages to avoid Kind cluster replacement."
+  type        = bool
+  default     = true
 }
 
 variable "enable_azure_auth_sim" {

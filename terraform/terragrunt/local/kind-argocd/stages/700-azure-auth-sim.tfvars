@@ -1,5 +1,5 @@
-# Stage 300 - Hubble UI
-# Enables Hubble UI for network observability
+# Stage 700 - Azure Auth Simulation
+# Deploys Actions runner and Azure auth sim via Argo CD
 
 # -----------------------------------------------------------------------------
 # Core Configuration
@@ -15,13 +15,13 @@ kind_config_path = "./kind-config.yaml"
 
 enable_cilium              = true
 enable_hubble              = true
-enable_namespaces          = false
-enable_argocd              = false
-enable_gitea               = false
-enable_policies            = false
-enable_actions_runner      = false
+enable_namespaces          = true
+enable_argocd              = true
+enable_gitea               = true
+enable_policies            = true
+enable_actions_runner      = true
 enable_docker_socket_mount = true
-enable_azure_auth_sim      = false
+enable_azure_auth_sim      = true
 enable_azure_auth_ports    = true
 use_external_gitea         = false
 
@@ -68,7 +68,7 @@ gitea_registry_host     = "localhost:30090"
 # SSH Keys
 # -----------------------------------------------------------------------------
 
-generate_repo_ssh_key = false
+generate_repo_ssh_key = true
 ssh_private_key_path  = "./.run/argocd-repo.id_ed25519"
 ssh_public_key_path   = "./.run/argocd-repo.id_ed25519.pub"
 

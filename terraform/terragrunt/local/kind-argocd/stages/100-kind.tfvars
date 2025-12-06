@@ -1,5 +1,5 @@
-# Stage 300 - Hubble UI
-# Enables Hubble UI for network observability
+# Stage 100 - Kind Cluster Bootstrap (Terraform-driven)
+# Creates the Kind cluster with NodePort mappings for all services
 
 # -----------------------------------------------------------------------------
 # Core Configuration
@@ -13,8 +13,8 @@ kind_config_path = "./kind-config.yaml"
 # Feature Toggles
 # -----------------------------------------------------------------------------
 
-enable_cilium              = true
-enable_hubble              = true
+enable_cilium              = false
+enable_hubble              = false
 enable_namespaces          = false
 enable_argocd              = false
 enable_gitea               = false
