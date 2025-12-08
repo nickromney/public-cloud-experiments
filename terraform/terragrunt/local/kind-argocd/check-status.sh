@@ -19,6 +19,10 @@ PASS=0
 FAIL=0
 WARN=0
 
+# Gitea credentials (override with environment variables)
+GITEA_USER="${GITEA_USER:-gitea-admin}"
+GITEA_PASSWORD="${GITEA_PASSWORD:-ChangeMe123!}"
+
 pass() { echo -e "${GREEN}[PASS]${NC} $1"; PASS=$((PASS + 1)); }
 fail() { echo -e "${RED}[FAIL]${NC} $1"; FAIL=$((FAIL + 1)); }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; WARN=$((WARN + 1)); }
@@ -63,10 +67,11 @@ check_kind() {
     else
         warn "Gitea port (30090) not mapped"
     fi
+    # Kind maps NodePort 30070 to host port 3007 for OAuth2 Proxy access
     if echo "$ports" | grep -q "30070"; then
-        pass "OAuth2 Proxy port (30070->3007) mapped"
+        pass "OAuth2 Proxy NodePort (30070) mapped"
     else
-        warn "OAuth2 Proxy port not mapped"
+        warn "OAuth2 Proxy NodePort not mapped"
     fi
 }
 
@@ -117,6 +122,11 @@ check_hubble() {
 check_argocd() {
     header "ArgoCD (Stage 400)"
 
+    # Expect at least 4 core ArgoCD pods:
+    #   - argocd-server
+    #   - argocd-repo-server
+    #   - argocd-application-controller
+    #   - argocd-redis
     local argocd_pods
     argocd_pods=$(kubectl get pods -n argocd --no-headers 2>/dev/null | grep -c "Running" || echo 0)
     if [[ "$argocd_pods" -ge 4 ]]; then
@@ -168,7 +178,7 @@ check_gitea() {
 
     # List repos
     local repos
-    repos=$(curl -s --max-time 5 -u gitea-admin:ChangeMe123! http://localhost:30090/api/v1/user/repos 2>/dev/null | jq -r '.[].name' 2>/dev/null || echo "")
+    repos=$(curl -s --max-time 5 -u "$GITEA_USER:$GITEA_PASSWORD" http://localhost:30090/api/v1/user/repos 2>/dev/null | jq -r '.[].name' 2>/dev/null || echo "")
     if [[ -n "$repos" ]]; then
         info "Repositories: $(echo "$repos" | tr '\n' ' ')"
     fi
@@ -207,6 +217,12 @@ check_policies() {
 check_azure_auth() {
     header "Azure Auth Simulation (Stage 700)"
 
+    # Expected 5 pods for Azure Auth Simulation:
+    #   - api-fastapi-keycloak (backend API)
+    #   - apim-simulator (API gateway simulator)
+    #   - frontend-react-keycloak-protected (React SPA)
+    #   - keycloak (identity provider)
+    #   - oauth2-proxy-frontend (authentication proxy)
     local azure_pods
     azure_pods=$(kubectl get pods -n azure-auth-sim --no-headers 2>/dev/null | grep -c "Running" || echo 0)
     if [[ "$azure_pods" -ge 5 ]]; then
@@ -274,7 +290,7 @@ check_runner() {
 
     # Check registration
     local runners
-    runners=$(curl -s --max-time 5 -u gitea-admin:ChangeMe123! http://localhost:30090/api/v1/admin/runners 2>/dev/null | jq -r '.data[].name' 2>/dev/null || echo "")
+    runners=$(curl -s --max-time 5 -u "$GITEA_USER:$GITEA_PASSWORD" http://localhost:30090/api/v1/admin/runners 2>/dev/null | jq -r '.data[].name' 2>/dev/null || echo "")
     if [[ -n "$runners" ]]; then
         pass "Runner registered: $runners"
     else

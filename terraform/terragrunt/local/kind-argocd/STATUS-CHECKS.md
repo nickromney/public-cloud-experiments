@@ -67,8 +67,12 @@ kubectl get pods -n gitea
 # Test Gitea HTTP access
 curl -s http://localhost:30090/api/v1/version
 
+# Set credentials (or export in shell profile)
+export GITEA_USER="gitea-admin"
+export GITEA_PASSWORD="ChangeMe123!"
+
 # List repositories
-curl -s -u gitea-admin:ChangeMe123! http://localhost:30090/api/v1/user/repos | jq '.[].name'
+curl -s -u "$GITEA_USER:$GITEA_PASSWORD" http://localhost:30090/api/v1/user/repos | jq '.[].name'
 ```
 
 ### Stage 600 - Policies (Cilium/Kyverno)
@@ -109,8 +113,8 @@ kubectl get pods -n gitea-runner
 # Check runner logs
 kubectl logs -n gitea-runner -l app.kubernetes.io/name=act-runner --tail=20
 
-# Check runner registration in Gitea
-curl -s -u gitea-admin:ChangeMe123! http://localhost:30090/api/v1/admin/runners | jq '.data[].name'
+# Check runner registration in Gitea (uses GITEA_USER/GITEA_PASSWORD env vars)
+curl -s -u "$GITEA_USER:$GITEA_PASSWORD" http://localhost:30090/api/v1/admin/runners | jq '.data[].name'
 ```
 
 ## Development Workflow
@@ -118,9 +122,15 @@ curl -s -u gitea-admin:ChangeMe123! http://localhost:30090/api/v1/admin/runners 
 ### Pushing Code Changes
 
 ```bash
-# Clone from in-cluster Gitea
+# Clone from in-cluster Gitea (will prompt for credentials)
 cd /tmp
-git clone http://gitea-admin:ChangeMe123!@localhost:30090/gitea-admin/azure-auth-sim.git
+git clone http://localhost:30090/gitea-admin/azure-auth-sim.git
+# Username: gitea-admin
+# Password: ChangeMe123!
+
+# Or use credential helper to avoid prompts
+git config --global credential.helper store
+git clone http://localhost:30090/gitea-admin/azure-auth-sim.git
 
 # Make changes (or copy from local project)
 cp -r ~/path/to/subnet-calculator/api-apim-simulator/* azure-auth-sim/api-apim-simulator/
