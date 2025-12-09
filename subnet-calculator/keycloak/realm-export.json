@@ -30,11 +30,13 @@
       "implicitFlowEnabled": false,
       "redirectUris": [
         "http://localhost:3006/*",
-        "http://localhost:3007/*"
+        "http://localhost:3007/*",
+        "http://localhost:8304/*"
       ],
       "webOrigins": [
         "http://localhost:3006",
-        "http://localhost:3007"
+        "http://localhost:3007",
+        "http://localhost:8304"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256"

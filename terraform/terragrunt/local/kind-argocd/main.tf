@@ -220,6 +220,7 @@ locals {
     gitea_ssh_port       = local.gitea_ssh_port_cluster
     gitea_admin_username = var.gitea_admin_username
     registry_host        = var.gitea_registry_host
+    use_sidecar          = var.azure_auth_sim_use_sidecar
   }
 
   # Staging directory for generated app files
@@ -269,6 +270,13 @@ resource "local_file" "azure_auth_frontend_deployment" {
   count    = var.enable_azure_auth_sim ? 1 : 0
   filename = "${local.generated_apps_dir}/azure-auth-sim/frontend-deployment.yaml"
   content  = templatefile("${path.module}/templates/apps/azure-auth-sim/frontend-deployment.yaml.tpl", local.app_template_vars)
+}
+
+# Sidecar pattern: combined oauth2-proxy + frontend manifest
+resource "local_file" "azure_auth_sidecar_manifest" {
+  count    = var.enable_azure_auth_sim && var.azure_auth_sim_use_sidecar ? 1 : 0
+  filename = "${local.generated_apps_dir}/azure-auth-sim/overlays/sidecar/combined-sidecar-manifests.yaml"
+  content  = templatefile("${path.module}/templates/apps/azure-auth-sim/overlays/sidecar/combined-sidecar-manifests.yaml.tpl", local.app_template_vars)
 }
 
 provider "kubernetes" {
@@ -915,6 +923,7 @@ resource "null_resource" "seed_gitea_repo" {
       local_file.app_kyverno_policies.content,
       var.enable_azure_auth_sim ? local_file.app_azure_auth_sim[0].content : "",
       var.enable_actions_runner && !var.use_external_gitea ? local_file.app_gitea_actions_runner[0].content : "",
+      var.enable_azure_auth_sim && var.azure_auth_sim_use_sidecar ? local_file.azure_auth_sidecar_manifest[0].content : "",
     ]))
   }
 
@@ -933,8 +942,10 @@ cp -r ${path.module}/apps "$TMP_DIR"/
 # Remove all old static app YAML files that are now templated
 rm -f "$TMP_DIR/apps/"*.yaml
 
-# Remove the kustomize overlay (no longer needed - URLs are templated)
-rm -rf "$TMP_DIR/apps/azure-auth-sim/overlays"
+# Keep overlays only if using sidecar pattern
+if [ "${var.azure_auth_sim_use_sidecar}" != "true" ]; then
+  rm -rf "$TMP_DIR/apps/azure-auth-sim/overlays"
+fi
 
 # Copy generated templated files (with correct URLs from tfvars)
 cp -r ${local.generated_apps_dir}/* "$TMP_DIR/apps/"
@@ -970,6 +981,7 @@ EOT
     local_file.azure_auth_api_deployment,
     local_file.azure_auth_apim_deployment,
     local_file.azure_auth_frontend_deployment,
+    local_file.azure_auth_sidecar_manifest,
   ]
 }
 

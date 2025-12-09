@@ -340,6 +340,12 @@ variable "enable_azure_auth_sim" {
   }
 }
 
+variable "azure_auth_sim_use_sidecar" {
+  description = "Use the sidecar deployment pattern (oauth2-proxy + frontend in same pod). When false, uses separate pods (default). See AZURE_AUTH_SIM.md for details."
+  type        = bool
+  default     = false
+}
+
 variable "enable_azure_auth_ports" {
   description = "Expose azure auth simulation NodePorts/host ports on the kind control plane. Keep this true from stage 100 onward to avoid cluster recreation when enabling the workload later."
   type        = bool

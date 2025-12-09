@@ -25,6 +25,10 @@ enable_azure_auth_sim      = true
 enable_azure_auth_ports    = true
 use_external_gitea         = false
 
+# Sidecar pattern: oauth2-proxy + frontend in same pod (4 pods instead of 5)
+# See AZURE_AUTH_SIM.md for details.
+azure_auth_sim_use_sidecar = true
+
 # -----------------------------------------------------------------------------
 # Versions / Ports
 # -----------------------------------------------------------------------------

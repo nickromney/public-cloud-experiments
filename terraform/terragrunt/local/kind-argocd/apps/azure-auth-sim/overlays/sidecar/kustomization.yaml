@@ -1,0 +1,24 @@
+# Sidecar Overlay - Combines oauth2-proxy and frontend into a single pod
+#
+# Usage:
+#   kubectl apply -k .
+#   # OR
+#   kubectl apply -f combined-sidecar-manifests.yaml
+#
+# Result: 4 pods instead of 5
+#   - keycloak
+#   - api-fastapi-keycloak
+#   - apim-simulator
+#   - frontend-with-oauth-sidecar (oauth2-proxy + frontend)
+#
+# ArgoCD Application config:
+#   spec:
+#     source:
+#       path: apps/azure-auth-sim/overlays/sidecar
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Use the combined manifest directly
+resources:
+  - combined-sidecar-manifests.yaml
