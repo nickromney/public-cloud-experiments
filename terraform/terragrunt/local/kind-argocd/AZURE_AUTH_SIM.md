@@ -22,3 +22,84 @@
 ## Verification plan (next steps)
 - Run stages in order: `make local kind 100`, `make local kind 200` (confirm Action succeeded and images exist in `host.docker.internal:3000/v2/gitea-admin/...`), then `make local kind 300/400/500/600/800 apply AUTO_APPROVE=1`, and `make local kind 900 apply AUTO_APPROVE=1`.
 - After stage 900: check Argo CD app status (`kubectl -n argocd get applications`), ensure registry secret `gitea-registry-creds` exists in `azure-auth-sim`, and hit the NodePorts (`http://localhost:3007`, `8180`, `8082`, `8081`) to confirm end-to-end auth/proxy flow.
+
+## Sidecar Pattern (Alternative Deployment)
+
+### Overview
+
+The default deployment uses 5 separate pods. An alternative **sidecar pattern** combines oauth2-proxy and frontend into a single pod, reducing to 4 pods while maintaining compose compatibility.
+
+```
+Default (5 pods):                          Sidecar (4 pods):
++-----------+   +----------+               +---------------------------+
+| oauth2    | > | frontend |               | oauth2-proxy | frontend   |
+| proxy     |   |          |               | (sidecar)    | (main)     |
++-----------+   +----------+               +---------------------------+
+     |               |                              |
+     v               v                              v
++----------+   +----------+   +---------+  +----------+   +---------+
+| keycloak |   |   apim   |   | backend |  | keycloak |   |  apim   | > backend
++----------+   +----------+   +---------+  +----------+   +---------+
+```
+
+### Key Differences
+
+| Aspect | Separate Pods (default) | Sidecar Pattern |
+|--------|------------------------|-----------------|
+| Pod count | 5 | 4 |
+| oauth2-proxy upstream | Service DNS (`frontend-react-...svc.cluster.local`) | `localhost:80` |
+| Frontend accessibility | ClusterIP service | localhost only (within pod) |
+| Scaling | Independent | Coupled (1:1) |
+| Compose compatibility | Direct mapping | Same images, different orchestration |
+
+### Usage
+
+```bash
+# Default pattern (5 pods)
+kubectl apply -k apps/azure-auth-sim/
+
+# Sidecar pattern (4 pods)
+kubectl apply -k apps/azure-auth-sim/overlays/sidecar/
+```
+
+### ArgoCD Configuration
+
+To use the sidecar pattern with ArgoCD, update the Application path:
+
+```yaml
+# Default
+spec:
+  source:
+    path: apps/azure-auth-sim
+
+# Sidecar
+spec:
+  source:
+    path: apps/azure-auth-sim/overlays/sidecar
+```
+
+### Files
+
+- `overlays/sidecar/combined-sidecar-manifests.yaml` - All resources in a single file
+- `overlays/sidecar/kustomization.yaml` - Kustomize overlay configuration
+
+### When to Use
+
+**Use sidecar when:**
+- You want tighter coupling between auth and frontend
+- Debugging auth issues (logs in same pod)
+- Simulating Azure App Service with Easy Auth (single deployment unit)
+
+**Use separate pods when:**
+- You need independent scaling
+- You want to reuse oauth2-proxy for multiple upstreams
+- Testing oauth2-proxy configuration changes independently
+
+### Compose Compatibility
+
+The same container images work in both environments:
+- **Compose** (`subnet-calculator/compose.yml`): 5 services as separate containers
+- **Kubernetes default**: 5 pods (matches compose)
+- **Kubernetes sidecar**: 4 pods (oauth2-proxy + frontend combined)
+
+The sidecar pattern changes orchestration only - no image changes needed.
