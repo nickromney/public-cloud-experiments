@@ -250,29 +250,7 @@ check_azure_auth() {
         fail "OAuth2 Proxy (localhost:3007): $oauth_status"
     fi
 
-    local keycloak_status
-    keycloak_status=$(curl -sI --max-time 3 http://localhost:8180 2>/dev/null | head -1 || echo "Connection failed")
-    if echo "$keycloak_status" | grep -qE "HTTP.*[234][0-9][0-9]"; then
-        pass "Keycloak (localhost:8180): responding"
-    else
-        warn "Keycloak (localhost:8180): $keycloak_status"
-    fi
-
-    local api_status
-    api_status=$(curl -sI --max-time 3 http://localhost:8081 2>/dev/null | head -1 || echo "Connection failed")
-    if echo "$api_status" | grep -qE "HTTP.*[234][0-9][0-9]"; then
-        pass "API (localhost:8081): responding"
-    else
-        warn "API (localhost:8081): $api_status"
-    fi
-
-    local apim_status
-    apim_status=$(curl -sI --max-time 3 http://localhost:8082 2>/dev/null | head -1 || echo "Connection failed")
-    if echo "$apim_status" | grep -qE "HTTP.*[234][0-9][0-9]"; then
-        pass "APIM Simulator (localhost:8082): responding"
-    else
-        warn "APIM Simulator (localhost:8082): $apim_status"
-    fi
+    info "Keycloak/APIM/FastAPI are internal; port-forward the services if you need to inspect them (e.g., `kubectl -n azure-auth-sim port-forward svc/keycloak 8080:8080`)."
 }
 
 # Check Actions Runner

@@ -175,7 +175,7 @@ CORS_ORIGINS=http://localhost:3006
 ```bash
 VITE_API_URL=http://localhost:8081
 VITE_AUTH_METHOD=oidc
-VITE_OIDC_AUTHORITY=http://localhost:8180/realms/subnet-calculator
+VITE_OIDC_AUTHORITY=http://localhost:3007/realms/subnet-calculator
 VITE_OIDC_CLIENT_ID=frontend-app
 VITE_OIDC_REDIRECT_URI=http://localhost:3006
 ```

@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="${ROOT_DIR}/external-gitea-compose.yaml"
 RUN_DIR="${ROOT_DIR}/.run"
-POLICIES_DIR="${ROOT_DIR}/policies"
+POLICIES_DIR="${ROOT_DIR}/cluster-policies"
 APPS_DIR="${ROOT_DIR}/apps"
 AZ_REPO_DIR="${ROOT_DIR}/gitea-repos/azure-auth-sim"
 SUBNET_ROOT="$(cd "${ROOT_DIR}/../../../../subnet-calculator" && pwd)"
@@ -372,7 +372,7 @@ build_policies_tree() {
   local tmp="$1"
   mkdir -p "${tmp}"
   cp -r "${ROOT_DIR}/apps" "${tmp}/"
-  cp -r "${ROOT_DIR}/policies" "${tmp}/"
+  cp -r "${ROOT_DIR}/cluster-policies" "${tmp}/"
   # ensure no terraform state or other files hitch a ride
   find "${tmp}" -maxdepth 1 -type f ! -name "README.md" -delete || true
 }

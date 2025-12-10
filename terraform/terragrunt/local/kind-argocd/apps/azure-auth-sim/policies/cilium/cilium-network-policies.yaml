@@ -1,0 +1,280 @@
+ # Cilium policies for azure-auth-sim strictly enforce the hand-off chain from the external NGINX gateway
+ # through oauth2-proxy owning the / route, into the frontend sidecar, then to APIM and the FastAPI backend.
+ # Pods may still hit DNS/ API server for control-plane and discovery reasons.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-oauth2-proxy
+  namespace: azure-auth-sim
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: frontend-with-oauth-sidecar
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: nginx-gateway
+      toPorts:
+        - ports:
+            - port: "4180"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: frontend-with-oauth-sidecar
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: keycloak
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": "kube-system"
+            "k8s:k8s-app": "kube-dns"
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    - toEntities:
+        - kube-apiserver
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-frontend
+  namespace: azure-auth-sim
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: frontend-with-oauth-sidecar
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: nginx-gateway
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: apim-simulator
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: keycloak
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": "kube-system"
+            "k8s:k8s-app": "kube-dns"
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-apim
+  namespace: azure-auth-sim
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: apim-simulator
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: frontend-react-keycloak-protected
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: api-fastapi-keycloak
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: keycloak
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": "kube-system"
+            "k8s:k8s-app": "kube-dns"
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-api
+  namespace: azure-auth-sim
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: api-fastapi-keycloak
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: apim-simulator
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: keycloak
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": "kube-system"
+            "k8s:k8s-app": "kube-dns"
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-keycloak
+  namespace: azure-auth-sim
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: oauth2-proxy-frontend
+        - matchLabels:
+            app.kubernetes.io/name: apim-simulator
+        - matchLabels:
+            app.kubernetes.io/name: api-fastapi-keycloak
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": "kube-system"
+            "k8s:k8s-app": "kube-dns"
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    - toEntities:
+        - kube-apiserver
+        - host
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-gateway-ingress
+  namespace: azure-auth-sim
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: azure-auth-gateway-nginx
+  ingress:
+    - fromEntities:
+        - host
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-nginx-gateway
+  namespace: nginx-gateway
+spec:
+  description: Restrict the NGINX Gateway to only forward traffic to the oauth2 proxy in azure-auth-sim.
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: nginx-gateway
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: azure-auth-gateway-nginx
+            k8s:io.kubernetes.pod.namespace: azure-auth-sim
+      toPorts:
+        - ports:
+            - port: "8443"
+              protocol: TCP
+            - port: "443"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: nginx-gateway
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: frontend-with-oauth-sidecar
+      toPorts:
+        - ports:
+            - port: "4180"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: keycloak
+            k8s:io.kubernetes.pod.namespace: azure-auth-sim
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: apim-simulator
+            k8s:io.kubernetes.pod.namespace: azure-auth-sim
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+    - toEntities:
+        - kube-apiserver
+        - kube-dns

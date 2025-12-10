@@ -97,11 +97,12 @@ kubectl get pods -n azure-auth-sim
 # Check services and NodePorts
 kubectl get svc -n azure-auth-sim
 
-# Test endpoints
-curl -sI http://localhost:3007 --max-time 5   # OAuth2 Proxy (should redirect/403)
-curl -sI http://localhost:8180 --max-time 5   # Keycloak
-curl -sI http://localhost:8081 --max-time 5   # API
-curl -sI http://localhost:8082 --max-time 5   # APIM Simulator
+# Test endpoints (Gateway Fabric exposes the oauth2-proxy/front end only)
+curl -sI http://localhost:3007 --max-time 5   # OAuth2 Proxy (Gateway entry, should redirect/403)
+# To inspect the backend services directly, port-forward the desired service:
+# kubectl -n azure-auth-sim port-forward svc/keycloak 8080:8080
+# kubectl -n azure-auth-sim port-forward svc/apim-simulator 8000:8000
+# kubectl -n azure-auth-sim port-forward svc/api-fastapi-keycloak 80:80
 ```
 
 ### Gitea Actions Runner

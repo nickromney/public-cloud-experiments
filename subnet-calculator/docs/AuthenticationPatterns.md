@@ -358,8 +358,8 @@ Solution:
 Cause: Token issuer doesn't match API configuration
 
 Solution:
-1. Check token issuer: http://localhost:8180/realms/subnet-calculator
-2. Check API config: OIDC_ISSUER=http://localhost:8180/realms/subnet-calculator
+1. Check token issuer: http://localhost:3007/realms/subnet-calculator
+2. Check API config: OIDC_ISSUER=http://localhost:3007/realms/subnet-calculator
 3. Ensure issuer URLs match exactly
 ```
 

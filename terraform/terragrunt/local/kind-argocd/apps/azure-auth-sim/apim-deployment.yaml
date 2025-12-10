@@ -27,7 +27,7 @@ spec:
             - name: BACKEND_BASE_URL
               value: http://api-fastapi-keycloak.azure-auth-sim.svc.cluster.local
             - name: OIDC_ISSUER
-              value: http://localhost:8180/realms/subnet-calculator
+              value: http://localhost:3007/realms/subnet-calculator
             - name: OIDC_AUDIENCE
               value: api-app
             - name: OIDC_JWKS_URI

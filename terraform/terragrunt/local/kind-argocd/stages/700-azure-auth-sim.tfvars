@@ -84,6 +84,5 @@ ssh_public_key_path   = "./.run/argocd-repo.id_ed25519.pub"
 # - Gitea UI: http://localhost:30090 (stage 500+)
 # - Gitea SSH: ssh://localhost:30022 (stage 500+)
 # - Azure auth sim: http://localhost:3007 (stage 700)
-# - Keycloak: http://localhost:8180 (stage 700)
-# - APIM simulator: http://localhost:8082 (stage 700)
-# - FastAPI backend: http://localhost:8081 (stage 700)
+# - Azure auth gateway (NGINX Gateway Fabric): http://localhost:3007 (stage 700)
+#   Keycloak/APIM/FastAPI remain internal—use kubectl port-forward if you need direct access.

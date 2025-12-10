@@ -19,11 +19,8 @@ This context provisions a five-node kind cluster on Podman (Apple Silicon friend
 - installs Cilium + Hubble UI (NodePort `31235`)
 - installs Argo CD (NodePort `30080`)
 - installs Gitea (HTTP NodePort `30090`, SSH NodePort `30022`)
-- deploys the “azure auth simulation” app (`apps/azure-auth-sim`, Argo CD Application `azure-auth-sim`) which runs OAuth2 Proxy + Keycloak + APIM simulator + FastAPI backend + protected React frontend; exposed on:
-  - OAuth2 Proxy / protected frontend entry: http://localhost:3007
-  - Keycloak: http://localhost:8180
-  - APIM simulator: http://localhost:8082
-  - FastAPI backend: http://localhost:8081
+- deploys the “azure auth simulation” app (`apps/azure-auth-sim`, Argo CD Application `azure-auth-sim`) which runs OAuth2 Proxy + Keycloak + APIM simulator + FastAPI backend + protected React frontend; the protected frontend entrypoint is reachable through NGINX Gateway Fabric on http://localhost:3007 while the remaining services stay cluster-internal (use `kubectl -n azure-auth-sim port-forward svc/<service> <port>` if you need direct access).
+- runs `apps/nginx-gateway-fabric` to install NGINX Gateway Fabric (GatewayClass, controller, and proxy) so the gateway becomes the sole external surface for the azure-auth-sim stack.
 - seeds a `policies` repo in Gitea over SSH, captures the SSH host key, and registers the repo in Argo CD with strict host-key checking
 - Argo CD Applications:
   - `gitea` (Helm)
@@ -63,22 +60,23 @@ Stage `700` builds the API, APIM simulator, and protected frontend from source u
 - Logs: `kubectl -n kube-system logs -l k8s-app=cilium --tail=200` and `kubectl -n kube-system logs deploy/cilium-hubble-relay --tail=200`
 - Gitea UI: http://localhost:30090 (defaults `gitea-admin` / `ChangeMe123!`). SSH: `ssh://git@localhost:30022/<user>/policies.git`
 - Azure auth simulation:
-  - OAuth2 Proxy / protected frontend: http://localhost:3007
-  - Keycloak: http://localhost:8180
-  - APIM simulator: http://localhost:8082
-  - FastAPI backend: http://localhost:8081
+  - Protected frontend entry: http://localhost:3007 (served through NGINX Gateway Fabric; gateway routes traffic to the oauth2-proxy pod)
+  - Keycloak/APIM/FastAPI remain internal; port-forward with `kubectl -n azure-auth-sim port-forward svc/<name> <port>` to reach them for debugging.
 
 ## Argo CD applications (GitOps)
 
 - Gitea (Helm chart)
-- Cilium policies (from Gitea repo `policies/cilium`): isolates `cilium-team-a` and `cilium-team-b` (intra-namespace only; DNS + apiserver allowed)
+- Cilium policies (from Gitea repo `cluster-policies/cilium`): isolates `cilium-team-a` and `cilium-team-b` (intra-namespace only; DNS + apiserver allowed)
 - Kyverno (Helm)
-- Kyverno policies (from Gitea repo `policies/kyverno`): generates default-deny `NetworkPolicy` for namespaces labeled `kyverno.io/isolate=true` (example `kyverno-sandbox`)
+- Kyverno policies (from Gitea repo `cluster-policies/kyverno`): generates default-deny `NetworkPolicy` for namespaces labeled `kyverno.io/isolate=true` (example `kyverno-sandbox`)
+- Azure auth simulation (from Gitea repo `apps/azure-auth-sim`): OAuth2 Proxy + Keycloak + APIM simulator + FastAPI backend + protected React frontend; the protected frontend is exposed via Gateway Fabric on NodePort 3007 while backend services stay internal.
+- NGINX Gateway Fabric (from Gitea repo `apps/nginx-gateway-fabric`): installs the Gateway controller, `GatewayClass`, and proxy so the gateway service becomes the only external ingress for the azure-auth stack.
 
 ## How it wires together
 
 - Terraform installs Argo CD and Cilium, waits for Gitea rollout, creates the `policies` repo in Gitea, pushes policy files from this repo into Gitea, captures the Gitea SSH host key via `ssh-keyscan`, and registers the repo in Argo CD with `sshKnownHosts` (no insecure SSH).
-- Argo CD syncs the four Applications above.
+- Argo CD syncs the applications listed above.
+- The seeded `policies` repo keeps cluster-wide controls under `cluster-policies/` (synced by the `cilium-policies`/`kyverno-policies` apps) and each workload under `apps/<name>/` so per-app manifests and scoped policies (e.g., `apps/azure-auth-sim/policies/cilium/cilium-network-policies.yaml`) live together.
 - CiliumNetworkPolicies isolate team namespaces; Kyverno generates NetworkPolicy for any namespace labeled `kyverno.io/isolate=true`.
 
 ## Reproducible test steps

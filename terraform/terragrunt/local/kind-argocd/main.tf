@@ -61,7 +61,7 @@ locals {
   gitea_http_host_cluster = var.use_external_gitea ? var.gitea_http_host : var.gitea_http_host_cluster
   gitea_http_port_cluster = var.use_external_gitea ? var.gitea_http_port : var.gitea_http_port_cluster
   gitea_registry_host     = var.gitea_registry_host
-  policy_files            = fileset("${path.module}/policies", "**")
+  cluster_policy_files    = fileset("${path.module}/cluster-policies", "**")
   apps_files_all          = fileset("${path.module}/apps", "**")
   apps_skip_prefixes = concat(
     # Skip azure-auth-sim apps if not enabled
@@ -95,7 +95,7 @@ locals {
     [for file in fileset("${path.module}/gitea-repos/azure-auth-sim/.gitea", "**") : ".gitea/${file}"]
   )
   repo_checksum = sha256(join("", concat(
-    [for file in local.policy_files : filesha256("${path.module}/policies/${file}")],
+    [for file in local.cluster_policy_files : filesha256("${path.module}/cluster-policies/${file}")],
     [for file in local.apps_files : filesha256("${path.module}/apps/${file}")]
   )))
   azure_auth_repo_checksum = sha256(join("", concat(
@@ -133,24 +133,6 @@ locals {
       name           = "azure-auth-sim-oauth2-proxy"
       container_port = var.azure_auth_oauth2_proxy_node_port
       host_port      = var.azure_auth_oauth2_proxy_host_port
-      protocol       = "TCP"
-    },
-    {
-      name           = "azure-auth-sim-apim"
-      container_port = var.azure_auth_apim_node_port
-      host_port      = var.azure_auth_apim_host_port
-      protocol       = "TCP"
-    },
-    {
-      name           = "azure-auth-sim-api"
-      container_port = var.azure_auth_api_node_port
-      host_port      = var.azure_auth_api_host_port
-      protocol       = "TCP"
-    },
-    {
-      name           = "azure-auth-sim-keycloak"
-      container_port = var.azure_auth_keycloak_node_port
-      host_port      = var.azure_auth_keycloak_host_port
       protocol       = "TCP"
     },
   ] : [])
@@ -215,12 +197,14 @@ locals {
   # Template variables for generated app YAML files
   # All cluster-internal addressing is configured here from tfvars
   app_template_vars = {
-    gitea_ssh_username   = var.gitea_ssh_username
-    gitea_ssh_host       = local.gitea_ssh_host_cluster
-    gitea_ssh_port       = local.gitea_ssh_port_cluster
-    gitea_admin_username = var.gitea_admin_username
-    registry_host        = var.gitea_registry_host
-    use_sidecar          = var.azure_auth_sim_use_sidecar
+    gitea_ssh_username           = var.gitea_ssh_username
+    gitea_ssh_host               = local.gitea_ssh_host_cluster
+    gitea_ssh_port               = local.gitea_ssh_port_cluster
+    gitea_admin_username         = var.gitea_admin_username
+    registry_host                = var.gitea_registry_host
+    use_sidecar                  = var.azure_auth_sim_use_sidecar
+    argocd_namespace             = var.argocd_namespace
+    azure_auth_gateway_node_port = var.azure_auth_oauth2_proxy_node_port
   }
 
   # Staging directory for generated app files
@@ -237,6 +221,12 @@ resource "local_file" "app_azure_auth_sim" {
   content  = templatefile("${path.module}/templates/apps/azure-auth-sim.yaml.tpl", local.app_template_vars)
 }
 
+resource "local_file" "app_kyverno" {
+  count    = var.enable_policies ? 1 : 0
+  filename = "${local.generated_apps_dir}/kyverno.yaml"
+  content  = templatefile("${path.module}/templates/apps/kyverno.yaml.tpl", local.app_template_vars)
+}
+
 resource "local_file" "app_cilium_policies" {
   filename = "${local.generated_apps_dir}/cilium-policies.yaml"
   content  = templatefile("${path.module}/templates/apps/cilium-policies.yaml.tpl", local.app_template_vars)
@@ -251,6 +241,12 @@ resource "local_file" "app_gitea_actions_runner" {
   count    = var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
   filename = "${local.generated_apps_dir}/gitea-actions-runner.yaml"
   content  = templatefile("${path.module}/templates/apps/gitea-actions-runner.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "app_nginx_gateway_fabric" {
+  count    = var.enable_azure_auth_sim ? 1 : 0
+  filename = "${local.generated_apps_dir}/nginx-gateway-fabric.yaml"
+  content  = templatefile("${path.module}/templates/apps/nginx-gateway-fabric.yaml.tpl", local.app_template_vars)
 }
 
 # Azure Auth Sim deployment files
@@ -277,6 +273,12 @@ resource "local_file" "azure_auth_sidecar_manifest" {
   count    = var.enable_azure_auth_sim && var.azure_auth_sim_use_sidecar ? 1 : 0
   filename = "${local.generated_apps_dir}/azure-auth-sim/overlays/sidecar/combined-sidecar-manifests.yaml"
   content  = templatefile("${path.module}/templates/apps/azure-auth-sim/overlays/sidecar/combined-sidecar-manifests.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "nginx_gateway_fabric_deploy" {
+  count    = var.enable_azure_auth_sim ? 1 : 0
+  filename = "${local.generated_apps_dir}/nginx-gateway-fabric/deploy.yaml"
+  content  = templatefile("${path.module}/templates/apps/nginx-gateway-fabric/deploy.yaml.tpl", local.app_template_vars)
 }
 
 provider "kubernetes" {
@@ -921,8 +923,11 @@ resource "null_resource" "seed_gitea_repo" {
     generated_files = md5(join("", [
       local_file.app_cilium_policies.content,
       local_file.app_kyverno_policies.content,
+      var.enable_policies ? local_file.app_kyverno[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_azure_auth_sim[0].content : "",
       var.enable_actions_runner && !var.use_external_gitea ? local_file.app_gitea_actions_runner[0].content : "",
+      var.enable_azure_auth_sim ? local_file.app_nginx_gateway_fabric[0].content : "",
+      var.enable_azure_auth_sim ? local_file.nginx_gateway_fabric_deploy[0].content : "",
       var.enable_azure_auth_sim && var.azure_auth_sim_use_sidecar ? local_file.azure_auth_sidecar_manifest[0].content : "",
     ]))
   }
@@ -958,7 +963,7 @@ if [ "${var.enable_actions_runner}" != "true" ] || [ "${var.use_external_gitea}"
   rm -rf "$TMP_DIR/apps/gitea-actions-runner"
 fi
 
-cp -r ${path.module}/policies "$TMP_DIR"/
+    cp -r ${path.module}/cluster-policies "$TMP_DIR"/cluster-policies
 cd "$TMP_DIR"
 git init -q
 git config user.email "argocd@gitea.local"
@@ -976,12 +981,15 @@ EOT
   depends_on = [
     local_file.app_cilium_policies,
     local_file.app_kyverno_policies,
+    local_file.app_kyverno,
     local_file.app_azure_auth_sim,
     local_file.app_gitea_actions_runner,
     local_file.azure_auth_api_deployment,
     local_file.azure_auth_apim_deployment,
     local_file.azure_auth_frontend_deployment,
     local_file.azure_auth_sidecar_manifest,
+    local_file.app_nginx_gateway_fabric,
+    local_file.nginx_gateway_fabric_deploy,
   ]
 }
 
