@@ -19,6 +19,14 @@
 - Deployment manifests come from the `policies` repo; the separate `azure-auth-sim` repo exists solely for image build sources and the CI workflow.
 - Stage comments in `stages/*.tfvars` are legacy (numbers in comments don’t always match filenames); the Makefile sequence under `Usage` is the source of truth.
 - External Gitea is assumed; switching to in-cluster Gitea would require toggling `use_external_gitea` and re-seeding via Terraform rather than the stage scripts.
+- Gateway listeners default to `hostname: localhost` for local kind. For AKS or other clusters, override this host (and matching OAuth2/SPA URLs) via a small kustomize patch to `apps/azure-auth-sim/gateway.yaml` and the sidecar manifest, or use a `/etc/hosts` entry (e.g., `127.0.0.1 azure-auth.local`).
+- Policy hand-off: Kyverno now creates namespace-scoped default-deny NetworkPolicies for any namespace labeled `kyverno.io/isolate=true`, while Cilium policies own the explicit allow-list chain (`nginx-gateway -> oauth2-proxy -> frontend -> APIM -> backend`) and egress to control-plane/DNS/Cloudflare.
+
+### Hostname overrides
+
+- Local default: `localhost:3007` (kind NodePort `30070` mapped to host `3007`). Works in normal and private browsing without external DNS.
+- Optional local vanity host: add `/etc/hosts` entry `127.0.0.1 azure-auth.local` and set Gateway/OAuth2/SPA URLs to `http://azure-auth.local:3007`.
+- For AKS/ingress IP/DNS: create a kustomize patch that sets `spec.listeners[0].hostname` in `apps/azure-auth-sim/gateway.yaml` (and the sidecar overlay, if used) plus update the OAuth2 Proxy args (`--oidc-issuer-url`, `--redirect-url`, `--login-url`) and SPA env vars (`VITE_API_URL`, `VITE_OIDC_AUTHORITY`, `VITE_OIDC_REDIRECT_URI`) to the chosen host.
 
 ## Verification plan (next steps)
 - Run stages in order: `make local kind 100`, `make local kind 200` (confirm Action succeeded and images exist in `host.docker.internal:3000/v2/gitea-admin/...`), then `make local kind 300/400/500/600/800 apply AUTO_APPROVE=1`, and `make local kind 900 apply AUTO_APPROVE=1`.
