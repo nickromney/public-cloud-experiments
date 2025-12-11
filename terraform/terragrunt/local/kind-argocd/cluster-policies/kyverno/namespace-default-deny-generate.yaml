@@ -16,6 +16,7 @@ spec:
                 matchLabels:
                   kyverno.io/isolate: "true"
       generate:
+        apiVersion: networking.k8s.io/v1
         kind: NetworkPolicy
         name: default-deny
         namespace: "{{request.object.metadata.name}}"
