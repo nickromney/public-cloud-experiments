@@ -1,0 +1,4 @@
+resources:
+  - gateway-api-crds.yaml
+  - crds.yaml
+  - deploy.yaml

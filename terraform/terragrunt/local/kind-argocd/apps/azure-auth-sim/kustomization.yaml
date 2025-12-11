@@ -8,6 +8,7 @@ resources:
   - secrets.yaml
   - keycloak-realm-config.yaml
   - keycloak-deployment.yaml
+  - gateway.yaml
   - keycloak-service.yaml
   - api-deployment.yaml
   - api-service.yaml
@@ -17,3 +18,4 @@ resources:
   - frontend-service.yaml
   - oauth2-proxy-deployment.yaml
   - oauth2-proxy-service.yaml
+  - policies/cilium/cilium-network-policies.yaml

@@ -172,10 +172,10 @@ jobs:
           docker build \
             --platform linux/amd64 \
             --provenance=false \
-            --build-arg VITE_API_URL=http://localhost:8082 \
+            --build-arg VITE_API_URL=http://localhost:3007/apim \
             --build-arg VITE_API_PROXY_ENABLED=false \
             --build-arg VITE_AUTH_METHOD=oidc \
-            --build-arg VITE_OIDC_AUTHORITY=http://localhost:8180/realms/subnet-calculator \
+            --build-arg VITE_OIDC_AUTHORITY=http://localhost:3007/realms/subnet-calculator \
             --build-arg VITE_OIDC_CLIENT_ID=frontend-app \
             --build-arg VITE_OIDC_REDIRECT_URI=http://localhost:3007 \
             --build-arg VITE_APIM_SUBSCRIPTION_KEY=stack12-demo-key \

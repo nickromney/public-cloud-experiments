@@ -6,7 +6,6 @@ metadata:
     app.kubernetes.io/name: apim-simulator
     app.kubernetes.io/component: gateway
 spec:
-  type: NodePort
   selector:
     app.kubernetes.io/name: apim-simulator
     app.kubernetes.io/component: gateway
@@ -14,4 +13,3 @@ spec:
     - name: http
       port: 8000
       targetPort: http
-      nodePort: 30082

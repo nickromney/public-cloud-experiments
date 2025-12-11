@@ -14,10 +14,7 @@
 #   - frontend-with-oauth-sidecar (oauth2-proxy + frontend)
 #
 # Ports:
-#   - 3007 (30070): Frontend via OAuth2 Proxy
-#   - 8180 (30180): Keycloak admin
-#   - 8082 (30082): APIM Simulator
-#   - 8081 (30081): Backend API
+#   - 3007 (30070): Gateway front door (routes to OAuth2 Proxy + APIs; Keycloak/APIM/API stay internal)
 #
 ---
 apiVersion: v1
@@ -260,6 +257,18 @@ spec:
               value: "false"
             - name: KC_HOSTNAME_STRICT_HTTPS
               value: "false"
+            # Configure Keycloak to generate redirect URLs pointing to the NGINX Gateway
+            # external endpoint (localhost:3007) rather than the internal service endpoint
+            - name: KC_HOSTNAME
+              value: "localhost"
+            - name: KC_HOSTNAME_PORT
+              value: "3007"
+            - name: KC_HOSTNAME_URL
+              value: "http://localhost:3007"
+            - name: KC_HOSTNAME_STRICT_BACKCHANNEL
+              value: "false"
+            - name: KC_PROXY
+              value: "edge"
             - name: KC_HTTP_ENABLED
               value: "true"
             - name: KC_HEALTH_ENABLED
@@ -305,7 +314,6 @@ metadata:
     app.kubernetes.io/name: keycloak
     app.kubernetes.io/component: identity
 spec:
-  type: NodePort
   selector:
     app.kubernetes.io/name: keycloak
     app.kubernetes.io/component: identity
@@ -313,7 +321,6 @@ spec:
     - name: http
       port: 8080
       targetPort: http
-      nodePort: 30180
 ---
 # FastAPI Backend - API Server
 apiVersion: apps/v1
@@ -347,7 +354,7 @@ spec:
             - name: AUTH_METHOD
               value: oidc
             - name: OIDC_ISSUER
-              value: http://localhost:8180/realms/subnet-calculator
+              value: http://localhost:3007/realms/subnet-calculator
             - name: OIDC_AUDIENCE
               value: api-app
             - name: OIDC_JWKS_URI
@@ -383,7 +390,6 @@ metadata:
     app.kubernetes.io/name: api-fastapi-keycloak
     app.kubernetes.io/component: backend
 spec:
-  type: NodePort
   selector:
     app.kubernetes.io/name: api-fastapi-keycloak
     app.kubernetes.io/component: backend
@@ -391,7 +397,6 @@ spec:
     - name: http
       port: 80
       targetPort: http
-      nodePort: 30081
 ---
 # APIM Simulator - API Gateway
 apiVersion: apps/v1
@@ -425,7 +430,7 @@ spec:
             - name: BACKEND_BASE_URL
               value: http://api-fastapi-keycloak.azure-auth-sim.svc.cluster.local
             - name: OIDC_ISSUER
-              value: http://localhost:8180/realms/subnet-calculator
+              value: http://localhost:3007/realms/subnet-calculator
             - name: OIDC_AUDIENCE
               value: api-app
             - name: OIDC_JWKS_URI
@@ -468,7 +473,6 @@ metadata:
     app.kubernetes.io/name: apim-simulator
     app.kubernetes.io/component: gateway
 spec:
-  type: NodePort
   selector:
     app.kubernetes.io/name: apim-simulator
     app.kubernetes.io/component: gateway
@@ -476,7 +480,6 @@ spec:
     - name: http
       port: 8000
       targetPort: http
-      nodePort: 30082
 ---
 # SIDECAR DEPLOYMENT: OAuth2 Proxy + Frontend in one Pod
 apiVersion: apps/v1
@@ -499,6 +502,9 @@ spec:
       labels:
         app.kubernetes.io/name: frontend-with-oauth-sidecar
         app.kubernetes.io/component: frontend-protected
+      annotations:
+        # Bump to force rollout when build inputs change
+        app.kubernetes.io/version: "rev-3007-2"
     spec:
       imagePullSecrets:
         - name: gitea-registry-creds
@@ -510,13 +516,13 @@ spec:
           args:
             # OIDC Provider (Keycloak)
             - --provider=oidc
-            - --oidc-issuer-url=http://localhost:8180/realms/subnet-calculator
+            - --oidc-issuer-url=http://localhost:3007/realms/subnet-calculator
             - --client-id=frontend-app
             - --redirect-url=http://localhost:3007/oauth2/callback
             - --code-challenge-method=S256
             # Skip discovery - pin endpoints to Keycloak service
             - --skip-oidc-discovery=true
-            - --login-url=http://localhost:8180/realms/subnet-calculator/protocol/openid-connect/auth
+            - --login-url=http://localhost:3007/realms/subnet-calculator/protocol/openid-connect/auth
             - --redeem-url=http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/token
             - --oidc-jwks-url=http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
             - --validate-url=http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/userinfo
@@ -584,13 +590,13 @@ spec:
           imagePullPolicy: Always
           env:
             - name: VITE_API_URL
-              value: http://localhost:8082
+              value: http://localhost:3007/apim
             - name: VITE_API_PROXY_ENABLED
               value: "false"
             - name: VITE_AUTH_METHOD
               value: oidc
             - name: VITE_OIDC_AUTHORITY
-              value: http://localhost:8180/realms/subnet-calculator
+              value: http://localhost:3007/realms/subnet-calculator
             - name: VITE_OIDC_CLIENT_ID
               value: frontend-app
             - name: VITE_OIDC_REDIRECT_URI
@@ -630,7 +636,6 @@ metadata:
     app.kubernetes.io/name: frontend-with-oauth-sidecar
     app.kubernetes.io/component: frontend-protected
 spec:
-  type: NodePort
   selector:
     app.kubernetes.io/name: frontend-with-oauth-sidecar
     app.kubernetes.io/component: frontend-protected
@@ -638,7 +643,70 @@ spec:
     - name: http
       port: 4180
       targetPort: http
-      nodePort: 30070
+---
+# Gateway resources for the sidecar deployment
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: azure-auth-gateway
+  namespace: azure-auth-sim
+  labels:
+    app.kubernetes.io/name: azure-auth-gateway
+spec:
+  gatewayClassName: nginx
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      hostname: localhost
+      allowedRoutes:
+        namespaces:
+          from: Same
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: azure-auth-gateway-route
+  namespace: azure-auth-sim
+  labels:
+    app.kubernetes.io/name: azure-auth-gateway-route
+spec:
+  parentRefs:
+    - name: azure-auth-gateway
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /realms
+        - path:
+            type: PathPrefix
+            value: /resources
+      backendRefs:
+        - name: keycloak
+          port: 8080
+          kind: Service
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /apim
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: apim-simulator
+          port: 8000
+          kind: Service
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: frontend-with-oauth-sidecar
+          port: 4180
+          kind: Service
 ---
 # Network Policy for Sidecar Pod
 apiVersion: cilium.io/v2
@@ -653,10 +721,7 @@ spec:
   ingress:
     - fromEndpoints:
         - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": "azure-auth-sim"
-    - fromEntities:
-        - remote-node
-        - host
+            app.kubernetes.io/name: azure-auth-gateway-nginx
   egress:
     - toEndpoints:
         - matchLabels:
@@ -668,3 +733,146 @@ spec:
     - toEntities:
         - kube-apiserver
         - host
+
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-gateway-ingress
+  namespace: azure-auth-sim
+spec:
+  description: Allow host -> azure-auth gateway data plane on NodePort (front door).
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: azure-auth-gateway-nginx
+  ingress:
+    - fromEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-apim-sidecar
+  namespace: azure-auth-sim
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: apim-simulator
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: frontend-with-oauth-sidecar
+        - matchLabels:
+            app.kubernetes.io/name: azure-auth-gateway-nginx
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: api-fastapi-keycloak
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: keycloak
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": "kube-system"
+            "k8s:k8s-app": "kube-dns"
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-api-sidecar
+  namespace: azure-auth-sim
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: api-fastapi-keycloak
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: apim-simulator
+        - matchLabels:
+            app.kubernetes.io/name: azure-auth-gateway-nginx
+            k8s:io.kubernetes.pod.namespace: azure-auth-sim
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: keycloak
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": "kube-system"
+            "k8s:k8s-app": "kube-dns"
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-keycloak-sidecar
+  namespace: azure-auth-sim
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: frontend-with-oauth-sidecar
+        - matchLabels:
+            app.kubernetes.io/name: apim-simulator
+        - matchLabels:
+            app.kubernetes.io/name: api-fastapi-keycloak
+        - matchLabels:
+            app.kubernetes.io/name: azure-auth-gateway-nginx
+            k8s:io.kubernetes.pod.namespace: azure-auth-sim
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": "kube-system"
+            "k8s:k8s-app": "kube-dns"
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP

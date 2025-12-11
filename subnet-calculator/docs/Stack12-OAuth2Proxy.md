@@ -107,7 +107,7 @@ The `frontend-react-keycloak-protected` container:
 │                                                         │
 │ 10. Nginx serves React SPA                             │
 │ 11. React loads (no client-side auth needed)           │
-│ 12. React makes API calls to http://localhost:8082     │
+│ 12. React makes API calls to http://localhost:3007/apim     │
 └─────────────────────────────────────────────────────────┘
          │
          ↓
@@ -157,10 +157,10 @@ curl -v http://localhost:3007
 curl http://localhost:3007/ping
 
 # 3. Call APIM simulator (fails without headers)
-curl -i http://localhost:8082/api/v1/health
+curl -i http://localhost:3007/apim/api/v1/health
 
 # 4. Call APIM simulator with headers (still 401 without bearer token)
-curl -i http://localhost:8082/api/v1/health \
+curl -i http://localhost:3007/apim/api/v1/health \
   -H "Ocp-Apim-Subscription-Key: stack12-demo-key"
 
 # 5. Try to access frontend directly (should fail - not exposed)
