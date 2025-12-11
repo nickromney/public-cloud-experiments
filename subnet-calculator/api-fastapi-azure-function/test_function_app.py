@@ -15,6 +15,8 @@ def test_health_check():
     assert body["status"] == "healthy"
     assert body["service"] == "Subnet Calculator API (Azure Function)"
     assert body["version"] == "1.0.0"
+    assert "cloudflare_egress_available" in body
+    assert isinstance(body["cloudflare_egress_available"], bool)
 
 
 def test_swagger_ui_accessible():
@@ -291,3 +293,5 @@ class TestSubnetInfo:
         assert response.status_code == 200
         body = response.json()
         assert body["wildcard_mask"] == "0.0.0.255"
+
+

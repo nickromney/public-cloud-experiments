@@ -57,6 +57,11 @@ from auth import (
     validate_oidc_token,
     verify_test_user,
 )
+from cloudflare_ips import (
+    get_cloudflare_ipv4_ranges,
+    get_cloudflare_ipv6_ranges,
+    is_cloudflare_egress_available,
+)
 
 # Authentication imports
 from config import (
@@ -657,35 +662,8 @@ RFC1918_RANGES = [
 # RFC6598 Shared Address Space
 RFC6598_RANGE = ip_network("100.64.0.0/10")
 
-# Cloudflare IPv4 Ranges
-CLOUDFLARE_IPV4_RANGES = [
-    ip_network("173.245.48.0/20"),
-    ip_network("103.21.244.0/22"),
-    ip_network("103.22.200.0/22"),
-    ip_network("103.31.4.0/22"),
-    ip_network("141.101.64.0/18"),
-    ip_network("108.162.192.0/18"),
-    ip_network("190.93.240.0/20"),
-    ip_network("188.114.96.0/20"),
-    ip_network("197.234.240.0/22"),
-    ip_network("198.41.128.0/17"),
-    ip_network("162.158.0.0/15"),
-    ip_network("104.16.0.0/13"),
-    ip_network("104.24.0.0/14"),
-    ip_network("172.64.0.0/13"),
-    ip_network("131.0.72.0/22"),
-]
-
-# Cloudflare IPv6 Ranges
-CLOUDFLARE_IPV6_RANGES = [
-    ip_network("2400:cb00::/32"),
-    ip_network("2606:4700::/32"),
-    ip_network("2803:f800::/32"),
-    ip_network("2405:b500::/32"),
-    ip_network("2405:8100::/32"),
-    ip_network("2a06:98c0::/29"),
-    ip_network("2c0f:f248::/32"),
-]
+# Cloudflare IP ranges are now dynamically fetched from cloudflare_ips module
+# See cloudflare_ips.py for implementation with fallback to hardcoded ranges
 
 
 @api.get("/api/v1/health")
@@ -698,7 +676,12 @@ async def health_check():
     - Load balancers
     - Monitoring systems (Prometheus, Datadog, etc.)
     """
-    return {"status": "healthy", "service": "Subnet Calculator API (Azure Function)", "version": "1.0.0"}
+    return {
+        "status": "healthy",
+        "service": "Subnet Calculator API (Azure Function)",
+        "version": "1.0.0",
+        "cloudflare_egress_available": is_cloudflare_egress_available(),
+    }
 
 
 @api.post("/api/v1/ipv4/validate")
@@ -810,6 +793,9 @@ async def check_cloudflare(request: ValidateRequest, current_user: str = Depends
     """
     Check if an IP address or range is within Cloudflare's IPv4 or IPv6 ranges.
 
+    Cloudflare IP ranges are fetched dynamically from https://www.cloudflare.com/ips-v4/
+    and https://www.cloudflare.com/ips-v6/ with fallback to hardcoded ranges if unavailable.
+
     Returns matched Cloudflare ranges and IP version.
     """
     address_str = request.address
@@ -822,12 +808,12 @@ async def check_cloudflare(request: ValidateRequest, current_user: str = Depends
         except (AddressValueError, NetmaskValueError, ValueError):
             ip_obj = ip_address(address_str)
 
-        # Determine which Cloudflare ranges to check
+        # Determine which Cloudflare ranges to check (dynamically fetched)
         if isinstance(ip_obj, (IPv4Address, IPv4Network)):
-            cloudflare_ranges = CLOUDFLARE_IPV4_RANGES
+            cloudflare_ranges = get_cloudflare_ipv4_ranges()
             ip_version = 4
         else:
-            cloudflare_ranges = CLOUDFLARE_IPV6_RANGES
+            cloudflare_ranges = get_cloudflare_ipv6_ranges()
             ip_version = 6
 
         # Check against Cloudflare ranges

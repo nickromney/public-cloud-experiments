@@ -10,6 +10,8 @@ to determine application health, readiness, and liveness.
 
 from fastapi import APIRouter
 
+from ..cloudflare_ips import is_cloudflare_egress_available
+
 router = APIRouter(prefix="/api/v1", tags=["health"])
 
 
@@ -24,6 +26,7 @@ async def health_check():
         "status": "healthy",
         "service": "Subnet Calculator API (Container App)",
         "version": "1.0.0",
+        "cloudflare_egress_available": is_cloudflare_egress_available(),
     }
 
 
