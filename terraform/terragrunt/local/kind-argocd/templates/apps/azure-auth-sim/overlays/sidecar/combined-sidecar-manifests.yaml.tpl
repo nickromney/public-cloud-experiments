@@ -257,7 +257,8 @@ spec:
               value: "false"
             - name: KC_HOSTNAME_STRICT_HTTPS
               value: "false"
-            # Trust the gateway and pin external URLs to the gateway front door (localhost:3007)
+            # Configure Keycloak to generate redirect URLs pointing to the NGINX Gateway
+            # external endpoint (localhost:3007) rather than the internal service endpoint
             - name: KC_HOSTNAME
               value: "localhost"
             - name: KC_HOSTNAME_PORT

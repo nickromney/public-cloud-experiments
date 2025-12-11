@@ -58,10 +58,10 @@ spec:
   ingress:
     - fromEndpoints:
         - matchLabels:
-            app.kubernetes.io/name: nginx-gateway
+            app.kubernetes.io/name: azure-auth-gateway-nginx
       toPorts:
         - ports:
-            - port: "80"
+            - port: "4180"
               protocol: TCP
   egress:
     - toEndpoints:
@@ -180,7 +180,9 @@ spec:
   ingress:
     - fromEndpoints:
         - matchLabels:
-            app.kubernetes.io/name: oauth2-proxy-frontend
+            app.kubernetes.io/name: frontend-with-oauth-sidecar
+        - matchLabels:
+            app.kubernetes.io/name: azure-auth-gateway-nginx
         - matchLabels:
             app.kubernetes.io/name: apim-simulator
         - matchLabels:
@@ -229,7 +231,7 @@ metadata:
   name: azure-auth-nginx-gateway
   namespace: nginx-gateway
 spec:
-  description: Restrict the NGINX Gateway to only forward traffic to the oauth2 proxy in azure-auth-sim.
+  description: Allow NGINX Gateway control plane to forward traffic to backend services (oauth2-proxy, keycloak, apim-simulator) in azure-auth-sim namespace.
   endpointSelector:
     matchLabels:
       app.kubernetes.io/name: nginx-gateway
