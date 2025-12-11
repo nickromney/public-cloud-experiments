@@ -1,0 +1,72 @@
+# Cilium policies for azure-entraid-sim namespace (Keycloak - simulating Azure Entra ID)
+# Keycloak receives token validation and OIDC requests from multiple namespaces
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-entraid-keycloak
+  namespace: azure-entraid-sim
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+  ingress:
+    # Allow from oauth2-proxy/frontend sidecar in azure-auth-sim
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: frontend-with-oauth-sidecar
+            "k8s:io.kubernetes.pod.namespace": azure-auth-sim
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    # Allow from backend API in azure-auth-sim for token validation
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: api-fastapi-keycloak
+            "k8s:io.kubernetes.pod.namespace": azure-auth-sim
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    # Allow from APIM simulator in azure-apim-sim for token validation
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: apim-simulator
+            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    # Allow from NGINX Gateway for /realms routes (external OIDC discovery)
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: nginx-gateway
+            "k8s:io.kubernetes.pod.namespace": nginx-gateway
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    # Allow from azure-auth-gateway-nginx data plane pods
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: azure-auth-gateway-nginx
+            "k8s:io.kubernetes.pod.namespace": azure-auth-sim
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+  egress:
+    # DNS resolution
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    - toEntities:
+        - kube-apiserver
+        - host

@@ -1,0 +1,15 @@
+# ReferenceGrant allows HTTPRoutes in azure-auth-sim namespace to reference
+# the apim-simulator Service in this namespace for cross-namespace routing
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-azure-auth-sim-routes
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: azure-auth-sim
+  to:
+    - group: ""
+      kind: Service
+      name: apim-simulator

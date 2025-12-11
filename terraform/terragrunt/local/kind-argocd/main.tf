@@ -205,6 +205,10 @@ locals {
     use_sidecar                  = var.azure_auth_sim_use_sidecar
     argocd_namespace             = var.argocd_namespace
     azure_auth_gateway_node_port = var.azure_auth_oauth2_proxy_node_port
+    # Multi-namespace architecture namespaces
+    azure_auth_namespace    = var.azure_auth_namespace
+    azure_entraid_namespace = var.azure_entraid_namespace
+    azure_apim_namespace    = var.azure_apim_namespace
   }
 
   # Staging directory for generated app files
@@ -219,6 +223,18 @@ resource "local_file" "app_azure_auth_sim" {
   count    = var.enable_azure_auth_sim ? 1 : 0
   filename = "${local.generated_apps_dir}/azure-auth-sim.yaml"
   content  = templatefile("${path.module}/templates/apps/azure-auth-sim.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "app_azure_entraid_sim" {
+  count    = var.enable_azure_auth_sim ? 1 : 0
+  filename = "${local.generated_apps_dir}/azure-entraid-sim.yaml"
+  content  = templatefile("${path.module}/templates/apps/azure-entraid-sim.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "app_azure_apim_sim" {
+  count    = var.enable_azure_auth_sim ? 1 : 0
+  filename = "${local.generated_apps_dir}/azure-apim-sim.yaml"
+  content  = templatefile("${path.module}/templates/apps/azure-apim-sim.yaml.tpl", local.app_template_vars)
 }
 
 resource "local_file" "app_kyverno" {
@@ -254,12 +270,6 @@ resource "local_file" "azure_auth_api_deployment" {
   count    = var.enable_azure_auth_sim ? 1 : 0
   filename = "${local.generated_apps_dir}/azure-auth-sim/api-deployment.yaml"
   content  = templatefile("${path.module}/templates/apps/azure-auth-sim/api-deployment.yaml.tpl", local.app_template_vars)
-}
-
-resource "local_file" "azure_auth_apim_deployment" {
-  count    = var.enable_azure_auth_sim ? 1 : 0
-  filename = "${local.generated_apps_dir}/azure-auth-sim/apim-deployment.yaml"
-  content  = templatefile("${path.module}/templates/apps/azure-auth-sim/apim-deployment.yaml.tpl", local.app_template_vars)
 }
 
 resource "local_file" "azure_auth_frontend_deployment" {
@@ -531,6 +541,56 @@ metadata:
   labels:
     app.kubernetes.io/part-of: azure-auth-sim
     app.kubernetes.io/managed-by: argocd
+EOF
+
+  wait              = true
+  validate_schema   = false
+  force_conflicts   = true
+  server_side_apply = true
+
+  depends_on = [
+    kind_cluster.local,
+    local_sensitive_file.kubeconfig
+  ]
+}
+
+resource "kubectl_manifest" "azure_entraid_namespace" {
+  count = var.enable_azure_auth_sim ? 1 : 0
+
+  yaml_body = <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${var.azure_entraid_namespace}
+  labels:
+    app.kubernetes.io/part-of: azure-auth-sim
+    app.kubernetes.io/managed-by: argocd
+    simulates: azure-entra-id
+EOF
+
+  wait              = true
+  validate_schema   = false
+  force_conflicts   = true
+  server_side_apply = true
+
+  depends_on = [
+    kind_cluster.local,
+    local_sensitive_file.kubeconfig
+  ]
+}
+
+resource "kubectl_manifest" "azure_apim_namespace" {
+  count = var.enable_azure_auth_sim ? 1 : 0
+
+  yaml_body = <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${var.azure_apim_namespace}
+  labels:
+    app.kubernetes.io/part-of: azure-auth-sim
+    app.kubernetes.io/managed-by: argocd
+    simulates: azure-apim
 EOF
 
   wait              = true
@@ -925,6 +985,8 @@ resource "null_resource" "seed_gitea_repo" {
       local_file.app_kyverno_policies.content,
       var.enable_policies ? local_file.app_kyverno[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_azure_auth_sim[0].content : "",
+      var.enable_azure_auth_sim ? local_file.app_azure_entraid_sim[0].content : "",
+      var.enable_azure_auth_sim ? local_file.app_azure_apim_sim[0].content : "",
       var.enable_actions_runner && !var.use_external_gitea ? local_file.app_gitea_actions_runner[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_nginx_gateway_fabric[0].content : "",
       var.enable_azure_auth_sim ? local_file.nginx_gateway_fabric_deploy[0].content : "",
@@ -957,6 +1019,8 @@ cp -r ${local.generated_apps_dir}/* "$TMP_DIR/apps/"
 
 if [ "${var.enable_azure_auth_sim}" != "true" ]; then
   rm -rf "$TMP_DIR/apps/azure-auth-sim" "$TMP_DIR/apps/azure-auth-sim.yaml"
+  rm -rf "$TMP_DIR/apps/azure-entraid-sim" "$TMP_DIR/apps/azure-entraid-sim.yaml"
+  rm -rf "$TMP_DIR/apps/azure-apim-sim" "$TMP_DIR/apps/azure-apim-sim.yaml"
 fi
 if [ "${var.enable_actions_runner}" != "true" ] || [ "${var.use_external_gitea}" = "true" ]; then
   rm -f "$TMP_DIR/apps/gitea-actions-runner.yaml"
@@ -983,9 +1047,10 @@ EOT
     local_file.app_kyverno_policies,
     local_file.app_kyverno,
     local_file.app_azure_auth_sim,
+    local_file.app_azure_entraid_sim,
+    local_file.app_azure_apim_sim,
     local_file.app_gitea_actions_runner,
     local_file.azure_auth_api_deployment,
-    local_file.azure_auth_apim_deployment,
     local_file.azure_auth_frontend_deployment,
     local_file.azure_auth_sidecar_manifest,
     local_file.app_nginx_gateway_fabric,
@@ -1140,6 +1205,34 @@ resource "kubernetes_secret" "azure_auth_registry_credentials" {
 
   depends_on = [
     kubectl_manifest.azure_auth_namespace[0]
+  ]
+}
+
+# Registry credentials for azure-apim-sim namespace (APIM pulls images from Gitea)
+resource "kubernetes_secret" "azure_apim_registry_credentials" {
+  count = var.enable_azure_auth_sim ? 1 : 0
+
+  metadata {
+    name      = "gitea-registry-creds"
+    namespace = var.azure_apim_namespace
+  }
+
+  data = {
+    ".dockerconfigjson" = jsonencode({
+      auths = {
+        (local.gitea_registry_host) = {
+          username = var.gitea_admin_username
+          password = var.gitea_admin_password
+          auth     = base64encode("${var.gitea_admin_username}:${var.gitea_admin_password}")
+        }
+      }
+    })
+  }
+
+  type = "kubernetes.io/dockerconfigjson"
+
+  depends_on = [
+    kubectl_manifest.azure_apim_namespace[0]
   ]
 }
 

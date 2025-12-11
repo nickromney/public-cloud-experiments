@@ -62,9 +62,21 @@ variable "hubble_ui_node_port" {
 }
 
 variable "azure_auth_namespace" {
-  description = "Namespace for the azure auth simulation workload (Keycloak + OAuth2 Proxy + APIM simulator)."
+  description = "Namespace for the azure auth simulation workload (Frontend + Backend API - simulates AKS workloads)."
   type        = string
   default     = "azure-auth-sim"
+}
+
+variable "azure_entraid_namespace" {
+  description = "Namespace for Keycloak (simulates Azure Entra ID as external identity provider)."
+  type        = string
+  default     = "azure-entraid-sim"
+}
+
+variable "azure_apim_namespace" {
+  description = "Namespace for APIM simulator (simulates Azure API Management in private endpoint mode)."
+  type        = string
+  default     = "azure-apim-sim"
 }
 
 variable "azure_auth_oauth2_proxy_host_port" {

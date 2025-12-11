@@ -27,6 +27,8 @@ spec:
   parentRefs:
     - name: azure-auth-gateway
   rules:
+    # Keycloak routes - cross-namespace to azure-entraid-sim
+    # ReferenceGrant in azure-entraid-sim allows this
     - matches:
         - path:
             type: PathPrefix
@@ -36,8 +38,11 @@ spec:
             value: /resources
       backendRefs:
         - name: keycloak
+          namespace: azure-entraid-sim
           port: 8080
           kind: Service
+    # APIM routes - cross-namespace to azure-apim-sim
+    # ReferenceGrant in azure-apim-sim allows this
     - matches:
         - path:
             type: PathPrefix
@@ -50,8 +55,10 @@ spec:
               replacePrefixMatch: /
       backendRefs:
         - name: apim-simulator
+          namespace: azure-apim-sim
           port: 8000
           kind: Service
+    # Frontend route - same namespace
     - matches:
         - path:
             type: PathPrefix
