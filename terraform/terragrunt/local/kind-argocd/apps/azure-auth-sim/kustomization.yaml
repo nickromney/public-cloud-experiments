@@ -6,14 +6,11 @@ commonLabels:
 resources:
   - namespace.yaml
   - secrets.yaml
-  - keycloak-realm-config.yaml
-  - keycloak-deployment.yaml
   - gateway.yaml
-  - keycloak-service.yaml
+  # Keycloak resources moved to azure-entraid-sim namespace
+  # APIM resources moved to azure-apim-sim namespace
   - api-deployment.yaml
   - api-service.yaml
-  - apim-deployment.yaml
-  - apim-service.yaml
   - frontend-deployment.yaml
   - frontend-service.yaml
   - oauth2-proxy-deployment.yaml

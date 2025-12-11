@@ -21,7 +21,7 @@ spec:
         - name: gitea-registry-creds
       containers:
         - name: api-fastapi-keycloak
-          image: host.docker.internal:3000/gitea-admin/azure-auth-sim-api:latest
+          image: localhost:30090/gitea-admin/azure-auth-sim-api:latest
           imagePullPolicy: Always
           env:
             - name: AUTH_METHOD
@@ -30,8 +30,9 @@ spec:
               value: http://localhost:3007/realms/subnet-calculator
             - name: OIDC_AUDIENCE
               value: api-app
+            # Cross-namespace reference to Keycloak in azure-entraid-sim
             - name: OIDC_JWKS_URI
-              value: http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
+              value: http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
             - name: CORS_ORIGINS
               value: http://localhost:3007
           ports:

@@ -1,6 +1,11 @@
- # Cilium policies for azure-auth-sim strictly enforce the hand-off chain from the external NGINX gateway
- # through oauth2-proxy owning the / route, into the frontend sidecar, then to APIM and the FastAPI backend.
- # Pods may still hit DNS/ API server for control-plane and discovery reasons.
+# Cilium policies for azure-auth-sim strictly enforce the hand-off chain from the external NGINX gateway
+# through oauth2-proxy owning the / route, into the frontend sidecar, then to APIM and the FastAPI backend.
+# Pods may still hit DNS/ API server for control-plane and discovery reasons.
+#
+# Cross-namespace architecture:
+# - Keycloak is in azure-entraid-sim namespace (simulates Azure Entra ID)
+# - APIM Simulator is in azure-apim-sim namespace (simulates Azure APIM)
+# - Frontend and Backend API remain in this namespace (simulates AKS workloads)
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -26,17 +31,19 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
+    # Cross-namespace egress to Keycloak in azure-entraid-sim
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: keycloak
+            "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
     - toEndpoints:
         - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": "kube-system"
-            "k8s:k8s-app": "kube-dns"
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
       toPorts:
         - ports:
             - port: "53"
@@ -64,24 +71,28 @@ spec:
             - port: "4180"
               protocol: TCP
   egress:
+    # Cross-namespace egress to APIM in azure-apim-sim
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: apim-simulator
+            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
       toPorts:
         - ports:
             - port: "8000"
               protocol: TCP
+    # Cross-namespace egress to Keycloak in azure-entraid-sim
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: keycloak
+            "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
     - toEndpoints:
         - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": "kube-system"
-            "k8s:k8s-app": "kube-dns"
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
       toPorts:
         - ports:
             - port: "53"
@@ -89,48 +100,8 @@ spec:
             - port: "53"
               protocol: TCP
 ---
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
-  name: azure-auth-apim
-  namespace: azure-auth-sim
-spec:
-  endpointSelector:
-    matchLabels:
-      app.kubernetes.io/name: apim-simulator
-  ingress:
-    - fromEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: frontend-react-keycloak-protected
-      toPorts:
-        - ports:
-            - port: "8000"
-              protocol: TCP
-  egress:
-    - toEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: api-fastapi-keycloak
-      toPorts:
-        - ports:
-            - port: "80"
-              protocol: TCP
-    - toEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: keycloak
-      toPorts:
-        - ports:
-            - port: "8080"
-              protocol: TCP
-    - toEndpoints:
-        - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": "kube-system"
-            "k8s:k8s-app": "kube-dns"
-      toPorts:
-        - ports:
-            - port: "53"
-              protocol: UDP
-            - port: "53"
-              protocol: TCP
+# Note: azure-auth-apim policy removed - APIM is now in azure-apim-sim namespace
+# Note: azure-auth-keycloak policy removed - Keycloak is now in azure-entraid-sim namespace
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -142,17 +113,21 @@ spec:
     matchLabels:
       app.kubernetes.io/name: api-fastapi-keycloak
   ingress:
+    # Cross-namespace ingress from APIM in azure-apim-sim
     - fromEndpoints:
         - matchLabels:
             app.kubernetes.io/name: apim-simulator
+            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
       toPorts:
         - ports:
             - port: "80"
               protocol: TCP
   egress:
+    # Cross-namespace egress to Keycloak in azure-entraid-sim
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: keycloak
+            "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
       toPorts:
         - ports:
             - port: "8080"
@@ -166,53 +141,14 @@ spec:
               protocol: TCP
     - toEndpoints:
         - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": "kube-system"
-            "k8s:k8s-app": "kube-dns"
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
       toPorts:
         - ports:
             - port: "53"
               protocol: UDP
             - port: "53"
               protocol: TCP
----
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
-  name: azure-auth-keycloak
-  namespace: azure-auth-sim
-spec:
-  endpointSelector:
-    matchLabels:
-      app.kubernetes.io/name: keycloak
-  ingress:
-    - fromEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: frontend-with-oauth-sidecar
-        - matchLabels:
-            app.kubernetes.io/name: azure-auth-gateway-nginx
-        - matchLabels:
-            app.kubernetes.io/name: apim-simulator
-        - matchLabels:
-            app.kubernetes.io/name: api-fastapi-keycloak
-      toPorts:
-        - ports:
-            - port: "8080"
-              protocol: TCP
-  egress:
-    - toEndpoints:
-        - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": "kube-system"
-            "k8s:k8s-app": "kube-dns"
-      toPorts:
-        - ports:
-            - port: "53"
-              protocol: UDP
-            - port: "53"
-              protocol: TCP
-    - toEntities:
-        - kube-apiserver
-        - host
-
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -231,7 +167,6 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
-
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -239,7 +174,7 @@ metadata:
   name: azure-auth-nginx-gateway
   namespace: nginx-gateway
 spec:
-  description: Allow NGINX Gateway control plane to forward traffic to backend services (oauth2-proxy, keycloak, apim-simulator) in azure-auth-sim namespace.
+  description: Allow NGINX Gateway control plane to forward traffic to backend services across namespaces.
   endpointSelector:
     matchLabels:
       app.kubernetes.io/name: nginx-gateway
@@ -262,25 +197,29 @@ spec:
         - ports:
             - port: "443"
               protocol: TCP
+    # Frontend in azure-auth-sim
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: frontend-with-oauth-sidecar
+            k8s:io.kubernetes.pod.namespace: azure-auth-sim
       toPorts:
         - ports:
             - port: "4180"
               protocol: TCP
+    # Cross-namespace egress to Keycloak in azure-entraid-sim
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: keycloak
-            k8s:io.kubernetes.pod.namespace: azure-auth-sim
+            k8s:io.kubernetes.pod.namespace: azure-entraid-sim
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
+    # Cross-namespace egress to APIM in azure-apim-sim
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: apim-simulator
-            k8s:io.kubernetes.pod.namespace: azure-auth-sim
+            k8s:io.kubernetes.pod.namespace: azure-apim-sim
       toPorts:
         - ports:
             - port: "8000"
@@ -289,8 +228,8 @@ spec:
         - kube-apiserver
     - toEndpoints:
         - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": "kube-system"
-            "k8s:k8s-app": "kube-dns"
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
       toPorts:
         - ports:
             - port: "53"
