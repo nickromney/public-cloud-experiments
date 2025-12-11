@@ -60,7 +60,7 @@ from auth import (
 from cloudflare_ips import (
     get_cloudflare_ipv4_ranges,
     get_cloudflare_ipv6_ranges,
-    is_cloudflare_egress_available,
+    is_using_live_cloudflare_ranges,
 )
 
 # Authentication imports
@@ -680,7 +680,7 @@ async def health_check():
         "status": "healthy",
         "service": "Subnet Calculator API (Azure Function)",
         "version": "1.0.0",
-        "cloudflare_egress_available": is_cloudflare_egress_available(),
+        "using_live_cloudflare_ranges": is_using_live_cloudflare_ranges(),
     }
 
 

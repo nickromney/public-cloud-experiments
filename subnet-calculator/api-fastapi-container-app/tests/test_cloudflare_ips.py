@@ -7,10 +7,10 @@ import httpx
 import pytest
 
 # Import module for cache manipulation in fixtures
-import cloudflare_ips
+from app import cloudflare_ips
 
 # Import specific functions for tests
-from cloudflare_ips import (
+from app.cloudflare_ips import (
     FALLBACK_IPV4_RANGES,
     FALLBACK_IPV6_RANGES,
     get_cloudflare_ipv4_ranges,
@@ -71,7 +71,7 @@ class TestFallbackRanges:
 class TestFetchSuccess:
     """Tests for successful fetch from Cloudflare."""
 
-    @patch("cloudflare_ips.httpx.Client")
+    @patch("app.cloudflare_ips.httpx.Client")
     def test_fetch_ipv4_success(self, mock_client_class):
         """Test successful IPv4 range fetch."""
         mock_response = MagicMock()
@@ -90,7 +90,7 @@ class TestFetchSuccess:
         assert all(isinstance(r, IPv4Network) for r in ranges)
         assert cloudflare_ips._cache_source_ipv4 == "cloudflare"
 
-    @patch("cloudflare_ips.httpx.Client")
+    @patch("app.cloudflare_ips.httpx.Client")
     def test_fetch_ipv6_success(self, mock_client_class):
         """Test successful IPv6 range fetch."""
         mock_response = MagicMock()
@@ -113,7 +113,7 @@ class TestFetchSuccess:
 class TestFetchFailure:
     """Tests for fallback when fetch fails."""
 
-    @patch("cloudflare_ips.httpx.Client")
+    @patch("app.cloudflare_ips.httpx.Client")
     def test_timeout_falls_back_to_hardcoded(self, mock_client_class):
         """Test that timeout falls back to hardcoded ranges."""
         mock_client = MagicMock()
@@ -127,7 +127,7 @@ class TestFetchFailure:
         assert ranges == FALLBACK_IPV4_RANGES
         assert cloudflare_ips._cache_source_ipv4 == "fallback"
 
-    @patch("cloudflare_ips.httpx.Client")
+    @patch("app.cloudflare_ips.httpx.Client")
     def test_http_error_falls_back_to_hardcoded(self, mock_client_class):
         """Test that HTTP error falls back to hardcoded ranges."""
         mock_response = MagicMock()
@@ -146,7 +146,7 @@ class TestFetchFailure:
         assert ranges == FALLBACK_IPV4_RANGES
         assert cloudflare_ips._cache_source_ipv4 == "fallback"
 
-    @patch("cloudflare_ips.httpx.Client")
+    @patch("app.cloudflare_ips.httpx.Client")
     def test_connection_error_falls_back_to_hardcoded(self, mock_client_class):
         """Test that connection error falls back to hardcoded ranges."""
         mock_client = MagicMock()
@@ -160,7 +160,7 @@ class TestFetchFailure:
         assert ranges == FALLBACK_IPV6_RANGES
         assert cloudflare_ips._cache_source_ipv6 == "fallback"
 
-    @patch("cloudflare_ips.httpx.Client")
+    @patch("app.cloudflare_ips.httpx.Client")
     def test_empty_response_falls_back_to_hardcoded(self, mock_client_class):
         """Test that empty response falls back to hardcoded ranges."""
         mock_response = MagicMock()
@@ -182,7 +182,7 @@ class TestFetchFailure:
 class TestCaching:
     """Tests for caching behavior."""
 
-    @patch("cloudflare_ips.httpx.Client")
+    @patch("app.cloudflare_ips.httpx.Client")
     def test_cache_prevents_repeated_fetches(self, mock_client_class):
         """Test that cached results prevent repeated network calls."""
         mock_response = MagicMock()
@@ -207,7 +207,7 @@ class TestCaching:
 class TestRangesInfo:
     """Tests for get_cloudflare_ranges_info function."""
 
-    @patch("cloudflare_ips.httpx.Client")
+    @patch("app.cloudflare_ips.httpx.Client")
     def test_ranges_info_structure(self, mock_client_class):
         """Test that ranges info returns correct structure."""
         # Make fetch fail to use fallback
@@ -232,7 +232,7 @@ class TestRangesInfo:
 class TestRefresh:
     """Tests for refresh_cloudflare_ranges function."""
 
-    @patch("cloudflare_ips.httpx.Client")
+    @patch("app.cloudflare_ips.httpx.Client")
     def test_refresh_clears_cache(self, mock_client_class):
         """Test that refresh clears the cache and fetches fresh data."""
         mock_response = MagicMock()

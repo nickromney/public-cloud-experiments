@@ -15,8 +15,8 @@ def test_health_check():
     assert body["status"] == "healthy"
     assert body["service"] == "Subnet Calculator API (Azure Function)"
     assert body["version"] == "1.0.0"
-    assert "cloudflare_egress_available" in body
-    assert isinstance(body["cloudflare_egress_available"], bool)
+    assert "using_live_cloudflare_ranges" in body
+    assert isinstance(body["using_live_cloudflare_ranges"], bool)
 
 
 def test_swagger_ui_accessible():

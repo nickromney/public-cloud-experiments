@@ -12,7 +12,6 @@ Cloudflare publishes their IP ranges at:
 
 import logging
 from ipaddress import IPv4Network, IPv6Network, ip_network
-from typing import Union
 
 import httpx
 
@@ -104,6 +103,7 @@ def _parse_ipv4_ranges(range_strings: list[str]) -> list[IPv4Network]:
     networks = []
     for cidr in range_strings:
         try:
+            # strict=False allows host bits to be set (e.g., "192.168.1.1/24" -> "192.168.1.0/24")
             network = ip_network(cidr, strict=False)
             if isinstance(network, IPv4Network):
                 networks.append(network)
@@ -119,6 +119,7 @@ def _parse_ipv6_ranges(range_strings: list[str]) -> list[IPv6Network]:
     networks = []
     for cidr in range_strings:
         try:
+            # strict=False allows host bits to be set (e.g., "2001:db8::1/32" -> "2001:db8::/32")
             network = ip_network(cidr, strict=False)
             if isinstance(network, IPv6Network):
                 networks.append(network)
@@ -197,12 +198,12 @@ def get_cloudflare_ipv6_ranges() -> list[IPv6Network]:
     return _cached_ipv6_ranges
 
 
-def is_cloudflare_egress_available() -> bool:
+def is_using_live_cloudflare_ranges() -> bool:
     """
     Check if Cloudflare IP ranges were successfully fetched from the remote endpoints.
 
     Returns:
-        True if at least one of IPv4/IPv6 ranges was fetched from Cloudflare,
+        True if at least one of IPv4/IPv6 ranges was fetched live from Cloudflare,
         False if both are using fallback ranges.
     """
     # Ensure ranges are loaded
