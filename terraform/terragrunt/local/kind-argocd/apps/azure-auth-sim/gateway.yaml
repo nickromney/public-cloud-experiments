@@ -11,7 +11,7 @@ spec:
     - name: http
       protocol: HTTP
       port: 80
-      hostname: localhost
+      hostname: azure-auth.127.0.0.1.sslip.io
       allowedRoutes:
         namespaces:
           from: Same

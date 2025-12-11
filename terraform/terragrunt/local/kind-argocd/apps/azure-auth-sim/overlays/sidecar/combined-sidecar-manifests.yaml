@@ -516,13 +516,13 @@ spec:
           args:
             # OIDC Provider (Keycloak)
             - --provider=oidc
-            - --oidc-issuer-url=http://localhost:3007/realms/subnet-calculator
+            - --oidc-issuer-url=http://azure-auth.127.0.0.1.sslip.io:3007/realms/subnet-calculator
             - --client-id=frontend-app
-            - --redirect-url=http://localhost:3007/oauth2/callback
+            - --redirect-url=http://azure-auth.127.0.0.1.sslip.io:3007/oauth2/callback
             - --code-challenge-method=S256
             # Skip discovery - pin endpoints to Keycloak service
             - --skip-oidc-discovery=true
-            - --login-url=http://localhost:3007/realms/subnet-calculator/protocol/openid-connect/auth
+            - --login-url=http://azure-auth.127.0.0.1.sslip.io:3007/realms/subnet-calculator/protocol/openid-connect/auth
             - --redeem-url=http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/token
             - --oidc-jwks-url=http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
             - --validate-url=http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/userinfo
@@ -590,17 +590,17 @@ spec:
           imagePullPolicy: Always
           env:
             - name: VITE_API_URL
-              value: http://localhost:3007/apim
+              value: http://azure-auth.127.0.0.1.sslip.io:3007/apim
             - name: VITE_API_PROXY_ENABLED
               value: "false"
             - name: VITE_AUTH_METHOD
               value: oidc
             - name: VITE_OIDC_AUTHORITY
-              value: http://localhost:3007/realms/subnet-calculator
+              value: http://azure-auth.127.0.0.1.sslip.io:3007/realms/subnet-calculator
             - name: VITE_OIDC_CLIENT_ID
               value: frontend-app
             - name: VITE_OIDC_REDIRECT_URI
-              value: http://localhost:3007
+              value: http://azure-auth.127.0.0.1.sslip.io:3007
             - name: VITE_OIDC_AUTO_LOGIN
               value: "true"
             - name: VITE_APIM_SUBSCRIPTION_KEY
@@ -658,7 +658,7 @@ spec:
     - name: http
       protocol: HTTP
       port: 80
-      hostname: localhost
+      hostname: azure-auth.127.0.0.1.sslip.io
       allowedRoutes:
         namespaces:
           from: Same
