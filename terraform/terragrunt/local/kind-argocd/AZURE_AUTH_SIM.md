@@ -19,8 +19,8 @@
 - Deployment manifests come from the `policies` repo; the separate `azure-auth-sim` repo exists solely for image build sources and the CI workflow.
 - Stage comments in `stages/*.tfvars` are legacy (numbers in comments don’t always match filenames); the Makefile sequence under `Usage` is the source of truth.
 - External Gitea is assumed; switching to in-cluster Gitea would require toggling `use_external_gitea` and re-seeding via Terraform rather than the stage scripts.
- - Gateway listeners default to `hostname: localhost` for local kind. For AKS or other clusters, override this host (and matching OAuth2/SPA URLs) via a small kustomize patch to `apps/azure-auth-sim/gateway.yaml` and the sidecar manifest, or use a `/etc/hosts` entry (e.g., `127.0.0.1 azure-auth.local`).
- - Policy hand-off: Kyverno now creates namespace-scoped default-deny NetworkPolicies for any namespace labeled `kyverno.io/isolate=true`, while Cilium policies own the explicit allow-list chain (`nginx-gateway -> oauth2-proxy -> frontend -> APIM -> backend`) and egress to control-plane/DNS/Cloudflare.
+- Gateway listeners default to `hostname: localhost` for local kind. For AKS or other clusters, override this host (and matching OAuth2/SPA URLs) via a small kustomize patch to `apps/azure-auth-sim/gateway.yaml` and the sidecar manifest, or use a `/etc/hosts` entry (e.g., `127.0.0.1 azure-auth.local`).
+- Policy hand-off: Kyverno now creates namespace-scoped default-deny NetworkPolicies for any namespace labeled `kyverno.io/isolate=true`, while Cilium policies own the explicit allow-list chain (`nginx-gateway -> oauth2-proxy -> frontend -> APIM -> backend`) and egress to control-plane/DNS/Cloudflare.
 
 ### Hostname overrides
 
