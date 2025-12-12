@@ -4,10 +4,10 @@ namespace: azure-apim-sim
 commonLabels:
   app.kubernetes.io/part-of: azure-apim-sim
 resources:
-  - namespace.yaml
   - secrets.yaml
   - apim-deployment.yaml
   - apim-service.yaml
+  - apim-service-uat.yaml
   - gateway.yaml
   - reference-grant.yaml
   - policies/cilium/cilium-network-policies.yaml

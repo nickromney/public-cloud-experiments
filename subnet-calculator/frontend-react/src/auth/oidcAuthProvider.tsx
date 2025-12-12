@@ -27,7 +27,10 @@ let userManager: UserManager | null = null
 
 function getUserManager(): UserManager {
   if (!userManager) {
-    const authority = APP_CONFIG.auth.oidcAuthority
+    const authorityFromConfig = APP_CONFIG.auth.oidcAuthority
+    const authority =
+      authorityFromConfig ||
+      (window.location.hostname === 'localhost' ? `${window.location.origin}/realms/subnet-calculator` : '')
     const clientId = APP_CONFIG.auth.oidcClientId
     const redirectUri = APP_CONFIG.auth.oidcRedirectUri || window.location.origin
 

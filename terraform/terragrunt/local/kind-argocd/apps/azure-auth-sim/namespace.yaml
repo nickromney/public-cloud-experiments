@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: azure-auth-sim
-  labels:
-    app.kubernetes.io/part-of: azure-auth-sim
-    app.kubernetes.io/managed-by: argocd

@@ -1,5 +1,3 @@
-# Cilium policies for azure-entraid-sim namespace (Keycloak - simulating Azure Entra ID)
-# Keycloak receives token validation and OIDC requests from multiple namespaces
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -9,54 +7,63 @@ spec:
   endpointSelector:
     matchLabels:
       app.kubernetes.io/name: keycloak
+      app.kubernetes.io/component: identity
   ingress:
-    # Allow from oauth2-proxy/frontend sidecar in azure-auth-sim
+    # OAuth2 proxy (dev/uat)
     - fromEndpoints:
         - matchLabels:
-            app.kubernetes.io/name: frontend-with-oauth-sidecar
-            "k8s:io.kubernetes.pod.namespace": azure-auth-sim
+            app.kubernetes.io/name: oauth2-proxy-frontend
+            app.kubernetes.io/component: auth-proxy
+            "k8s:io.kubernetes.pod.namespace": azure-auth-dev
+        - matchLabels:
+            app.kubernetes.io/name: oauth2-proxy-frontend
+            app.kubernetes.io/component: auth-proxy
+            "k8s:io.kubernetes.pod.namespace": azure-auth-uat
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
-    # Allow from backend API in azure-auth-sim for token validation
+    # Backend API (dev/uat)
     - fromEndpoints:
         - matchLabels:
             app.kubernetes.io/name: api-fastapi-keycloak
-            "k8s:io.kubernetes.pod.namespace": azure-auth-sim
+            app.kubernetes.io/component: backend
+            "k8s:io.kubernetes.pod.namespace": azure-auth-dev
+        - matchLabels:
+            app.kubernetes.io/name: api-fastapi-keycloak
+            app.kubernetes.io/component: backend
+            "k8s:io.kubernetes.pod.namespace": azure-auth-uat
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
-    # Allow from APIM simulator in azure-apim-sim for token validation
+    # APIM simulator (dev/uat)
     - fromEndpoints:
         - matchLabels:
             app.kubernetes.io/name: apim-simulator
+            app.kubernetes.io/component: gateway
+            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
+        - matchLabels:
+            app.kubernetes.io/name: apim-simulator-uat
+            app.kubernetes.io/component: gateway
             "k8s:io.kubernetes.pod.namespace": azure-apim-sim
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
-    # Allow from NGINX Gateway for /realms routes (external OIDC discovery)
-    - fromEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: nginx-gateway
-            "k8s:io.kubernetes.pod.namespace": nginx-gateway
-      toPorts:
-        - ports:
-            - port: "8080"
-              protocol: TCP
-    # Allow from azure-auth-gateway-nginx data plane pods
+    # NGINX Gateway data plane (dev/uat) for /realms and /resources (browser -> gateway -> keycloak)
     - fromEndpoints:
         - matchLabels:
             app.kubernetes.io/name: azure-auth-gateway-nginx
-            "k8s:io.kubernetes.pod.namespace": azure-auth-sim
+            "k8s:io.kubernetes.pod.namespace": azure-auth-dev
+        - matchLabels:
+            app.kubernetes.io/name: azure-auth-gateway-nginx
+            "k8s:io.kubernetes.pod.namespace": azure-auth-uat
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
   egress:
-    # DNS resolution
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system

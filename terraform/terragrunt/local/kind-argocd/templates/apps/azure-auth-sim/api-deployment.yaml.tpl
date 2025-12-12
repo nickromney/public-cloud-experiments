@@ -27,13 +27,13 @@ spec:
             - name: AUTH_METHOD
               value: oidc
             - name: OIDC_ISSUER
-              value: http://localhost:3007/realms/subnet-calculator
+              value: http://localhost:${oauth2_proxy_host_port}/realms/subnet-calculator
             - name: OIDC_AUDIENCE
               value: api-app
             - name: OIDC_JWKS_URI
-              value: http://keycloak.azure-auth-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
+              value: http://keycloak.${azure_entraid_namespace}.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
             - name: CORS_ORIGINS
-              value: http://localhost:3007
+              value: http://localhost:${oauth2_proxy_host_port}
           ports:
             - name: http
               containerPort: 80
@@ -43,13 +43,13 @@ spec:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 3
+            timeoutSeconds: 10
+            failureThreshold: 6
           livenessProbe:
             httpGet:
               path: /api/v1/health
               port: http
-            initialDelaySeconds: 20
+            initialDelaySeconds: 30
             periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 3
+            timeoutSeconds: 10
+            failureThreshold: 6

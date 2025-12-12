@@ -130,9 +130,15 @@ locals {
     }
     ], var.enable_azure_auth_ports ? [
     {
-      name           = "azure-auth-sim-oauth2-proxy"
-      container_port = var.azure_auth_oauth2_proxy_node_port
-      host_port      = var.azure_auth_oauth2_proxy_host_port
+      name           = "azure-auth-sim-dev"
+      container_port = var.azure_auth_gateway_node_port
+      host_port      = var.azure_auth_gateway_host_port
+      protocol       = "TCP"
+    },
+    {
+      name           = "azure-auth-sim-uat"
+      container_port = var.azure_auth_gateway_node_port_uat
+      host_port      = var.azure_auth_gateway_host_port_uat
       protocol       = "TCP"
     },
   ] : [])
@@ -197,16 +203,16 @@ locals {
   # Template variables for generated app YAML files
   # All cluster-internal addressing is configured here from tfvars
   app_template_vars = {
-    gitea_ssh_username           = var.gitea_ssh_username
-    gitea_ssh_host               = local.gitea_ssh_host_cluster
-    gitea_ssh_port               = local.gitea_ssh_port_cluster
-    gitea_admin_username         = var.gitea_admin_username
-    registry_host                = var.gitea_registry_host
-    use_sidecar                  = var.azure_auth_sim_use_sidecar
-    argocd_namespace             = var.argocd_namespace
-    azure_auth_gateway_node_port = var.azure_auth_oauth2_proxy_node_port
+    gitea_ssh_username               = var.gitea_ssh_username
+    gitea_ssh_host                   = local.gitea_ssh_host_cluster
+    gitea_ssh_port                   = local.gitea_ssh_port_cluster
+    gitea_admin_username             = var.gitea_admin_username
+    registry_host                    = var.gitea_registry_host
+    argocd_namespace                 = var.argocd_namespace
+    azure_auth_gateway_node_port     = var.azure_auth_gateway_node_port
+    azure_auth_gateway_node_port_uat = var.azure_auth_gateway_node_port_uat
     # Multi-namespace architecture namespaces
-    azure_auth_namespace    = var.azure_auth_namespace
+    azure_auth_namespaces   = var.azure_auth_namespaces
     azure_entraid_namespace = var.azure_entraid_namespace
     azure_apim_namespace    = var.azure_apim_namespace
   }
@@ -219,10 +225,30 @@ locals {
 # Generated App YAML Files (templated with correct URLs from tfvars)
 # -----------------------------------------------------------------------------
 
-resource "local_file" "app_azure_auth_sim" {
+resource "local_file" "app_azure_auth_sim_dev" {
   count    = var.enable_azure_auth_sim ? 1 : 0
-  filename = "${local.generated_apps_dir}/azure-auth-sim.yaml"
-  content  = templatefile("${path.module}/templates/apps/azure-auth-sim.yaml.tpl", local.app_template_vars)
+  filename = "${local.generated_apps_dir}/azure-auth-dev.yaml"
+  content = templatefile("${path.module}/templates/apps/azure-auth-sim.yaml.tpl", merge(local.app_template_vars, {
+    env_name                     = "dev"
+    azure_auth_namespace         = lookup(var.azure_auth_namespaces, "dev", "azure-auth-dev")
+    azure_auth_gateway_node_port = var.azure_auth_gateway_node_port
+    azure_auth_gateway_host_port = var.azure_auth_gateway_host_port
+    oauth2_proxy_node_port       = var.azure_auth_oauth2_proxy_node_port
+    oauth2_proxy_host_port       = var.azure_auth_oauth2_proxy_host_port
+  }))
+}
+
+resource "local_file" "app_azure_auth_sim_uat" {
+  count    = var.enable_azure_auth_sim ? 1 : 0
+  filename = "${local.generated_apps_dir}/azure-auth-uat.yaml"
+  content = templatefile("${path.module}/templates/apps/azure-auth-sim.yaml.tpl", merge(local.app_template_vars, {
+    env_name                     = "uat"
+    azure_auth_namespace         = lookup(var.azure_auth_namespaces, "uat", "azure-auth-uat")
+    azure_auth_gateway_node_port = var.azure_auth_gateway_node_port_uat
+    azure_auth_gateway_host_port = var.azure_auth_gateway_host_port_uat
+    oauth2_proxy_node_port       = var.azure_auth_oauth2_proxy_node_port_uat
+    oauth2_proxy_host_port       = var.azure_auth_oauth2_proxy_host_port_uat
+  }))
 }
 
 resource "local_file" "app_azure_entraid_sim" {
@@ -266,25 +292,6 @@ resource "local_file" "app_nginx_gateway_fabric" {
 }
 
 # Azure Auth Sim deployment files
-resource "local_file" "azure_auth_api_deployment" {
-  count    = var.enable_azure_auth_sim ? 1 : 0
-  filename = "${local.generated_apps_dir}/azure-auth-sim/api-deployment.yaml"
-  content  = templatefile("${path.module}/templates/apps/azure-auth-sim/api-deployment.yaml.tpl", local.app_template_vars)
-}
-
-resource "local_file" "azure_auth_frontend_deployment" {
-  count    = var.enable_azure_auth_sim ? 1 : 0
-  filename = "${local.generated_apps_dir}/azure-auth-sim/frontend-deployment.yaml"
-  content  = templatefile("${path.module}/templates/apps/azure-auth-sim/frontend-deployment.yaml.tpl", local.app_template_vars)
-}
-
-# Sidecar pattern: combined oauth2-proxy + frontend manifest
-resource "local_file" "azure_auth_sidecar_manifest" {
-  count    = var.enable_azure_auth_sim && var.azure_auth_sim_use_sidecar ? 1 : 0
-  filename = "${local.generated_apps_dir}/azure-auth-sim/overlays/sidecar/combined-sidecar-manifests.yaml"
-  content  = templatefile("${path.module}/templates/apps/azure-auth-sim/overlays/sidecar/combined-sidecar-manifests.yaml.tpl", local.app_template_vars)
-}
-
 resource "local_file" "nginx_gateway_fabric_deploy" {
   count    = var.enable_azure_auth_sim ? 1 : 0
   filename = "${local.generated_apps_dir}/nginx-gateway-fabric/deploy.yaml"
@@ -463,38 +470,21 @@ resource "kubernetes_namespace" "gitea" {
   ]
 }
 
-resource "kubernetes_namespace" "cilium_team_a" {
-  count = var.enable_namespaces ? 1 : 0
+resource "kubernetes_secret" "gitea_admin" {
+  count = var.enable_gitea && !var.use_external_gitea ? 1 : 0
 
   metadata {
-    name = "cilium-team-a"
-    labels = {
-      "cilium.io/namespace-isolation" = "true"
-      "app.kubernetes.io/managed-by"  = "argocd"
-    }
+    name      = "gitea-admin-secret"
+    namespace = kubernetes_namespace.gitea[0].metadata[0].name
   }
 
-  depends_on = [
-    kind_cluster.local,
-    local_sensitive_file.kubeconfig
-  ]
-}
+  type = "Opaque"
 
-resource "kubernetes_namespace" "cilium_team_b" {
-  count = var.enable_namespaces ? 1 : 0
-
-  metadata {
-    name = "cilium-team-b"
-    labels = {
-      "cilium.io/namespace-isolation" = "true"
-      "app.kubernetes.io/managed-by"  = "argocd"
-    }
+  data = {
+    adminPwd = var.gitea_admin_pwd
   }
 
-  depends_on = [
-    kind_cluster.local,
-    local_sensitive_file.kubeconfig
-  ]
+  depends_on = [kubernetes_namespace.gitea[0]]
 }
 
 resource "kubernetes_namespace" "kyverno" {
@@ -503,24 +493,7 @@ resource "kubernetes_namespace" "kyverno" {
   metadata {
     name = "kyverno"
     labels = {
-      "app.kubernetes.io/managed-by" = "argocd"
-    }
-  }
-
-  depends_on = [
-    kind_cluster.local,
-    local_sensitive_file.kubeconfig
-  ]
-}
-
-resource "kubernetes_namespace" "kyverno_sandbox" {
-  count = var.enable_namespaces ? 1 : 0
-
-  metadata {
-    name = "kyverno-sandbox"
-    labels = {
-      "kyverno.io/isolate"           = "true"
-      "app.kubernetes.io/managed-by" = "argocd"
+      "app.kubernetes.io/managed-by" = "terraform"
     }
   }
 
@@ -531,16 +504,29 @@ resource "kubernetes_namespace" "kyverno_sandbox" {
 }
 
 resource "kubectl_manifest" "azure_auth_namespace" {
-  count = var.enable_azure_auth_sim ? 1 : 0
+  count = var.enable_azure_auth_sim ? length(var.azure_auth_namespaces) : 0
+
+  ignore_fields = [
+    "metadata.annotations",
+    "metadata.creationTimestamp",
+    "metadata.labels.kubernetes.io/metadata.name",
+    "metadata.labels.argocd.argoproj.io/instance",
+    "metadata.managedFields",
+    "metadata.resourceVersion",
+    "metadata.uid",
+    "spec.finalizers",
+    "status",
+  ]
 
   yaml_body = <<EOF
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: ${var.azure_auth_namespace}
+  name: ${element(values(var.azure_auth_namespaces), count.index)}
   labels:
     app.kubernetes.io/part-of: azure-auth-sim
-    app.kubernetes.io/managed-by: argocd
+    app.kubernetes.io/managed-by: terraform
+    kyverno.io/isolate: "true"
 EOF
 
   wait              = true
@@ -557,6 +543,18 @@ EOF
 resource "kubectl_manifest" "azure_entraid_namespace" {
   count = var.enable_azure_auth_sim ? 1 : 0
 
+  ignore_fields = [
+    "metadata.annotations",
+    "metadata.creationTimestamp",
+    "metadata.labels.kubernetes.io/metadata.name",
+    "metadata.labels.argocd.argoproj.io/instance",
+    "metadata.managedFields",
+    "metadata.resourceVersion",
+    "metadata.uid",
+    "spec.finalizers",
+    "status",
+  ]
+
   yaml_body = <<EOF
 apiVersion: v1
 kind: Namespace
@@ -564,7 +562,7 @@ metadata:
   name: ${var.azure_entraid_namespace}
   labels:
     app.kubernetes.io/part-of: azure-auth-sim
-    app.kubernetes.io/managed-by: argocd
+    app.kubernetes.io/managed-by: terraform
     simulates: azure-entra-id
 EOF
 
@@ -582,6 +580,18 @@ EOF
 resource "kubectl_manifest" "azure_apim_namespace" {
   count = var.enable_azure_auth_sim ? 1 : 0
 
+  ignore_fields = [
+    "metadata.annotations",
+    "metadata.creationTimestamp",
+    "metadata.labels.kubernetes.io/metadata.name",
+    "metadata.labels.argocd.argoproj.io/instance",
+    "metadata.managedFields",
+    "metadata.resourceVersion",
+    "metadata.uid",
+    "spec.finalizers",
+    "status",
+  ]
+
   yaml_body = <<EOF
 apiVersion: v1
 kind: Namespace
@@ -589,7 +599,7 @@ metadata:
   name: ${var.azure_apim_namespace}
   labels:
     app.kubernetes.io/part-of: azure-auth-sim
-    app.kubernetes.io/managed-by: argocd
+    app.kubernetes.io/managed-by: terraform
     simulates: azure-apim
 EOF
 
@@ -714,7 +724,7 @@ resource "null_resource" "gitea_create_repo" {
 set -euo pipefail
 for i in {1..20}; do
   status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X POST \
-    -u "${var.gitea_admin_username}:${var.gitea_admin_password}" \
+    -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
     -H "Content-Type: application/json" \
     -d '{"name":"policies","private":false,"default_branch":"main","auto_init":true,"description":"Policies for Cilium and Kyverno"}' \
     ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/user/repos)
@@ -745,7 +755,7 @@ resource "null_resource" "gitea_create_repo_azure_auth" {
 set -euo pipefail
 for i in {1..20}; do
   status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X POST \
-    -u "${var.gitea_admin_username}:${var.gitea_admin_password}" \
+    -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
     -H "Content-Type: application/json" \
     -d '{"name":"azure-auth-sim","private":false,"default_branch":"main","auto_init":true,"description":"Azure auth simulation workloads (API/APIM simulator/frontend)"}' \
     ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/user/repos)
@@ -777,7 +787,7 @@ resource "null_resource" "gitea_add_deploy_key" {
 set -euo pipefail
 for i in {1..20}; do
   status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X POST \
-    -u "${var.gitea_admin_username}:${var.gitea_admin_password}" \
+    -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
     -H "Content-Type: application/json" \
     -d '{"title":"argocd-repo-key","key":"${tls_private_key.gitea_repo[0].public_key_openssh}","read_only":false}' \
     ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/policies/keys)
@@ -813,7 +823,7 @@ resource "null_resource" "gitea_add_deploy_key_azure_auth" {
 set -euo pipefail
 for i in {1..20}; do
   status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X POST \
-    -u "${var.gitea_admin_username}:${var.gitea_admin_password}" \
+    -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
     -H "Content-Type: application/json" \
     -d '{"title":"azure-auth-repo-key","key":"${tls_private_key.gitea_repo_azure_auth[0].public_key_openssh}","read_only":false}' \
     ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/azure-auth-sim/keys)
@@ -984,13 +994,14 @@ resource "null_resource" "seed_gitea_repo" {
       local_file.app_cilium_policies.content,
       local_file.app_kyverno_policies.content,
       var.enable_policies ? local_file.app_kyverno[0].content : "",
-      var.enable_azure_auth_sim ? local_file.app_azure_auth_sim[0].content : "",
+      var.enable_azure_auth_sim ? local_file.app_azure_auth_sim_dev[0].content : "",
+      var.enable_azure_auth_sim ? local_file.app_azure_auth_sim_uat[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_azure_entraid_sim[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_azure_apim_sim[0].content : "",
       var.enable_actions_runner && !var.use_external_gitea ? local_file.app_gitea_actions_runner[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_nginx_gateway_fabric[0].content : "",
       var.enable_azure_auth_sim ? local_file.nginx_gateway_fabric_deploy[0].content : "",
-      var.enable_azure_auth_sim && var.azure_auth_sim_use_sidecar ? local_file.azure_auth_sidecar_manifest[0].content : "",
+      "",
     ]))
   }
 
@@ -1009,21 +1020,29 @@ cp -r ${path.module}/apps "$TMP_DIR"/
 # Remove all old static app YAML files that are now templated
 rm -f "$TMP_DIR/apps/"*.yaml
 
-# Keep overlays only if using sidecar pattern
-if [ "${var.azure_auth_sim_use_sidecar}" != "true" ]; then
-  rm -rf "$TMP_DIR/apps/azure-auth-sim/overlays"
-fi
+# Copy generated app directories (e.g., nginx-gateway-fabric/deploy.yaml)
+for item in ${local.generated_apps_dir}/*; do
+  if [ -d "$item" ]; then
+    cp -r "$item" "$TMP_DIR/apps/"
+  fi
+done
 
-# Copy generated templated files (with correct URLs from tfvars)
-cp -r ${local.generated_apps_dir}/* "$TMP_DIR/apps/"
+# Copy generated ArgoCD Application YAMLs into the app-of-apps folder
+mkdir -p "$TMP_DIR/apps/_applications"
+shopt -s nullglob
+for f in ${local.generated_apps_dir}/*.yaml; do
+  cp -f "$f" "$TMP_DIR/apps/_applications/"
+done
+shopt -u nullglob
 
 if [ "${var.enable_azure_auth_sim}" != "true" ]; then
-  rm -rf "$TMP_DIR/apps/azure-auth-sim" "$TMP_DIR/apps/azure-auth-sim.yaml"
-  rm -rf "$TMP_DIR/apps/azure-entraid-sim" "$TMP_DIR/apps/azure-entraid-sim.yaml"
-  rm -rf "$TMP_DIR/apps/azure-apim-sim" "$TMP_DIR/apps/azure-apim-sim.yaml"
+  rm -f "$TMP_DIR/apps/_applications/azure-auth-dev.yaml" "$TMP_DIR/apps/_applications/azure-auth-uat.yaml"
+  rm -f "$TMP_DIR/apps/_applications/azure-entraid-sim.yaml"
+  rm -f "$TMP_DIR/apps/_applications/azure-apim-sim.yaml"
+  rm -f "$TMP_DIR/apps/_applications/nginx-gateway-fabric.yaml"
 fi
 if [ "${var.enable_actions_runner}" != "true" ] || [ "${var.use_external_gitea}" = "true" ]; then
-  rm -f "$TMP_DIR/apps/gitea-actions-runner.yaml"
+  rm -f "$TMP_DIR/apps/_applications/gitea-actions-runner.yaml"
   rm -rf "$TMP_DIR/apps/gitea-actions-runner"
 fi
 
@@ -1036,8 +1055,26 @@ git config commit.gpgsign false
 git add .
 git commit -q -m "Seed policies"
 git branch -M main
-git remote add origin http://${var.gitea_admin_username}:${var.gitea_admin_password}@${var.gitea_http_host_local}:${var.gitea_http_port}/${var.gitea_admin_username}/policies.git
-git push -f origin main
+git remote add origin ${local.gitea_http_scheme}://${var.gitea_http_host_local}:${var.gitea_http_port}/${var.gitea_admin_username}/policies.git
+
+ASKPASS=$(mktemp)
+trap 'rm -f "$ASKPASS"' EXIT
+cat > "$ASKPASS" <<'EOF'
+#!/usr/bin/env bash
+case "$1" in
+  *Username*) echo "$GITEA_USERNAME" ;;
+  *Password*) echo "$GITEA_PWD" ;;
+  *) echo "" ;;
+esac
+EOF
+chmod +x "$ASKPASS"
+GIT_TERMINAL_PROMPT=0 \
+  GIT_ASKPASS="$ASKPASS" \
+  GITEA_USERNAME="${var.gitea_admin_username}" \
+  GITEA_PWD="${var.gitea_admin_pwd}" \
+  git push -f origin main
+rm -f "$ASKPASS"
+trap - EXIT
 EOT
     interpreter = ["/bin/bash", "-c"]
   }
@@ -1046,13 +1083,11 @@ EOT
     local_file.app_cilium_policies,
     local_file.app_kyverno_policies,
     local_file.app_kyverno,
-    local_file.app_azure_auth_sim,
+    local_file.app_azure_auth_sim_dev,
+    local_file.app_azure_auth_sim_uat,
     local_file.app_azure_entraid_sim,
     local_file.app_azure_apim_sim,
     local_file.app_gitea_actions_runner,
-    local_file.azure_auth_api_deployment,
-    local_file.azure_auth_frontend_deployment,
-    local_file.azure_auth_sidecar_manifest,
     local_file.app_nginx_gateway_fabric,
     local_file.nginx_gateway_fabric_deploy,
   ]
@@ -1088,8 +1123,26 @@ git config commit.gpgsign false
 git add .
 git commit -q -m "Seed azure-auth-sim sources"
 git branch -M main
-git remote add origin http://${var.gitea_admin_username}:${var.gitea_admin_password}@${var.gitea_http_host_local}:${var.gitea_http_port}/${var.gitea_admin_username}/azure-auth-sim.git
-git push -f origin main
+git remote add origin ${local.gitea_http_scheme}://${var.gitea_http_host_local}:${var.gitea_http_port}/${var.gitea_admin_username}/azure-auth-sim.git
+
+ASKPASS=$(mktemp)
+trap 'rm -f "$ASKPASS"' EXIT
+cat > "$ASKPASS" <<'EOF'
+#!/usr/bin/env bash
+case "$1" in
+  *Username*) echo "$GITEA_USERNAME" ;;
+  *Password*) echo "$GITEA_PWD" ;;
+  *) echo "" ;;
+esac
+EOF
+chmod +x "$ASKPASS"
+GIT_TERMINAL_PROMPT=0 \
+  GIT_ASKPASS="$ASKPASS" \
+  GITEA_USERNAME="${var.gitea_admin_username}" \
+  GITEA_PWD="${var.gitea_admin_pwd}" \
+  git push -f origin main
+rm -f "$ASKPASS"
+trap - EXIT
 EOT
     interpreter = ["/bin/bash", "-c"]
   }
@@ -1105,7 +1158,7 @@ resource "null_resource" "gitea_azure_auth_repo_secrets" {
 
   triggers = {
     repo_id  = null_resource.gitea_create_repo_azure_auth[0].id
-    password = md5(var.gitea_admin_password)
+    password = md5(var.gitea_admin_pwd)
   }
 
   provisioner "local-exec" {
@@ -1116,7 +1169,7 @@ create_secret() {
   local value="$2"
   for i in {1..5}; do
     status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X PUT \
-      -u "${var.gitea_admin_username}:${var.gitea_admin_password}" \
+      -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
       -H "Content-Type: application/json" \
       -d "{\"data\":\"$${value}\"}" \
       ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/azure-auth-sim/actions/secrets/$${name})
@@ -1131,7 +1184,7 @@ create_secret() {
 }
 
 create_secret "REGISTRY_USERNAME" "${var.gitea_admin_username}"
-create_secret "REGISTRY_PASSWORD" "${var.gitea_admin_password}"
+create_secret "REGISTRY_PWD" "${var.gitea_admin_pwd}"
 create_secret "REGISTRY_HOST" "${local.gitea_registry_host}"
 EOT
     interpreter = ["/bin/bash", "-c"]
@@ -1181,21 +1234,19 @@ resource "kubernetes_secret" "argocd_repo_gitea" {
 }
 
 resource "kubernetes_secret" "azure_auth_registry_credentials" {
-  count = var.enable_azure_auth_sim ? 1 : 0
+  count = var.enable_azure_auth_sim ? length(var.azure_auth_namespaces) : 0
 
 
   metadata {
     name      = "gitea-registry-creds"
-    namespace = var.azure_auth_namespace
+    namespace = element(values(var.azure_auth_namespaces), count.index)
   }
 
   data = {
     ".dockerconfigjson" = jsonencode({
       auths = {
         (local.gitea_registry_host) = {
-          username = var.gitea_admin_username
-          password = var.gitea_admin_password
-          auth     = base64encode("${var.gitea_admin_username}:${var.gitea_admin_password}")
+          auth = base64encode("${var.gitea_admin_username}:${var.gitea_admin_pwd}")
         }
       }
     })
@@ -1204,7 +1255,7 @@ resource "kubernetes_secret" "azure_auth_registry_credentials" {
   type = "kubernetes.io/dockerconfigjson"
 
   depends_on = [
-    kubectl_manifest.azure_auth_namespace[0]
+    kubectl_manifest.azure_auth_namespace
   ]
 }
 
@@ -1221,9 +1272,7 @@ resource "kubernetes_secret" "azure_apim_registry_credentials" {
     ".dockerconfigjson" = jsonencode({
       auths = {
         (local.gitea_registry_host) = {
-          username = var.gitea_admin_username
-          password = var.gitea_admin_password
-          auth     = base64encode("${var.gitea_admin_username}:${var.gitea_admin_password}")
+          auth = base64encode("${var.gitea_admin_username}:${var.gitea_admin_pwd}")
         }
       }
     })
@@ -1260,8 +1309,8 @@ resource "local_file" "ssh_public_key" {
   filename = var.ssh_public_key_path
 }
 
-# For external Gitea, add the Terraform-generated SSH key to admin user
-# Uses access token because basic auth doesn't work for /user/keys endpoint
+# For external Gitea, add the Terraform-generated SSH key to the admin user
+# Uses an API credential because basic auth doesn't work for /user/keys endpoint
 resource "null_resource" "gitea_add_user_ssh_key" {
   count = var.enable_gitea && var.use_external_gitea && var.generate_repo_ssh_key ? 1 : 0
 
@@ -1272,19 +1321,21 @@ resource "null_resource" "gitea_add_user_ssh_key" {
   provisioner "local-exec" {
     command     = <<EOT
 set -euo pipefail
-# Create access token for API calls (basic auth doesn't work for /user/keys)
-TOKEN=$(curl ${local.gitea_curl_insecure} -s -u "${var.gitea_admin_username}:${var.gitea_admin_password}" -X POST \
+# Create API credential for calls (basic auth doesn't work for /user/keys)
+ACCESS=$(curl ${local.gitea_curl_insecure} -s -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" -X POST \
   -H "Content-Type: application/json" \
   -d "{\"name\":\"argocd-ssh-key-$(date +%s)\",\"scopes\":[\"write:user\"]}" \
   ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/users/${var.gitea_admin_username}/tokens | jq -r '.sha1 // empty')
-if [ -z "$TOKEN" ]; then
-  echo "Failed to create access token" >&2
+if [ -z "$ACCESS" ]; then
+  echo "Failed to create API credential" >&2
   exit 1
 fi
-# Add SSH key using token
+# Add SSH key using credential
+AUTH_PREFIX=token
+AUTH_HEADER="Authorization: $AUTH_PREFIX $ACCESS"
 for i in {1..10}; do
   status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X POST \
-    -H "Authorization: token $TOKEN" \
+    -H "$AUTH_HEADER" \
     -H "Content-Type: application/json" \
     -d '{"title":"argocd-terraform-key","key":"${chomp(tls_private_key.argocd_repo[0].public_key_openssh)}"}' \
     ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/user/keys)
@@ -1339,8 +1390,9 @@ spec:
           enabled: false
         gitea:
           admin:
+            existingSecret: gitea-admin-secret
+            passwordKey: adminPwd
             username: ${var.gitea_admin_username}
-            password: ${var.gitea_admin_password}
             email: "admin@gitea.local"
           config:
             server:
@@ -1378,6 +1430,13 @@ EOF
 resource "kubectl_manifest" "argocd_app_of_apps" {
   count = var.enable_gitea && (var.enable_policies || var.enable_azure_auth_sim) ? 1 : 0
 
+  ignore_fields = [
+    "metadata.annotations",
+    "metadata.labels",
+    "metadata.finalizers",
+    "status",
+  ]
+
   yaml_body = <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -1394,9 +1453,7 @@ spec:
   source:
     repoURL: ssh://${var.gitea_ssh_username}@${local.gitea_ssh_host_cluster}:${local.gitea_ssh_port_cluster}/${var.gitea_admin_username}/policies.git
     targetRevision: main
-    path: apps
-    directory:
-      recurse: false
+    path: apps/_applications
   syncPolicy:
     automated:
       prune: true
@@ -1413,9 +1470,6 @@ EOF
   depends_on = [
     helm_release.argocd[0],
     kubernetes_namespace.kyverno[0],
-    kubernetes_namespace.kyverno_sandbox[0],
-    kubernetes_namespace.cilium_team_a[0],
-    kubernetes_namespace.cilium_team_b[0],
     kubernetes_secret.argocd_repo_gitea[0],
     null_resource.seed_gitea_repo[0],
     null_resource.argocd_add_gitea_known_host[0]
@@ -1495,10 +1549,10 @@ resource "null_resource" "gitea_runner_token" {
 set -euo pipefail
 mkdir -p "${path.module}/.run"
 for i in {1..20}; do
-  token=$(curl ${local.gitea_curl_insecure} -s -u "${var.gitea_admin_username}:${var.gitea_admin_password}" -X POST \
+  token=$(curl ${local.gitea_curl_insecure} -s -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" -X POST \
     "${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/admin/actions/runners/registration-token" | jq -r '.token // empty')
   if [ -n "$token" ]; then
-    echo -n "$token" > "${path.module}/.run/runner_token"
+    echo -n "$token" > "${path.module}/.run/runner_reg_code"
     exit 0
   fi
   echo "Failed to get runner token, retrying... ($i/20)" >&2
@@ -1515,7 +1569,7 @@ EOT
 
 data "local_file" "gitea_runner_token" {
   count      = var.enable_actions_runner && !var.use_external_gitea ? 1 : 0
-  filename   = "${path.module}/.run/runner_token"
+  filename   = "${path.module}/.run/runner_reg_code"
   depends_on = [null_resource.gitea_runner_token]
 }
 
@@ -1547,7 +1601,7 @@ resource "null_resource" "gitea_azure_auth_repo_secrets_internal" {
 
   triggers = {
     repo_id  = null_resource.gitea_create_repo_azure_auth[0].id
-    password = md5(var.gitea_admin_password)
+    password = md5(var.gitea_admin_pwd)
   }
 
   provisioner "local-exec" {
@@ -1558,7 +1612,7 @@ create_secret() {
   local value="$2"
   for i in {1..5}; do
     status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X PUT \
-      -u "${var.gitea_admin_username}:${var.gitea_admin_password}" \
+      -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
       -H "Content-Type: application/json" \
       -d "{\"data\":\"$${value}\"}" \
       ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/azure-auth-sim/actions/secrets/$${name})
@@ -1577,7 +1631,7 @@ create_secret() {
 # 2. REGISTRY_HOST: Same as gitea_registry_host (e.g., localhost:30090) for docker operations
 #    Docker Desktop and containerd on Kind nodes both resolve localhost to the loopback interface.
 create_secret "REGISTRY_USERNAME" "${var.gitea_admin_username}"
-create_secret "REGISTRY_PASSWORD" "${var.gitea_admin_password}"
+create_secret "REGISTRY_PWD" "${var.gitea_admin_pwd}"
 create_secret "REGISTRY_HOST" "${local.gitea_registry_host}"
 # Note: GITEA_HOST is a reserved prefix in Gitea, so we use GITEAHOST (no underscore)
 create_secret "GITEAHOST" "gitea-http.gitea.svc.cluster.local:${var.gitea_http_port_cluster}"

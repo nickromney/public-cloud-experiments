@@ -27,28 +27,30 @@ use_external_gitea         = false
 
 # Sidecar pattern: oauth2-proxy + frontend in same pod (4 pods instead of 5)
 # See AZURE_AUTH_SIM.md for details.
-azure_auth_sim_use_sidecar = true
+azure_auth_sim_use_sidecar = false
 
 # -----------------------------------------------------------------------------
 # Versions / Ports
 # -----------------------------------------------------------------------------
 
-cilium_version                    = "1.18.4"
-argocd_chart_version              = "7.5.2"
-argocd_namespace                  = "argocd"
-argocd_server_node_port           = 30080
-hubble_ui_node_port               = 31235
-gitea_chart_version               = "12.4.0"
-gitea_http_node_port              = 30090
-gitea_ssh_node_port               = 30022
-azure_auth_oauth2_proxy_host_port = 3007
-azure_auth_oauth2_proxy_node_port = 30070
-azure_auth_apim_host_port         = 8082
-azure_auth_apim_node_port         = 30082
-azure_auth_api_host_port          = 8081
-azure_auth_api_node_port          = 30081
-azure_auth_keycloak_host_port     = 8180
-azure_auth_keycloak_node_port     = 30180
+cilium_version                        = "1.18.4"
+argocd_chart_version                  = "7.5.2"
+argocd_namespace                      = "argocd"
+argocd_server_node_port               = 30080
+hubble_ui_node_port                   = 31235
+gitea_chart_version                   = "12.4.0"
+gitea_http_node_port                  = 30090
+gitea_ssh_node_port                   = 30022
+azure_auth_oauth2_proxy_host_port     = 3007
+azure_auth_oauth2_proxy_host_port_uat = 3008
+azure_auth_oauth2_proxy_node_port     = 30075
+azure_auth_oauth2_proxy_node_port_uat = 30076
+azure_auth_apim_host_port             = 8082
+azure_auth_apim_node_port             = 30082
+azure_auth_api_host_port              = 8081
+azure_auth_api_node_port              = 30081
+azure_auth_keycloak_host_port         = 8180
+azure_auth_keycloak_node_port         = 30180
 
 # -----------------------------------------------------------------------------
 # Gitea Addressing
@@ -83,6 +85,15 @@ ssh_public_key_path   = "./.run/argocd-repo.id_ed25519.pub"
 # - Hubble UI: http://localhost:31235 (stage 300+)
 # - Gitea UI: http://localhost:30090 (stage 500+)
 # - Gitea SSH: ssh://localhost:30022 (stage 500+)
-# - Azure auth sim: http://localhost:3007 (stage 700)
+# - Azure auth sim (dev): http://localhost:3007 (stage 700)
+# - Azure auth sim (uat): http://localhost:3008 (stage 700)
 # - Azure auth gateway (NGINX Gateway Fabric): http://localhost:3007 (stage 700)
 #   Keycloak/APIM/FastAPI remain internal—use kubectl port-forward if you need direct access.
+
+# -----------------------------------------------------------------------------
+# Namespaces
+# -----------------------------------------------------------------------------
+azure_auth_namespaces = {
+  dev = "azure-auth-dev"
+  uat = "azure-auth-uat"
+}

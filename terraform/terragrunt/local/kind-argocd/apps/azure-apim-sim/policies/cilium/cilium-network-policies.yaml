@@ -1,43 +1,23 @@
-# Cilium policies for azure-apim-sim namespace (APIM Simulator - simulating Azure API Management)
-# APIM receives requests from frontend and routes to backend API
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: azure-apim-simulator
+  name: azure-apim-simulator-dev
   namespace: azure-apim-sim
 spec:
   endpointSelector:
     matchLabels:
       app.kubernetes.io/name: apim-simulator
+      app.kubernetes.io/component: gateway
   ingress:
-    # Allow from frontend sidecar in azure-auth-sim (internal API calls)
-    - fromEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: frontend-with-oauth-sidecar
-            "k8s:io.kubernetes.pod.namespace": azure-auth-sim
-      toPorts:
-        - ports:
-            - port: "8000"
-              protocol: TCP
-    # Allow from NGINX Gateway control plane (for HTTPRoute backends)
-    - fromEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: nginx-gateway
-            "k8s:io.kubernetes.pod.namespace": nginx-gateway
-      toPorts:
-        - ports:
-            - port: "8000"
-              protocol: TCP
-    # Allow from azure-auth-gateway-nginx data plane pods
     - fromEndpoints:
         - matchLabels:
             app.kubernetes.io/name: azure-auth-gateway-nginx
-            "k8s:io.kubernetes.pod.namespace": azure-auth-sim
+            "k8s:io.kubernetes.pod.namespace": azure-auth-dev
       toPorts:
         - ports:
             - port: "8000"
               protocol: TCP
-    # Allow from APIM gateway data plane pods (for external listener)
+    # Optional: external APIM gateway (if NGINX Gateway Fabric creates these pods)
     - fromEndpoints:
         - matchLabels:
             app.kubernetes.io/name: apim-gateway-nginx
@@ -47,25 +27,24 @@ spec:
             - port: "8000"
               protocol: TCP
   egress:
-    # Allow to backend API in azure-auth-sim
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: api-fastapi-keycloak
-            "k8s:io.kubernetes.pod.namespace": azure-auth-sim
+            app.kubernetes.io/component: backend
+            "k8s:io.kubernetes.pod.namespace": azure-auth-dev
       toPorts:
         - ports:
             - port: "80"
               protocol: TCP
-    # Allow to Keycloak in azure-entraid-sim for token validation
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: keycloak
+            app.kubernetes.io/component: identity
             "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
-    # DNS resolution
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system
@@ -76,8 +55,62 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
+    - toEntities:
+        - kube-apiserver
+
 ---
-# Policy for APIM Gateway data plane pods (for external listener)
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-apim-simulator-uat
+  namespace: azure-apim-sim
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: apim-simulator-uat
+      app.kubernetes.io/component: gateway
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: azure-auth-gateway-nginx
+            "k8s:io.kubernetes.pod.namespace": azure-auth-uat
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: api-fastapi-keycloak
+            app.kubernetes.io/component: backend
+            "k8s:io.kubernetes.pod.namespace": azure-auth-uat
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: keycloak
+            app.kubernetes.io/component: identity
+            "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+    - toEntities:
+        - kube-apiserver
+
+---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -88,7 +121,6 @@ spec:
     matchLabels:
       app.kubernetes.io/name: apim-gateway-nginx
   ingress:
-    # Allow external traffic (host and remote-node) for external listener
     - fromEntities:
         - host
         - remote-node
@@ -97,15 +129,14 @@ spec:
             - port: "80"
               protocol: TCP
   egress:
-    # Allow to APIM simulator
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: apim-simulator
+            app.kubernetes.io/component: gateway
       toPorts:
         - ports:
             - port: "8000"
               protocol: TCP
-    # DNS resolution
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system

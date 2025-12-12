@@ -6,7 +6,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: azure-entraid-sim
-  namespace: argocd
+  namespace: ${argocd_namespace}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -23,4 +23,4 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
+      - CreateNamespace=false

@@ -198,7 +198,7 @@ def get_cloudflare_ipv6_ranges() -> list[IPv6Network]:
     return _cached_ipv6_ranges
 
 
-def is_using_live_cloudflare_ranges() -> bool:
+def is_using_live_cloudflare_ranges(load_if_needed: bool = True) -> bool:
     """
     Check if Cloudflare IP ranges were successfully fetched from the remote endpoints.
 
@@ -206,9 +206,10 @@ def is_using_live_cloudflare_ranges() -> bool:
         True if at least one of IPv4/IPv6 ranges was fetched live from Cloudflare,
         False if both are using fallback ranges.
     """
-    # Ensure ranges are loaded
-    get_cloudflare_ipv4_ranges()
-    get_cloudflare_ipv6_ranges()
+    if load_if_needed:
+        # Ensure ranges are loaded
+        get_cloudflare_ipv4_ranges()
+        get_cloudflare_ipv6_ranges()
 
     return _cache_source_ipv4 == "cloudflare" or _cache_source_ipv6 == "cloudflare"
 

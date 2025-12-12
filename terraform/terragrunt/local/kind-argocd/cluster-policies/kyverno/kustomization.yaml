@@ -1,3 +1,2 @@
 resources:
   - namespace-default-deny.yaml
-  - namespace-default-deny-generate.yaml

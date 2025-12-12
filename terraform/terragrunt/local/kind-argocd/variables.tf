@@ -61,10 +61,13 @@ variable "hubble_ui_node_port" {
   default     = 31235
 }
 
-variable "azure_auth_namespace" {
-  description = "Namespace for the azure auth simulation workload (Frontend + Backend API - simulates AKS workloads)."
-  type        = string
-  default     = "azure-auth-sim"
+variable "azure_auth_namespaces" {
+  description = "Namespaces for the azure auth simulation workload (Frontend + Backend API) per environment."
+  type        = map(string)
+  default = {
+    dev = "azure-auth-dev"
+    uat = "azure-auth-uat"
+  }
 }
 
 variable "azure_entraid_namespace" {
@@ -85,10 +88,46 @@ variable "azure_auth_oauth2_proxy_host_port" {
   default     = 3007
 }
 
+variable "azure_auth_oauth2_proxy_host_port_uat" {
+  description = "Host port to expose the azure auth simulation OAuth2 Proxy service (uat)."
+  type        = number
+  default     = 3008
+}
+
 variable "azure_auth_oauth2_proxy_node_port" {
   description = "NodePort to expose the azure auth simulation OAuth2 Proxy service."
   type        = number
+  default     = 30075
+}
+
+variable "azure_auth_oauth2_proxy_node_port_uat" {
+  description = "NodePort to expose the azure auth simulation OAuth2 Proxy service (uat)."
+  type        = number
+  default     = 30076
+}
+
+variable "azure_auth_gateway_host_port" {
+  description = "Host port to expose the azure auth simulation gateway (dev)."
+  type        = number
+  default     = 3007
+}
+
+variable "azure_auth_gateway_host_port_uat" {
+  description = "Host port to expose the azure auth simulation gateway (uat)."
+  type        = number
+  default     = 3008
+}
+
+variable "azure_auth_gateway_node_port" {
+  description = "NodePort to expose the azure auth simulation gateway (dev)."
+  type        = number
   default     = 30070
+}
+
+variable "azure_auth_gateway_node_port_uat" {
+  description = "NodePort to expose the azure auth simulation gateway (uat)."
+  type        = number
+  default     = 30071
 }
 
 variable "azure_auth_apim_host_port" {
@@ -241,10 +280,9 @@ variable "gitea_admin_username" {
   default     = "gitea-admin"
 }
 
-variable "gitea_admin_password" {
-  description = "Gitea admin password. WARNING: The default is insecure and only suitable for local development. Change this for any environment exposed to a network."
+variable "gitea_admin_pwd" {
+  description = "Gitea admin password (local dev). Supply via TF_VAR_gitea_admin_pwd or terragrunt inputs; do not commit real credentials."
   type        = string
-  default     = "ChangeMe123!"
   sensitive   = true
 }
 
@@ -353,7 +391,7 @@ variable "enable_azure_auth_sim" {
 }
 
 variable "azure_auth_sim_use_sidecar" {
-  description = "Use the sidecar deployment pattern (oauth2-proxy + frontend in same pod). When false, uses separate pods (default). See AZURE_AUTH_SIM.md for details."
+  description = "Use the sidecar deployment pattern (unused in multi-env overlays)."
   type        = bool
   default     = false
 }

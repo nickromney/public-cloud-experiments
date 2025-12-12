@@ -680,7 +680,8 @@ async def health_check():
         "status": "healthy",
         "service": "Subnet Calculator API (Azure Function)",
         "version": "1.0.0",
-        "using_live_cloudflare_ranges": is_using_live_cloudflare_ranges(),
+        # Health checks must be fast/stable; avoid triggering network fetches here.
+        "using_live_cloudflare_ranges": is_using_live_cloudflare_ranges(load_if_needed=False),
     }
 
 
