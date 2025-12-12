@@ -74,7 +74,7 @@ main() {
 
   log "Asserting policies content was pushed"
   assert_in_repo "${BARE_POLICIES}" "cluster-policies/README.md"
-  assert_in_repo "${BARE_POLICIES}" "apps/kyverno.yaml"
+  assert_in_repo "${BARE_POLICIES}" "apps/_applications/kyverno.yaml"
 
   log "Asserting azure-auth-sim content was pushed"
   assert_in_repo "${BARE_AZURE}" "shared-frontend/package.json"

@@ -1058,6 +1058,7 @@ git branch -M main
 git remote add origin ${local.gitea_http_scheme}://${var.gitea_http_host_local}:${var.gitea_http_port}/${var.gitea_admin_username}/policies.git
 
 ASKPASS=$(mktemp)
+trap 'rm -f "$ASKPASS"' EXIT
 cat > "$ASKPASS" <<'EOF'
 #!/usr/bin/env bash
 case "$1" in
@@ -1073,6 +1074,7 @@ GIT_TERMINAL_PROMPT=0 \
   GITEA_PWD="${var.gitea_admin_pwd}" \
   git push -f origin main
 rm -f "$ASKPASS"
+trap - EXIT
 EOT
     interpreter = ["/bin/bash", "-c"]
   }
@@ -1124,6 +1126,7 @@ git branch -M main
 git remote add origin ${local.gitea_http_scheme}://${var.gitea_http_host_local}:${var.gitea_http_port}/${var.gitea_admin_username}/azure-auth-sim.git
 
 ASKPASS=$(mktemp)
+trap 'rm -f "$ASKPASS"' EXIT
 cat > "$ASKPASS" <<'EOF'
 #!/usr/bin/env bash
 case "$1" in
@@ -1139,6 +1142,7 @@ GIT_TERMINAL_PROMPT=0 \
   GITEA_PWD="${var.gitea_admin_pwd}" \
   git push -f origin main
 rm -f "$ASKPASS"
+trap - EXIT
 EOT
     interpreter = ["/bin/bash", "-c"]
   }

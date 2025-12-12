@@ -95,6 +95,7 @@ parse_args() {
 
 setup_auth() {
   if [[ -n "${GITEA_USER:-}" && -n "${GITEA_PASSWORD:-}" ]]; then
+    export GITEA_USER GITEA_PASSWORD
     local askpass="${TMP_ROOT}/git-askpass.sh"
     cat > "${askpass}" <<'EOF'
 #!/usr/bin/env bash
