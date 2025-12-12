@@ -8,7 +8,10 @@ spec:
   from:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
-      namespace: azure-auth-sim
+      namespace: azure-auth-dev
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: azure-auth-uat
   to:
     - group: ""
       kind: Service

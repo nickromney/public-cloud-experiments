@@ -39,7 +39,7 @@ spec:
             - --validate-url=http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/userinfo
 
             # Upstream (frontend only; SPA calls APIM sim directly)
-            - --upstream=http://frontend-react-keycloak-protected.azure-auth-sim.svc.cluster.local
+            - --upstream=http://frontend-react-keycloak-protected
 
             # Listen address
             - --http-address=0.0.0.0:4180

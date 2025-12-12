@@ -4,7 +4,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: kyverno-policies
-  namespace: argocd
+  namespace: ${argocd_namespace}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:

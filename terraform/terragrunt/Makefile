@@ -44,7 +44,7 @@ STAGE ?= 000
 STAGE_DEFAULT := 000
 
 # Valid verbs for argument parsing
-VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create prereqs reset
+VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create prereqs reset gitea-sync check-health
 
 # Shell function to find stage file
 # Usage: $(call find_stage_file,STAGE,STACK_DIR)
@@ -167,6 +167,8 @@ help:
 	@echo -e "  make fmt                      Format all Terraform files"
 	@echo -e "  make lint                     Run tflint on all stacks"
 	@echo -e "  make test                     Run Terraform tests (.tftest.hcl)"
+	@echo -e "  make local kind gitea-sync    Sync Argo paths to local Gitea (default: --all; override with GITEA_SYNC_ARGS=\"--policies\" or \"--azure-auth-sim\")"
+	@echo -e "  make local kind check-health  Run kubectl-based post-stage-700 health checks"
 	@echo -e "  make secure-app-plan          Plan secure-app/dev/uksouth stack"
 	@echo -e "  make secure-app-apply         Apply secure-app/dev/uksouth stack"
 	@echo -e "  make secure-app-destroy       Destroy secure-app/dev/uksouth stack"
@@ -358,8 +360,8 @@ local:
 # Verb-based routing (alternative: make <verb> [stage] subnet-calc <stack>)
 # Note: 'test' is excluded as it conflicts with global test target
 # These targets only execute if they are the FIRST word in MAKECMDGOALS to prevent double-execution
-.PHONY: init plan apply destroy validate output prereqs deploy show get unlock
-init plan apply destroy validate output prereqs:
+.PHONY: init plan apply destroy validate output prereqs deploy show get unlock gitea-sync check-health
+init plan apply destroy validate output prereqs gitea-sync check-health:
 	@if [ "$(firstword $(MAKECMDGOALS))" = "$@" ]; then \
 		$(MAKE) --no-print-directory _parse-args ARG1=$(firstword $(MAKECMDGOALS)) ARG2=$(word 2,$(MAKECMDGOALS)) ARG3=$(word 3,$(MAKECMDGOALS)) ARG4=$(word 4,$(MAKECMDGOALS)) ARG5=$(word 5,$(MAKECMDGOALS)); \
 	fi
@@ -400,7 +402,7 @@ _route:
 	$(MAKE) --no-print-directory _exec-$(VERB) STACK_DIR=$$STACK_DIR COMPONENT=$(COMPONENT)
 
 # Infrastructure lifecycle verbs
-.PHONY: _exec-init _exec-plan _exec-apply _exec-destroy _exec-validate _exec-output
+.PHONY: _exec-init _exec-plan _exec-apply _exec-destroy _exec-validate _exec-output _exec-gitea-sync
 
 _exec-init: check-env
 	@echo -e "$(YELLOW)Initializing $(STACK_DIR)...$(NC)"
@@ -779,6 +781,35 @@ _exec-prereqs:
 		echo -e "$(GREEN)✓ Images loaded into kind-local$(NC)"; \
 	else \
 		echo -e "$(YELLOW)The 'prereqs' verb is only supported for local/kind$(NC)"; \
+		exit 1; \
+	fi
+
+_exec-gitea-sync:
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		cmd="$(ROOT_DIR)local/kind-argocd/scripts/sync-gitea.sh"; \
+		if [ ! -x "$$cmd" ]; then \
+			echo -e "$(YELLOW)sync-gitea.sh not found or not executable at $$cmd$(NC)"; \
+			exit 1; \
+		fi; \
+		echo -e "$(CYAN)Syncing ArgoCD paths to local Gitea...$(NC)"; \
+		args="$$GITEA_SYNC_ARGS"; \
+		if [ -z "$$args" ]; then args="--all"; fi; \
+		GITEA_USER="$$GITEA_USER" GITEA_PASSWORD="$$GITEA_PASSWORD" $$cmd $$args; \
+	else \
+		echo -e "$(YELLOW)The 'gitea-sync' verb is only supported for local/kind$(NC)"; \
+		exit 1; \
+	fi
+
+_exec-check-health:
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		cmd="$(ROOT_DIR)local/kind-argocd/scripts/check-cluster-health.sh"; \
+		if [ ! -x "$$cmd" ]; then \
+			echo -e "$(YELLOW)check-cluster-health.sh not found or not executable at $$cmd$(NC)"; \
+			exit 1; \
+		fi; \
+		$$cmd; \
+	else \
+		echo -e "$(YELLOW)The 'check-health' verb is only supported for local/kind$(NC)"; \
 		exit 1; \
 	fi
 

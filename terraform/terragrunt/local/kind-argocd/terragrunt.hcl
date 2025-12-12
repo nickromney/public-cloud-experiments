@@ -43,10 +43,20 @@ inputs = {
   enable_actions_runner        = false
   enable_docker_socket_mount   = true
   enable_azure_auth_sim        = false
-  enable_azure_auth_ports      = false
-  azure_auth_namespace         = "azure-auth-sim"
+  # Keep ports enabled to avoid Kind cluster replacement when later enabling azure-auth-sim.
+  enable_azure_auth_ports      = true
+  azure_auth_namespaces = {
+    dev = "azure-auth-dev"
+    uat = "azure-auth-uat"
+  }
   azure_auth_oauth2_proxy_host_port = 3007
-  azure_auth_oauth2_proxy_node_port = 30070
+  azure_auth_oauth2_proxy_node_port = 30075
+  azure_auth_oauth2_proxy_host_port_uat = 3008
+  azure_auth_oauth2_proxy_node_port_uat = 30076
+  azure_auth_gateway_host_port       = 3007
+  azure_auth_gateway_host_port_uat   = 3008
+  azure_auth_gateway_node_port       = 30070
+  azure_auth_gateway_node_port_uat   = 30071
   azure_auth_apim_host_port         = 8082
   azure_auth_apim_node_port         = 30082
   azure_auth_api_host_port          = 8081

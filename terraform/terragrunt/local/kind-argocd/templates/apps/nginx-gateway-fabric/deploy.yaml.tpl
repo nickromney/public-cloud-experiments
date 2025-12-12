@@ -442,7 +442,5 @@ spec:
       replicas: 1
     service:
       externalTrafficPolicy: Cluster
+      nodePorts: []
       type: LoadBalancer
-      nodePorts:
-        - listenerPort: 80
-          port: 30070

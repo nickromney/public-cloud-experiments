@@ -9,10 +9,10 @@ spec:
     matchLabels:
       app.kubernetes.io/name: nginx-gateway
   ingress:
-    - fromEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: azure-auth-gateway-nginx
-            "k8s:io.kubernetes.pod.namespace": "azure-auth-sim"
+    - fromEntities:
+        - cluster
+        - host
+        - remote-node
       toPorts:
         - ports:
             - port: "443"
@@ -21,10 +21,8 @@ spec:
               protocol: TCP
   egress:
     # Allow responses back to azure-auth-sim data plane pods
-    - toEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: azure-auth-gateway-nginx
-            "k8s:io.kubernetes.pod.namespace": "azure-auth-sim"
+    - toEntities:
+        - cluster
     # Allow DNS lookups
     - toEndpoints:
         - matchLabels:

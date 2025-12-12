@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: azure-auth-gateway-nginx
+  labels:
+    app.kubernetes.io/name: azure-auth-gateway-nginx
+    app.kubernetes.io/instance: nginx-gateway
+    app.kubernetes.io/managed-by: nginx-gateway-nginx
+    gateway.networking.k8s.io/gateway-name: azure-auth-gateway
+  annotations:
+    # Allow MetalLB/NGF to add service annotations without Argo marking OutOfSync.
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+spec:
+  type: LoadBalancer
+  allocateLoadBalancerNodePorts: true
+  externalTrafficPolicy: Cluster
+  ipFamilyPolicy: PreferDualStack
+  ipFamilies:
+    - IPv4
+  sessionAffinity: None
+  selector:
+    app.kubernetes.io/instance: nginx-gateway
+    app.kubernetes.io/managed-by: nginx-gateway-nginx
+    app.kubernetes.io/name: azure-auth-gateway-nginx
+    gateway.networking.k8s.io/gateway-name: azure-auth-gateway
+  ports:
+    - name: port-80
+      port: 80
+      protocol: TCP
+      targetPort: 80
+      nodePort: 30070

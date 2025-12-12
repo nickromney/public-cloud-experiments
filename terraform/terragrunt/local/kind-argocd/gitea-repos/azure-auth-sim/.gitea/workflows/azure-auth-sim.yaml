@@ -15,7 +15,7 @@ env:
   REGISTRY_HOST: ${{ secrets.REGISTRY_HOST }}
   REGISTRY_PORT: 3000
   REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
-  REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+  REGISTRY_PWD: ${{ secrets.REGISTRY_PWD }}
   DOCKER_HOST: unix:///var/run/docker.sock
   WORKSPACE_DIR: /tmp/azure-auth-sim
 
@@ -53,7 +53,7 @@ jobs:
       - name: Clone repo
         env:
           GITEA_USER: ${{ secrets.REGISTRY_USERNAME }}
-          GITEA_PASS: ${{ secrets.REGISTRY_PASSWORD }}
+          GITEA_PASS: ${{ secrets.REGISTRY_PWD }}
           # GITEAHOST contains the cluster-internal service DNS name for git clone.
           # REGISTRY_HOST contains the NodePort-accessible address for Docker operations.
           # Note: GITEA_HOST is reserved in Gitea Actions, so we use GITEAHOST (no underscore)
@@ -115,7 +115,7 @@ jobs:
 
       - name: Log in to registry
         run: |
-          echo "${REGISTRY_PASSWORD}" | docker login "${REGISTRY_HOST}" -u "${REGISTRY_USERNAME}" --password-stdin
+          echo "${REGISTRY_PWD}" | docker login "${REGISTRY_HOST}" -u "${REGISTRY_USERNAME}" --password-stdin
           echo "Logged in to ${REGISTRY_HOST}"
 
       - name: Pre-pull base images
@@ -172,12 +172,10 @@ jobs:
           docker build \
             --platform linux/amd64 \
             --provenance=false \
-            --build-arg VITE_API_URL=http://localhost:3007/apim \
-            --build-arg VITE_API_PROXY_ENABLED=false \
+            --build-arg VITE_API_URL= \
+            --build-arg VITE_API_PROXY_ENABLED=true \
             --build-arg VITE_AUTH_METHOD=oidc \
-            --build-arg VITE_OIDC_AUTHORITY=http://localhost:3007/realms/subnet-calculator \
             --build-arg VITE_OIDC_CLIENT_ID=frontend-app \
-            --build-arg VITE_OIDC_REDIRECT_URI=http://localhost:3007 \
             --build-arg VITE_APIM_SUBSCRIPTION_KEY=stack12-demo-key \
             --build-arg VITE_OIDC_AUTO_LOGIN=true \
             --build-arg NODE_OPTIONS=--max-old-space-size=1024 \

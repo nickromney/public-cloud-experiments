@@ -91,18 +91,21 @@ kubectl get app -n argocd cilium-policies kyverno-policies
 ### Stage 700 - Azure Auth Simulation
 
 ```bash
-# Check all pods in namespace
-kubectl get pods -n azure-auth-sim
+# Check all pods in namespaces
+kubectl get pods -n azure-auth-dev
+kubectl get pods -n azure-auth-uat
 
 # Check services and NodePorts
-kubectl get svc -n azure-auth-sim
+kubectl get svc -n azure-auth-dev
+kubectl get svc -n azure-auth-uat
 
 # Test endpoints (Gateway Fabric exposes the oauth2-proxy/front end only)
-curl -sI http://localhost:3007 --max-time 5   # OAuth2 Proxy (Gateway entry, should redirect/403)
+curl -sI http://localhost:3007 --max-time 5   # Dev
+curl -sI http://localhost:3008 --max-time 5   # UAT
 # To inspect the backend services directly, port-forward the desired service:
-# kubectl -n azure-auth-sim port-forward svc/keycloak 8080:8080
-# kubectl -n azure-auth-sim port-forward svc/apim-simulator 8000:8000
-# kubectl -n azure-auth-sim port-forward svc/api-fastapi-keycloak 80:80
+# kubectl -n azure-entraid-sim port-forward svc/keycloak 8080:8080
+# kubectl -n azure-apim-sim port-forward svc/apim-simulator 8000:8000
+# kubectl -n azure-auth-dev port-forward svc/api-fastapi-keycloak 80:80
 ```
 
 ### Gitea Actions Runner
@@ -119,6 +122,36 @@ curl -s -u "$GITEA_USER:$GITEA_PASSWORD" http://localhost:30090/api/v1/admin/run
 ```
 
 ## Development Workflow
+
+### Filtered sync to in-cluster Gitea (Argo paths only)
+
+Use the helper to push only the Argo-consumed paths:
+
+```bash
+# Policies only (apps/ + cluster-policies/, default)
+terraform/terragrunt/local/kind-argocd/scripts/sync-gitea.sh
+
+# Azure auth sim repo (templates + subnet-calculator sources)
+terraform/terragrunt/local/kind-argocd/scripts/sync-gitea.sh --azure-auth-sim
+
+# Both repos
+terraform/terragrunt/local/kind-argocd/scripts/sync-gitea.sh --all
+
+# Via Makefile shortcut (runs from terraform/terragrunt)
+make local kind gitea-sync                     # defaults to --all (policies + azure-auth-sim)
+make local kind gitea-sync GITEA_SYNC_ARGS="--policies --dry-run"
+make local kind gitea-sync GITEA_SYNC_ARGS="--azure-auth-sim"
+```
+
+## Post-stage-700 cluster smoke test
+
+Run a quick health check (namespaces, Cilium, Argo apps, azure-auth-sim deployments):
+
+```bash
+terraform/terragrunt/local/kind-argocd/scripts/check-cluster-health.sh
+```
+
+Flags: `--dry-run` to inspect without pushing, `GITEA_BRANCH` to override branch (default `main`), `GITEA_USER/GITEA_PASSWORD` for HTTP auth if your Git credential helper is not already primed, and `GITEA_SYNC_MESSAGE` to set a custom commit message.
 
 ### Pushing Code Changes
 

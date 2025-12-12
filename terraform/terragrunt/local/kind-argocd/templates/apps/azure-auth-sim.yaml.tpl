@@ -2,29 +2,42 @@
 # Generated from template - URLs configured via Terraform variables
 #
 # Deployment patterns:
-#   - Default (5 pods): apps/azure-auth-sim
-#   - Sidecar (4 pods): apps/azure-auth-sim/overlays/sidecar
-#
-# Set azure_auth_sim_use_sidecar = true in tfvars to use sidecar pattern
+#   - Overlays per env (dev/uat) under apps/azure-auth-sim/overlays/<env>
+# Sidecar overlay is not used in this multi-env setup (frontend already carries oauth2-proxy sidecar).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: azure-auth-sim
-  namespace: argocd
+  name: azure-auth-${env_name}
+  namespace: ${argocd_namespace}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   destination:
-    namespace: azure-auth-sim
+    namespace: ${azure_auth_namespace}
     server: https://kubernetes.default.svc
+  ignoreDifferences:
+    - group: ""
+      kind: Service
+      namespace: ${azure_auth_namespace}
+      name: azure-auth-gateway-nginx
+      jsonPointers:
+        - /metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration
+        - /metadata/annotations/metallb.universe.tf~1ip-allocated-from-pool
+        - /spec/clusterIP
+        - /spec/clusterIPs
+        - /spec/ipFamilies
+        - /spec/ipFamilyPolicy
+        - /spec/sessionAffinity
+        - /spec/allocateLoadBalancerNodePorts
+        - /status
   source:
     repoURL: ssh://${gitea_ssh_username}@${gitea_ssh_host}:${gitea_ssh_port}/${gitea_admin_username}/policies.git
     targetRevision: main
-    path: ${use_sidecar ? "apps/azure-auth-sim/overlays/sidecar" : "apps/azure-auth-sim"}
+    path: "apps/azure-auth-sim/overlays/${env_name}"
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
+      - CreateNamespace=false

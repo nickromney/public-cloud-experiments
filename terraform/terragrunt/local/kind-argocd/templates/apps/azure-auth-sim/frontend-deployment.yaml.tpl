@@ -25,17 +25,17 @@ spec:
           imagePullPolicy: Always
           env:
             - name: VITE_API_URL
-              value: http://localhost:3007/apim
+              value: http://localhost:${oauth2_proxy_host_port}
             - name: VITE_API_PROXY_ENABLED
               value: "false"
             - name: VITE_AUTH_METHOD
               value: oidc
             - name: VITE_OIDC_AUTHORITY
-              value: http://localhost:3007/realms/subnet-calculator
+              value: http://localhost:${oauth2_proxy_host_port}/realms/subnet-calculator
             - name: VITE_OIDC_CLIENT_ID
               value: frontend-app
             - name: VITE_OIDC_REDIRECT_URI
-              value: http://localhost:3007
+              value: http://localhost:${oauth2_proxy_host_port}
             - name: VITE_OIDC_AUTO_LOGIN
               value: "true"
             - name: VITE_APIM_SUBSCRIPTION_KEY

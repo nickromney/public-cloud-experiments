@@ -1,6 +1,6 @@
 Policies synchronized via Argo CD from the local Gitea repository (created by Terraform). This directory is staged under `cluster-policies/` in the `policies` repo and represents the cluster-wide controls.
 
-- `cilium/` isolates namespaces `cilium-team-a` and `cilium-team-b` (intra-namespace only; DNS + apiserver allowed).
-- `kyverno/` generates a default-deny NetworkPolicy for any namespace labeled `kyverno.io/isolate=true` (example: `kyverno-sandbox`).
+- `cilium/` enforces ingress/egress for the azure-auth workloads across namespaces (nginx-gateway, APIM, Keycloak, frontend/api).
+- `kyverno/` provides default-deny scaffolding; customize via labels to allow intended paths.
 
-App-specific manifests and policies reside under `apps/<app>/` in the same repo (Azure auth simulation keeps its scoped Cilium policy under `apps/azure-auth-sim/policies/cilium/cilium-network-policies.yaml`).
+App-specific manifests and policies reside under `apps/<app>/` in the same repo. Publish changes here to the in-cluster `policies` repo via `terraform/terragrunt/local/kind-argocd/scripts/sync-gitea.sh`.

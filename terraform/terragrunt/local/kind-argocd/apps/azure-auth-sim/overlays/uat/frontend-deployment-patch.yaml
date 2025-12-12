@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-react-keycloak-protected
+spec:
+  template:
+    spec:
+      containers:
+        - name: frontend-react-keycloak-protected
+          env:
+            - name: VITE_API_URL
+              value: http://localhost:3008
+            - name: VITE_OIDC_AUTHORITY
+              value: http://localhost:3008/realms/subnet-calculator
+            - name: VITE_OIDC_REDIRECT_URI
+              value: http://localhost:3008

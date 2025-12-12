@@ -25,6 +25,9 @@ nodes:
       - containerPort: 30070
         hostPort: 3007
         protocol: TCP
+      - containerPort: 30071
+        hostPort: 3008
+        protocol: TCP
     extraMounts:
       - hostPath: /var/run/docker.sock
         containerPath: /var/run/docker.sock

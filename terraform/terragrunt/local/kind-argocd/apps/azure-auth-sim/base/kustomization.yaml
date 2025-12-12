@@ -1,18 +1,13 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: azure-auth-sim
-commonLabels:
-  app.kubernetes.io/part-of: azure-auth-sim
 resources:
-  - namespace.yaml
-  - secrets.yaml
-  - gateway.yaml
-  # Keycloak resources moved to azure-entraid-sim namespace
-  # APIM resources moved to azure-apim-sim namespace
   - api-deployment.yaml
   - api-service.yaml
   - frontend-deployment.yaml
   - frontend-service.yaml
+  - gateway-service.yaml
   - oauth2-proxy-deployment.yaml
   - oauth2-proxy-service.yaml
+  - gateway.yaml
   - policies/cilium/cilium-network-policies.yaml
+  - ../secrets.yaml

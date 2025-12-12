@@ -4,7 +4,6 @@ namespace: azure-entraid-sim
 commonLabels:
   app.kubernetes.io/part-of: azure-entraid-sim
 resources:
-  - namespace.yaml
   - keycloak-realm-config.yaml
   - keycloak-deployment.yaml
   - keycloak-service.yaml
