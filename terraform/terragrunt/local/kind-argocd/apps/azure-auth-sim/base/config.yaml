@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: azure-auth-config
+data:
+  # Demo-only config for the local azure auth simulation workload
+  apim-subscription: demo

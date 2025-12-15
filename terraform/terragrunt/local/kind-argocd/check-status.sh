@@ -67,11 +67,11 @@ check_kind() {
     else
         warn "Gitea port (30090) not mapped"
     fi
-    # Kind maps NodePort 30070 to host port 3007 for OAuth2 Proxy access
+    # Kind maps NodePort 30070 to host port 443 for the HTTPS Gateway entrypoint
     if echo "$ports" | grep -q "30070"; then
-        pass "OAuth2 Proxy NodePort (30070) mapped"
+        pass "Gateway NodePort (30070) mapped"
     else
-        warn "OAuth2 Proxy NodePort not mapped"
+        warn "Gateway NodePort not mapped"
     fi
 }
 
@@ -217,40 +217,44 @@ check_policies() {
 check_azure_auth() {
     header "Azure Auth Simulation (Stage 700)"
 
-    # Expected 5 pods for Azure Auth Simulation:
-    #   - api-fastapi-keycloak (backend API)
-    #   - apim-simulator (API gateway simulator)
-    #   - frontend-react-keycloak-protected (React SPA)
-    #   - keycloak (identity provider)
-    #   - oauth2-proxy-frontend (authentication proxy)
-    local azure_pods
-    azure_pods=$(kubectl get pods -n azure-auth-sim --no-headers 2>/dev/null | grep -c "Running" || echo 0)
-    if [[ "$azure_pods" -ge 5 ]]; then
-        pass "Azure auth sim pods running ($azure_pods)"
-    else
-        warn "Azure auth sim pods: $azure_pods (expected 5)"
-    fi
+    local namespaces=(dev uat azure-auth-gateway)
+    for ns in "${namespaces[@]}"; do
+        local running
+        running=$(kubectl get pods -n "$ns" --no-headers 2>/dev/null | grep -c "Running" || echo 0)
+        if [[ "$running" -ge 3 ]]; then
+            pass "${ns}: pods running ($running)"
+        else
+            warn "${ns}: pods running ($running) (expected >= 3)"
+        fi
 
-    # Show pod status
-    info "Pods:"
-    kubectl get pods -n azure-auth-sim --no-headers 2>/dev/null | while read -r name ready status _; do
-        local status_color=$GREEN
-        [[ "$status" != "Running" ]] && status_color=$RED
-        echo -e "  ${status_color}${name}${NC}: $ready $status"
+        info "Pods (${ns}):"
+        kubectl get pods -n "$ns" --no-headers 2>/dev/null | while read -r name ready status _; do
+            local status_color=$GREEN
+            [[ "$status" != "Running" ]] && status_color=$RED
+            echo -e "  ${status_color}${name}${NC}: $ready $status"
+        done
     done
 
     # Test endpoints
     info "Endpoint tests:"
 
     local oauth_status
-    oauth_status=$(curl -sI --max-time 3 http://localhost:3007 2>/dev/null | head -1 || echo "Connection failed")
+    oauth_status=$(curl -skI --max-time 5 https://subnetcalc.dev.127.0.0.1.sslip.io/ 2>/dev/null | head -1 || echo "Connection failed")
     if echo "$oauth_status" | grep -qE "HTTP.*[234][0-9][0-9]"; then
-        pass "OAuth2 Proxy (localhost:3007): responding"
+        pass "Gateway entrypoint (subnetcalc.dev...:443): responding"
     else
-        fail "OAuth2 Proxy (localhost:3007): $oauth_status"
+        fail "Gateway entrypoint (subnetcalc.dev...:443): $oauth_status"
     fi
 
-    info "Keycloak/APIM/FastAPI are internal; port-forward the services if you need to inspect them (e.g., `kubectl -n azure-auth-sim port-forward svc/keycloak 8080:8080`)."
+    local uat_status
+    uat_status=$(curl -skI --max-time 5 https://subnetcalc.uat.127.0.0.1.sslip.io/ 2>/dev/null | head -1 || echo "Connection failed")
+    if echo "$uat_status" | grep -qE "HTTP.*[234][0-9][0-9]"; then
+        pass "Gateway entrypoint (subnetcalc.uat...:443): responding"
+    else
+        fail "Gateway entrypoint (subnetcalc.uat...:443): $uat_status"
+    fi
+
+    info "Keycloak/APIM/FastAPI are internal; port-forward if needed (e.g., 'kubectl -n azure-entraid-sim port-forward svc/keycloak 8080:8080')."
 }
 
 # Check Actions Runner

@@ -2,7 +2,6 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RUN_DIR="${ROOT_DIR}/.run"
 GITEA_HTTP_HOST_HOST="${GITEA_HTTP_HOST_HOST:-https://localhost:3000}"
 GITEA_ADMIN_USER="${GITEA_ADMIN_USER:-gitea-admin}"
 GITEA_ADMIN_PASS="${GITEA_ADMIN_PASS:-ChangeMe123!}"

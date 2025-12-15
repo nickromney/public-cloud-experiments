@@ -14,6 +14,7 @@ kind_config_path = "./kind-config.yaml"
 # -----------------------------------------------------------------------------
 
 enable_cilium              = true
+enable_cilium_mesh_auth    = true
 enable_hubble              = true
 enable_namespaces          = true
 enable_argocd              = true
@@ -29,22 +30,24 @@ use_external_gitea         = false
 # Versions / Ports
 # -----------------------------------------------------------------------------
 
-cilium_version                    = "1.18.4"
-argocd_chart_version              = "7.5.2"
-argocd_namespace                  = "argocd"
-argocd_server_node_port           = 30080
-hubble_ui_node_port               = 31235
-gitea_chart_version               = "12.4.0"
-gitea_http_node_port              = 30090
-gitea_ssh_node_port               = 30022
-azure_auth_oauth2_proxy_host_port = 3007
-azure_auth_oauth2_proxy_node_port = 30070
-azure_auth_apim_host_port         = 8082
-azure_auth_apim_node_port         = 30082
-azure_auth_api_host_port          = 8081
-azure_auth_api_node_port          = 30081
-azure_auth_keycloak_host_port     = 8180
-azure_auth_keycloak_node_port     = 30180
+cilium_version                        = "1.18.4"
+argocd_chart_version                  = "7.5.2"
+argocd_namespace                      = "argocd"
+argocd_server_node_port               = 30080
+hubble_ui_node_port                   = 31235
+gitea_chart_version                   = "12.4.0"
+gitea_http_node_port                  = 30090
+gitea_ssh_node_port                   = 30022
+azure_auth_gateway_host_port          = 443
+azure_auth_gateway_node_port          = 30070
+azure_auth_oauth2_proxy_node_port     = 30075
+azure_auth_oauth2_proxy_node_port_uat = 30076
+azure_auth_apim_host_port             = 8082
+azure_auth_apim_node_port             = 30082
+azure_auth_api_host_port              = 8081
+azure_auth_api_node_port              = 30081
+azure_auth_keycloak_host_port         = 8180
+azure_auth_keycloak_node_port         = 30180
 
 # -----------------------------------------------------------------------------
 # Gitea Addressing

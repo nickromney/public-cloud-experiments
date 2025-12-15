@@ -1,32 +1,18 @@
 apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: azure-auth-gateway
-  labels:
-    app.kubernetes.io/name: azure-auth-gateway
-spec:
-  gatewayClassName: nginx
-  listeners:
-    - name: http
-      protocol: HTTP
-      port: 80
-      hostname: localhost
-      allowedRoutes:
-        namespaces:
-          from: Same
----
-apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: azure-auth-gateway-route
+  name: subnetcalc-route
   labels:
-    app.kubernetes.io/name: azure-auth-gateway-route
+    app.kubernetes.io/name: subnetcalc-route
+    app.kubernetes.io/part-of: azure-auth-sim
 spec:
   parentRefs:
     - name: azure-auth-gateway
+      namespace: azure-auth-gateway
+  hostnames:
+    - subnetcalc.uat.127.0.0.1.sslip.io
   rules:
     # Keycloak routes - cross-namespace to azure-entraid-sim
-    # ReferenceGrant in azure-entraid-sim allows this
     - matches:
         - path:
             type: PathPrefix
@@ -34,27 +20,51 @@ spec:
         - path:
             type: PathPrefix
             value: /resources
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.nginx.org
+            kind: SnippetsFilter
+            name: http-to-https-redirect
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.nginx.org
+            kind: SnippetsFilter
+            name: keycloak-hostport
       backendRefs:
         - name: keycloak
           namespace: azure-entraid-sim
           port: 8080
           kind: Service
+
     # APIM routes - cross-namespace to azure-apim-sim
-    # ReferenceGrant in azure-apim-sim allows this
     - matches:
         - path:
             type: PathPrefix
             value: /api
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.nginx.org
+            kind: SnippetsFilter
+            name: http-to-https-redirect
       backendRefs:
-        - name: apim-simulator
+        - name: apim-simulator-uat
           namespace: azure-apim-sim
           port: 8000
           kind: Service
+
     # Frontend route - same namespace
     - matches:
         - path:
             type: PathPrefix
             value: /
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.nginx.org
+            kind: SnippetsFilter
+            name: http-to-https-redirect
       backendRefs:
         - name: oauth2-proxy-frontend
           port: 4180

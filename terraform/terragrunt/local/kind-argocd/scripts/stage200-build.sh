@@ -4,7 +4,6 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_DIR="${ROOT_DIR}/.run"
 RUNNER_DATA_DIR="${RUN_DIR}/act-runner"
-DIND_DATA_DIR="${RUN_DIR}/act-runner/docker"
 GITEA_HTTP_HOST="${GITEA_HTTP_HOST:-https://host.docker.internal:3000}"
 GITEA_HTTP_CONTAINER="${GITEA_HTTP_CONTAINER:-https://host.docker.internal:3000}"
 GITEA_HTTP_HOST_HOST="${GITEA_HTTP_HOST_HOST:-https://host.docker.internal:3000}"
@@ -23,7 +22,6 @@ RUNNER_EXECUTOR="${RUNNER_EXECUTOR:-host}"
 RUNNER_PLATFORM="${RUNNER_PLATFORM:-linux/arm64}"
 REGISTRY_HOST_INTERNAL="${REGISTRY_HOST_INTERNAL:-host.docker.internal:3000}"
 HOST_DOCKER_SOCK="${HOST_DOCKER_SOCK:-/var/run/docker.sock}"
-CONTAINER_DOCKER_SOCK="/var/run/docker.sock"
 ACT_RUNNER_VERSION="${ACT_RUNNER_VERSION:-0.2.13}"
 ACT_RUNNER_BIN="${RUNNER_DATA_DIR}/act_runner"
 
@@ -32,22 +30,23 @@ cleanup() { rm -rf "${WORK_DIR}"; }
 trap cleanup EXIT
 
 get_curl_opts() {
-  local opts="-s"
+  local -n _out="$1"
+  _out=(-s)
   if [ -f "${ROOT_DIR}/certs/ca.crt" ]; then
-    opts="${opts} --cacert ${ROOT_DIR}/certs/ca.crt"
+    _out+=(--cacert "${ROOT_DIR}/certs/ca.crt")
   else
-    opts="${opts} -k"
+    _out+=(-k)
   fi
-  echo "${opts}"
 }
 
 ensure_registry_access_token() {
   # Create a Gitea access token for Docker registry auth (password auth is unreliable)
-  local curl_opts
-  curl_opts=$(get_curl_opts)
-  local token_name="docker-registry-$(date +%s)"
+  local -a curl_opts
+  get_curl_opts curl_opts
+  local token_name
+  token_name="docker-registry-$(date +%s)"
   local token
-  token=$(curl ${curl_opts} -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" -X POST \
+  token=$(curl "${curl_opts[@]}" -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" -X POST \
     -H "Content-Type: application/json" \
     -d "{\"name\":\"${token_name}\",\"scopes\":[\"write:package\"]}" \
     "${GITEA_HTTP_HOST}/api/v1/users/${GITEA_ADMIN_USER}/tokens" 2>/dev/null | jq -r '.sha1 // empty')
@@ -59,10 +58,11 @@ ensure_registry_access_token() {
 }
 
 ensure_runner_token() {
-  local curl_opts
-  curl_opts=$(get_curl_opts)
-  for i in {1..10}; do
-    token=$(curl ${curl_opts} -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" -X POST \
+  local -a curl_opts
+  get_curl_opts curl_opts
+  local token
+  for _ in {1..10}; do
+    token=$(curl "${curl_opts[@]}" -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" -X POST \
       "${GITEA_HTTP_HOST}/api/v1/admin/actions/runners/registration-token" | jq -r '.token // empty')
     if [ -n "${token}" ]; then
       echo "${token}"
@@ -204,8 +204,8 @@ trigger_workflow() {
 }
 
 ensure_repo_secrets() {
-  local curl_opts
-  curl_opts=$(get_curl_opts)
+  local -a curl_opts
+  get_curl_opts curl_opts
   local ssh_key_b64
   local known_hosts_b64
   local registry_ca_b64
@@ -215,34 +215,34 @@ ensure_repo_secrets() {
   registry_ca_b64=$(base64 -i "${ROOT_DIR}/certs/ca.crt" | tr -d '\n')
   # Create access token for registry (password auth is unreliable with Docker)
   registry_token=$(ensure_registry_access_token)
-  curl ${curl_opts} -o /dev/null -w "%{http_code}" -X PUT \
+  curl "${curl_opts[@]}" -o /dev/null -w "%{http_code}" -X PUT \
     -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" \
     -H "Content-Type: application/json" \
     -d "{\"data\":\"${GITEA_ADMIN_USER}\"}" \
     "${GITEA_HTTP_HOST}/api/v1/repos/${GITEA_ADMIN_USER}/azure-auth-sim/actions/secrets/REGISTRY_USERNAME" >/dev/null
   # Use access token instead of password for registry auth
   echo "{\"data\":\"${registry_token}\"}" > "${WORK_DIR}/secret.json"
-  curl ${curl_opts} -o /dev/null -w "%{http_code}" -X PUT \
+  curl "${curl_opts[@]}" -o /dev/null -w "%{http_code}" -X PUT \
     -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" \
     -H "Content-Type: application/json" \
     -d @"${WORK_DIR}/secret.json" \
     "${GITEA_HTTP_HOST}/api/v1/repos/${GITEA_ADMIN_USER}/azure-auth-sim/actions/secrets/REGISTRY_PASSWORD" >/dev/null
-  curl ${curl_opts} -o /dev/null -w "%{http_code}" -X PUT \
+  curl "${curl_opts[@]}" -o /dev/null -w "%{http_code}" -X PUT \
     -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" \
     -H "Content-Type: application/json" \
     -d "{\"data\":\"${REGISTRY_HOST_INTERNAL}\"}" \
     "${GITEA_HTTP_HOST}/api/v1/repos/${GITEA_ADMIN_USER}/azure-auth-sim/actions/secrets/REGISTRY_HOST" >/dev/null
-  curl ${curl_opts} -o /dev/null -w "%{http_code}" -X PUT \
+  curl "${curl_opts[@]}" -o /dev/null -w "%{http_code}" -X PUT \
     -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" \
     -H "Content-Type: application/json" \
     -d "{\"data\":\"${ssh_key_b64}\"}" \
     "${GITEA_HTTP_HOST}/api/v1/repos/${GITEA_ADMIN_USER}/azure-auth-sim/actions/secrets/CHECKOUT_SSH_KEY_B64" >/dev/null
-  curl ${curl_opts} -o /dev/null -w "%{http_code}" -X PUT \
+  curl "${curl_opts[@]}" -o /dev/null -w "%{http_code}" -X PUT \
     -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" \
     -H "Content-Type: application/json" \
     -d "{\"data\":\"${known_hosts_b64}\"}" \
     "${GITEA_HTTP_HOST}/api/v1/repos/${GITEA_ADMIN_USER}/azure-auth-sim/actions/secrets/CHECKOUT_KNOWN_HOSTS_B64" >/dev/null
-  curl ${curl_opts} -o /dev/null -w "%{http_code}" -X PUT \
+  curl "${curl_opts[@]}" -o /dev/null -w "%{http_code}" -X PUT \
     -u "${GITEA_ADMIN_USER}:${GITEA_ADMIN_PASS}" \
     -H "Content-Type: application/json" \
     -d "{\"data\":\"${registry_ca_b64}\"}" \

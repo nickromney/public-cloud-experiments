@@ -1,0 +1,15 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: azure-auth-gateway-tls
+  namespace: azure-auth-gateway
+spec:
+  secretName: azure-auth-gateway-tls
+  issuerRef:
+    name: mkcert-ca
+    kind: ClusterIssuer
+  dnsNames:
+    - dev.127.0.0.1.sslip.io
+    - '*.dev.127.0.0.1.sslip.io'
+    - uat.127.0.0.1.sslip.io
+    - '*.uat.127.0.0.1.sslip.io'

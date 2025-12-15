@@ -169,6 +169,7 @@ rules:
   - clientsettingspolicies
   - observabilitypolicies
   - upstreamsettingspolicies
+  - snippetsfilters
   verbs:
   - list
   - watch
@@ -179,6 +180,7 @@ rules:
   - clientsettingspolicies/status
   - observabilitypolicies/status
   - upstreamsettingspolicies/status
+  - snippetsfilters/status
   verbs:
   - update
 - apiGroups:
@@ -285,6 +287,7 @@ spec:
         - --config=nginx-gateway-config
         - --service=nginx-gateway
         - --agent-tls-secret=agent-tls
+        - --snippets-filters
         - --metrics-port=9113
         - --health-port=8081
         - --leader-election-lock-name=nginx-gateway-leader-election

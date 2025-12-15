@@ -18,6 +18,8 @@ interface SubnetCalculatorProps {
 export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps) {
   const { user, isAuthenticated, isLoading: authLoading, login, logout, hasApiSession } = useAuth()
 
+  const stage = APP_CONFIG.deploymentStage
+
   const [ipAddress, setIpAddress] = useState('')
   const [cloudMode, setCloudMode] = useState<CloudMode>('Azure')
   const [isLoading, setIsLoading] = useState(false)
@@ -32,12 +34,16 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
 
   // Check API health when authentication state permits it
   useEffect(() => {
+    let cancelled = false
+
     const requiresSpaLogin = APP_CONFIG.auth.method === 'oidc' && !hasApiSession
     if (requiresSpaLogin) {
       setApiHealth(null)
       setApiError(null)
       setApiChecked(false)
-      return
+      return () => {
+        cancelled = true
+      }
     }
 
     const shouldCheckHealth = APP_CONFIG.auth.method === 'none' || isAuthenticated
@@ -45,29 +51,62 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
       setApiHealth(null)
       setApiError(null)
       setApiChecked(false)
-      return
-    }
-
-    const checkHealth = async () => {
-      try {
-        const health = await apiClient.checkHealth()
-        setApiHealth(health)
-        setApiError(null)
-        setApiChecked(true)
-      } catch (err) {
-        if (err instanceof Error && err.message.includes('401')) {
-          console.debug('API authentication required, waiting for user session')
-          setApiHealth(null)
-          setApiError(null)
-          setApiChecked(false)
-          return
-        }
-        setApiError(err instanceof Error ? err.message : 'API unavailable')
-        setApiChecked(true)
+      return () => {
+        cancelled = true
       }
     }
 
-    checkHealth()
+    const checkHealthWithRetry = async () => {
+      // First load after (re)deploy can be slow (image pulls / cold start).
+      // Retry a few times before surfacing an error.
+      const maxAttempts = 5
+      const baseDelayMs = 1000
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        if (cancelled) {
+          return
+        }
+
+        try {
+          const health = await apiClient.checkHealth()
+          if (cancelled) {
+            return
+          }
+          setApiHealth(health)
+          setApiError(null)
+          setApiChecked(true)
+          return
+        } catch (err) {
+          if (cancelled) {
+            return
+          }
+
+          if (err instanceof Error && err.message.includes('401')) {
+            console.debug('API authentication required, waiting for user session')
+            setApiHealth(null)
+            setApiError(null)
+            setApiChecked(false)
+            return
+          }
+
+          if (attempt === maxAttempts) {
+            setApiError(err instanceof Error ? err.message : 'API unavailable')
+            setApiChecked(true)
+            return
+          }
+
+          const delayMs = baseDelayMs * attempt
+          await new Promise(resolve => setTimeout(resolve, delayMs))
+        }
+      }
+    }
+
+    setApiChecked(false)
+    checkHealthWithRetry()
+
+    return () => {
+      cancelled = true
+    }
   }, [isAuthenticated, hasApiSession])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -109,6 +148,11 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
     <>
       {/* Top Bar - Fixed Position */}
       <div className="top-bar">
+        {stage !== 'UNKNOWN' && (
+          <div className={`stage-badge stage-badge--${stage.toLowerCase()}`} title={`Stage: ${stage}`}>
+            {stage}
+          </div>
+        )}
         <button id="theme-switcher" type="button" onClick={onToggleTheme}>
           <span id="theme-icon">{theme === 'dark' ? '☀️' : '🌙'}</span> Toggle Theme
         </button>
@@ -146,7 +190,8 @@ export function SubnetCalculator({ theme, onToggleTheme }: SubnetCalculatorProps
             <strong>Version:</strong> {apiHealth.version}
             <br />
             <small>
-              Frontend: <code>{window.location.origin}/</code> | Backend: <code>{apiClient.getBaseUrl()}</code>
+              Frontend: <code>{window.location.origin}/</code> | Backend:{' '}
+              <code>{apiClient.getBaseUrl() || window.location.origin}</code>
             </small>
           </div>
         )}

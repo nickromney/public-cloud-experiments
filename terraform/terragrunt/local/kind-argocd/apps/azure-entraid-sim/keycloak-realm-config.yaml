@@ -40,14 +40,28 @@ data:
           "redirectUris": [
             "http://localhost:3006/*",
             "http://localhost:3007/*",
+            "http://dev.127.0.0.1.sslip.io:3007/*",
+            "http://dev.127.0.0.1.sslip.io:3007/",
+            "http://dev.127.0.0.1.sslip.io:3007",
+            "https://dev.127.0.0.1.sslip.io:3007/*",
+            "https://dev.127.0.0.1.sslip.io:3007/",
+            "https://dev.127.0.0.1.sslip.io:3007",
             "http://localhost:3008/",
             "http://localhost:3008",
-            "http://localhost:3008/*"
+            "http://localhost:3008/*",
+            "http://uat.127.0.0.1.sslip.io:3008/*",
+            "http://uat.127.0.0.1.sslip.io:3008/",
+            "http://uat.127.0.0.1.sslip.io:3008",
+            "https://uat.127.0.0.1.sslip.io:3008/*",
+            "https://uat.127.0.0.1.sslip.io:3008/",
+            "https://uat.127.0.0.1.sslip.io:3008",
+            "https://subnetcalc.dev.127.0.0.1.sslip.io/*",
+            "https://subnetcalc.uat.127.0.0.1.sslip.io/*",
+            "https://*.dev.127.0.0.1.sslip.io/*",
+            "https://*.uat.127.0.0.1.sslip.io/*"
           ],
           "webOrigins": [
-            "http://localhost:3006",
-            "http://localhost:3007",
-            "http://localhost:3008"
+            "+"
           ],
           "fullScopeAllowed": true,
           "protocolMappers": [

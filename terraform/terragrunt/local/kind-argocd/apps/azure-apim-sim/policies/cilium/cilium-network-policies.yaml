@@ -9,14 +9,23 @@ spec:
       app.kubernetes.io/name: apim-simulator
       app.kubernetes.io/component: gateway
   ingress:
-    - fromEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: azure-auth-gateway-nginx
-            "k8s:io.kubernetes.pod.namespace": azure-auth-dev
+    - fromEntities:
+        - host
+        - remote-node
       toPorts:
         - ports:
             - port: "8000"
               protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: azure-auth-gateway-nginx
+            "k8s:io.kubernetes.pod.namespace": azure-auth-gateway
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+          authentication:
+            mode: required
     # Optional: external APIM gateway (if NGINX Gateway Fabric creates these pods)
     - fromEndpoints:
         - matchLabels:
@@ -31,11 +40,13 @@ spec:
         - matchLabels:
             app.kubernetes.io/name: api-fastapi-keycloak
             app.kubernetes.io/component: backend
-            "k8s:io.kubernetes.pod.namespace": azure-auth-dev
+            "k8s:io.kubernetes.pod.namespace": dev
       toPorts:
         - ports:
             - port: "80"
               protocol: TCP
+          authentication:
+            mode: required
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: keycloak
@@ -45,6 +56,8 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+          authentication:
+            mode: required
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system
@@ -70,24 +83,35 @@ spec:
       app.kubernetes.io/name: apim-simulator-uat
       app.kubernetes.io/component: gateway
   ingress:
-    - fromEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: azure-auth-gateway-nginx
-            "k8s:io.kubernetes.pod.namespace": azure-auth-uat
+    - fromEntities:
+        - host
+        - remote-node
       toPorts:
         - ports:
             - port: "8000"
               protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: azure-auth-gateway-nginx
+            "k8s:io.kubernetes.pod.namespace": azure-auth-gateway
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+          authentication:
+            mode: required
   egress:
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: api-fastapi-keycloak
             app.kubernetes.io/component: backend
-            "k8s:io.kubernetes.pod.namespace": azure-auth-uat
+            "k8s:io.kubernetes.pod.namespace": uat
       toPorts:
         - ports:
             - port: "80"
               protocol: TCP
+          authentication:
+            mode: required
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: keycloak
@@ -97,6 +121,8 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+          authentication:
+            mode: required
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system
@@ -129,6 +155,17 @@ spec:
             - port: "80"
               protocol: TCP
   egress:
+    # Allow NGINX Gateway Fabric data-plane to connect to the shared control-plane.
+    - toServices:
+        - k8sService:
+            namespace: nginx-gateway
+            serviceName: nginx-gateway
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+            - port: "8443"
+              protocol: TCP
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: apim-simulator

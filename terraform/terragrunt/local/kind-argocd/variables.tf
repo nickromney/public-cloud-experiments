@@ -37,6 +37,18 @@ variable "cilium_version" {
   default     = "1.18.4"
 }
 
+variable "cilium_enable_wireguard" {
+  description = "Enable Cilium WireGuard node-to-node encryption (can be unstable on kind; defaults off)."
+  type        = bool
+  default     = false
+}
+
+variable "enable_cilium_mesh_auth" {
+  description = "Enable Cilium mesh-auth (SPIRE-based mutual authentication). Disabled by default for local kind stability."
+  type        = bool
+  default     = false
+}
+
 variable "argocd_chart_version" {
   description = "Argo CD Helm chart version to install."
   type        = string
@@ -65,9 +77,15 @@ variable "azure_auth_namespaces" {
   description = "Namespaces for the azure auth simulation workload (Frontend + Backend API) per environment."
   type        = map(string)
   default = {
-    dev = "azure-auth-dev"
-    uat = "azure-auth-uat"
+    dev = "dev"
+    uat = "uat"
   }
+}
+
+variable "azure_auth_gateway_namespace" {
+  description = "Namespace for the shared Azure auth gateway (NGINX Gateway Fabric data plane + Service)."
+  type        = string
+  default     = "azure-auth-gateway"
 }
 
 variable "azure_entraid_namespace" {
@@ -109,7 +127,7 @@ variable "azure_auth_oauth2_proxy_node_port_uat" {
 variable "azure_auth_gateway_host_port" {
   description = "Host port to expose the azure auth simulation gateway (dev)."
   type        = number
-  default     = 3007
+  default     = 443
 }
 
 variable "azure_auth_gateway_host_port_uat" {
@@ -281,9 +299,10 @@ variable "gitea_admin_username" {
 }
 
 variable "gitea_admin_pwd" {
-  description = "Gitea admin password (local dev). Supply via TF_VAR_gitea_admin_pwd or terragrunt inputs; do not commit real credentials."
+  description = "Gitea admin password (local dev). Defaults to ChangeMe123! for local convenience; override via TF_VAR_gitea_admin_pwd if desired."
   type        = string
   sensitive   = true
+  default     = "ChangeMe123!"
 }
 
 variable "generate_repo_ssh_key" {
@@ -360,6 +379,12 @@ variable "enable_policies" {
     condition     = !var.enable_policies || var.enable_gitea
     error_message = "enable_policies requires enable_gitea to be true, as policies are sourced from the Gitea repository."
   }
+}
+
+variable "enable_victoria_metrics" {
+  description = "Enable VictoriaMetrics stack deployment via app-of-apps. Disabled by default to avoid overloading local kind control plane."
+  type        = bool
+  default     = false
 }
 
 variable "enable_actions_runner" {

@@ -23,17 +23,16 @@ spec:
           imagePullPolicy: IfNotPresent
           args:
             # OIDC Provider (Keycloak)
-            # Note: client-secret passed via OAUTH2_PROXY_CLIENT_SECRET env var
             - --provider=oidc
-            # Issuer/login must go through the Gateway (localhost:3007/realms/...)
-            - --oidc-issuer-url=http://localhost:3007/realms/subnet-calculator
+            # Issuer/login must go through the Gateway (dev endpoint)
+            - --oidc-issuer-url=https://subnetcalc.dev.127.0.0.1.sslip.io/realms/subnet-calculator
             - --client-id=frontend-app
-            - --redirect-url=http://localhost:3007/oauth2/callback
+            - --redirect-url=https://subnetcalc.dev.127.0.0.1.sslip.io/oauth2/callback
             - --code-challenge-method=S256
 
             # Skip discovery and pin endpoints to the Keycloak service (in azure-entraid-sim namespace)
             - --skip-oidc-discovery=true
-            - --login-url=http://localhost:3007/realms/subnet-calculator/protocol/openid-connect/auth
+            - --login-url=https://subnetcalc.dev.127.0.0.1.sslip.io/realms/subnet-calculator/protocol/openid-connect/auth
             - --redeem-url=http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/token
             - --oidc-jwks-url=http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
             - --validate-url=http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/userinfo
@@ -44,13 +43,16 @@ spec:
             # Listen address
             - --http-address=0.0.0.0:4180
 
-            # Cookie configuration (secret from azure-auth-secrets)
-            - --cookie-secure=false
+            # Cookie configuration
+            - --cookie-secure=true
             - --cookie-httponly=true
             - --cookie-expire=4h
             - --cookie-refresh=1h
-            - --cookie-name=_oauth2_proxy
+            - --cookie-name=_oauth2_proxy_dev
+            - --cookie-domain=.dev.127.0.0.1.sslip.io
+            - --whitelist-domain=.dev.127.0.0.1.sslip.io
             - --email-domain=*
+            - --cookie-secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 
             # Scopes and headers
             - --scope=openid user_impersonation
@@ -62,17 +64,6 @@ spec:
             - --standard-logging=true
             - --auth-logging=true
             - --request-logging=true
-          env:
-            - name: OAUTH2_PROXY_COOKIE_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: azure-auth-secrets
-                  key: oauth2-proxy-cookie-secret
-            - name: OAUTH2_PROXY_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: azure-auth-secrets
-                  key: oauth2-proxy-client-secret
           ports:
             - name: http
               containerPort: 4180

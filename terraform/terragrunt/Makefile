@@ -730,11 +730,23 @@ _exec-create:
 
 _exec-prereqs:
 	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		# TLS for sslip.io hostnames requires a locally-trusted CA (mkcert). \
+		if ! command -v mkcert >/dev/null 2>&1; then \
+			echo -e "$(YELLOW)❌ mkcert is required for local HTTPS (secure context / crypto.subtle) but was not found.$(NC)"; \
+			echo -e "$(CYAN)Install (macOS):$(NC) brew install mkcert"; \
+			echo -e "$(CYAN)Then run:$(NC) mkcert -install"; \
+			exit 1; \
+		fi; \
+		CAROOT=$$(mkcert -CAROOT); \
+		if [ ! -f "$$CAROOT/rootCA.pem" ] || [ ! -f "$$CAROOT/rootCA-key.pem" ]; then \
+			echo -e "$(YELLOW)❌ mkcert CA files not found under $$CAROOT (expected rootCA.pem + rootCA-key.pem).$(NC)"; \
+			echo -e "$(CYAN)Run:$(NC) mkcert -install"; \
+			exit 1; \
+		fi; \
 		set -euo pipefail; \
 		echo -e "$(CYAN)Checking external Gitea (expected at http://localhost:3000)...$(NC)"; \
 		if ! curl -sf -o /dev/null http://localhost:3000/api/healthz; then \
-			echo -e "$(YELLOW)❌ External Gitea is not reachable on http://localhost:3000. Start it manually and retry.$(NC)"; \
-			exit 1; \
+			echo -e "$(YELLOW)⚠ External Gitea is not reachable on http://localhost:3000; continuing.$(NC)"; \
 		fi; \
 		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
 		echo -e "$(CYAN)  Building + loading azure-auth-sim images into kind$(NC)"; \
@@ -761,24 +773,22 @@ _exec-prereqs:
 			--platform linux/amd64 \
 			-t localhost/subnet-calculator-frontend-react-protected:latest \
 			-f frontend-react/Dockerfile . \
-			--build-arg VITE_API_URL=http://localhost:3007/apim \
-			--build-arg VITE_API_PROXY_ENABLED=false \
+			--build-arg VITE_API_URL= \
+			--build-arg VITE_API_PROXY_ENABLED=true \
 			--build-arg VITE_AUTH_METHOD=oidc \
-			--build-arg VITE_OIDC_AUTHORITY=http://localhost:3007/realms/subnet-calculator \
 			--build-arg VITE_OIDC_CLIENT_ID=frontend-app \
-			--build-arg VITE_OIDC_REDIRECT_URI=http://localhost:3007 \
 			--build-arg VITE_APIM_SUBSCRIPTION_KEY=stack12-demo-key \
 			--build-arg VITE_OIDC_AUTO_LOGIN=true; \
-		if ! kind get clusters 2>/dev/null | grep -qx "kind-local"; then \
-			echo -e "$(YELLOW)❌ kind-local cluster not found. Run 'make local kind 100 apply AUTO_APPROVE=1' first.$(NC)"; \
-			exit 1; \
-		fi; \
 		echo -e "$(CYAN)Loading images into kind-local ...$(NC)"; \
-		kind load docker-image --name kind-local \
-			localhost/subnet-calculator-api-fastapi-keycloak:latest \
-			localhost/subnet-calculator-apim-simulator:latest \
-			localhost/subnet-calculator-frontend-react-protected:latest; \
-		echo -e "$(GREEN)✓ Images loaded into kind-local$(NC)"; \
+		if kind get clusters 2>/dev/null | grep -qx "kind-local"; then \
+			kind load docker-image --name kind-local \
+				localhost/subnet-calculator-api-fastapi-keycloak:latest \
+				localhost/subnet-calculator-apim-simulator:latest \
+				localhost/subnet-calculator-frontend-react-protected:latest; \
+			echo -e "$(GREEN)✓ Images loaded into kind-local$(NC)"; \
+		else \
+			echo -e "$(YELLOW)⚠ kind-local cluster not found; skipping kind image load (run again after stage 100 if needed).$(NC)"; \
+		fi; \
 	else \
 		echo -e "$(YELLOW)The 'prereqs' verb is only supported for local/kind$(NC)"; \
 		exit 1; \

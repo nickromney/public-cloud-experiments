@@ -50,6 +50,31 @@ export interface AppConfig {
   stackName: string
   apiProxyEnabled: boolean
   apimSubscriptionKey?: string
+  deploymentStage: DeploymentStage
+}
+
+export type DeploymentStage = 'DEV' | 'UAT' | 'LOCAL' | 'UNKNOWN'
+
+export function getDeploymentStage(hostname?: string): DeploymentStage {
+  if (typeof window === 'undefined') {
+    return 'UNKNOWN'
+  }
+
+  const host = (hostname ?? window.location.hostname).toLowerCase()
+
+  if (host === 'localhost' || host === '127.0.0.1') {
+    return 'LOCAL'
+  }
+
+  if (host.includes('.dev.')) {
+    return 'DEV'
+  }
+
+  if (host.includes('.uat.')) {
+    return 'UAT'
+  }
+
+  return 'UNKNOWN'
 }
 
 /**
@@ -177,6 +202,7 @@ export function getAppConfig(): AppConfig {
     stackName,
     apiProxyEnabled,
     apimSubscriptionKey,
+    deploymentStage: getDeploymentStage(),
   }
 }
 
@@ -232,12 +258,14 @@ export function getConfig(): AppConfig {
         oidcAuthority: window.RUNTIME_CONFIG?.OIDC_AUTHORITY ?? (import.meta.env.VITE_OIDC_AUTHORITY || ''),
         oidcClientId: window.RUNTIME_CONFIG?.OIDC_CLIENT_ID ?? (import.meta.env.VITE_OIDC_CLIENT_ID || ''),
         oidcRedirectUri:
-          window.RUNTIME_CONFIG?.OIDC_REDIRECT_URI ?? (import.meta.env.VITE_OIDC_REDIRECT_URI || window.location.origin),
+          window.RUNTIME_CONFIG?.OIDC_REDIRECT_URI ??
+          (import.meta.env.VITE_OIDC_REDIRECT_URI || window.location.origin),
         oidcAutoLogin,
       },
       stackName: `React + TypeScript + Vite${authSuffix}`,
       apiProxyEnabled,
       apimSubscriptionKey,
+      deploymentStage: getDeploymentStage(),
     }
   }
   return _cachedConfig

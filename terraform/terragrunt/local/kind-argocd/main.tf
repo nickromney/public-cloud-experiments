@@ -70,7 +70,9 @@ locals {
     var.enable_azure_auth_sim && var.use_external_gitea ? ["azure-auth-sim-internal.yaml"] : [],
     var.enable_azure_auth_sim && !var.use_external_gitea ? ["azure-auth-sim.yaml"] : [],
     # Skip runner for external Gitea (uses host runner via external build process) or if not enabled
-    !var.enable_actions_runner || var.use_external_gitea ? ["gitea-actions-runner.yaml", "gitea-actions-runner"] : []
+    !var.enable_actions_runner || var.use_external_gitea ? ["gitea-actions-runner.yaml", "gitea-actions-runner"] : [],
+    # Observability stacks can overload kind control plane; keep optional.
+    var.enable_victoria_metrics ? [] : ["_applications/victoria-metrics.yaml"]
   )
   apps_files = [
     for file in local.apps_files_all : file
@@ -130,15 +132,9 @@ locals {
     }
     ], var.enable_azure_auth_ports ? [
     {
-      name           = "azure-auth-sim-dev"
+      name           = "azure-auth-https"
       container_port = var.azure_auth_gateway_node_port
       host_port      = var.azure_auth_gateway_host_port
-      protocol       = "TCP"
-    },
-    {
-      name           = "azure-auth-sim-uat"
-      container_port = var.azure_auth_gateway_node_port_uat
-      host_port      = var.azure_auth_gateway_host_port_uat
       protocol       = "TCP"
     },
   ] : [])
@@ -167,6 +163,10 @@ locals {
   }
 
   cilium_values_base = {
+    cluster = {
+      name = var.cluster_name
+      id   = 0
+    }
     kubeProxyReplacement  = false
     routingMode           = "native"
     autoDirectNodeRoutes  = true
@@ -179,6 +179,38 @@ locals {
     }
     operator = {
       replicas = 1
+    }
+
+    # Mutual authentication (mTLS identity) + optional WireGuard encryption.
+    # WireGuard has proven flaky on kind (node-specific DNS/service timeouts), so keep it disabled by default.
+    encryption = {
+      enabled        = var.cilium_enable_wireguard
+      type           = "wireguard"
+      nodeEncryption = true
+    }
+
+    authentication = {
+      enabled = var.enable_cilium_mesh_auth
+      mutual = {
+        spire = {
+          enabled = var.enable_cilium_mesh_auth
+          install = {
+            enabled = var.enable_cilium_mesh_auth
+            server = {
+              securityContext = {
+                runAsUser  = 0
+                runAsGroup = 0
+              }
+            }
+            agent = {
+              securityContext = {
+                runAsUser  = 0
+                runAsGroup = 0
+              }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -212,9 +244,10 @@ locals {
     azure_auth_gateway_node_port     = var.azure_auth_gateway_node_port
     azure_auth_gateway_node_port_uat = var.azure_auth_gateway_node_port_uat
     # Multi-namespace architecture namespaces
-    azure_auth_namespaces   = var.azure_auth_namespaces
-    azure_entraid_namespace = var.azure_entraid_namespace
-    azure_apim_namespace    = var.azure_apim_namespace
+    azure_auth_namespaces        = var.azure_auth_namespaces
+    azure_auth_gateway_namespace = var.azure_auth_gateway_namespace
+    azure_entraid_namespace      = var.azure_entraid_namespace
+    azure_apim_namespace         = var.azure_apim_namespace
   }
 
   # Staging directory for generated app files
@@ -227,28 +260,26 @@ locals {
 
 resource "local_file" "app_azure_auth_sim_dev" {
   count    = var.enable_azure_auth_sim ? 1 : 0
-  filename = "${local.generated_apps_dir}/azure-auth-dev.yaml"
+  filename = "${local.generated_apps_dir}/azure-auth-sim-dev.yaml"
   content = templatefile("${path.module}/templates/apps/azure-auth-sim.yaml.tpl", merge(local.app_template_vars, {
-    env_name                     = "dev"
-    azure_auth_namespace         = lookup(var.azure_auth_namespaces, "dev", "azure-auth-dev")
-    azure_auth_gateway_node_port = var.azure_auth_gateway_node_port
-    azure_auth_gateway_host_port = var.azure_auth_gateway_host_port
-    oauth2_proxy_node_port       = var.azure_auth_oauth2_proxy_node_port
-    oauth2_proxy_host_port       = var.azure_auth_oauth2_proxy_host_port
+    env_name             = "dev"
+    azure_auth_namespace = lookup(var.azure_auth_namespaces, "dev", "dev")
   }))
 }
 
 resource "local_file" "app_azure_auth_sim_uat" {
   count    = var.enable_azure_auth_sim ? 1 : 0
-  filename = "${local.generated_apps_dir}/azure-auth-uat.yaml"
+  filename = "${local.generated_apps_dir}/azure-auth-sim-uat.yaml"
   content = templatefile("${path.module}/templates/apps/azure-auth-sim.yaml.tpl", merge(local.app_template_vars, {
-    env_name                     = "uat"
-    azure_auth_namespace         = lookup(var.azure_auth_namespaces, "uat", "azure-auth-uat")
-    azure_auth_gateway_node_port = var.azure_auth_gateway_node_port_uat
-    azure_auth_gateway_host_port = var.azure_auth_gateway_host_port_uat
-    oauth2_proxy_node_port       = var.azure_auth_oauth2_proxy_node_port_uat
-    oauth2_proxy_host_port       = var.azure_auth_oauth2_proxy_host_port_uat
+    env_name             = "uat"
+    azure_auth_namespace = lookup(var.azure_auth_namespaces, "uat", "uat")
   }))
+}
+
+resource "local_file" "app_azure_auth_gateway" {
+  count    = var.enable_azure_auth_sim ? 1 : 0
+  filename = "${local.generated_apps_dir}/azure-auth-gateway.yaml"
+  content  = templatefile("${path.module}/templates/apps/azure-auth-gateway.yaml.tpl", local.app_template_vars)
 }
 
 resource "local_file" "app_azure_entraid_sim" {
@@ -454,6 +485,42 @@ resource "local_sensitive_file" "kubeconfig" {
   depends_on           = [kind_cluster.local]
 }
 
+# If mkcert is installed on the host, automatically bootstrap the mkcert CA into the cluster.
+# This unblocks cert-manager's mkcert-ca ClusterIssuer so gateway TLS certs can be issued.
+resource "null_resource" "bootstrap_mkcert_ca" {
+  count = var.enable_azure_auth_ports ? 1 : 0
+
+  triggers = {
+    script_sha = filesha256(abspath("${path.module}/scripts/bootstrap-mkcert-ca.sh"))
+  }
+
+  provisioner "local-exec" {
+    command     = <<-EOT
+set -euo pipefail
+export KUBECONFIG=~/.kube/config
+
+if ! command -v mkcert >/dev/null 2>&1; then
+  echo "mkcert not found; skipping mkcert CA bootstrap" >&2
+  exit 0
+fi
+
+CAROOT="$(mkcert -CAROOT)"
+if [ ! -f "$CAROOT/rootCA.pem" ] || [ ! -f "$CAROOT/rootCA-key.pem" ]; then
+  echo "mkcert CA files not present under $CAROOT; run 'mkcert -install' then re-apply" >&2
+  exit 0
+fi
+
+bash "${path.module}/scripts/bootstrap-mkcert-ca.sh"
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+
+  depends_on = [
+    kind_cluster.local,
+    local_sensitive_file.kubeconfig
+  ]
+}
+
 resource "kubernetes_namespace" "gitea" {
   count = var.enable_namespaces && !var.use_external_gitea ? 1 : 0
 
@@ -481,6 +548,11 @@ resource "kubernetes_secret" "gitea_admin" {
   type = "Opaque"
 
   data = {
+    # The Gitea Helm chart's init flow expects these exact keys.
+    username = var.gitea_admin_username
+    password = var.gitea_admin_pwd
+
+    # Backwards-compatible key used by our Helm values.
     adminPwd = var.gitea_admin_pwd
   }
 
@@ -504,7 +576,7 @@ resource "kubernetes_namespace" "kyverno" {
 }
 
 resource "kubectl_manifest" "azure_auth_namespace" {
-  count = var.enable_azure_auth_sim ? length(var.azure_auth_namespaces) : 0
+  for_each = var.enable_azure_auth_sim ? var.azure_auth_namespaces : {}
 
   ignore_fields = [
     "metadata.annotations",
@@ -522,11 +594,51 @@ resource "kubectl_manifest" "azure_auth_namespace" {
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: ${element(values(var.azure_auth_namespaces), count.index)}
+  name: ${each.value}
+  labels:
+    app.kubernetes.io/part-of: azure-auth-sim
+    app.kubernetes.io/managed-by: terraform
+    environment: ${each.key}
+    azure-auth-gateway-access: "true"
+    kyverno.io/isolate: "true"
+EOF
+
+  wait              = true
+  validate_schema   = false
+  force_conflicts   = true
+  server_side_apply = true
+
+  depends_on = [
+    kind_cluster.local,
+    local_sensitive_file.kubeconfig
+  ]
+}
+
+resource "kubectl_manifest" "azure_auth_gateway_namespace" {
+  count = var.enable_azure_auth_sim ? 1 : 0
+
+  ignore_fields = [
+    "metadata.annotations",
+    "metadata.creationTimestamp",
+    "metadata.labels.kubernetes.io/metadata.name",
+    "metadata.labels.argocd.argoproj.io/instance",
+    "metadata.managedFields",
+    "metadata.resourceVersion",
+    "metadata.uid",
+    "spec.finalizers",
+    "status",
+  ]
+
+  yaml_body = <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${var.azure_auth_gateway_namespace}
   labels:
     app.kubernetes.io/part-of: azure-auth-sim
     app.kubernetes.io/managed-by: terraform
     kyverno.io/isolate: "true"
+    simulates: azure-auth-gateway
 EOF
 
   wait              = true
@@ -563,6 +675,7 @@ metadata:
   labels:
     app.kubernetes.io/part-of: azure-auth-sim
     app.kubernetes.io/managed-by: terraform
+    kyverno.io/isolate: "true"
     simulates: azure-entra-id
 EOF
 
@@ -600,6 +713,7 @@ metadata:
   labels:
     app.kubernetes.io/part-of: azure-auth-sim
     app.kubernetes.io/managed-by: terraform
+    kyverno.io/isolate: "true"
     simulates: azure-apim
 EOF
 
@@ -639,6 +753,12 @@ resource "helm_release" "cilium" {
   chart      = "cilium"
   version    = var.cilium_version
   namespace  = "kube-system"
+
+  wait            = true
+  wait_for_jobs   = true
+  atomic          = true
+  cleanup_on_fail = true
+  timeout         = 1800
 
   values = [yamlencode(local.cilium_values)]
 
@@ -680,14 +800,35 @@ resource "null_resource" "wait_for_gitea" {
     command     = <<EOT
 set -euo pipefail
 export KUBECONFIG=${var.kubeconfig_path}
-for i in {1..30}; do
-  if kubectl -n gitea get deploy/gitea >/dev/null 2>&1; then
+
+# Wait for ArgoCD to reconcile the Helm release (including dependency changes like valkey settings).
+# We cannot rely on a short Deployment rollout timeout here because ArgoCD may need to prune/create
+# dependent resources first.
+for i in {1..120}; do
+  if kubectl -n argocd get app gitea >/dev/null 2>&1; then
     break
   fi
-  echo "Waiting for gitea deployment to be created by Argo CD... (attempt $i)" >&2
+  echo "Waiting for ArgoCD Application 'gitea' to exist... (attempt $i/120)" >&2
+  sleep 5
+done
+
+for i in {1..180}; do
+  sync=$(kubectl -n argocd get app gitea -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "")
+  health=$(kubectl -n argocd get app gitea -o jsonpath='{.status.health.status}' 2>/dev/null || echo "")
+  if [ "$sync" = "Synced" ] && [ "$health" = "Healthy" ]; then
+    echo "ArgoCD app gitea is Synced/Healthy."
+    break
+  fi
+  msg=$(kubectl -n argocd get app gitea -o jsonpath='{.status.conditions[0].message}' 2>/dev/null || echo "")
+  echo "Waiting for ArgoCD app gitea... (attempt $i/180) sync=$sync health=$health $${msg}" >&2
+  # If ArgoCD is stuck in Unknown due to transient compare failures, force a hard refresh.
+  if [ "$sync" = "Unknown" ]; then
+    kubectl -n argocd annotate app gitea argocd.argoproj.io/refresh=hard --overwrite >/dev/null 2>&1 || true
+  fi
   sleep 10
 done
-kubectl -n gitea rollout status deploy/gitea --timeout=300s
+
+kubectl -n gitea rollout status deploy/gitea --timeout=900s
 EOT
     interpreter = ["/bin/bash", "-c"]
   }
@@ -723,11 +864,11 @@ resource "null_resource" "gitea_create_repo" {
     command     = <<EOT
 set -euo pipefail
 for i in {1..20}; do
-  status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X POST \
+  status=$(curl ${local.gitea_curl_insecure} -s --connect-timeout 2 --max-time 10 -o /dev/null -w "%%{http_code}" -X POST \
     -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
     -H "Content-Type: application/json" \
     -d '{"name":"policies","private":false,"default_branch":"main","auto_init":true,"description":"Policies for Cilium and Kyverno"}' \
-    ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/user/repos)
+    ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/user/repos || echo "000")
   if echo "$status" | grep -Eq "200|201|409"; then
     exit 0
   fi
@@ -754,11 +895,11 @@ resource "null_resource" "gitea_create_repo_azure_auth" {
     command     = <<EOT
 set -euo pipefail
 for i in {1..20}; do
-  status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X POST \
+  status=$(curl ${local.gitea_curl_insecure} -s --connect-timeout 2 --max-time 10 -o /dev/null -w "%%{http_code}" -X POST \
     -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
     -H "Content-Type: application/json" \
     -d '{"name":"azure-auth-sim","private":false,"default_branch":"main","auto_init":true,"description":"Azure auth simulation workloads (API/APIM simulator/frontend)"}' \
-    ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/user/repos)
+    ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/user/repos || echo "000")
   if echo "$status" | grep -Eq "200|201|409"; then
     exit 0
   fi
@@ -786,11 +927,11 @@ resource "null_resource" "gitea_add_deploy_key" {
     command     = <<EOT
 set -euo pipefail
 for i in {1..20}; do
-  status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X POST \
+  status=$(curl ${local.gitea_curl_insecure} -s --connect-timeout 2 --max-time 10 -o /dev/null -w "%%{http_code}" -X POST \
     -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
     -H "Content-Type: application/json" \
     -d '{"title":"argocd-repo-key","key":"${tls_private_key.gitea_repo[0].public_key_openssh}","read_only":false}' \
-    ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/policies/keys)
+    ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/policies/keys || echo "000")
   if echo "$status" | grep -Eq "200|201|409|422"; then
     exit 0
   fi
@@ -822,11 +963,11 @@ resource "null_resource" "gitea_add_deploy_key_azure_auth" {
     command     = <<EOT
 set -euo pipefail
 for i in {1..20}; do
-  status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X POST \
+  status=$(curl ${local.gitea_curl_insecure} -s --connect-timeout 2 --max-time 10 -o /dev/null -w "%%{http_code}" -X POST \
     -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
     -H "Content-Type: application/json" \
     -d '{"title":"azure-auth-repo-key","key":"${tls_private_key.gitea_repo_azure_auth[0].public_key_openssh}","read_only":false}' \
-    ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/azure-auth-sim/keys)
+    ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/azure-auth-sim/keys || echo "000")
   if echo "$status" | grep -Eq "200|201|409|422"; then
     exit 0
   fi
@@ -1036,7 +1177,8 @@ done
 shopt -u nullglob
 
 if [ "${var.enable_azure_auth_sim}" != "true" ]; then
-  rm -f "$TMP_DIR/apps/_applications/azure-auth-dev.yaml" "$TMP_DIR/apps/_applications/azure-auth-uat.yaml"
+  rm -f "$TMP_DIR/apps/_applications/azure-auth-sim-dev.yaml" "$TMP_DIR/apps/_applications/azure-auth-sim-uat.yaml"
+  rm -f "$TMP_DIR/apps/_applications/azure-auth-gateway.yaml"
   rm -f "$TMP_DIR/apps/_applications/azure-entraid-sim.yaml"
   rm -f "$TMP_DIR/apps/_applications/azure-apim-sim.yaml"
   rm -f "$TMP_DIR/apps/_applications/nginx-gateway-fabric.yaml"
@@ -1044,6 +1186,10 @@ fi
 if [ "${var.enable_actions_runner}" != "true" ] || [ "${var.use_external_gitea}" = "true" ]; then
   rm -f "$TMP_DIR/apps/_applications/gitea-actions-runner.yaml"
   rm -rf "$TMP_DIR/apps/gitea-actions-runner"
+fi
+
+if [ "${var.enable_victoria_metrics}" != "true" ]; then
+  rm -f "$TMP_DIR/apps/_applications/victoria-metrics.yaml"
 fi
 
     cp -r ${path.module}/cluster-policies "$TMP_DIR"/cluster-policies
@@ -1101,6 +1247,8 @@ resource "null_resource" "seed_gitea_repo_azure_auth" {
     repo_id    = null_resource.gitea_create_repo_azure_auth[0].id
     host_key   = md5(data.local_file.gitea_known_hosts[0].content)
     repo_files = local.azure_auth_repo_checksum
+    password   = md5(var.gitea_admin_pwd)
+    registry   = md5(local.gitea_registry_host)
   }
 
   provisioner "local-exec" {
@@ -1147,7 +1295,10 @@ EOT
     interpreter = ["/bin/bash", "-c"]
   }
 
-  depends_on = []
+  # Ensure repo secrets exist before the initial push triggers the Actions workflow.
+  depends_on = [
+    null_resource.gitea_azure_auth_repo_secrets_internal[0]
+  ]
 }
 
 # For external Gitea (not currently used - external build process handles this)
@@ -1168,11 +1319,11 @@ create_secret() {
   local name="$1"
   local value="$2"
   for i in {1..5}; do
-    status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X PUT \
+    status=$(curl ${local.gitea_curl_insecure} -s --connect-timeout 2 --max-time 10 -o /dev/null -w "%%{http_code}" -X PUT \
       -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
       -H "Content-Type: application/json" \
       -d "{\"data\":\"$${value}\"}" \
-      ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/azure-auth-sim/actions/secrets/$${name})
+      ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/azure-auth-sim/actions/secrets/$${name} || echo "000")
     if echo "$status" | grep -Eq "200|201|204"; then
       return 0
     fi
@@ -1234,12 +1385,11 @@ resource "kubernetes_secret" "argocd_repo_gitea" {
 }
 
 resource "kubernetes_secret" "azure_auth_registry_credentials" {
-  count = var.enable_azure_auth_sim ? length(var.azure_auth_namespaces) : 0
-
+  for_each = var.enable_azure_auth_sim ? var.azure_auth_namespaces : {}
 
   metadata {
     name      = "gitea-registry-creds"
-    namespace = element(values(var.azure_auth_namespaces), count.index)
+    namespace = each.value
   }
 
   data = {
@@ -1322,10 +1472,11 @@ resource "null_resource" "gitea_add_user_ssh_key" {
     command     = <<EOT
 set -euo pipefail
 # Create API credential for calls (basic auth doesn't work for /user/keys)
-ACCESS=$(curl ${local.gitea_curl_insecure} -s -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" -X POST \
+ACCESS=$(curl ${local.gitea_curl_insecure} -s --connect-timeout 2 --max-time 10 -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" -X POST \
   -H "Content-Type: application/json" \
   -d "{\"name\":\"argocd-ssh-key-$(date +%s)\",\"scopes\":[\"write:user\"]}" \
-  ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/users/${var.gitea_admin_username}/tokens | jq -r '.sha1 // empty')
+  ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/users/${var.gitea_admin_username}/tokens 2>/dev/null || echo '{}')
+ACCESS=$(echo "$ACCESS" | jq -r '.sha1 // empty')
 if [ -z "$ACCESS" ]; then
   echo "Failed to create API credential" >&2
   exit 1
@@ -1334,11 +1485,11 @@ fi
 AUTH_PREFIX=token
 AUTH_HEADER="Authorization: $AUTH_PREFIX $ACCESS"
 for i in {1..10}; do
-  status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X POST \
+  status=$(curl ${local.gitea_curl_insecure} -s --connect-timeout 2 --max-time 10 -o /dev/null -w "%%{http_code}" -X POST \
     -H "$AUTH_HEADER" \
     -H "Content-Type: application/json" \
     -d '{"title":"argocd-terraform-key","key":"${chomp(tls_private_key.argocd_repo[0].public_key_openssh)}"}' \
-    ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/user/keys)
+    ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/user/keys || echo "000")
   if echo "$status" | grep -Eq "200|201|422"; then
     exit 0
   fi
@@ -1388,10 +1539,20 @@ spec:
           enabled: true
         postgresql-ha:
           enabled: false
+        # Valkey cluster tends to flap / split-brain on kind which can crash Gitea on startup.
+        # Use standalone Valkey for a reliable local dev experience.
+        valkey-cluster:
+          enabled: false
+        valkey:
+          enabled: true
+          architecture: standalone
+          global:
+            valkey:
+              password: changeme
         gitea:
           admin:
             existingSecret: gitea-admin-secret
-            passwordKey: adminPwd
+            passwordKey: password
             username: ${var.gitea_admin_username}
             email: "admin@gitea.local"
           config:
@@ -1549,8 +1710,9 @@ resource "null_resource" "gitea_runner_token" {
 set -euo pipefail
 mkdir -p "${path.module}/.run"
 for i in {1..20}; do
-  token=$(curl ${local.gitea_curl_insecure} -s -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" -X POST \
-    "${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/admin/actions/runners/registration-token" | jq -r '.token // empty')
+  resp=$(curl ${local.gitea_curl_insecure} -s --connect-timeout 2 --max-time 10 -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" -X POST \
+    "${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/admin/actions/runners/registration-token" 2>/dev/null || echo '{}')
+  token=$(echo "$resp" | jq -r '.token // empty')
   if [ -n "$token" ]; then
     echo -n "$token" > "${path.module}/.run/runner_reg_code"
     exit 0
@@ -1611,11 +1773,11 @@ create_secret() {
   local name="$1"
   local value="$2"
   for i in {1..5}; do
-    status=$(curl ${local.gitea_curl_insecure} -s -o /dev/null -w "%%{http_code}" -X PUT \
+    status=$(curl ${local.gitea_curl_insecure} -s --connect-timeout 2 --max-time 10 -o /dev/null -w "%%{http_code}" -X PUT \
       -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
       -H "Content-Type: application/json" \
       -d "{\"data\":\"$${value}\"}" \
-      ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/azure-auth-sim/actions/secrets/$${name})
+      ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/azure-auth-sim/actions/secrets/$${name} || echo "000")
     if echo "$status" | grep -Eq "200|201|204"; then
       return 0
     fi

@@ -12,6 +12,8 @@ locals {
 inputs = {
   cluster_name          = "kind-local"
   worker_count          = 4
+  # Keep Kind nodes on the host-native architecture (arm64 on Apple Silicon).
+  # The local setup relies on Docker's emulation/compat mode when running amd64-only images.
   node_image            = "kindest/node:v1.34.0"
   kind_config_path      = "${get_terragrunt_dir()}/kind-config.yaml"
   kubeconfig_path       = pathexpand("~/.kube/config")
@@ -46,14 +48,15 @@ inputs = {
   # Keep ports enabled to avoid Kind cluster replacement when later enabling azure-auth-sim.
   enable_azure_auth_ports      = true
   azure_auth_namespaces = {
-    dev = "azure-auth-dev"
-    uat = "azure-auth-uat"
+    dev = "dev"
+    uat = "uat"
   }
+  azure_auth_gateway_namespace = "azure-auth-gateway"
   azure_auth_oauth2_proxy_host_port = 3007
   azure_auth_oauth2_proxy_node_port = 30075
   azure_auth_oauth2_proxy_host_port_uat = 3008
   azure_auth_oauth2_proxy_node_port_uat = 30076
-  azure_auth_gateway_host_port       = 3007
+  azure_auth_gateway_host_port       = 443
   azure_auth_gateway_host_port_uat   = 3008
   azure_auth_gateway_node_port       = 30070
   azure_auth_gateway_node_port_uat   = 30071

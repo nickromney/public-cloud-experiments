@@ -6,3 +6,4 @@ metadata:
     app.kubernetes.io/part-of: azure-auth-sim
     app.kubernetes.io/managed-by: argocd
     simulates: azure-entra-id
+    kyverno.io/isolate: "true"

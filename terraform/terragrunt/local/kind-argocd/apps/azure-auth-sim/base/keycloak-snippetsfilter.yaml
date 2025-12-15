@@ -1,0 +1,16 @@
+apiVersion: gateway.nginx.org/v1alpha1
+kind: SnippetsFilter
+metadata:
+  name: keycloak-hostport
+  labels:
+    app.kubernetes.io/name: azure-auth-gateway
+spec:
+  snippets:
+    - context: http.server.location
+      value: |
+        set $proxy_forwarded_port $server_port;
+        if ($http_host ~* ":(\\d+)$") { set $proxy_forwarded_port $1; }
+
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Port $proxy_forwarded_port;

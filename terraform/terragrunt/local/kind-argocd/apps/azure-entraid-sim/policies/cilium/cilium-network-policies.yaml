@@ -9,34 +9,45 @@ spec:
       app.kubernetes.io/name: keycloak
       app.kubernetes.io/component: identity
   ingress:
+    - fromEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
     # OAuth2 proxy (dev/uat)
     - fromEndpoints:
         - matchLabels:
             app.kubernetes.io/name: oauth2-proxy-frontend
             app.kubernetes.io/component: auth-proxy
-            "k8s:io.kubernetes.pod.namespace": azure-auth-dev
+            "k8s:io.kubernetes.pod.namespace": dev
         - matchLabels:
             app.kubernetes.io/name: oauth2-proxy-frontend
             app.kubernetes.io/component: auth-proxy
-            "k8s:io.kubernetes.pod.namespace": azure-auth-uat
+            "k8s:io.kubernetes.pod.namespace": uat
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
+          authentication:
+            mode: required
     # Backend API (dev/uat)
     - fromEndpoints:
         - matchLabels:
             app.kubernetes.io/name: api-fastapi-keycloak
             app.kubernetes.io/component: backend
-            "k8s:io.kubernetes.pod.namespace": azure-auth-dev
+            "k8s:io.kubernetes.pod.namespace": dev
         - matchLabels:
             app.kubernetes.io/name: api-fastapi-keycloak
             app.kubernetes.io/component: backend
-            "k8s:io.kubernetes.pod.namespace": azure-auth-uat
+            "k8s:io.kubernetes.pod.namespace": uat
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
+          authentication:
+            mode: required
     # APIM simulator (dev/uat)
     - fromEndpoints:
         - matchLabels:
@@ -51,18 +62,19 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+          authentication:
+            mode: required
     # NGINX Gateway data plane (dev/uat) for /realms and /resources (browser -> gateway -> keycloak)
     - fromEndpoints:
         - matchLabels:
             app.kubernetes.io/name: azure-auth-gateway-nginx
-            "k8s:io.kubernetes.pod.namespace": azure-auth-dev
-        - matchLabels:
-            app.kubernetes.io/name: azure-auth-gateway-nginx
-            "k8s:io.kubernetes.pod.namespace": azure-auth-uat
+            "k8s:io.kubernetes.pod.namespace": azure-auth-gateway
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
+          authentication:
+            mode: required
   egress:
     - toEndpoints:
         - matchLabels:
@@ -74,6 +86,3 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    - toEntities:
-        - kube-apiserver
-        - host

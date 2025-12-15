@@ -1,0 +1,18 @@
+apiVersion: gateway.nginx.org/v1alpha2
+kind: NginxProxy
+metadata:
+  name: azure-auth-gateway-proxy-config
+  labels:
+    app.kubernetes.io/name: azure-auth-gateway-proxy-config
+spec:
+  kubernetes:
+    service:
+      type: NodePort
+      # Map the Gateway listener port 443 to a fixed NodePort so Kind can expose it on a host port via extraPortMappings.
+      nodePorts:
+        - listenerPort: 443
+          port: 30070
+      # IMPORTANT for Kind: traffic enters on the control-plane node (extraPortMappings),
+      # but the gateway Pod may schedule onto a worker node.
+      # With externalTrafficPolicy=Local, the control-plane NodePort will blackhole connections.
+      externalTrafficPolicy: Cluster

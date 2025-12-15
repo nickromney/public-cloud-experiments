@@ -5,9 +5,9 @@ resources:
   - api-service.yaml
   - frontend-deployment.yaml
   - frontend-service.yaml
-  - gateway-service.yaml
   - oauth2-proxy-deployment.yaml
   - oauth2-proxy-service.yaml
-  - gateway.yaml
+  - keycloak-snippetsfilter.yaml
+  - http-to-https-snippetsfilter.yaml
   - policies/cilium/cilium-network-policies.yaml
-  - ../secrets.yaml
+  - config.yaml
