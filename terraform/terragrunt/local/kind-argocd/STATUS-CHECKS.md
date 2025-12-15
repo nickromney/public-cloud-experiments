@@ -92,20 +92,22 @@ kubectl get app -n argocd cilium-policies kyverno-policies
 
 ```bash
 # Check all pods in namespaces
-kubectl get pods -n azure-auth-dev
-kubectl get pods -n azure-auth-uat
+kubectl get pods -n dev
+kubectl get pods -n uat
+kubectl get pods -n azure-auth-gateway
 
 # Check services and NodePorts
-kubectl get svc -n azure-auth-dev
-kubectl get svc -n azure-auth-uat
+kubectl get svc -n dev
+kubectl get svc -n uat
+kubectl get svc -n azure-auth-gateway
 
 # Test endpoints (Gateway Fabric exposes the oauth2-proxy/front end only)
-curl -sI http://localhost:3007 --max-time 5   # Dev
-curl -sI http://localhost:3008 --max-time 5   # UAT
+curl -skI https://subnetcalc.dev.127.0.0.1.sslip.io/ --max-time 5
+curl -skI https://subnetcalc.uat.127.0.0.1.sslip.io/ --max-time 5
 # To inspect the backend services directly, port-forward the desired service:
 # kubectl -n azure-entraid-sim port-forward svc/keycloak 8080:8080
 # kubectl -n azure-apim-sim port-forward svc/apim-simulator 8000:8000
-# kubectl -n azure-auth-dev port-forward svc/api-fastapi-keycloak 80:80
+# kubectl -n dev port-forward svc/api-fastapi-keycloak 80:80
 ```
 
 ### Gitea Actions Runner
@@ -182,7 +184,7 @@ kubectl rollout restart deployment/apim-simulator -n azure-auth-sim
 
 ### Checking Build Status in Gitea
 
-Visit http://localhost:30090/gitea-admin/azure-auth-sim/actions
+Visit <http://localhost:30090/gitea-admin/azure-auth-sim/actions>
 
 ## Troubleshooting
 
