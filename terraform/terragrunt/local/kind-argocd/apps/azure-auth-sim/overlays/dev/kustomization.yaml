@@ -4,3 +4,31 @@ namespace: dev
 resources:
   - ../../base
   - route-subnetcalc.yaml
+patches:
+  - target:
+      group: cilium.io
+      version: v2
+      kind: CiliumNetworkPolicy
+      name: azure-auth-oauth2-proxy
+    patch: |-
+      - op: add
+        path: /spec/egress/0/toEndpoints/0/matchLabels/k8s:io.kubernetes.pod.namespace
+        value: dev
+  - target:
+      group: cilium.io
+      version: v2
+      kind: CiliumNetworkPolicy
+      name: azure-auth-frontend
+    patch: |-
+      - op: add
+        path: /spec/ingress/1/fromEndpoints/0/matchLabels/k8s:io.kubernetes.pod.namespace
+        value: dev
+  - target:
+      group: cilium.io
+      version: v2
+      kind: CiliumNetworkPolicy
+      name: azure-auth-api
+    patch: |-
+      - op: add
+        path: /spec/ingress/1/fromEndpoints/0/matchLabels/k8s:io.kubernetes.pod.namespace
+        value: dev

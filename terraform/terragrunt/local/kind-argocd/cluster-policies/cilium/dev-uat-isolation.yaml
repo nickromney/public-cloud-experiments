@@ -1,0 +1,36 @@
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: deny-dev-to-uat
+spec:
+  description: Hard isolation between dev and uat namespaces (deny dev -> uat).
+  endpointSelector:
+    matchLabels:
+      "k8s:io.kubernetes.pod.namespace": dev
+  egressDeny:
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": uat
+  ingressDeny:
+    - fromEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": uat
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: deny-uat-to-dev
+spec:
+  description: Hard isolation between dev and uat namespaces (deny uat -> dev).
+  endpointSelector:
+    matchLabels:
+      "k8s:io.kubernetes.pod.namespace": uat
+  egressDeny:
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": dev
+  ingressDeny:
+    - fromEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": dev

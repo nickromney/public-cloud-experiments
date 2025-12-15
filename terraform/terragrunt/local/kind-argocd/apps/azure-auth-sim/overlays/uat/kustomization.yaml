@@ -8,3 +8,30 @@ patches:
   - path: api-deployment-patch.yaml
   - path: frontend-deployment-patch.yaml
   - path: oauth2-proxy-deployment-patch.yaml
+  - target:
+      group: cilium.io
+      version: v2
+      kind: CiliumNetworkPolicy
+      name: azure-auth-oauth2-proxy
+    patch: |-
+      - op: add
+        path: /spec/egress/0/toEndpoints/0/matchLabels/k8s:io.kubernetes.pod.namespace
+        value: uat
+  - target:
+      group: cilium.io
+      version: v2
+      kind: CiliumNetworkPolicy
+      name: azure-auth-frontend
+    patch: |-
+      - op: add
+        path: /spec/ingress/1/fromEndpoints/0/matchLabels/k8s:io.kubernetes.pod.namespace
+        value: uat
+  - target:
+      group: cilium.io
+      version: v2
+      kind: CiliumNetworkPolicy
+      name: azure-auth-api
+    patch: |-
+      - op: add
+        path: /spec/ingress/1/fromEndpoints/0/matchLabels/k8s:io.kubernetes.pod.namespace
+        value: uat

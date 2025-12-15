@@ -141,6 +141,14 @@ locals {
   ] : [])
 
   argocd_values = {
+    configs = {
+      cm = {
+        url = "https://argocd.127.0.0.1.sslip.io"
+      }
+      params = {
+        "server.insecure" = true
+      }
+    }
     controller = {
       replicas = 1
     }
@@ -329,6 +337,12 @@ resource "local_file" "app_nginx_gateway_fabric" {
   count    = var.enable_azure_auth_sim ? 1 : 0
   filename = "${local.generated_apps_dir}/nginx-gateway-fabric.yaml"
   content  = templatefile("${path.module}/templates/apps/nginx-gateway-fabric.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "app_platform_gateway_routes" {
+  count    = var.enable_azure_auth_sim ? 1 : 0
+  filename = "${local.generated_apps_dir}/platform-gateway-routes.yaml"
+  content  = templatefile("${path.module}/templates/apps/platform-gateway-routes.yaml.tpl", local.app_template_vars)
 }
 
 # Azure Auth Sim deployment files
@@ -1152,6 +1166,7 @@ resource "null_resource" "seed_gitea_repo" {
       var.enable_actions_runner && !var.use_external_gitea ? local_file.app_gitea_actions_runner[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_nginx_gateway_fabric[0].content : "",
       var.enable_azure_auth_sim ? local_file.nginx_gateway_fabric_deploy[0].content : "",
+      var.enable_azure_auth_sim ? local_file.app_platform_gateway_routes[0].content : "",
       "",
     ]))
   }
@@ -1192,6 +1207,7 @@ if [ "${var.enable_azure_auth_sim}" != "true" ]; then
   rm -f "$TMP_DIR/apps/_applications/azure-entraid-sim.yaml"
   rm -f "$TMP_DIR/apps/_applications/azure-apim-sim.yaml"
   rm -f "$TMP_DIR/apps/_applications/nginx-gateway-fabric.yaml"
+  rm -f "$TMP_DIR/apps/_applications/platform-gateway-routes.yaml"
 fi
 if [ "${var.enable_actions_runner}" != "true" ] || [ "${var.use_external_gitea}" = "true" ]; then
   rm -f "$TMP_DIR/apps/_applications/gitea-actions-runner.yaml"
@@ -1255,6 +1271,7 @@ EOT
     local_file.app_gitea_actions_runner,
     local_file.app_nginx_gateway_fabric,
     local_file.nginx_gateway_fabric_deploy,
+    local_file.app_platform_gateway_routes,
   ]
 }
 

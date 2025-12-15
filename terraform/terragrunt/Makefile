@@ -139,6 +139,8 @@ help:
 	@echo -e "  make subnet-calc react-easyauth-e2e 100 apply           # Apply stage 100"
 	@echo -e "  make subnet-calc react-easyauth-e2e 200 apply AUTO_APPROVE=1"
 	@echo -e "  make subnet-calc react-easyauth-e2e 400 plan            # Use stages/400-all.tfvars"
+	@echo -e ""
+	@echo -e "$(YELLOW)Local kind: staged deployments$(NC)"
 	@echo -e "  make local kind 100 apply AUTO_APPROVE=1                # Stage 100: Kind cluster"
 	@echo -e "  make local kind 200 apply AUTO_APPROVE=1                # Stage 200: Cilium CNI"
 	@echo -e "  make local kind 300 apply AUTO_APPROVE=1                # Stage 300: Hubble UI"
@@ -146,8 +148,16 @@ help:
 	@echo -e "  make local kind 500 apply AUTO_APPROVE=1                # Stage 500: Gitea (in-cluster)"
 	@echo -e "  make local kind 600 apply AUTO_APPROVE=1                # Stage 600: Policies (Cilium + Kyverno)"
 	@echo -e "  make local kind 700 apply AUTO_APPROVE=1                # Stage 700: Azure auth sim"
-	@echo -e "  make local kind reset                                  # Delete cluster, state, and caches"
-	@echo -e "  make local kind reset AUTO_APPROVE=1                   # Same, without confirmation prompt"
+	@echo -e ""
+	@echo -e "$(YELLOW)Local kind: utilities$(NC)"
+	@echo -e "  make local kind check-health                                      # Post-stage health checks"
+	@echo -e "  make local kind create                                            # Create kind cluster (manual, stage 100 is preferred)"
+	@echo -e "  make local kind gitea-sync                                        # Sync policies + apps to local Gitea (default: --all)"
+	@echo -e "  make local kind gitea-sync GITEA_SYNC_ARGS=\"--azure-auth-sim\"       # Only azure-auth-sim repo"
+	@echo -e "  make local kind gitea-sync GITEA_SYNC_ARGS=\"--policies\"             # Only policies repo"
+	@echo -e "  make local kind prereqs                                           # (Optional) Build/load images, mkcert checks"
+	@echo -e "  make local kind reset                                             # Delete cluster, state, and caches"
+	@echo -e "  make local kind reset AUTO_APPROVE=1                              # Same, without confirmation prompt"
 	@echo -e ""
 	@echo -e "$(YELLOW)Advanced Options:$(NC)"
 	@echo -e "  make subnet-calc react-apim plan VAR_FILE=stages/200-create-observability.tfvars"
@@ -167,8 +177,6 @@ help:
 	@echo -e "  make fmt                      Format all Terraform files"
 	@echo -e "  make lint                     Run tflint on all stacks"
 	@echo -e "  make test                     Run Terraform tests (.tftest.hcl)"
-	@echo -e "  make local kind gitea-sync    Sync Argo paths to local Gitea (default: --all; override with GITEA_SYNC_ARGS=\"--policies\" or \"--azure-auth-sim\")"
-	@echo -e "  make local kind check-health  Run kubectl-based post-stage-700 health checks"
 	@echo -e "  make secure-app-plan          Plan secure-app/dev/uksouth stack"
 	@echo -e "  make secure-app-apply         Apply secure-app/dev/uksouth stack"
 	@echo -e "  make secure-app-destroy       Destroy secure-app/dev/uksouth stack"
@@ -374,7 +382,16 @@ deploy show get unlock:
 # Internal routing target
 .PHONY: _route
 _route:
-	@if [ -z "$(STACK)" ] || [ -z "$(VERB)" ]; then \
+	@if [ -z "$(STACK)" ]; then \
+		echo -e "$(YELLOW)Usage: make $(PROJECT) <stack> <verb> [component]$(NC)"; \
+		echo -e "Run 'make help' for details"; \
+		exit 1; \
+	fi
+	@if [ -z "$(VERB)" ]; then \
+		if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+			$(MAKE) --no-print-directory help-local-kind; \
+			exit 0; \
+		fi; \
 		echo -e "$(YELLOW)Usage: make $(PROJECT) <stack> <verb> [component]$(NC)"; \
 		echo -e "Run 'make help' for details"; \
 		exit 1; \
@@ -400,6 +417,28 @@ _route:
 		exit 1; \
 	}; \
 	$(MAKE) --no-print-directory _exec-$(VERB) STACK_DIR=$$STACK_DIR COMPONENT=$(COMPONENT)
+
+.PHONY: help-local-kind
+help-local-kind:
+	@echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo -e "$(CYAN)  local/kind commands$(NC)"
+	@echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo -e ""
+	@echo -e "$(YELLOW)Staged deployments:$(NC)"
+	@echo -e "  make local kind 100 apply AUTO_APPROVE=1                # Kind cluster"
+	@echo -e "  make local kind 200 apply AUTO_APPROVE=1                # Cilium CNI"
+	@echo -e "  make local kind 300 apply AUTO_APPROVE=1                # Hubble UI"
+	@echo -e "  make local kind 400 apply AUTO_APPROVE=1                # Argo CD + namespaces"
+	@echo -e "  make local kind 500 apply AUTO_APPROVE=1                # Gitea (in-cluster)"
+	@echo -e "  make local kind 600 apply AUTO_APPROVE=1                # Policies (Cilium + Kyverno)"
+	@echo -e "  make local kind 700 apply AUTO_APPROVE=1                # Azure auth sim"
+	@echo -e ""
+	@echo -e "$(YELLOW)Utilities:$(NC)"
+	@echo -e "  make local kind check-health                                      # kubectl-based health checks"
+	@echo -e "  make local kind create                                            # Manual kind create (stage 100 preferred)"
+	@echo -e "  make local kind gitea-sync                                        # Sync to Gitea (default: --all)"
+	@echo -e "  make local kind prereqs                                           # Optional prereqs (mkcert, images, etc.)"
+	@echo -e "  make local kind reset [AUTO_APPROVE=1]                            # Reset local kind environment"
 
 # Infrastructure lifecycle verbs
 .PHONY: _exec-init _exec-plan _exec-apply _exec-destroy _exec-validate _exec-output _exec-gitea-sync

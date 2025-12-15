@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - mkcert-ca-clusterissuer.yaml
   - azure-auth-gateway-cert.yaml
+  - platform-gateway-cert.yaml
