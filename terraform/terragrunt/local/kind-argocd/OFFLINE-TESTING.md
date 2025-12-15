@@ -216,11 +216,11 @@ These ports are exposed from the kind cluster to localhost:
 
 | Service | Port | URL |
 |---------|------|-----|
-| ArgoCD UI | 30080 | http://localhost:30080 |
-| Gitea HTTP | 30090 | http://localhost:30090 |
+| ArgoCD UI | 30080 | <http://localhost:30080> |
+| Gitea HTTP | 30090 | <http://localhost:30090> |
 | Gitea SSH | 30022 | ssh://git@localhost:30022 |
-| Hubble UI | 31235 | http://localhost:31235 |
-| Stack 12 OAuth2 Proxy entry (via NGINX Gateway Fabric) | 3007 | http://localhost:3007 |
+| Hubble UI | 31235 | <http://localhost:31235> |
+| Stack 12 OAuth2 Proxy entry (via NGINX Gateway Fabric) | 3007 | <http://localhost:3007> |
 
 Keycloak, the APIM simulator, and the FastAPI backend remain cluster-internal; port-forward the services when you need to hit them directly (e.g., `kubectl -n azure-auth-sim port-forward svc/keycloak 8080:8080`).
 

@@ -4,8 +4,8 @@
  */
 
 import type { UserInfo } from '@subnet-calculator/shared-frontend'
-import { type ReactNode, createContext, useContext, useEffect, useRef, useState } from 'react'
-import { UserManager, WebStorageStateStore } from 'oidc-client-ts'
+import { type User as OidcUser, UserManager, WebStorageStateStore } from 'oidc-client-ts'
+import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from 'react'
 import { APP_CONFIG } from '../config'
 
 // Constants
@@ -28,9 +28,7 @@ let userManager: UserManager | null = null
 function getUserManager(): UserManager {
   if (!userManager) {
     const authorityFromConfig = APP_CONFIG.auth.oidcAuthority
-    const authority =
-      authorityFromConfig ||
-      (window.location.hostname === 'localhost' ? `${window.location.origin}/realms/subnet-calculator` : '')
+    const authority = authorityFromConfig || `${window.location.origin}/realms/subnet-calculator`
     const clientId = APP_CONFIG.auth.oidcClientId
     const redirectUri = APP_CONFIG.auth.oidcRedirectUri || window.location.origin
 
@@ -77,7 +75,7 @@ export function OidcAuthProvider({ children }: { children: ReactNode }) {
         const manager = getUserManager()
         let authenticated = false
 
-        const setUserFromOidc = (oidcUser: any) => {
+        const setUserFromOidc = (oidcUser: OidcUser) => {
           setIsAuthenticated(true)
           setUser({
             name: oidcUser.profile.name || oidcUser.profile.preferred_username || 'Unknown',

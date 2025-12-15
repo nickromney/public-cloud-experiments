@@ -1,0 +1,123 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-gateway
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: azure-auth-gateway-nginx
+  ingress:
+    # Fully open during validation to ensure kubelet/NodePort and control-plane access works
+    - fromEntities:
+        - world
+        - cluster
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+            - port: "8443"
+              protocol: TCP
+    - fromEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+            - port: "8443"
+              protocol: TCP
+    - fromEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+  egress:
+    # Fully open during validation to ensure dataplane can reach control-plane and kube-apiserver
+    - toEntities:
+        - world
+        - cluster
+        - host
+        - remote-node
+        - kube-apiserver
+    # Control-plane service for NGINX Gateway Fabric
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: nginx-gateway
+            "k8s:io.kubernetes.pod.namespace": nginx-gateway
+      toPorts:
+        - ports:
+            - port: "8443"
+              protocol: TCP
+    - toServices:
+        - k8sService:
+            namespace: nginx-gateway
+            serviceName: nginx-gateway
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+            - port: "8443"
+              protocol: TCP
+
+    # OAuth2 Proxy (dev/uat)
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: oauth2-proxy-frontend
+            app.kubernetes.io/component: auth-proxy
+            "k8s:io.kubernetes.pod.namespace": dev
+        - matchLabels:
+            app.kubernetes.io/name: oauth2-proxy-frontend
+            app.kubernetes.io/component: auth-proxy
+            "k8s:io.kubernetes.pod.namespace": uat
+      toPorts:
+        - ports:
+            - port: "4180"
+              protocol: TCP
+          authentication:
+            mode: required
+
+    # Keycloak (shared)
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: keycloak
+            app.kubernetes.io/component: identity
+            "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+          authentication:
+            mode: required
+
+    # APIM simulators (shared)
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: apim-simulator
+            app.kubernetes.io/component: gateway
+            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
+        - matchLabels:
+            app.kubernetes.io/name: apim-simulator-uat
+            app.kubernetes.io/component: gateway
+            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+          authentication:
+            mode: required
+
+    # DNS
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP

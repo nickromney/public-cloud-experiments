@@ -65,6 +65,12 @@ Environment:
                         Set 0 to drop azure-auth-sim/entraid/apim from the policies sync
   GITEA_ENABLE_ACTIONS_RUNNER
                         Set 0 to drop gitea-actions-runner from the policies sync
+  GITEA_ENABLE_VICTORIA_METRICS
+                        Set 1 to keep victoria-metrics in apps/_applications (default: 0)
+  GITEA_ENABLE_SIGNOZ
+                        Set 1 to keep signoz in apps/_applications (default: 1)
+  GITEA_ENABLE_SIGNOZ_K8S_INFRA
+                        Set 1 to keep signoz-k8s-infra in apps/_applications (default: 1)
 EOF
 }
 
@@ -193,6 +199,18 @@ build_policies_stage() {
     rm -rf "${stage}/apps/gitea-actions-runner" "${stage}/apps/gitea-actions-runner.yaml"
   fi
 
+  if [[ "${GITEA_ENABLE_VICTORIA_METRICS:-0}" != "1" ]]; then
+    rm -f "${stage}/apps/_applications/victoria-metrics.yaml"
+  fi
+
+  if [[ "${GITEA_ENABLE_SIGNOZ:-1}" != "1" ]]; then
+    rm -f "${stage}/apps/_applications/signoz.yaml"
+  fi
+
+  if [[ "${GITEA_ENABLE_SIGNOZ_K8S_INFRA:-1}" != "1" ]]; then
+    rm -f "${stage}/apps/_applications/signoz-k8s-infra.yaml"
+  fi
+
   if [[ -d "${cluster_policies}" ]]; then
     rsync -a --delete "${RSYNC_EXCLUDES[@]}" "${cluster_policies}/" "${stage}/cluster-policies/"
   fi
@@ -212,7 +230,7 @@ has_workspace_changes() {
   local target="$1"; shift
   local -a paths=("$@")
   local status
-  status="$(cd "${REPO_ROOT}" && git status --porcelain -- "${paths[@]}" || true)"
+  status="$(git -C "${REPO_ROOT}" status --porcelain -- "${paths[@]}" 2>/dev/null || true)"
   if [[ -z "${status// }" ]]; then
     log "No workspace changes for ${target}; skipping."
     return 1
@@ -248,7 +266,7 @@ sync_policies() {
     return 0
   fi
 
-  git -C "${tmp_dest}" commit -m "${message}" >/dev/null
+  git -C "${tmp_dest}" -c commit.gpgsign=false commit -m "${message}" >/dev/null
   log "Pushing policies to ${remote} (${BRANCH})"
   git -C "${tmp_dest}" push origin "${BRANCH}"
 }
@@ -289,7 +307,7 @@ sync_target() {
     return 0
   fi
 
-  git -C "${tmp_dest}" commit -m "${message}" >/dev/null
+  git -C "${tmp_dest}" -c commit.gpgsign=false commit -m "${message}" >/dev/null
   log "Pushing ${target} to ${remote} (${BRANCH})"
   git -C "${tmp_dest}" push origin "${BRANCH}"
 }

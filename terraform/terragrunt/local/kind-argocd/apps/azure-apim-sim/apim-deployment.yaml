@@ -26,16 +26,16 @@ spec:
           env:
             # Cross-namespace reference to backend API in azure-auth-sim
             - name: BACKEND_BASE_URL
-              value: http://api-fastapi-keycloak.azure-auth-dev.svc.cluster.local
+              value: http://api-fastapi-keycloak.dev.svc.cluster.local
             - name: OIDC_ISSUER
-              value: http://localhost:3007/realms/subnet-calculator
+              value: https://subnetcalc.dev.127.0.0.1.sslip.io/realms/subnet-calculator
             - name: OIDC_AUDIENCE
               value: api-app
             # Cross-namespace reference to Keycloak in azure-entraid-sim
             - name: OIDC_JWKS_URI
               value: http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
             - name: ALLOWED_ORIGINS
-              value: http://localhost:3007
+              value: https://subnetcalc.dev.127.0.0.1.sslip.io
             - name: ALLOW_ANONYMOUS
               value: "true"
             - name: APIM_SUBSCRIPTION_KEY
@@ -91,15 +91,15 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: BACKEND_BASE_URL
-              value: http://api-fastapi-keycloak.azure-auth-uat.svc.cluster.local
+              value: http://api-fastapi-keycloak.uat.svc.cluster.local
             - name: OIDC_ISSUER
-              value: http://localhost:3008/realms/subnet-calculator
+              value: https://subnetcalc.uat.127.0.0.1.sslip.io/realms/subnet-calculator
             - name: OIDC_AUDIENCE
               value: api-app
             - name: OIDC_JWKS_URI
               value: http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
             - name: ALLOWED_ORIGINS
-              value: http://localhost:3008
+              value: https://subnetcalc.uat.127.0.0.1.sslip.io
             - name: ALLOW_ANONYMOUS
               value: "true"
             - name: APIM_SUBSCRIPTION_KEY

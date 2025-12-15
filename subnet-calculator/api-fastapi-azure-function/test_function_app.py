@@ -293,5 +293,3 @@ class TestSubnetInfo:
         assert response.status_code == 200
         body = response.json()
         assert body["wildcard_mask"] == "0.0.0.255"
-
-

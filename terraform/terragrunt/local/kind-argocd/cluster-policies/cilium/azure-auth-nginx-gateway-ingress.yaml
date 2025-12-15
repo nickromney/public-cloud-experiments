@@ -19,6 +19,17 @@ spec:
               protocol: TCP
             - port: "8443"
               protocol: TCP
+    # Allow Azure auth data-plane pods to reach the control-plane service.
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: azure-auth-gateway-nginx
+            "k8s:io.kubernetes.pod.namespace": azure-auth-gateway
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+            - port: "8443"
+              protocol: TCP
   egress:
     # Allow responses back to azure-auth-sim data plane pods
     - toEntities:
@@ -31,3 +42,16 @@ spec:
     # Allow kube-apiserver access for Gateway API CRDs
     - toEntities:
         - kube-apiserver
+
+    # In kind (with kube-proxy), controllers talk to the apiserver via the
+    # kubernetes ClusterIP service (typically 10.96.0.1). `toEntities:
+    # kube-apiserver` alone doesn't reliably match that destination, which can
+    # break leader election and CRD watches.
+    - toServices:
+        - k8sService:
+            namespace: default
+            serviceName: kubernetes
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP

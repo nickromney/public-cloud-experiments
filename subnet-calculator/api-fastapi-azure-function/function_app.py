@@ -135,6 +135,64 @@ print("=" * 60, flush=True)
 logger = logging.getLogger(__name__)
 
 
+_OTEL_CONFIGURED = False
+
+
+def configure_opentelemetry(app: fastapi.FastAPI) -> None:
+    """Enable OTLP trace export to SigNoz when OTEL_EXPORTER_OTLP_ENDPOINT is set.
+
+    This is intentionally opt-in via env var so local tests/dev runs don't try to export.
+    """
+
+    global _OTEL_CONFIGURED
+    if _OTEL_CONFIGURED:
+        return
+
+    endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+    if not endpoint:
+        return
+
+    try:
+        from opentelemetry import trace
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    except Exception as exc:  # pragma: no cover
+        logger.warning("OpenTelemetry init failed; tracing disabled: %s", exc)
+        return
+
+    service_name = os.getenv("OTEL_SERVICE_NAME", "subnetcalc-api")
+    namespace = os.getenv("POD_NAMESPACE") or os.getenv("AZURE_FUNCTIONS_ENVIRONMENT") or "local"
+
+    resource_attrs = {
+        "service.name": service_name,
+        "deployment.environment": namespace,
+    }
+    if os.getenv("POD_NAMESPACE"):
+        resource_attrs["k8s.namespace.name"] = os.getenv("POD_NAMESPACE", "")
+
+    traces_endpoint = endpoint.rstrip("/")
+    if not traces_endpoint.endswith("/v1/traces"):
+        traces_endpoint = f"{traces_endpoint}/v1/traces"
+
+    try:
+        tracer_provider = TracerProvider(resource=Resource.create(resource_attrs))
+        tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=traces_endpoint)))
+        trace.set_tracer_provider(tracer_provider)
+
+        FastAPIInstrumentor().instrument_app(app)
+        HTTPXClientInstrumentor().instrument()
+    except Exception as exc:  # pragma: no cover
+        logger.warning("OpenTelemetry exporter init failed; tracing disabled: %s", exc)
+        return
+
+    _OTEL_CONFIGURED = True
+    print(f"OpenTelemetry: enabled (service.name={service_name}, endpoint={traces_endpoint})", flush=True)
+
+
 # Pydantic models for request validation
 class ValidateRequest(BaseModel):
     address: str = Field(..., description="IP address or CIDR notation")
@@ -155,6 +213,9 @@ api = fastapi.FastAPI(
     redoc_url=None,  # Disable default redoc - we'll create protected custom endpoint
     openapi_url=None,  # Disable default openapi.json - we'll create protected custom endpoint
 )
+
+# Enable tracing when OTEL_EXPORTER_OTLP_ENDPOINT is configured.
+configure_opentelemetry(api)
 
 # Configure CORS origins from environment
 # CORS_ORIGINS: Comma-separated list of allowed origins

@@ -7,7 +7,6 @@ This header contains base64-encoded JSON with user claims.
 
 import base64
 import json
-from typing import Dict, List, Optional
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,11 +18,11 @@ client = TestClient(api)
 
 # Helper function to create SWA principal header
 def create_swa_principal(
-    user_details: Optional[str] = None,
-    user_id: Optional[str] = None,
+    user_details: str | None = None,
+    user_id: str | None = None,
     identity_provider: str = "aad",
-    extra_claims: Optional[Dict[str, object]] = None,
-    claim_list: Optional[List[Dict[str, object]]] = None,
+    extra_claims: dict[str, object] | None = None,
+    claim_list: list[dict[str, object]] | None = None,
 ) -> str:
     """
     Create a fake Azure SWA x-ms-client-principal header.
@@ -36,7 +35,7 @@ def create_swa_principal(
     Returns:
         str: Base64-encoded JSON principal
     """
-    claims: Dict[str, object] = {
+    claims: dict[str, object] = {
         "identityProvider": identity_provider,
         "userRoles": ["authenticated"],
     }

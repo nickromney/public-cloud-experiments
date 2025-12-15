@@ -1,91 +1,6 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: azure-auth-gateway-ingress
-spec:
-  endpointSelector:
-    matchLabels:
-      app.kubernetes.io/name: azure-auth-gateway-nginx
-  ingress:
-    - fromEntities:
-        - host
-        - remote-node
-      toPorts:
-        - ports:
-            - port: "80"
-              protocol: TCP
-  egress:
-    - toServices:
-        - k8sService:
-            namespace: nginx-gateway
-            serviceName: nginx-gateway
-      toPorts:
-        - ports:
-            - port: "443"
-              protocol: TCP
-            - port: "8443"
-              protocol: TCP
-    - toEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: nginx-gateway
-            app.kubernetes.io/instance: nginx-gateway
-            "k8s:io.kubernetes.pod.namespace": nginx-gateway
-      toPorts:
-        - ports:
-            - port: "8443"
-              protocol: TCP
-    - toEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: oauth2-proxy-frontend
-            app.kubernetes.io/component: auth-proxy
-      toPorts:
-        - ports:
-            - port: "4180"
-              protocol: TCP
-    - toEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: keycloak
-            app.kubernetes.io/component: identity
-            "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
-      toPorts:
-        - ports:
-            - port: "8080"
-              protocol: TCP
-    - toEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: apim-simulator
-            app.kubernetes.io/component: gateway
-            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
-      toPorts:
-        - ports:
-            - port: "8000"
-              protocol: TCP
-    - toEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: apim-simulator-uat
-            app.kubernetes.io/component: gateway
-            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
-      toPorts:
-        - ports:
-            - port: "8000"
-              protocol: TCP
-    - toEndpoints:
-        - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": kube-system
-            "k8s:k8s-app": kube-dns
-      toPorts:
-        - ports:
-            - port: "53"
-              protocol: UDP
-            - port: "53"
-              protocol: TCP
-    - toEntities:
-        - kube-apiserver
-
----
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
   name: azure-auth-oauth2-proxy
 spec:
   endpointSelector:
@@ -93,13 +8,23 @@ spec:
       app.kubernetes.io/name: oauth2-proxy-frontend
       app.kubernetes.io/component: auth-proxy
   ingress:
-    - fromEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: azure-auth-gateway-nginx
+    - fromEntities:
+        - host
+        - remote-node
       toPorts:
         - ports:
             - port: "4180"
               protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: azure-auth-gateway-nginx
+            "k8s:io.kubernetes.pod.namespace": azure-auth-gateway
+      toPorts:
+        - ports:
+            - port: "4180"
+              protocol: TCP
+          authentication:
+            mode: required
   egress:
     - toEndpoints:
         - matchLabels:
@@ -109,6 +34,8 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
+          authentication:
+            mode: required
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: keycloak
@@ -118,6 +45,8 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+          authentication:
+            mode: required
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system
@@ -142,6 +71,13 @@ spec:
       app.kubernetes.io/name: frontend-react-keycloak-protected
       app.kubernetes.io/component: frontend
   ingress:
+    - fromEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
     - fromEndpoints:
         - matchLabels:
             app.kubernetes.io/name: oauth2-proxy-frontend
@@ -150,6 +86,8 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
+          authentication:
+            mode: required
 
 ---
 apiVersion: cilium.io/v2
@@ -162,6 +100,21 @@ spec:
       app.kubernetes.io/name: api-fastapi-keycloak
       app.kubernetes.io/component: backend
   ingress:
+    - fromEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: subnetcalc-telemetry-warmup
+            app.kubernetes.io/component: telemetry
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
     - fromEndpoints:
         - matchLabels:
             app.kubernetes.io/name: apim-simulator
@@ -171,6 +124,8 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
+          authentication:
+            mode: required
     - fromEndpoints:
         - matchLabels:
             app.kubernetes.io/name: apim-simulator-uat
@@ -180,6 +135,8 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
+          authentication:
+            mode: required
   egress:
     - toEndpoints:
         - matchLabels:
@@ -189,6 +146,17 @@ spec:
       toPorts:
         - ports:
             - port: "8080"
+              protocol: TCP
+          authentication:
+            mode: required
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: signoz
+            app.kubernetes.io/component: otel-collector
+            "k8s:io.kubernetes.pod.namespace": observability
+      toPorts:
+        - ports:
+            - port: "4318"
               protocol: TCP
     - toFQDNs:
         - matchName: www.cloudflare.com

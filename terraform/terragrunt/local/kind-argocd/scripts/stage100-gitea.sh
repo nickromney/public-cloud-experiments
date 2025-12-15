@@ -4,8 +4,6 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="${ROOT_DIR}/external-gitea-compose.yaml"
 RUN_DIR="${ROOT_DIR}/.run"
-POLICIES_DIR="${ROOT_DIR}/cluster-policies"
-APPS_DIR="${ROOT_DIR}/apps"
 AZ_REPO_DIR="${ROOT_DIR}/gitea-repos/azure-auth-sim"
 SUBNET_ROOT="$(cd "${ROOT_DIR}/../../../../subnet-calculator" && pwd)"
 GITEA_HTTP="${GITEA_HTTP:-https://host.docker.internal:3000}"
@@ -243,7 +241,7 @@ setup_docker_registry_certs() {
 }
 
 wait_health() {
-  for i in {1..20}; do
+  for _ in {1..20}; do
     if curl -sfk -o /dev/null "${GITEA_HTTP}/api/healthz"; then
       return 0
     fi
@@ -311,10 +309,8 @@ ensure_ssh_material() {
   local ok=0
   for host in "${targets[@]}"; do
     [ -z "${host}" ] && continue
-    local added=0
-    for i in {1..5}; do
+    for _ in {1..5}; do
       if ssh-keyscan -t rsa -p "${GITEA_SSH_PORT}" "${host}" >> "${KNOWN_HOSTS}" 2>/dev/null; then
-        added=1
         ok=1
         break
       fi

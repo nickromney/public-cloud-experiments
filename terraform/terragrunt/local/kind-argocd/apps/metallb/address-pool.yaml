@@ -1,8 +1,0 @@
-apiVersion: metallb.io/v1beta1
-kind: IPAddressPool
-metadata:
-  name: kind-public
-  namespace: metallb-system
-spec:
-  addresses:
-    - 172.18.255.10-172.18.255.20

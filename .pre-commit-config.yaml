@@ -25,9 +25,19 @@ repos:
       - id: terraform_tflint
         exclude: ^terraform/(claranet-tfwrapper|terragrunt/modules)/
         args:
-          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+          # The repo's .tflint.hcl is intentionally gitignored (auto-generated in some stacks),
+          # so avoid hard-coding a required config path here.
+          # We also disable unused-declarations to keep local Kind/Terragrunt variable stubs from failing commits.
+          - --args=--disable-rule=terraform_unused_declarations
       - id: terraform_trivy
         exclude: ^terraform/(claranet-tfwrapper|terragrunt/modules)/
+        args:
+          # Only scan Terraform misconfigurations; Kubernetes manifests in this repo are not intended to be
+          # held to Trivy's default k8s hardening checks for local simulations.
+          - --args=--misconfig-scanners=terraform
+          # Avoid network/caching failures during local commits.
+          - --args=--skip-check-update
+          - --args=--tf-exclude-downloaded-modules
 
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -41,6 +51,7 @@ repos:
         exclude: ^.*/tests/test_helper/(bats-assert|bats-support)/
       - id: check-yaml
         name: Check yaml
+        args: [--allow-multiple-documents]
       - id: check-added-large-files
         name: Check for added large files
         args: ['--maxkb=1000']

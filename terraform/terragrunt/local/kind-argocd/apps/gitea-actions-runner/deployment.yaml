@@ -16,13 +16,6 @@ spec:
       labels:
         app.kubernetes.io/name: act-runner
     spec:
-      # Run on control-plane where Docker socket is mounted
-      nodeSelector:
-        node-role.kubernetes.io/control-plane: ""
-      tolerations:
-        - key: "node-role.kubernetes.io/control-plane"
-          operator: "Exists"
-          effect: "NoSchedule"
       initContainers:
         # Download Docker CLI and buildx plugin for the runner to use
         # Pinned to 27.5-cli for reproducibility (buildx at /usr/local/libexec/docker/cli-plugins/)

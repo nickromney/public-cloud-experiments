@@ -5,20 +5,25 @@
 # Core Configuration
 # -----------------------------------------------------------------------------
 
-cluster_name     = "kind-local"
-kubeconfig_path  = "~/.kube/config"
-kind_config_path = "./kind-config.yaml"
+cluster_name       = "kind-local"
+kubeconfig_path    = "~/.kube/config"
+kubeconfig_context = "kind-kind-local"
+kind_config_path   = "./kind-config.yaml"
 
 # -----------------------------------------------------------------------------
 # Feature Toggles
 # -----------------------------------------------------------------------------
 
 enable_cilium              = true
+enable_cilium_mesh_auth    = true
 enable_hubble              = true
 enable_namespaces          = true
 enable_argocd              = true
 enable_gitea               = true
 enable_policies            = true
+enable_victoria_metrics    = false
+enable_signoz              = true
+enable_signoz_k8s_infra    = true
 enable_actions_runner      = true
 enable_docker_socket_mount = true
 enable_azure_auth_sim      = true
@@ -45,6 +50,8 @@ azure_auth_oauth2_proxy_host_port     = 3007
 azure_auth_oauth2_proxy_host_port_uat = 3008
 azure_auth_oauth2_proxy_node_port     = 30075
 azure_auth_oauth2_proxy_node_port_uat = 30076
+azure_auth_gateway_host_port          = 443
+azure_auth_gateway_node_port          = 30070
 azure_auth_apim_host_port             = 8082
 azure_auth_apim_node_port             = 30082
 azure_auth_api_host_port              = 8081
@@ -94,6 +101,8 @@ ssh_public_key_path   = "./.run/argocd-repo.id_ed25519.pub"
 # Namespaces
 # -----------------------------------------------------------------------------
 azure_auth_namespaces = {
-  dev = "azure-auth-dev"
-  uat = "azure-auth-uat"
+  dev = "dev"
+  uat = "uat"
 }
+
+azure_auth_gateway_namespace = "azure-auth-gateway"

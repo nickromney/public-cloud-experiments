@@ -18,23 +18,6 @@ import { expect, test } from '@playwright/test'
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000'
 
-// Type definitions for staticwebapp.config.json
-interface RouteConfig {
-  route: string
-  allowedRoles?: string[]
-  redirect?: string
-}
-
-interface NavigationFallback {
-  rewrite: string
-  exclude: string[]
-}
-
-interface StaticWebAppConfig {
-  routes: RouteConfig[]
-  navigationFallback: NavigationFallback
-}
-
 test.describe('Entra ID Logout Flow', () => {
   test.describe.configure({ mode: 'serial' })
 
@@ -71,7 +54,7 @@ test.describe('Entra ID Logout Flow', () => {
 
   test('03 - logout route redirects correctly', async ({ page }) => {
     // Navigate to /logout
-    const response = await page.goto(`${BASE_URL}/logout`, { waitUntil: 'networkidle' })
+    const _response = await page.goto(`${BASE_URL}/logout`, { waitUntil: 'networkidle' })
 
     // Check if we're running against local dev server or Azure SWA
     const isLocalDev = BASE_URL.includes('localhost') && !BASE_URL.includes('4280') && !BASE_URL.includes('4281')
@@ -177,7 +160,7 @@ test.describe('Entra ID Logout Flow', () => {
     // which requires interactive login
   })
 
-  test('08 - logout clears authentication state', async ({ page, context }) => {
+  test('08 - logout clears authentication state', async ({ page, context: _context }) => {
     // Check if we're running against local dev server or Azure SWA
     const isLocalDev = BASE_URL.includes('localhost') && !BASE_URL.includes('4280') && !BASE_URL.includes('4281')
 

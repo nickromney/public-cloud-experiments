@@ -7,6 +7,7 @@
 ## What we tried
 
 ### Phase 1: HTTP Registry + DinD
+
 - External Gitea with registry over HTTP (`ROOT_URL=http://host.docker.internal:30090/`, container packages enabled).
 - Host-runner using `gitea/act_runner:0.2.13` + DinD (`docker:dind`) on `tcp://host.docker.internal:23750`.
 - Runner labels include `ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-latest`; buildx driver `docker`; binfmt installed.
@@ -17,6 +18,7 @@
 - DinD config via `/etc/docker/daemon.json` with `"insecure-registries": ["host.docker.internal:30090"]`.
 
 ### Phase 2: HTTPS Registry + Self-Signed CA (December 2024)
+
 - Switched Gitea registry to HTTPS with self-signed CA (`certs/ca.crt`).
 - Mounted CA into DinD, runner, and workflow containers.
 - Added CA trust to workflow steps via `update-ca-certificates`.
@@ -24,6 +26,7 @@
 ## Issues observed
 
 ### Phase 1 Issues
+
 - buildx pushes still attempted HTTPS, yielding `http: server gave HTTP response to HTTPS client` when pushing to the registry.
 - Frontend build occasionally hit `lfstack.push`/OOM in `npm run build` (node:22-alpine).
 - DinD warnings when both flag and daemon.json specified insecure registries; avoided by using daemon.json only.
@@ -56,6 +59,7 @@
 ## Conclusion
 
 DinD inside Podman on macOS (Apple Silicon) is fundamentally problematic:
+
 - Storage drivers that work on Linux (overlay2) fail due to virtiofs limitations.
 - VFS works but has xattr issues with certain images.
 - tmpfs workaround uses excessive memory.

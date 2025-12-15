@@ -101,16 +101,19 @@ The cross-namespace traffic is controlled by these Cilium policies:
 If traffic is being dropped, check:
 
 1. Cilium policy status:
+
    ```bash
    kubectl get ciliumnetworkpolicy -A
    ```
 
 2. Hubble flow logs:
+
    ```bash
    kubectl exec -n kube-system -it ds/cilium -- hubble observe --namespace azure-auth-sim
    ```
 
 3. Specific dropped flows:
+
    ```bash
    kubectl exec -n kube-system -it ds/cilium -- hubble observe --verdict DROPPED
    ```

@@ -105,8 +105,8 @@ function StandardAuthProvider({ children }: { children: React.ReactNode }) {
 
   // Access MSAL context directly so non-MSAL flows don't throw when the provider is absent
   const msalContext = useContext(MsalContext)
-  const instance = authMethod === 'msal' ? msalContext?.instance ?? null : null
-  const accounts = authMethod === 'msal' ? msalContext?.accounts ?? [] : EMPTY_ACCOUNTS
+  const instance = authMethod === 'msal' ? (msalContext?.instance ?? null) : null
+  const accounts = authMethod === 'msal' ? (msalContext?.accounts ?? []) : EMPTY_ACCOUNTS
 
   // Initialize authentication based on method
   useEffect(() => {
