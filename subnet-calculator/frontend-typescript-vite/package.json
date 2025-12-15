@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "type-check": "tsc --noEmit",
+    "type-check": "npm --prefix ../shared-frontend run build && tsc --noEmit",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
@@ -22,7 +22,7 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-    "check": "biome check . && tsc --noEmit"
+    "check": "biome check . && npm --prefix ../shared-frontend run build && tsc --noEmit"
   },
   "dependencies": {
     "@picocss/pico": "^2.0.6",

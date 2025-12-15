@@ -387,6 +387,18 @@ variable "enable_victoria_metrics" {
   default     = false
 }
 
+variable "enable_signoz" {
+  description = "Enable SigNoz stack deployment via app-of-apps. Disabled by default to avoid overloading local kind control plane."
+  type        = bool
+  default     = false
+}
+
+variable "enable_signoz_k8s_infra" {
+  description = "Enable SigNoz k8s-infra collection (in-cluster OpenTelemetry agents) to monitor the kind cluster. Disabled by default for local stability."
+  type        = bool
+  default     = false
+}
+
 variable "enable_actions_runner" {
   description = "Deploy a Gitea Actions runner (requires enable_gitea = true)."
   type        = bool

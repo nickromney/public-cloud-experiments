@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test'
 
 /**
  * Playwright Configuration for SWA CLI Testing
@@ -43,4 +43,4 @@ export default defineConfig({
 
   // Expect SWA CLI to already be running
   // User must start: npm run swa -- start stack4
-});
+})

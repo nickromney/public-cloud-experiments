@@ -72,7 +72,8 @@ locals {
     # Skip runner for external Gitea (uses host runner via external build process) or if not enabled
     !var.enable_actions_runner || var.use_external_gitea ? ["gitea-actions-runner.yaml", "gitea-actions-runner"] : [],
     # Observability stacks can overload kind control plane; keep optional.
-    var.enable_victoria_metrics ? [] : ["_applications/victoria-metrics.yaml"]
+    var.enable_victoria_metrics ? [] : ["_applications/victoria-metrics.yaml"],
+    var.enable_signoz ? [] : ["_applications/signoz.yaml"]
   )
   apps_files = [
     for file in local.apps_files_all : file
@@ -298,6 +299,14 @@ resource "local_file" "app_kyverno" {
   count    = var.enable_policies ? 1 : 0
   filename = "${local.generated_apps_dir}/kyverno.yaml"
   content  = templatefile("${path.module}/templates/apps/kyverno.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "app_signoz_k8s_infra" {
+  count    = var.enable_signoz_k8s_infra ? 1 : 0
+  filename = "${local.generated_apps_dir}/signoz-k8s-infra.yaml"
+  content = templatefile("${path.module}/templates/apps/signoz-k8s-infra.yaml.tpl", merge(local.app_template_vars, {
+    cluster_name = var.cluster_name
+  }))
 }
 
 resource "local_file" "app_cilium_policies" {
@@ -1135,6 +1144,7 @@ resource "null_resource" "seed_gitea_repo" {
       local_file.app_cilium_policies.content,
       local_file.app_kyverno_policies.content,
       var.enable_policies ? local_file.app_kyverno[0].content : "",
+      var.enable_signoz_k8s_infra ? local_file.app_signoz_k8s_infra[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_azure_auth_sim_dev[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_azure_auth_sim_uat[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_azure_entraid_sim[0].content : "",
@@ -1192,6 +1202,14 @@ if [ "${var.enable_victoria_metrics}" != "true" ]; then
   rm -f "$TMP_DIR/apps/_applications/victoria-metrics.yaml"
 fi
 
+if [ "${var.enable_signoz}" != "true" ]; then
+  rm -f "$TMP_DIR/apps/_applications/signoz.yaml"
+fi
+
+if [ "${var.enable_signoz_k8s_infra}" != "true" ]; then
+  rm -f "$TMP_DIR/apps/_applications/signoz-k8s-infra.yaml"
+fi
+
     cp -r ${path.module}/cluster-policies "$TMP_DIR"/cluster-policies
 cd "$TMP_DIR"
 git init -q
@@ -1229,6 +1247,7 @@ EOT
     local_file.app_cilium_policies,
     local_file.app_kyverno_policies,
     local_file.app_kyverno,
+    local_file.app_signoz_k8s_infra,
     local_file.app_azure_auth_sim_dev,
     local_file.app_azure_auth_sim_uat,
     local_file.app_azure_entraid_sim,

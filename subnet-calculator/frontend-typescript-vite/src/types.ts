@@ -4,14 +4,14 @@
  */
 
 export type {
+  ApiCallTiming,
+  ApiResults,
+  CloudflareCheckResponse,
   CloudMode,
   HealthResponse,
-  ValidateResponse,
-  PrivateCheckResponse,
-  CloudflareCheckResponse,
-  SubnetInfoResponse,
-  ApiResults,
-  ApiCallTiming,
-  PerformanceTiming,
   LookupResult,
+  PerformanceTiming,
+  PrivateCheckResponse,
+  SubnetInfoResponse,
+  ValidateResponse,
 } from '@subnet-calculator/shared-frontend'

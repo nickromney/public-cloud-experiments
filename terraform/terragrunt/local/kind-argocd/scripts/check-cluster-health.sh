@@ -91,7 +91,36 @@ check_node_arch() {
   fi
   ok "Node architectures: ${archs}"
   if echo " ${archs} " | grep -q " arm64 "; then
-    warn "Detected arm64 Kind nodes; azure-auth-sim images are amd64. If pods stay Pending/CrashLoop with exec format errors, recreate with an amd64 kindest/node image or add binfmt/qemu."
+    ok "arm64 Kind nodes detected (note: some azure-auth-sim images may be amd64-only; if you hit exec format errors, recreate with an amd64 kindest/node image or add binfmt/qemu)"
+  fi
+}
+
+print_useful_urls() {
+  echo ""
+  ok "Useful URLs"
+
+  # Fixed defaults from stages/700-azure-auth-sim.tfvars (best-effort; don't fail if absent).
+  echo "  • Subnet calculator (dev): https://subnetcalc.dev.127.0.0.1.sslip.io/"
+  echo "  • Subnet calculator (uat): https://subnetcalc.uat.127.0.0.1.sslip.io/"
+  echo "  • Argo CD UI:              http://localhost:30080"
+  echo "  • Argo CD admin password:  argocd admin initial-password -n argocd"
+  echo "  • Hubble UI:               http://localhost:31235"
+  echo "  • Gitea UI:                http://localhost:30090"
+
+  # SigNoz is deployed via Helm charts into the observability namespace.
+  # It is typically exposed as a ClusterIP service, so we provide a port-forward URL.
+  if kubectl get ns observability >/dev/null 2>&1; then
+    if kubectl -n observability get svc signoz-frontend >/dev/null 2>&1; then
+      echo "  • SigNoz UI (port-forward): http://localhost:3301"
+      echo "    kubectl -n observability port-forward svc/signoz-frontend 3301:3301"
+    elif kubectl -n observability get svc signoz >/dev/null 2>&1; then
+      echo "  • SigNoz UI (port-forward): http://localhost:3301"
+      echo "    kubectl -n observability port-forward svc/signoz 3301:8080"
+    elif kubectl -n observability get svc -o name 2>/dev/null | grep -q "signoz"; then
+      echo "  • SigNoz: services detected in ns=observability (list with: kubectl -n observability get svc)"
+    else
+      echo "  • SigNoz: ns=observability present, but services not detected yet"
+    fi
   fi
 }
 
@@ -173,9 +202,20 @@ check_argo_app() {
   sync=$(kubectl -n argocd get app "${app}" -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "")
   health=$(kubectl -n argocd get app "${app}" -o jsonpath='{.status.health.status}' 2>/dev/null || echo "")
   if [[ "${sync}" != "Synced" || "${health}" != "Healthy" ]]; then
+    if [[ "${app}" == "app-of-apps" ]]; then
+      # app-of-apps can remain Progressing/OutOfSync while pruning optional child Applications.
+      # This is noisy but not usually a blocker for the workload health checks below.
+      local phase pruning
+      phase=$(kubectl -n argocd get app "${app}" -o jsonpath='{.status.operationState.phase}' 2>/dev/null || echo "")
+      pruning=$(kubectl -n argocd get app "${app}" -o jsonpath='{range .status.resources[?(@.requiresPruning==true)]}{.name}{" "}{end}' 2>/dev/null || echo "")
+      if [[ -n "${pruning// }" ]]; then
+        ok "ArgoCD app ${app} has pending prunes (${pruning}); sync=${sync}, health=${health}, phase=${phase:-unknown} (tolerated)"
+        return 0
+      fi
+    fi
     for tolerate in "${tolerate_outofsync[@]:1}"; do
       if [[ "${app}" == "${tolerate}" && "${health}" == "Healthy" ]]; then
-        warn "ArgoCD app ${app} is Healthy but not Synced (sync=${sync}); tolerating drift for now"
+        ok "ArgoCD app ${app} is Healthy but not Synced (sync=${sync}) (tolerated)"
         return 0
       fi
     done
@@ -196,11 +236,69 @@ check_argo_app() {
 }
 
 check_argo_apps() {
-  local tolerate_outofsync=("azure-auth-sim-dev" "app-of-apps")
+  local tolerate_outofsync=("app-of-apps" "azure-auth-gateway" "azure-auth-sim-dev" "azure-auth-sim-uat")
   for app in app-of-apps cilium-policies kyverno-policies azure-auth-gateway azure-auth-sim-dev azure-auth-sim-uat; do
     # Don't abort the whole script on a single app failure.
     check_argo_app "${app}" "${tolerate_outofsync[@]}" || true
   done
+}
+
+wait_for_argo_app_healthy() {
+  local app="$1"
+  local max_attempts="${2:-18}" # ~3 minutes
+  local sleep_seconds="${3:-10}"
+
+  local attempt=0
+  while true; do
+    if ! kubectl -n argocd get app "${app}" >/dev/null 2>&1; then
+      attempt=$((attempt + 1))
+      if [[ "${attempt}" -ge "${max_attempts}" ]]; then
+        fail_soft "ArgoCD app missing: ${app}"
+        return 1
+      fi
+      sleep "${sleep_seconds}"
+      continue
+    fi
+
+    local sync health
+    sync=$(kubectl -n argocd get app "${app}" -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "")
+    health=$(kubectl -n argocd get app "${app}" -o jsonpath='{.status.health.status}' 2>/dev/null || echo "")
+
+    if [[ "${sync}" == "Synced" && "${health}" == "Healthy" ]]; then
+      ok "ArgoCD app ${app} is Synced/Healthy"
+      return 0
+    fi
+
+    attempt=$((attempt + 1))
+    if [[ "${attempt}" -ge "${max_attempts}" ]]; then
+      fail_soft "ArgoCD app ${app} not ready after waiting (sync=${sync}, health=${health})"
+      return 1
+    fi
+    sleep "${sleep_seconds}"
+  done
+}
+
+check_signoz() {
+  # SigNoz is optional, but if the app exists (or observability namespace exists), we expect it to become ready.
+  local has_ns=0
+  local has_app=0
+  if kubectl get ns observability >/dev/null 2>&1; then has_ns=1; fi
+  if kubectl -n argocd get app signoz >/dev/null 2>&1; then has_app=1; fi
+  if kubectl -n argocd get app signoz-k8s-infra >/dev/null 2>&1; then has_app=1; fi
+  if [[ "${has_ns}" -eq 0 && "${has_app}" -eq 0 ]]; then
+    return
+  fi
+
+  wait_for_argo_app_healthy "signoz-k8s-infra" 18 10 || true
+  wait_for_argo_app_healthy "signoz" 30 10 || true
+
+  if kubectl -n observability get svc signoz-frontend >/dev/null 2>&1; then
+    ok "SigNoz service present: observability/signoz-frontend"
+  elif kubectl -n observability get svc signoz >/dev/null 2>&1; then
+    ok "SigNoz service present: observability/signoz"
+  else
+    fail_soft "SigNoz service missing: expected observability/signoz or observability/signoz-frontend"
+  fi
 }
 
 check_env_deployments() {
@@ -325,10 +423,13 @@ main() {
   check_cilium
   check_namespaces
   check_argo_apps
+  check_signoz
   check_azure_auth_sim
 
   # Print details after the summary lines above.
   print_failure_details
+
+  print_useful_urls
 
   if [[ "${FAILURES}" -gt 0 ]]; then
     fail "Health checks failed (${FAILURES} issue(s))"

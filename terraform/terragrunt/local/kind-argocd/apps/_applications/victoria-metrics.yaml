@@ -16,12 +16,51 @@ spec:
     targetRevision: 0.65.1
     helm:
       values: |
+        # kind-lite profile: keep the core metrics pipeline (vmagent + vmsingle),
+        # but avoid the most expensive components and the etcd scrape.
         grafana:
-          enabled: true
+          enabled: false
+
+        alertmanager:
+          enabled: false
+
+        vmalert:
+          enabled: false
+
+        # This scrape caused noisy TLS errors against kind's embedded etcd and
+        # contributed to control-plane instability.
+        kubeEtcd:
+          enabled: false
+
+        # Reduce control-plane scrape load.
+        kubeApiServer:
+          enabled: false
+        kubeControllerManager:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+
         vmagent:
           enabled: true
+          spec:
+            scrapeInterval: 60s
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+
         vmsingle:
           enabled: true
+          spec:
+            retentionPeriod: "1d"
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+            storage:
+              resources:
+                requests:
+                  storage: 2Gi
   syncPolicy:
     automated:
       prune: true

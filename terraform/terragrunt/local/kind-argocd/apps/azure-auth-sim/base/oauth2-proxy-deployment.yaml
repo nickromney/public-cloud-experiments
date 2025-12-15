@@ -17,16 +17,37 @@ spec:
         app.kubernetes.io/name: oauth2-proxy-frontend
         app.kubernetes.io/component: auth-proxy
     spec:
+      initContainers:
+        - name: generate-oauth2-proxy-secrets
+          image: alpine:3.20
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -euo pipefail
+              # oauth2-proxy expects a base64-encoded 16/24/32-byte cookie secret.
+              head -c 32 /dev/urandom | base64 | tr -d '\n' > /work/cookie_secret
+              # With PKCE + public clients, the client secret can be empty.
+              : > /work/client_secret
+          volumeMounts:
+            - name: oauth2-proxy-secrets
+              mountPath: /work
       containers:
         - name: oauth2-proxy
           image: quay.io/oauth2-proxy/oauth2-proxy:v7.13.0
           imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: oauth2-proxy-secrets
+              mountPath: /etc/oauth2-proxy/secrets
+              readOnly: true
           args:
             # OIDC Provider (Keycloak)
             - --provider=oidc
             # Issuer/login must go through the Gateway (dev endpoint)
             - --oidc-issuer-url=https://subnetcalc.dev.127.0.0.1.sslip.io/realms/subnet-calculator
-            - --client-id=frontend-app
+            - --client-id=oauth2-proxy
+            - --client-secret-file=/etc/oauth2-proxy/secrets/client_secret
             - --redirect-url=https://subnetcalc.dev.127.0.0.1.sslip.io/oauth2/callback
             - --code-challenge-method=S256
 
@@ -48,14 +69,17 @@ spec:
             - --cookie-httponly=true
             - --cookie-expire=4h
             - --cookie-refresh=1h
+            - --cookie-secret-file=/etc/oauth2-proxy/secrets/cookie_secret
             - --cookie-name=_oauth2_proxy_dev
             - --cookie-domain=.dev.127.0.0.1.sslip.io
             - --whitelist-domain=.dev.127.0.0.1.sslip.io
             - --email-domain=*
-            - --cookie-secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 
             # Scopes and headers
             - --scope=openid user_impersonation
+            # Some local Keycloak flows omit email/preferred_username claims.
+            # Use the always-present OIDC subject to avoid 500s on callback.
+            - --oidc-email-claim=sub
             - --pass-authorization-header=true
             - --pass-access-token=true
             - --pass-user-headers=true
@@ -83,3 +107,6 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6
+      volumes:
+        - name: oauth2-proxy-secrets
+          emptyDir: {}

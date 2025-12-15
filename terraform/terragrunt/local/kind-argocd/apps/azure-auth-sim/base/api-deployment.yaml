@@ -35,6 +35,16 @@ spec:
               value: http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
             - name: CORS_ORIGINS
               value: https://subnetcalc.dev.127.0.0.1.sslip.io
+
+            # OpenTelemetry tracing -> SigNoz (turnkey teaching experience)
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: OTEL_SERVICE_NAME
+              value: subnetcalc-api
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://signoz-otel-collector.observability.svc.cluster.local:4318
           ports:
             - name: http
               containerPort: 80

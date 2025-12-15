@@ -1,0 +1,59 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: signoz
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    namespace: observability
+    server: https://kubernetes.default.svc
+  source:
+    repoURL: https://charts.signoz.io
+    chart: signoz
+    targetRevision: 0.104.0
+    helm:
+      values: |
+        # kind-lite profile: keep things ephemeral + small by default.
+        clickhouse:
+          persistence:
+            enabled: false
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          zookeeper:
+            persistence:
+              enabled: false
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+
+        signoz:
+          persistence:
+            enabled: true
+            size: 1Gi
+            storageClass: standard
+          # Turnkey local UX: no login/signup flow.
+          # See https://signoz.io/docs/operate/configuration (SIGNOZ_AUTH_ENABLED).
+          env:
+            signoz_auth_enabled: false
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+
+        otelCollector:
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

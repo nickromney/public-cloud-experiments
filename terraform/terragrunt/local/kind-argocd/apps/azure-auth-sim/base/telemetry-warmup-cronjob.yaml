@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: subnetcalc-telemetry-warmup
+  labels:
+    app.kubernetes.io/name: subnetcalc-telemetry-warmup
+    app.kubernetes.io/component: telemetry
+spec:
+  schedule: "*/2 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 300
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: subnetcalc-telemetry-warmup
+            app.kubernetes.io/component: telemetry
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: warmup
+              image: curlimages/curl:8.10.1
+              imagePullPolicy: IfNotPresent
+              args:
+                - /bin/sh
+                - -c
+                - |
+                  set -euo pipefail
+                  URL="http://api-fastapi-keycloak/api/v1/health"
+                  for i in $(seq 1 10); do
+                    if curl -fsS "$URL" >/dev/null; then
+                      exit 0
+                    fi
+                    sleep 2
+                  done
+                  echo "warmup failed to reach $URL" >&2
+                  exit 1

@@ -10,7 +10,8 @@ spec:
           args:
             - --provider=oidc
             - --oidc-issuer-url=https://subnetcalc.uat.127.0.0.1.sslip.io/realms/subnet-calculator
-            - --client-id=frontend-app
+            - --client-id=oauth2-proxy
+            - --client-secret-file=/etc/oauth2-proxy/secrets/client_secret
             - --redirect-url=https://subnetcalc.uat.127.0.0.1.sslip.io/oauth2/callback
             - --code-challenge-method=S256
             - --skip-oidc-discovery=true
@@ -24,11 +25,13 @@ spec:
             - --cookie-httponly=true
             - --cookie-expire=4h
             - --cookie-refresh=1h
+            - --cookie-secret-file=/etc/oauth2-proxy/secrets/cookie_secret
             - --cookie-name=_oauth2_proxy_uat
             - --cookie-domain=.uat.127.0.0.1.sslip.io
             - --whitelist-domain=.uat.127.0.0.1.sslip.io
             - --email-domain=*
             - --scope=openid user_impersonation
+            - --oidc-email-claim=sub
             - --pass-authorization-header=true
             - --pass-access-token=true
             - --pass-user-headers=true

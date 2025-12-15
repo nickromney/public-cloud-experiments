@@ -11,13 +11,13 @@ locals {
 
 inputs = {
   cluster_name          = "kind-local"
-  worker_count          = 4
+  worker_count          = 2
   # Keep Kind nodes on the host-native architecture (arm64 on Apple Silicon).
   # The local setup relies on Docker's emulation/compat mode when running amd64-only images.
   node_image            = "kindest/node:v1.34.0"
   kind_config_path      = "${get_terragrunt_dir()}/kind-config.yaml"
   kubeconfig_path       = pathexpand("~/.kube/config")
-  kubeconfig_context    = ""
+  kubeconfig_context    = "kind-kind-local"
   cilium_version        = "1.18.4"
   argocd_chart_version  = "7.5.2"
   argocd_namespace      = "argocd"

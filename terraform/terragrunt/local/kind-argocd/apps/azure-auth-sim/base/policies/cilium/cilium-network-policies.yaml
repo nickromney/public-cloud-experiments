@@ -109,6 +109,14 @@ spec:
               protocol: TCP
     - fromEndpoints:
         - matchLabels:
+            app.kubernetes.io/name: subnetcalc-telemetry-warmup
+            app.kubernetes.io/component: telemetry
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
             app.kubernetes.io/name: apim-simulator
             app.kubernetes.io/component: gateway
             "k8s:io.kubernetes.pod.namespace": azure-apim-sim
@@ -141,6 +149,15 @@ spec:
               protocol: TCP
           authentication:
             mode: required
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: signoz
+            app.kubernetes.io/component: otel-collector
+            "k8s:io.kubernetes.pod.namespace": observability
+      toPorts:
+        - ports:
+            - port: "4318"
+              protocol: TCP
     - toFQDNs:
         - matchName: www.cloudflare.com
         - matchName: cloudflare.com

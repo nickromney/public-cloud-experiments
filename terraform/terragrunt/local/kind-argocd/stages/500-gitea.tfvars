@@ -5,9 +5,10 @@
 # Core Configuration
 # -----------------------------------------------------------------------------
 
-cluster_name     = "kind-local"
-kubeconfig_path  = "~/.kube/config"
-kind_config_path = "./kind-config.yaml"
+cluster_name       = "kind-local"
+kubeconfig_path    = "~/.kube/config"
+kubeconfig_context = "kind-kind-local"
+kind_config_path   = "./kind-config.yaml"
 
 # -----------------------------------------------------------------------------
 # Feature Toggles
@@ -20,6 +21,9 @@ enable_namespaces          = true
 enable_argocd              = true
 enable_gitea               = true
 enable_policies            = false
+enable_victoria_metrics    = false
+enable_signoz              = false
+enable_signoz_k8s_infra    = false
 enable_actions_runner      = false
 enable_docker_socket_mount = true
 enable_azure_auth_sim      = false

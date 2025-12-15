@@ -8,11 +8,11 @@ It injects Easy Auth style headers so downstream services can identify the calle
 from __future__ import annotations
 
 import base64
-from contextlib import asynccontextmanager
 import json
 import logging
 import os
-from typing import Any, Dict
+from contextlib import asynccontextmanager
+from typing import Any
 
 import httpx
 import jwt
@@ -32,9 +32,7 @@ OIDC_JWKS_URI = os.getenv(
 )
 ALLOW_ANONYMOUS = os.getenv("ALLOW_ANONYMOUS", "false").lower() == "true"
 ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3007").split(",")
-    if origin.strip()
+    origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3007").split(",") if origin.strip()
 ]
 
 if not ALLOWED_ORIGINS:
@@ -82,15 +80,21 @@ app.add_middleware(
 )
 
 
-def build_client_principal(claims: Dict[str, Any]) -> str:
+def build_client_principal(claims: dict[str, Any]) -> str:
     principal = {
         "auth_typ": "oauth2",
         "name_typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
         "role_typ": "http://schemas.microsoft.com/ws/2008/06/identity/claims/role",
         "claims": [
-            {"typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier", "val": claims.get("sub", "")},
+            {
+                "typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
+                "val": claims.get("sub", ""),
+            },
             {"typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name", "val": claims.get("name", "")},
-            {"typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress", "val": claims.get("email", "")},
+            {
+                "typ": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
+                "val": claims.get("email", ""),
+            },
             {"typ": "preferred_username", "val": claims.get("preferred_username", "")},
         ],
     }
@@ -102,7 +106,9 @@ def validate_subscription_key(request: Request) -> None:
         logger.warning("APIM_SUBSCRIPTION_KEY not set - subscription key validation is disabled")
         return
 
-    provided_key = request.headers.get("ocp-apim-subscription-key") or request.headers.get("x-ocp-apim-subscription-key")
+    provided_key = request.headers.get("ocp-apim-subscription-key") or request.headers.get(
+        "x-ocp-apim-subscription-key"
+    )
     if not provided_key:
         raise HTTPException(status_code=401, detail="Missing subscription key")
 
@@ -110,7 +116,7 @@ def validate_subscription_key(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Invalid subscription key")
 
 
-def authenticate_request(request: Request) -> Dict[str, Any]:
+def authenticate_request(request: Request) -> dict[str, Any]:
     if ALLOW_ANONYMOUS:
         # Local/demo mode: bypass auth and use a fixed identity
         return {
@@ -144,8 +150,8 @@ def authenticate_request(request: Request) -> Dict[str, Any]:
         raise HTTPException(status_code=401, detail="Invalid or expired access token") from exc
 
 
-def build_upstream_headers(request: Request, claims: Dict[str, Any]) -> Dict[str, str]:
-    headers: Dict[str, str] = {
+def build_upstream_headers(request: Request, claims: dict[str, Any]) -> dict[str, str]:
+    headers: dict[str, str] = {
         key: value for key, value in request.headers.items() if key.lower() not in HOP_BY_HOP_HEADERS
     }
 
@@ -159,14 +165,14 @@ def build_upstream_headers(request: Request, claims: Dict[str, Any]) -> Dict[str
     return headers
 
 
-def filter_response_headers(upstream_headers: Dict[str, str]) -> Dict[str, str]:
+def filter_response_headers(upstream_headers: dict[str, str]) -> dict[str, str]:
     headers = {key: value for key, value in upstream_headers.items() if key.lower() not in HOP_BY_HOP_HEADERS}
     headers["x-apim-simulator"] = "stack12"
     return headers
 
 
 @app.get("/apim/health")
-async def health() -> Dict[str, str]:
+async def health() -> dict[str, str]:
     return {"status": "healthy"}
 
 
@@ -205,7 +211,7 @@ async def proxy_request(full_path: str, request: Request) -> Response:
 
 
 @app.get("/apim/user")
-async def current_user(request: Request) -> Dict[str, Any]:
+async def current_user(request: Request) -> dict[str, Any]:
     claims = authenticate_request(request)
     return {
         "name": claims.get("name") or claims.get("preferred_username"),

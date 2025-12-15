@@ -96,6 +96,54 @@ data:
           ]
         },
         {
+          "clientId": "oauth2-proxy",
+          "name": "OAuth2 Proxy",
+          "description": "OAuth2 Proxy used to simulate Easy Auth (server-side OIDC client).",
+          "enabled": true,
+          "publicClient": true,
+          "protocol": "openid-connect",
+          "directAccessGrantsEnabled": false,
+          "standardFlowEnabled": true,
+          "implicitFlowEnabled": false,
+          "redirectUris": [
+            "https://subnetcalc.dev.127.0.0.1.sslip.io/oauth2/callback",
+            "https://subnetcalc.uat.127.0.0.1.sslip.io/oauth2/callback"
+          ],
+          "webOrigins": [
+            "+"
+          ],
+          "protocolMappers": [
+            {
+              "name": "username",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-property-mapper",
+              "consentRequired": false,
+              "config": {
+                "userinfo.token.claim": "true",
+                "user.attribute": "username",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "claim.name": "preferred_username",
+                "jsonType.label": "String"
+              }
+            },
+            {
+              "name": "email",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-property-mapper",
+              "consentRequired": false,
+              "config": {
+                "userinfo.token.claim": "true",
+                "user.attribute": "email",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "claim.name": "email",
+                "jsonType.label": "String"
+              }
+            }
+          ]
+        },
+        {
           "clientId": "api-app",
           "name": "FastAPI Backend",
           "description": "FastAPI backend API",

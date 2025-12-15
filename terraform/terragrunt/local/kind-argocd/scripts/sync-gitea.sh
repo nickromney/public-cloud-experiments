@@ -67,6 +67,10 @@ Environment:
                         Set 0 to drop gitea-actions-runner from the policies sync
   GITEA_ENABLE_VICTORIA_METRICS
                         Set 1 to keep victoria-metrics in apps/_applications (default: 0)
+  GITEA_ENABLE_SIGNOZ
+                        Set 1 to keep signoz in apps/_applications (default: 1)
+  GITEA_ENABLE_SIGNOZ_K8S_INFRA
+                        Set 1 to keep signoz-k8s-infra in apps/_applications (default: 1)
 EOF
 }
 
@@ -197,6 +201,14 @@ build_policies_stage() {
 
   if [[ "${GITEA_ENABLE_VICTORIA_METRICS:-0}" != "1" ]]; then
     rm -f "${stage}/apps/_applications/victoria-metrics.yaml"
+  fi
+
+  if [[ "${GITEA_ENABLE_SIGNOZ:-1}" != "1" ]]; then
+    rm -f "${stage}/apps/_applications/signoz.yaml"
+  fi
+
+  if [[ "${GITEA_ENABLE_SIGNOZ_K8S_INFRA:-1}" != "1" ]]; then
+    rm -f "${stage}/apps/_applications/signoz-k8s-infra.yaml"
   fi
 
   if [[ -d "${cluster_policies}" ]]; then
