@@ -7,18 +7,6 @@ spec:
     matchLabels:
       app.kubernetes.io/name: azure-auth-gateway-nginx
   ingress:
-    # Fully open during validation to ensure kubelet/NodePort and control-plane access works
-    - fromEntities:
-        - world
-        - cluster
-        - host
-        - remote-node
-      toPorts:
-        - ports:
-            - port: "443"
-              protocol: TCP
-            - port: "8443"
-              protocol: TCP
     - fromEntities:
         - host
         - remote-node
@@ -27,35 +15,26 @@ spec:
             - port: "443"
               protocol: TCP
             - port: "8443"
-              protocol: TCP
-    - fromEntities:
-        - host
-        - remote-node
-      toPorts:
-        - ports:
-            - port: "443"
               protocol: TCP
   egress:
-    # Fully open during validation to ensure dataplane can reach control-plane and kube-apiserver
-    - toEntities:
-        - world
-        - cluster
-        - host
-        - remote-node
-        - kube-apiserver
     # Control-plane service for NGINX Gateway Fabric
-    - toEndpoints:
-        - matchLabels:
-            app.kubernetes.io/name: nginx-gateway
-            "k8s:io.kubernetes.pod.namespace": nginx-gateway
-      toPorts:
-        - ports:
-            - port: "8443"
-              protocol: TCP
     - toServices:
         - k8sService:
             namespace: nginx-gateway
             serviceName: nginx-gateway
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+            - port: "8443"
+              protocol: TCP
+
+    # Control-plane pods (fallback in case toServices matching is unreliable)
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/instance: nginx-gateway
+            app.kubernetes.io/name: nginx-gateway
+            "k8s:io.kubernetes.pod.namespace": nginx-gateway
       toPorts:
         - ports:
             - port: "443"
@@ -77,8 +56,6 @@ spec:
         - ports:
             - port: "4180"
               protocol: TCP
-          authentication:
-            mode: required
 
     # Keycloak (shared)
     - toEndpoints:
@@ -90,8 +67,6 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
-          authentication:
-            mode: required
 
     # APIM simulators (shared)
     - toEndpoints:
@@ -107,8 +82,58 @@ spec:
         - ports:
             - port: "8000"
               protocol: TCP
-          authentication:
-            mode: required
+
+    # Platform UIs behind the gateway (TLS terminated at the gateway)
+    - toServices:
+        - k8sService:
+            namespace: argocd
+            serviceName: argocd-server
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/instance: argocd
+            app.kubernetes.io/name: argocd-server
+            "k8s:io.kubernetes.pod.namespace": argocd
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - toServices:
+        - k8sService:
+            namespace: gitea
+            serviceName: gitea-http
+      toPorts:
+        - ports:
+            - port: "3000"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/instance: gitea
+            app.kubernetes.io/name: gitea
+            "k8s:io.kubernetes.pod.namespace": gitea
+      toPorts:
+        - ports:
+            - port: "3000"
+              protocol: TCP
+    - toServices:
+        - k8sService:
+            namespace: kube-system
+            serviceName: hubble-ui
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            k8s-app: hubble-ui
+            "k8s:io.kubernetes.pod.namespace": kube-system
+      toPorts:
+        - ports:
+            - port: "8081"
+              protocol: TCP
 
     # DNS
     - toEndpoints:

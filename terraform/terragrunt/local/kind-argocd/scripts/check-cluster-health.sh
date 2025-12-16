@@ -102,10 +102,10 @@ print_useful_urls() {
   # Fixed defaults from stages/700-azure-auth-sim.tfvars (best-effort; don't fail if absent).
   echo "  • Subnet calculator (dev): https://subnetcalc.dev.127.0.0.1.sslip.io/"
   echo "  • Subnet calculator (uat): https://subnetcalc.uat.127.0.0.1.sslip.io/"
-  echo "  • Argo CD UI:              http://localhost:30080"
+  echo "  • Argo CD UI:              https://argocd.127.0.0.1.sslip.io/ (fallback: http://localhost:30080)"
   echo "  • Argo CD admin password:  argocd admin initial-password -n argocd"
-  echo "  • Hubble UI:               http://localhost:31235"
-  echo "  • Gitea UI:                http://localhost:30090"
+  echo "  • Hubble UI:               https://hubble.127.0.0.1.sslip.io/ (fallback: http://localhost:31235)"
+  echo "  • Gitea UI:                https://gitea.127.0.0.1.sslip.io/ (fallback: http://localhost:30090)"
 
   # SigNoz is deployed via Helm charts into the observability namespace.
   # It is typically exposed as a ClusterIP service, so we provide a port-forward URL.

@@ -1,0 +1,25 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: protect-default-deny-netpol
+spec:
+  admission: true
+  background: false
+  validationFailureAction: Enforce
+  rules:
+    - name: block-delete-default-deny-netpol
+      match:
+        any:
+          - resources:
+              kinds:
+                - NetworkPolicy
+              names:
+                - default-deny
+              operations:
+                - DELETE
+              namespaceSelector:
+                matchLabels:
+                  kyverno.io/isolate: "true"
+      validate:
+        message: default-deny NetworkPolicy is managed by Kyverno and cannot be deleted in isolated namespaces.
+        deny: {}

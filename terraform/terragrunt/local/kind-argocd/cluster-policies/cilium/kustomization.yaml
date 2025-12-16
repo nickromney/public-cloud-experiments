@@ -1,2 +1,3 @@
 resources:
   - azure-auth-nginx-gateway-ingress.yaml
+  - dev-uat-isolation.yaml

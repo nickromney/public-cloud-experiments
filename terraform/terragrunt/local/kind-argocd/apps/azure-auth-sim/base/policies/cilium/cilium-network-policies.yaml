@@ -10,7 +10,6 @@ spec:
   ingress:
     - fromEntities:
         - host
-        - remote-node
       toPorts:
         - ports:
             - port: "4180"
@@ -23,8 +22,6 @@ spec:
         - ports:
             - port: "4180"
               protocol: TCP
-          authentication:
-            mode: required
   egress:
     - toEndpoints:
         - matchLabels:
@@ -34,8 +31,6 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
-          authentication:
-            mode: required
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: keycloak
@@ -45,8 +40,6 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
-          authentication:
-            mode: required
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system
@@ -57,8 +50,6 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    - toEntities:
-        - kube-apiserver
 
 ---
 apiVersion: cilium.io/v2
@@ -73,7 +64,6 @@ spec:
   ingress:
     - fromEntities:
         - host
-        - remote-node
       toPorts:
         - ports:
             - port: "80"
@@ -86,8 +76,6 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
-          authentication:
-            mode: required
 
 ---
 apiVersion: cilium.io/v2
@@ -102,7 +90,6 @@ spec:
   ingress:
     - fromEntities:
         - host
-        - remote-node
       toPorts:
         - ports:
             - port: "80"
@@ -124,8 +111,6 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
-          authentication:
-            mode: required
     - fromEndpoints:
         - matchLabels:
             app.kubernetes.io/name: apim-simulator-uat
@@ -135,8 +120,6 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
-          authentication:
-            mode: required
   egress:
     - toEndpoints:
         - matchLabels:
@@ -147,8 +130,6 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
-          authentication:
-            mode: required
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: signoz
@@ -175,5 +156,3 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    - toEntities:
-        - kube-apiserver

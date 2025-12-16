@@ -11,7 +11,6 @@ spec:
   ingress:
     - fromEntities:
         - host
-        - remote-node
       toPorts:
         - ports:
             - port: "8000"
@@ -24,8 +23,6 @@ spec:
         - ports:
             - port: "8000"
               protocol: TCP
-          authentication:
-            mode: required
     # Optional: external APIM gateway (if NGINX Gateway Fabric creates these pods)
     - fromEndpoints:
         - matchLabels:
@@ -45,8 +42,6 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
-          authentication:
-            mode: required
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: keycloak
@@ -56,8 +51,6 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
-          authentication:
-            mode: required
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system
@@ -68,8 +61,6 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    - toEntities:
-        - kube-apiserver
 
 ---
 apiVersion: cilium.io/v2
@@ -85,7 +76,6 @@ spec:
   ingress:
     - fromEntities:
         - host
-        - remote-node
       toPorts:
         - ports:
             - port: "8000"
@@ -98,8 +88,6 @@ spec:
         - ports:
             - port: "8000"
               protocol: TCP
-          authentication:
-            mode: required
   egress:
     - toEndpoints:
         - matchLabels:
@@ -110,8 +98,6 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
-          authentication:
-            mode: required
     - toEndpoints:
         - matchLabels:
             app.kubernetes.io/name: keycloak
@@ -121,8 +107,6 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
-          authentication:
-            mode: required
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system
@@ -133,8 +117,6 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    - toEntities:
-        - kube-apiserver
 
 ---
 apiVersion: cilium.io/v2
@@ -149,7 +131,6 @@ spec:
   ingress:
     - fromEntities:
         - host
-        - remote-node
       toPorts:
         - ports:
             - port: "80"
@@ -184,5 +165,3 @@ spec:
               protocol: UDP
             - port: "53"
               protocol: TCP
-    - toEntities:
-        - kube-apiserver

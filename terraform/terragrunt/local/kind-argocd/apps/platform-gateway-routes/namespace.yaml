@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gateway-routes
+  labels:
+    app.kubernetes.io/name: gateway-routes
+    app.kubernetes.io/managed-by: argocd
+    azure-auth-gateway-access: "true"
+    kyverno.io/isolate: "true"

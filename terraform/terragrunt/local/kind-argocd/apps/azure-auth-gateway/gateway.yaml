@@ -19,7 +19,7 @@ spec:
         mode: Terminate
         certificateRefs:
           - kind: Secret
-            name: azure-auth-gateway-tls
+            name: platform-gateway-tls
       allowedRoutes:
         namespaces:
           from: Selector
