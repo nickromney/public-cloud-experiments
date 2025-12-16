@@ -17,88 +17,88 @@ spec:
             - port: "8443"
               protocol: TCP
   egress:
-    # Control-plane service for NGINX Gateway Fabric
-    - toServices:
-        - k8sService:
-            namespace: nginx-gateway
-            serviceName: nginx-gateway
+    # NGINX Gateway Fabric dataplane (this pod) talks to the control plane on the
+    # Service port 443, which kube-proxy DNATs to the pod targetPort 8443.
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": nginx-gateway
+            "k8s:app.kubernetes.io/name": nginx-gateway
       toPorts:
         - ports:
-            - port: "443"
-              protocol: TCP
             - port: "8443"
               protocol: TCP
 
     # OAuth2 Proxy (dev/uat)
-    - toServices:
-        - k8sService:
-            namespace: dev
-            serviceName: oauth2-proxy-frontend
-        - k8sService:
-            namespace: uat
-            serviceName: oauth2-proxy-frontend
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": dev
+            "k8s:app.kubernetes.io/name": oauth2-proxy-frontend
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": uat
+            "k8s:app.kubernetes.io/name": oauth2-proxy-frontend
       toPorts:
         - ports:
             - port: "4180"
               protocol: TCP
 
     # Keycloak (shared)
-    - toServices:
-        - k8sService:
-            namespace: azure-entraid-sim
-            serviceName: keycloak
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
+            "k8s:app.kubernetes.io/name": keycloak
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
 
     # APIM simulators (shared)
-    - toServices:
-        - k8sService:
-            namespace: azure-apim-sim
-            serviceName: apim-simulator
-        - k8sService:
-            namespace: azure-apim-sim
-            serviceName: apim-simulator-uat
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
+            "k8s:app.kubernetes.io/name": apim-simulator
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
+            "k8s:app.kubernetes.io/name": apim-simulator-uat
       toPorts:
         - ports:
             - port: "8000"
               protocol: TCP
 
     # SigNoz UI (observability)
-    - toServices:
-        - k8sService:
-            namespace: observability
-            serviceName: signoz
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": observability
+            "k8s:app.kubernetes.io/name": signoz
+            "k8s:app.kubernetes.io/component": signoz
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
 
     # Platform UIs behind the gateway (TLS terminated at the gateway)
-    - toServices:
-        - k8sService:
-            namespace: argocd
-            serviceName: argocd-server
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": argocd
+            "k8s:app.kubernetes.io/name": argocd-server
       toPorts:
         - ports:
-            - port: "80"
+            - port: "8080"
               protocol: TCP
-    - toServices:
-        - k8sService:
-            namespace: gitea
-            serviceName: gitea-http
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": gitea
+            "k8s:app.kubernetes.io/name": gitea
       toPorts:
         - ports:
             - port: "3000"
               protocol: TCP
-    - toServices:
-        - k8sService:
-            namespace: kube-system
-            serviceName: hubble-ui
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": hubble-ui
       toPorts:
         - ports:
-            - port: "80"
+            - port: "8081"
               protocol: TCP
 
     # DNS
