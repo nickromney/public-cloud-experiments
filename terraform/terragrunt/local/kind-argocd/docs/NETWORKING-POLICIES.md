@@ -53,7 +53,91 @@ In this cluster, Cilium provides:
 - Optional features (currently configured but mostly disabled for stability):
   - Hubble observability
   - WireGuard (disabled by default)
-  - mesh-auth (disabled by default)
+  - mesh-auth / mutual authentication (disabled by default)
+
+### mesh-auth (Cilium mutual authentication) scope
+
+This repo has a *placeholder* configuration path for Cilium's mutual authentication feature (commonly referred to as `mesh-auth`).
+
+What it is (in plain terms):
+
+- It is a service-mesh-style capability, focused on **identity** and **mutual TLS (mTLS)** between workloads.
+- It is **not** a full Istio-like feature set (traffic shifting, retries, rich L7 routing) by itself; it is primarily an identity/mTLS layer which Cilium can then use to enforce policy.
+- Cilium's approach is sidecar-less for most traffic, but it still uses proxies for some L7 enforcement. The identity source is typically **SPIFFE/SPIRE**.
+
+What enabling it changes:
+
+1. Cilium installs/uses **SPIRE** components (agent/server) to mint workload identities.
+2. Some traffic can become dependent on identity provisioning and certificate rotation.
+3. Your policy set can optionally start requiring authenticated connections (mTLS), not just IP/port based allows.
+
+#### Where it is wired in this repo
+
+Terraform exposes a toggle (default off) which drives the Helm values:
+
+```hcl
+# terraform/terragrunt/local/kind-argocd/main.tf
+authentication = {
+  enabled = var.enable_cilium_mesh_auth
+  mutual = {
+    spire = {
+      enabled = var.enable_cilium_mesh_auth
+      install = {
+        enabled = var.enable_cilium_mesh_auth
+        # (securityContext overrides are also set for kind compatibility)
+      }
+    }
+  }
+}
+```
+
+Enabling it is therefore (conceptually) “just” setting the Terraform variable used by the kind stack.
+
+#### What you should expect to add/change to make it work end-to-end
+
+This section is intentionally a scope checklist (not a full implementation), because mesh-auth changes the cluster's dependency graph.
+
+1. Confirm what gets installed
+   - After enabling, identify the SPIRE workloads/namespaces created by the chart (names can vary by Cilium version).
+   - Typical verification:
+
+     ```bash
+     kubectl get pods -A | rg -i "spire|spiffe|mesh-auth"
+     ```
+
+2. Ensure control-plane traffic is allowed (especially with default-deny)
+   - SPIRE server/agent need to talk to the Kubernetes API and DNS.
+   - In this repo, many namespaces are labeled `kyverno.io/isolate=true`, which means they receive a default-deny NetworkPolicy; *any* new cross-namespace dependencies introduced by mesh-auth must be explicitly allow-listed.
+   - The safest design is to keep SPIRE components in a non-isolated system namespace and then explicitly allow only the required traffic from isolated namespaces.
+
+3. Add explicit allow rules for the identity plane
+   - With kube-proxy enabled, you should assume that “to Service” egress may be DNAT'd to a pod IP + targetPort.
+   - Practically, that means:
+     - Allow the datapath components (Cilium agent / Cilium's proxies) to reach the SPIRE agent/server on the **actual target ports**.
+     - Prefer `toEndpoints` for these flows in this kind setup.
+
+4. Decide where you want mTLS to be *required*
+   - Enabling mesh-auth does not automatically force every connection to be mTLS.
+   - To get value out of it, you typically:
+     - start with one or two high-value edges (for example gateway -> oauth2-proxy, or APIM -> backend)
+     - introduce policy requiring authenticated connections for those edges
+     - iterate as you validate stability and operational overhead
+
+5. Plan for operational complexity
+   - Debugging failures often looks like: workloads are healthy but can't connect because identity issuance/rotation failed.
+   - You'll want a minimal “mesh-auth smoke test” that validates:
+     - SPIRE pods Ready
+     - Cilium reports auth enabled
+     - a single connection with auth required succeeds
+     - the same connection fails if identity is missing
+
+#### Suggested enablement approach for this repo (incremental)
+
+1. Enable mesh-auth only (no policy changes requiring auth yet)
+   - Goal: cluster comes up, existing app connectivity remains stable.
+2. Add minimal policy allowances only for any newly introduced required flows (SPIRE).
+3. Require authentication on a single edge (small blast radius).
+4. Expand coverage gradually.
 
 ### Relevant local configuration
 
