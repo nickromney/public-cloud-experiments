@@ -5,8 +5,8 @@ metadata:
 spec:
   endpointSelector:
     matchLabels:
-      app.kubernetes.io/name: oauth2-proxy-frontend
-      app.kubernetes.io/component: auth-proxy
+      "k8s:app.kubernetes.io/name": oauth2-proxy-frontend
+      "k8s:app.kubernetes.io/component": auth-proxy
   ingress:
     - fromEntities:
         - host
@@ -16,7 +16,7 @@ spec:
               protocol: TCP
     - fromEndpoints:
         - matchLabels:
-            app.kubernetes.io/name: azure-auth-gateway-nginx
+            "k8s:app.kubernetes.io/name": azure-auth-gateway-nginx
             "k8s:io.kubernetes.pod.namespace": azure-auth-gateway
       toPorts:
         - ports:
@@ -25,16 +25,16 @@ spec:
   egress:
     - toEndpoints:
         - matchLabels:
-            app.kubernetes.io/name: frontend-react-keycloak-protected
-            app.kubernetes.io/component: frontend
+            "k8s:app.kubernetes.io/name": frontend-react-keycloak-protected
+            "k8s:app.kubernetes.io/component": frontend
       toPorts:
         - ports:
             - port: "80"
               protocol: TCP
     - toEndpoints:
         - matchLabels:
-            app.kubernetes.io/name: keycloak
-            app.kubernetes.io/component: identity
+            "k8s:app.kubernetes.io/name": keycloak
+            "k8s:app.kubernetes.io/component": identity
             "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
       toPorts:
         - ports:
@@ -59,8 +59,8 @@ metadata:
 spec:
   endpointSelector:
     matchLabels:
-      app.kubernetes.io/name: frontend-react-keycloak-protected
-      app.kubernetes.io/component: frontend
+      "k8s:app.kubernetes.io/name": frontend-react-keycloak-protected
+      "k8s:app.kubernetes.io/component": frontend
   ingress:
     - fromEntities:
         - host
@@ -70,8 +70,8 @@ spec:
               protocol: TCP
     - fromEndpoints:
         - matchLabels:
-            app.kubernetes.io/name: oauth2-proxy-frontend
-            app.kubernetes.io/component: auth-proxy
+            "k8s:app.kubernetes.io/name": oauth2-proxy-frontend
+            "k8s:app.kubernetes.io/component": auth-proxy
       toPorts:
         - ports:
             - port: "80"
@@ -85,8 +85,8 @@ metadata:
 spec:
   endpointSelector:
     matchLabels:
-      app.kubernetes.io/name: api-fastapi-keycloak
-      app.kubernetes.io/component: backend
+      "k8s:app.kubernetes.io/name": api-fastapi-keycloak
+      "k8s:app.kubernetes.io/component": backend
   ingress:
     - fromEntities:
         - host
@@ -96,16 +96,16 @@ spec:
               protocol: TCP
     - fromEndpoints:
         - matchLabels:
-            app.kubernetes.io/name: subnetcalc-telemetry-warmup
-            app.kubernetes.io/component: telemetry
+            "k8s:app.kubernetes.io/name": subnetcalc-telemetry-warmup
+            "k8s:app.kubernetes.io/component": telemetry
       toPorts:
         - ports:
             - port: "80"
               protocol: TCP
     - fromEndpoints:
         - matchLabels:
-            app.kubernetes.io/name: apim-simulator
-            app.kubernetes.io/component: gateway
+            "k8s:app.kubernetes.io/name": apim-simulator
+            "k8s:app.kubernetes.io/component": gateway
             "k8s:io.kubernetes.pod.namespace": azure-apim-sim
       toPorts:
         - ports:
@@ -113,8 +113,8 @@ spec:
               protocol: TCP
     - fromEndpoints:
         - matchLabels:
-            app.kubernetes.io/name: apim-simulator-uat
-            app.kubernetes.io/component: gateway
+            "k8s:app.kubernetes.io/name": apim-simulator-uat
+            "k8s:app.kubernetes.io/component": gateway
             "k8s:io.kubernetes.pod.namespace": azure-apim-sim
       toPorts:
         - ports:
@@ -123,8 +123,8 @@ spec:
   egress:
     - toEndpoints:
         - matchLabels:
-            app.kubernetes.io/name: keycloak
-            app.kubernetes.io/component: identity
+            "k8s:app.kubernetes.io/name": keycloak
+            "k8s:app.kubernetes.io/component": identity
             "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
       toPorts:
         - ports:
@@ -132,12 +132,24 @@ spec:
               protocol: TCP
     - toEndpoints:
         - matchLabels:
-            app.kubernetes.io/name: signoz
-            app.kubernetes.io/component: otel-collector
+            "k8s:app.kubernetes.io/name": signoz
+            "k8s:app.kubernetes.io/component": otel-collector
             "k8s:io.kubernetes.pod.namespace": observability
       toPorts:
         - ports:
             - port: "4318"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            "k8s:app.kubernetes.io/name": azurite
+            "k8s:app.kubernetes.io/component": storage
+      toPorts:
+        - ports:
+            - port: "10000"
+              protocol: TCP
+            - port: "10001"
+              protocol: TCP
+            - port: "10002"
               protocol: TCP
     - toFQDNs:
         - matchName: www.cloudflare.com
@@ -145,6 +157,60 @@ spec:
       toPorts:
         - ports:
             - port: "443"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-azurite
+spec:
+  endpointSelector:
+    matchLabels:
+      "k8s:app.kubernetes.io/name": azurite
+      "k8s:app.kubernetes.io/component": storage
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            "k8s:app.kubernetes.io/name": api-fastapi-keycloak
+            "k8s:app.kubernetes.io/component": backend
+      toPorts:
+        - ports:
+            - port: "10000"
+              protocol: TCP
+            - port: "10001"
+              protocol: TCP
+            - port: "10002"
+              protocol: TCP
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-auth-telemetry-warmup
+spec:
+  endpointSelector:
+    matchLabels:
+      "k8s:app.kubernetes.io/name": subnetcalc-telemetry-warmup
+      "k8s:app.kubernetes.io/component": telemetry
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            "k8s:app.kubernetes.io/name": api-fastapi-keycloak
+            "k8s:app.kubernetes.io/component": backend
+      toPorts:
+        - ports:
+            - port: "80"
               protocol: TCP
     - toEndpoints:
         - matchLabels:

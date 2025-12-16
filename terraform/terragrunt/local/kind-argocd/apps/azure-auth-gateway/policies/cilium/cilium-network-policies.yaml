@@ -29,55 +29,37 @@ spec:
             - port: "8443"
               protocol: TCP
 
-    # Control-plane pods (fallback in case toServices matching is unreliable)
-    - toEndpoints:
-        - matchLabels:
-            "k8s:app.kubernetes.io/instance": nginx-gateway
-            "k8s:app.kubernetes.io/name": nginx-gateway
-            "k8s:io.kubernetes.pod.namespace": nginx-gateway
-      toPorts:
-        - ports:
-            - port: "443"
-              protocol: TCP
-            - port: "8443"
-              protocol: TCP
-
     # OAuth2 Proxy (dev/uat)
-    - toEndpoints:
-        - matchLabels:
-            "k8s:app.kubernetes.io/name": oauth2-proxy-frontend
-            "k8s:app.kubernetes.io/component": auth-proxy
-            "k8s:io.kubernetes.pod.namespace": dev
-        - matchLabels:
-            "k8s:app.kubernetes.io/name": oauth2-proxy-frontend
-            "k8s:app.kubernetes.io/component": auth-proxy
-            "k8s:io.kubernetes.pod.namespace": uat
+    - toServices:
+        - k8sService:
+            namespace: dev
+            serviceName: oauth2-proxy-frontend
+        - k8sService:
+            namespace: uat
+            serviceName: oauth2-proxy-frontend
       toPorts:
         - ports:
             - port: "4180"
               protocol: TCP
 
     # Keycloak (shared)
-    - toEndpoints:
-        - matchLabels:
-            "k8s:app.kubernetes.io/name": keycloak
-            "k8s:app.kubernetes.io/component": identity
-            "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
+    - toServices:
+        - k8sService:
+            namespace: azure-entraid-sim
+            serviceName: keycloak
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
 
     # APIM simulators (shared)
-    - toEndpoints:
-        - matchLabels:
-            "k8s:app.kubernetes.io/name": apim-simulator
-            "k8s:app.kubernetes.io/component": gateway
-            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
-        - matchLabels:
-            "k8s:app.kubernetes.io/name": apim-simulator-uat
-            "k8s:app.kubernetes.io/component": gateway
-            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
+    - toServices:
+        - k8sService:
+            namespace: azure-apim-sim
+            serviceName: apim-simulator
+        - k8sService:
+            namespace: azure-apim-sim
+            serviceName: apim-simulator-uat
       toPorts:
         - ports:
             - port: "8000"
@@ -92,15 +74,6 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
-    - toEndpoints:
-        - matchLabels:
-            "k8s:app.kubernetes.io/name": signoz
-            "k8s:app.kubernetes.io/component": signoz
-            "k8s:io.kubernetes.pod.namespace": observability
-      toPorts:
-        - ports:
-            - port: "8080"
-              protocol: TCP
 
     # Platform UIs behind the gateway (TLS terminated at the gateway)
     - toServices:
@@ -111,32 +84,10 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
-            - port: "8080"
-              protocol: TCP
-    - toEndpoints:
-        - matchLabels:
-            "k8s:app.kubernetes.io/instance": argocd
-            "k8s:app.kubernetes.io/name": argocd-server
-            "k8s:io.kubernetes.pod.namespace": argocd
-      toPorts:
-        - ports:
-            - port: "80"
-              protocol: TCP
-            - port: "8080"
-              protocol: TCP
     - toServices:
         - k8sService:
             namespace: gitea
             serviceName: gitea-http
-      toPorts:
-        - ports:
-            - port: "3000"
-              protocol: TCP
-    - toEndpoints:
-        - matchLabels:
-            "k8s:app.kubernetes.io/instance": gitea
-            "k8s:app.kubernetes.io/name": gitea
-            "k8s:io.kubernetes.pod.namespace": gitea
       toPorts:
         - ports:
             - port: "3000"
@@ -148,42 +99,6 @@ spec:
       toPorts:
         - ports:
             - port: "80"
-              protocol: TCP
-            - port: "8081"
-              protocol: TCP
-    - toEndpoints:
-        - matchLabels:
-            "k8s:k8s-app": hubble-ui
-            "k8s:io.kubernetes.pod.namespace": kube-system
-      toPorts:
-        - ports:
-            - port: "80"
-              protocol: TCP
-            - port: "8081"
-              protocol: TCP
-
-    # Some pods in kind can appear as "unmanaged" destinations from Cilium's
-    # perspective. Allow a small set of required ports across the pod CIDR so
-    # the gateway can still reach internal backends.
-    - toCIDRSet:
-        - cidr: 10.244.0.0/16
-      toPorts:
-        - ports:
-            - port: "80"
-              protocol: TCP
-            - port: "443"
-              protocol: TCP
-            - port: "3000"
-              protocol: TCP
-            - port: "4180"
-              protocol: TCP
-            - port: "8000"
-              protocol: TCP
-            - port: "8080"
-              protocol: TCP
-            - port: "8081"
-              protocol: TCP
-            - port: "8443"
               protocol: TCP
 
     # DNS

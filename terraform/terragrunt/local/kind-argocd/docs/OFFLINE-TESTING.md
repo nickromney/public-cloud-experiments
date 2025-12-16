@@ -11,7 +11,7 @@ Kind clusters run inside Docker/Podman containers. By default, pods pull images 
 
 ### Image Storage Locations
 
-```
+```text
 Local machine (podman/docker) --> kind load --> Kind cluster nodes
 ```
 
