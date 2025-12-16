@@ -2,7 +2,7 @@
 name = "subnet-calculator-api"
 version = "1.0.0"
 description = "FastAPI subnet calculator for Container Apps / App Service"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "fastapi[standard]>=0.118.0",
     "uvicorn[standard]>=0.34.0",  # ASGI server (replaces Azure Functions host)
@@ -39,7 +39,7 @@ markers = [
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = [

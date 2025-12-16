@@ -26,8 +26,8 @@ spec:
             - -c
             - |
               set -euo pipefail
-              # oauth2-proxy expects a base64-encoded 16/24/32-byte cookie secret.
-              head -c 32 /dev/urandom | base64 | tr -d '\n' > /work/cookie_secret
+              # oauth2-proxy cookie secret bytes must be 16/24/32 bytes (not base64 text).
+              head -c 32 /dev/urandom > /work/cookie_secret
               # With PKCE + public clients, the client secret can be empty.
               : > /work/client_secret
           volumeMounts:

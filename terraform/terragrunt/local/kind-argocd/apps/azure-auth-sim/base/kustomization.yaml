@@ -3,6 +3,8 @@ kind: Kustomization
 resources:
   - api-deployment.yaml
   - api-service.yaml
+  - azurite-deployment.yaml
+  - azurite-service.yaml
   - telemetry-warmup-cronjob.yaml
   - frontend-deployment.yaml
   - frontend-service.yaml

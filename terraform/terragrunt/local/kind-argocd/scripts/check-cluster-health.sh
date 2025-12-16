@@ -108,19 +108,8 @@ print_useful_urls() {
   echo "  • Gitea UI:                https://gitea.127.0.0.1.sslip.io/ (fallback: http://localhost:30090)"
 
   # SigNoz is deployed via Helm charts into the observability namespace.
-  # It is typically exposed as a ClusterIP service, so we provide a port-forward URL.
   if kubectl get ns observability >/dev/null 2>&1; then
-    if kubectl -n observability get svc signoz-frontend >/dev/null 2>&1; then
-      echo "  • SigNoz UI (port-forward): http://localhost:3301"
-      echo "    kubectl -n observability port-forward svc/signoz-frontend 3301:3301"
-    elif kubectl -n observability get svc signoz >/dev/null 2>&1; then
-      echo "  • SigNoz UI (port-forward): http://localhost:3301"
-      echo "    kubectl -n observability port-forward svc/signoz 3301:8080"
-    elif kubectl -n observability get svc -o name 2>/dev/null | grep -q "signoz"; then
-      echo "  • SigNoz: services detected in ns=observability (list with: kubectl -n observability get svc)"
-    else
-      echo "  • SigNoz: ns=observability present, but services not detected yet"
-    fi
+    echo "  • SigNoz UI:               https://signoz.127.0.0.1.sslip.io/"
   fi
 }
 
@@ -298,6 +287,13 @@ check_signoz() {
     ok "SigNoz service present: observability/signoz"
   else
     fail_soft "SigNoz service missing: expected observability/signoz or observability/signoz-frontend"
+  fi
+
+  # Local UX: expose SigNoz on a stable localhost port without requiring kubectl port-forward.
+  if kubectl -n observability get svc signoz-ui >/dev/null 2>&1; then
+    ok "SigNoz NodePort service present: observability/signoz-ui"
+  else
+    fail_soft "SigNoz NodePort service missing: expected observability/signoz-ui"
   fi
 }
 

@@ -7,7 +7,7 @@ spec:
   description: Allow Azure Auth data-plane pods to reach the NGINX Gateway Fabric control-plane service.
   endpointSelector:
     matchLabels:
-      app.kubernetes.io/name: nginx-gateway
+      "k8s:app.kubernetes.io/name": nginx-gateway
   ingress:
     - fromEntities:
         - cluster
@@ -22,7 +22,7 @@ spec:
     # Allow Azure auth data-plane pods to reach the control-plane service.
     - fromEndpoints:
         - matchLabels:
-            app.kubernetes.io/name: azure-auth-gateway-nginx
+            "k8s:app.kubernetes.io/name": azure-auth-gateway-nginx
             "k8s:io.kubernetes.pod.namespace": azure-auth-gateway
       toPorts:
         - ports:

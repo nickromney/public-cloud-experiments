@@ -1,5 +1,5 @@
 # Stage 1: Builder - Install dependencies
-FROM python:3.11-slim AS builder
+FROM python:3.13-slim AS builder
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-cache --no-dev
 
 # Stage 2: Runtime - Copy only what's needed
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 

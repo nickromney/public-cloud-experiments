@@ -24,6 +24,9 @@ spec:
           image: localhost:30090/gitea-admin/azure-auth-sim-api:latest
           imagePullPolicy: Always
           env:
+            # Required for Azure Functions host lock + secrets; use in-cluster Azurite for local kind.
+            - name: AzureWebJobsStorage
+              value: "UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite"
             - name: AUTH_METHOD
               value: oidc
             - name: OIDC_ISSUER
@@ -49,8 +52,10 @@ spec:
             - name: http
               containerPort: 80
           readinessProbe:
-            tcpSocket:
+            httpGet:
+              path: /api/v1/health
               port: http
+              scheme: HTTP
             initialDelaySeconds: 60
             periodSeconds: 10
             timeoutSeconds: 5

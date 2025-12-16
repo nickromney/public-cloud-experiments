@@ -3,7 +3,7 @@ name = "subnet-calculator-flask-frontend"
 version = "0.1.0"
 description = "Modern web frontend for IPv4 subnet calculator with cloud provider support"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "flask>=3.1.2",
     "gunicorn>=23.0.0",
@@ -22,7 +22,7 @@ dev = [
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = [
