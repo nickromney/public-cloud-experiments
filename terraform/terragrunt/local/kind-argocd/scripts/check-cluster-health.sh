@@ -32,6 +32,11 @@ FAILED_ARGO_PHASE=()
 FAILED_DEPLOY_NS=()
 FAILED_DEPLOYMENTS=() # entries: "<ns>|<deployment>|<ready>|<desired>"
 
+MESH_AUTH_ENABLED=0
+MESH_AUTH_MUTUAL_ENABLED=""
+MESH_AUTH_TRUST_DOMAIN=""
+MESH_AUTH_SPIRE_SERVER_ADDRESS=""
+
 add_unique_ns() {
   local ns="$1"
   for existing in "${FAILED_DEPLOY_NS[@]:-}"; do
@@ -136,6 +141,10 @@ check_namespaces() {
     nginx-gateway
   )
 
+  if [[ "${MESH_AUTH_ENABLED}" -eq 1 ]]; then
+    optional_namespaces+=(cilium-spire)
+  fi
+
   for ns in "${required_namespaces[@]}"; do
     if ! kubectl get ns "${ns}" >/dev/null 2>&1; then
       fail "Required namespace missing: ${ns}"
@@ -178,6 +187,59 @@ check_cilium() {
     fi
     sleep 5
   done
+}
+
+detect_mesh_auth() {
+  # mesh-auth is configured via the Cilium agent ConfigMap.
+  # When disabled, these keys may be missing.
+  local enabled
+  enabled=$(kubectl -n kube-system get cm cilium-config -o jsonpath='{.data.mesh-auth-enabled}' 2>/dev/null || echo "")
+  if [[ "${enabled}" == "true" ]]; then
+    MESH_AUTH_ENABLED=1
+    MESH_AUTH_MUTUAL_ENABLED=$(kubectl -n kube-system get cm cilium-config -o jsonpath='{.data.mesh-auth-mutual-enabled}' 2>/dev/null || echo "")
+    MESH_AUTH_TRUST_DOMAIN=$(kubectl -n kube-system get cm cilium-config -o jsonpath='{.data.mesh-auth-spiffe-trust-domain}' 2>/dev/null || echo "")
+    MESH_AUTH_SPIRE_SERVER_ADDRESS=$(kubectl -n kube-system get cm cilium-config -o jsonpath='{.data.mesh-auth-spire-server-address}' 2>/dev/null || echo "")
+    ok "Cilium mesh-auth enabled (mutual=${MESH_AUTH_MUTUAL_ENABLED:-unknown}, trustDomain=${MESH_AUTH_TRUST_DOMAIN:-unknown})"
+    if [[ -n "${MESH_AUTH_SPIRE_SERVER_ADDRESS}" ]]; then
+      ok "Cilium mesh-auth SPIRE server: ${MESH_AUTH_SPIRE_SERVER_ADDRESS}"
+    fi
+  else
+    ok "Cilium mesh-auth disabled"
+  fi
+}
+
+check_mesh_auth() {
+  if [[ "${MESH_AUTH_ENABLED}" -ne 1 ]]; then
+    return
+  fi
+
+  if ! kubectl get ns cilium-spire >/dev/null 2>&1; then
+    fail_soft "mesh-auth enabled but namespace missing: cilium-spire"
+    return
+  fi
+  ok "Namespace present: cilium-spire"
+
+  local server_desired server_ready
+  server_desired=$(kubectl -n cilium-spire get sts spire-server -o jsonpath='{.status.replicas}' 2>/dev/null || echo 0)
+  server_ready=$(kubectl -n cilium-spire get sts spire-server -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo 0)
+  if [[ -z "${server_desired}" ]]; then server_desired=1; fi
+  if [[ -z "${server_ready}" ]]; then server_ready=0; fi
+  if [[ "${server_ready}" -lt "${server_desired}" ]]; then
+    fail_soft "SPIRE server not ready (${server_ready}/${server_desired})"
+  else
+    ok "SPIRE server ready (${server_ready}/${server_desired})"
+  fi
+
+  local agent_desired agent_ready
+  agent_desired=$(kubectl -n cilium-spire get ds spire-agent -o jsonpath='{.status.desiredNumberScheduled}' 2>/dev/null || echo 0)
+  agent_ready=$(kubectl -n cilium-spire get ds spire-agent -o jsonpath='{.status.numberReady}' 2>/dev/null || echo 0)
+  if [[ "${agent_desired}" -eq 0 ]]; then
+    fail_soft "SPIRE agent DaemonSet not found"
+  elif [[ "${agent_ready}" -lt "${agent_desired}" ]]; then
+    fail_soft "SPIRE agent not ready (${agent_ready}/${agent_desired})"
+  else
+    ok "SPIRE agent ready (${agent_ready}/${agent_desired})"
+  fi
 }
 
 check_argo_app() {
@@ -417,6 +479,8 @@ main() {
   check_api
   check_node_arch
   check_cilium
+  detect_mesh_auth
+  check_mesh_auth
   check_namespaces
   check_argo_apps
   check_signoz

@@ -2,6 +2,8 @@ apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: default-deny-namespaces
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true,Force=true
 spec:
   admission: true
   background: true
@@ -9,7 +11,7 @@ spec:
   validationFailureAction: Audit
   rules:
     - name: add-default-deny-netpol
-      skipBackgroundRequests: true
+      skipBackgroundRequests: false
       match:
         any:
           - resources:
