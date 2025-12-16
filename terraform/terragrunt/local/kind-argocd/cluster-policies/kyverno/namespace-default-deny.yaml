@@ -5,6 +5,7 @@ metadata:
 spec:
   admission: true
   background: true
+  generateExisting: true
   validationFailureAction: Audit
   rules:
     - name: add-default-deny-netpol

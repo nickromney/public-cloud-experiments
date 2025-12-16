@@ -10,9 +10,7 @@ spec:
       "k8s:app.kubernetes.io/name": nginx-gateway
   ingress:
     - fromEntities:
-        - cluster
         - host
-        - remote-node
       toPorts:
         - ports:
             - port: "443"
@@ -30,15 +28,28 @@ spec:
               protocol: TCP
             - port: "8443"
               protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            "k8s:app.kubernetes.io/name": apim-gateway-nginx
+            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+            - port: "8443"
+              protocol: TCP
   egress:
-    # Allow responses back to azure-auth-sim data plane pods
-    - toEntities:
-        - cluster
     # Allow DNS lookups
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": "kube-system"
             "k8s:k8s-app": "kube-dns"
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
     # Allow kube-apiserver access for Gateway API CRDs
     - toEntities:
         - kube-apiserver
