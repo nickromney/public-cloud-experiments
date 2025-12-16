@@ -111,6 +111,8 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
+      authentication:
+        mode: required
     - fromEndpoints:
         - matchLabels:
             "k8s:app.kubernetes.io/name": apim-simulator-uat
@@ -120,6 +122,8 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
+      authentication:
+        mode: required
   egress:
     - toEndpoints:
         - matchLabels:

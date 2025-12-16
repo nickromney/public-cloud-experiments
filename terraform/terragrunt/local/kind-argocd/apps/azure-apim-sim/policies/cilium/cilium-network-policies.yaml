@@ -42,6 +42,8 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
+      authentication:
+        mode: required
     - toEndpoints:
         - matchLabels:
             "k8s:app.kubernetes.io/name": keycloak
@@ -98,6 +100,8 @@ spec:
         - ports:
             - port: "80"
               protocol: TCP
+      authentication:
+        mode: required
     - toEndpoints:
         - matchLabels:
             "k8s:app.kubernetes.io/name": keycloak
