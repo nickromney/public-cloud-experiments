@@ -145,15 +145,16 @@ class TestFrontend:
         page.goto(base_url)
 
         # Check all example buttons (IPv4)
-        expect(page.locator(".btn-rfc1918")).to_be_visible()
-        expect(page.locator(".btn-rfc6598")).to_be_visible()
-        expect(page.locator(".btn-public")).to_be_visible()
+        expect(page.locator("button:has-text('RFC1918:')")).to_be_visible()
+        expect(page.locator("button:has-text('RFC6598:')")).to_be_visible()
+        expect(page.locator("button:has-text('Public:')")).to_be_visible()
 
         # IPv6 button
-        expect(page.locator(".btn-ipv6")).to_be_visible()
+        expect(page.locator("button:has-text('IPv6: 2001:db8::/32')")).to_be_visible()
 
         # Cloudflare buttons (both IPv4 and IPv6)
-        expect(page.locator(".btn-cloudflare").first).to_be_visible()
+        expect(page.locator("button:has-text('Cloudflare:')")).to_be_visible()
+        expect(page.locator("button:has-text('Cloudflare IPv6:')")).to_be_visible()
 
     # Group 4: Responsive Layout (3 tests)
 
@@ -466,7 +467,7 @@ class TestFrontend:
         page.goto(base_url)
 
         # Click IPv6 example button
-        page.click(".btn-ipv6")
+        page.click("button:has-text('IPv6: 2001:db8::/32')")
 
         # Input should be populated with IPv6 address
         input_value = page.input_value("#ip-address")

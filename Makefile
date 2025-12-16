@@ -203,7 +203,7 @@ python-test: ## Run Python tests with pytest in all Python projects
 	@for dir in $(PYTHON_PROJECTS); do \
 		if [ -f "$$dir/pyproject.toml" ]; then \
 			echo "$(YELLOW)Testing $$dir...$(NC)"; \
-			(cd "$$dir" && uv run pytest -v) || exit 1; \
+			(cd "$$dir" && uv run --all-extras --all-groups pytest -v) || exit 1; \
 		fi; \
 	done
 	@echo "$(GREEN)✓ All tests passed$(NC)"

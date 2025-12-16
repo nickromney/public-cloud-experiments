@@ -118,6 +118,12 @@ locals {
       host_port      = var.hubble_ui_node_port
       protocol       = "TCP"
     },
+    {
+      name           = "signoz-ui"
+      container_port = var.signoz_ui_node_port
+      host_port      = var.signoz_ui_host_port
+      protocol       = "TCP"
+    },
     ], var.use_external_gitea ? [] : [
     {
       name           = "gitea-http"

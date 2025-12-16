@@ -12,7 +12,13 @@ dependencies = [
     "pyjwt>=2.10.1",
     "python-jose[cryptography]>=3.3.0",
     "httpx>=0.28.1",
-    "opentelemetry-exporter-otlp>=1.36.0",
+    # Must stay compatible with the Azure Functions Python worker's bundled protobuf.
+    # The Functions base image currently ships protobuf 5.x; protobuf 6.x has caused
+    # Python worker segfaults (exit code 139) due to mixed worker/customer deps.
+    "protobuf>=5.29.5,<6",
+    # Avoid the opentelemetry-exporter-otlp meta-package (pulls grpcio), which can
+    # override Azure Functions worker dependencies and destabilize the runtime.
+    "opentelemetry-exporter-otlp-proto-http>=1.36.0",
     "opentelemetry-instrumentation-fastapi>=0.57b0",
     "opentelemetry-instrumentation-httpx>=0.57b0",
     "opentelemetry-sdk>=1.36.0",

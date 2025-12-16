@@ -2,7 +2,7 @@
 name = "subnet-calculator-apim-simulator"
 version = "0.1.0"
 description = "Lightweight Azure API Management simulator for local OAuth2/OIDC testing"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "fastapi[standard]>=0.115.0",
     "httpx>=0.28.1",
@@ -17,7 +17,7 @@ dev = [
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "C4", "UP"]

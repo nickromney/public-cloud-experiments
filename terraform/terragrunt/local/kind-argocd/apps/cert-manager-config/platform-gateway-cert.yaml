@@ -13,6 +13,7 @@ spec:
     - argocd.127.0.0.1.sslip.io
     - gitea.127.0.0.1.sslip.io
     - hubble.127.0.0.1.sslip.io
+    - signoz.127.0.0.1.sslip.io
     - dev.127.0.0.1.sslip.io
     - '*.dev.127.0.0.1.sslip.io'
     - uat.127.0.0.1.sslip.io

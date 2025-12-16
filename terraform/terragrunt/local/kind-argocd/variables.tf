@@ -73,6 +73,18 @@ variable "hubble_ui_node_port" {
   default     = 31235
 }
 
+variable "signoz_ui_host_port" {
+  description = "Host port to expose the SigNoz UI service (via a NodePort mapped onto the kind control plane)."
+  type        = number
+  default     = 3301
+}
+
+variable "signoz_ui_node_port" {
+  description = "NodePort to expose the SigNoz UI service."
+  type        = number
+  default     = 30301
+}
+
 variable "azure_auth_namespaces" {
   description = "Namespaces for the azure auth simulation workload (Frontend + Backend API) per environment."
   type        = map(string)
