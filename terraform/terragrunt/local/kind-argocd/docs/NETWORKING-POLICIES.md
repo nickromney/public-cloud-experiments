@@ -105,6 +105,59 @@ This section is intentionally a scope checklist (not a full implementation), bec
      kubectl get pods -A | rg -i "spire|spiffe|mesh-auth"
      ```
 
+   #### How to tell whether mesh-auth is enabled (and whether it is actually affecting traffic)
+
+   There are two distinct questions:
+
+   1. **Is mesh-auth enabled and the identity plane (SPIRE) running?**
+   2. **Is any app-to-app traffic actually being authenticated / enforced?**
+
+   In this repo, we enable the identity plane, but we do *not* currently ship policies that explicitly require mutual auth on application edges, so you should not expect a dramatic change in normal app traffic until you start adding “auth required” policy.
+
+   Runtime checks that are reliable:
+
+   1. Cilium config shows mesh-auth enabled
+
+      ```bash
+      kubectl -n kube-system get cm cilium-config -o yaml | rg -n "mesh-auth"
+      ```
+
+      You should see settings like `mesh-auth-enabled: "true"` and the SPIRE server address.
+
+   2. SPIRE components are running
+
+      ```bash
+      kubectl -n cilium-spire get pods
+      ```
+
+   3. Cilium exposes a feature metric showing mutual-auth is enabled
+
+      ```bash
+      CILIUM_POD="$(kubectl -n kube-system get pods -l k8s-app=cilium -o name | head -n 1)"
+      kubectl -n kube-system exec "${CILIUM_POD}" -- cilium metrics list \
+        | rg -n "cilium_feature_network_policies_mutual_auth_enabled"
+      ```
+
+      Expected output includes a `... = 1.000000` value.
+
+   Hubble-based checks (useful, but they answer different questions):
+
+   1. Confirm SPIRE is actually talking on the network (identity plane traffic exists)
+
+      ```bash
+      kubectl -n kube-system port-forward svc/hubble-relay 4245:80
+      hubble status --server localhost:4245
+      hubble observe --server localhost:4245 --namespace cilium-spire --last 20
+      ```
+
+   2. If/when you start *enforcing* auth on a traffic edge, use Hubble to look for auth-related drops
+
+      ```bash
+      hubble observe --server localhost:4245 --verdict DROPPED --since 10m --last 50
+      ```
+
+      Until you have auth-enforcing policies, “DROPPED” flows are typically just normal L3/L4 policy denies (e.g. default-deny) rather than mutual-auth failures.
+
 2. Ensure control-plane traffic is allowed (especially with default-deny)
    - SPIRE server/agent need to talk to the Kubernetes API and DNS.
    - In this repo, many namespaces are labeled `kyverno.io/isolate=true`, which means they receive a default-deny NetworkPolicy; *any* new cross-namespace dependencies introduced by mesh-auth must be explicitly allow-listed.
