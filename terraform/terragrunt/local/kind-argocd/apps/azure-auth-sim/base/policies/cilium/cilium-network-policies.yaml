@@ -22,6 +22,8 @@ spec:
         - ports:
             - port: "4180"
               protocol: TCP
+      authentication:
+        mode: required
   egress:
     - toEndpoints:
         - matchLabels:

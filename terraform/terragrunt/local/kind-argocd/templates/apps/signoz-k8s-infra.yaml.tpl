@@ -27,6 +27,27 @@ spec:
           # Turnkey UX: enable pod logs so SigNoz immediately shows cluster workloads (e.g. subnetcalc pods).
           logsCollection:
             enabled: true
+
+          # Scrape selected Prometheus endpoints and ship into SigNoz.
+          # This is the easiest way to surface Cilium mesh-auth / policy metrics.
+          prometheus:
+            enabled: true
+            scrapeInterval: 30s
+            scrapeConfigs:
+              - job_name: cilium-agent
+                kubernetes_sd_configs:
+                  - role: pod
+                    namespaces:
+                      names: ["kube-system"]
+                relabel_configs:
+                  - source_labels: [__meta_kubernetes_pod_label_k8s_app]
+                    action: keep
+                    regex: cilium
+                  - source_labels: [__meta_kubernetes_pod_ip]
+                    action: replace
+                    target_label: __address__
+                    regex: (.+)
+                    replacement: $1:9962
   syncPolicy:
     automated:
       prune: true

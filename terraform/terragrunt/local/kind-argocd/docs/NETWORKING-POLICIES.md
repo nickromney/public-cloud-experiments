@@ -140,6 +140,35 @@ This section is intentionally a scope checklist (not a full implementation), bec
 
       Expected output includes a `... = 1.000000` value.
 
+   4. SigNoz-based checks (recommended for ongoing visibility)
+
+      This repo wires Cilium + SigNoz so you can view Cilium metrics in the SigNoz UI:
+
+      - Cilium is configured to expose Prometheus metrics (`prometheus.enabled: true` in the Helm values)
+      - `signoz-k8s-infra` is configured to scrape `cilium-agent` pods on `:9962/metrics`
+
+      Once the cluster has reconciled, open the SigNoz UI and search for Cilium auth / mesh metrics:
+
+      - UI: `https://signoz.127.0.0.1.sslip.io/`
+      - Metrics Explorer: search for `cilium_feature_network_policies_mutual_auth_enabled` (expected value: `1`)
+
+      Recommended charts (these are the two most reliable “proof points” in this repo today):
+
+      - `cilium_feature_network_policies_mutual_auth_enabled` (gauge)
+        - Shows whether mesh-auth is enabled on the Cilium agents (expect `1`).
+      - `cilium_feature_network_policies_mutual_auth_policies_total{action="add"}` (counter)
+        - Increments when Cilium ingests policies that include `authentication: { mode: required }`.
+        - This is useful to confirm the "mTLS required" rules have actually been loaded by the agents.
+
+      If you want to sanity-check scraping via logs (optional):
+
+      ```bash
+      kubectl -n observability logs deploy/signoz-k8s-infra-otel-deployment --since=10m \
+        | rg -n 'jobName":"cilium-agent|Failed to scrape Prometheus endpoint'
+      ```
+
+      Note: this gives you a cluster-level view (metrics), but it does not yet provide a per-request/per-flow UI saying "this particular request used mTLS".
+
    Hubble-based checks (useful, but they answer different questions):
 
    1. Confirm SPIRE is actually talking on the network (identity plane traffic exists)
@@ -157,6 +186,11 @@ This section is intentionally a scope checklist (not a full implementation), bec
       ```
 
       Until you have auth-enforcing policies, “DROPPED” flows are typically just normal L3/L4 policy denies (e.g. default-deny) rather than mutual-auth failures.
+
+      Hubble UI is still useful for end-to-end confidence (flows are being forwarded, and drops show up quickly), but it may not show a clear per-flow "mTLS used" signal in this cluster:
+
+      - UI: `https://hubble.127.0.0.1.sslip.io/`
+      - Use it primarily to answer: "is traffic flowing / getting dropped?" rather than "was this specific flow mutually authenticated?"
 
 2. Ensure control-plane traffic is allowed (especially with default-deny)
    - SPIRE server/agent need to talk to the Kubernetes API and DNS.
