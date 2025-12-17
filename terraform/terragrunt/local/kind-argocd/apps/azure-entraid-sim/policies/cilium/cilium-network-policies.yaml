@@ -61,6 +61,8 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+      authentication:
+        mode: required
     # NGINX Gateway data plane (dev/uat) for /realms and /resources (browser -> gateway -> keycloak)
     - fromEndpoints:
         - matchLabels:
