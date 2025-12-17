@@ -34,6 +34,8 @@ spec:
         - ports:
             - port: "8000"
               protocol: TCP
+      authentication:
+        mode: required
   egress:
     - toEndpoints:
         - matchLabels:
@@ -167,6 +169,19 @@ spec:
         - ports:
             - port: "8000"
               protocol: TCP
+      authentication:
+        mode: required
+
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
+            "k8s:app.kubernetes.io/name": keycloak
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+      authentication:
+        mode: required
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system
