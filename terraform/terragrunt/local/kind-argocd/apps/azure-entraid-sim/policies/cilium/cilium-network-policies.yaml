@@ -29,6 +29,8 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+      authentication:
+        mode: required
     # Backend API (dev/uat)
     - fromEndpoints:
         - matchLabels:
@@ -43,6 +45,8 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+      authentication:
+        mode: required
     # APIM simulator (dev/uat)
     - fromEndpoints:
         - matchLabels:
@@ -57,6 +61,20 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+      authentication:
+        mode: required
+
+    # Optional: external APIM gateway (if NGINX Gateway Fabric creates these pods)
+    - fromEndpoints:
+        - matchLabels:
+            "k8s:app.kubernetes.io/name": apim-gateway-nginx
+            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+      authentication:
+        mode: required
     # NGINX Gateway data plane (dev/uat) for /realms and /resources (browser -> gateway -> keycloak)
     - fromEndpoints:
         - matchLabels:
@@ -66,6 +84,8 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+      authentication:
+        mode: required
   egress:
     - toEndpoints:
         - matchLabels:

@@ -112,7 +112,22 @@ This section is intentionally a scope checklist (not a full implementation), bec
    1. **Is mesh-auth enabled and the identity plane (SPIRE) running?**
    2. **Is any app-to-app traffic actually being authenticated / enforced?**
 
-   In this repo, we enable the identity plane, but we do *not* currently ship policies that explicitly require mutual auth on application edges, so you should not expect a dramatic change in normal app traffic until you start adding “auth required” policy.
+   In this repo, we enable the identity plane and **incrementally enforce mTLS** on selected in-cluster edges by adding `authentication: { mode: required }` to the relevant `CiliumNetworkPolicy` rules (typically on both egress + ingress).
+
+   Current enforced edges ("azure auth simulation" workload / stack 12):
+
+   - `azure-auth-gateway-nginx -> oauth2-proxy-frontend`
+   - `oauth2-proxy-frontend -> frontend-react-keycloak-protected`
+   - `oauth2-proxy-frontend -> keycloak`
+   - `azure-auth-gateway-nginx -> apim-simulator` (dev + uat)
+   - `apim-simulator -> api-fastapi-keycloak` (dev + uat)
+   - `apim-simulator -> keycloak` (dev + uat)
+   - `azure-auth-gateway-nginx -> keycloak`
+   - `subnetcalc-telemetry-warmup -> api-fastapi-keycloak` (dev + uat)
+   - `api-fastapi-keycloak <-> azurite` (dev + uat)
+   - Optional/internal: `apim-gateway-nginx -> apim-simulator` and `apim-gateway-nginx -> keycloak`
+
+   Note: seeing `HTTP/1.1` in application logs is expected; mTLS is enforced at the Cilium datapath / policy layer, not by changing the application protocol.
 
    Runtime checks that are reliable:
 

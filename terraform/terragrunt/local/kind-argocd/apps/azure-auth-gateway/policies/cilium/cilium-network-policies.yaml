@@ -52,6 +52,8 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+      authentication:
+        mode: required
 
     # APIM simulators (shared)
     - toEndpoints:
@@ -65,6 +67,8 @@ spec:
         - ports:
             - port: "8000"
               protocol: TCP
+      authentication:
+        mode: required
 
     # SigNoz UI (observability)
     - toEndpoints:
