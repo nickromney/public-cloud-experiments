@@ -439,6 +439,17 @@ variable "enable_azure_auth_sim" {
   }
 }
 
+variable "enable_llm_sentiment" {
+  description = "Enable deployment of the local LLM sentiment demo (Ollama + minimal API + minimal frontend) via app-of-apps."
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.enable_llm_sentiment || (var.enable_gitea && var.enable_argocd)
+    error_message = "enable_llm_sentiment requires enable_gitea and enable_argocd to be true because the workload is deployed via Argo CD from the seeded repository."
+  }
+}
+
 variable "azure_auth_sim_use_sidecar" {
   description = "Use the sidecar deployment pattern (unused in multi-env overlays)."
   type        = bool

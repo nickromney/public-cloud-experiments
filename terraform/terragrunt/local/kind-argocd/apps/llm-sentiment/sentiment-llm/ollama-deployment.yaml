@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: sentiment-llm
+  labels:
+    app.kubernetes.io/name: ollama
+    app.kubernetes.io/component: llm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ollama
+      app.kubernetes.io/component: llm
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ollama
+        app.kubernetes.io/component: llm
+    spec:
+      initContainers:
+        - name: preload-model
+          image: ollama/ollama:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              echo "Starting temporary ollama server to preload model..."
+              ollama serve >/tmp/ollama-serve.log 2>&1 &
+              pid="$!"
+              i=0
+              until ollama list >/dev/null 2>&1; do
+                i=$((i+1))
+                if [ "$i" -gt 60 ]; then
+                  echo "ollama serve did not become ready" >&2
+                  tail -n 200 /tmp/ollama-serve.log || true
+                  kill "$pid" || true
+                  exit 1
+                fi
+                sleep 1
+              done
+              echo "Pulling model qwen2.5:0.5b..."
+              ollama pull qwen2.5:0.5b
+              echo "Stopping temporary ollama server..."
+              kill "$pid" || true
+              wait "$pid" || true
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 11434
+          env:
+            - name: OLLAMA_HOST
+              value: 0.0.0.0
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+          readinessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+      volumes:
+        - name: ollama-data
+          persistentVolumeClaim:
+            claimName: ollama-data

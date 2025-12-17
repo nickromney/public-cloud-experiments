@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sentiment-llm
+  labels:
+    app.kubernetes.io/name: sentiment-llm
+    app.kubernetes.io/managed-by: argocd
+    kyverno.io/isolate: "true"

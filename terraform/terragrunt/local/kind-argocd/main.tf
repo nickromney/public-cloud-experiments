@@ -356,6 +356,12 @@ resource "local_file" "app_platform_gateway_routes" {
   content  = templatefile("${path.module}/templates/apps/platform-gateway-routes.yaml.tpl", local.app_template_vars)
 }
 
+resource "local_file" "app_llm_sentiment" {
+  count    = var.enable_llm_sentiment ? 1 : 0
+  filename = "${local.generated_apps_dir}/llm-sentiment.yaml"
+  content  = templatefile("${path.module}/templates/apps/llm-sentiment.yaml.tpl", local.app_template_vars)
+}
+
 # Azure Auth Sim deployment files
 resource "local_file" "nginx_gateway_fabric_deploy" {
   count    = var.enable_azure_auth_sim ? 1 : 0
@@ -1220,6 +1226,10 @@ if [ "${var.enable_azure_auth_sim}" != "true" ]; then
   rm -f "$TMP_DIR/apps/_applications/nginx-gateway-fabric.yaml"
   rm -f "$TMP_DIR/apps/_applications/platform-gateway-routes.yaml"
 fi
+
+if [ "${var.enable_llm_sentiment}" != "true" ]; then
+  rm -f "$TMP_DIR/apps/_applications/llm-sentiment.yaml"
+fi
 if [ "${var.enable_actions_runner}" != "true" ] || [ "${var.use_external_gitea}" = "true" ]; then
   rm -f "$TMP_DIR/apps/_applications/gitea-actions-runner.yaml"
   rm -rf "$TMP_DIR/apps/gitea-actions-runner"
@@ -1636,7 +1646,7 @@ EOF
 # App of Apps - root application that manages all child applications
 # Child apps are defined in apps/ and synced from Gitea
 resource "kubectl_manifest" "argocd_app_of_apps" {
-  count = var.enable_gitea && (var.enable_policies || var.enable_azure_auth_sim) ? 1 : 0
+  count = var.enable_gitea && (var.enable_policies || var.enable_azure_auth_sim || var.enable_llm_sentiment) ? 1 : 0
 
   ignore_fields = [
     "metadata.annotations",
@@ -1687,7 +1697,7 @@ EOF
 # Force refresh app-of-apps after creation to ensure it syncs after repo-server restart
 # The repo-server restart (for known_hosts update) can leave the app in Unknown state
 resource "null_resource" "argocd_refresh_app_of_apps" {
-  count = var.enable_gitea && (var.enable_policies || var.enable_azure_auth_sim) ? 1 : 0
+  count = var.enable_gitea && (var.enable_policies || var.enable_azure_auth_sim || var.enable_llm_sentiment) ? 1 : 0
 
   triggers = {
     app_of_apps_id = kubectl_manifest.argocd_app_of_apps[0].id
