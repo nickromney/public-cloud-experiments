@@ -29,6 +29,8 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+      authentication:
+        mode: required
     # Backend API (dev/uat)
     - fromEndpoints:
         - matchLabels:
@@ -43,6 +45,8 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+      authentication:
+        mode: required
     # APIM simulator (dev/uat)
     - fromEndpoints:
         - matchLabels:

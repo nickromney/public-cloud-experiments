@@ -44,6 +44,8 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+      authentication:
+        mode: required
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system
@@ -140,6 +142,8 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+      authentication:
+        mode: required
     - toEndpoints:
         - matchLabels:
             "k8s:app.kubernetes.io/name": signoz
