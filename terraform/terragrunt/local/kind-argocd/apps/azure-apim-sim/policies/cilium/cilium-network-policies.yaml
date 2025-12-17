@@ -23,6 +23,8 @@ spec:
         - ports:
             - port: "8000"
               protocol: TCP
+      authentication:
+        mode: required
     # Optional: external APIM gateway (if NGINX Gateway Fabric creates these pods)
     - fromEndpoints:
         - matchLabels:
@@ -90,6 +92,8 @@ spec:
         - ports:
             - port: "8000"
               protocol: TCP
+      authentication:
+        mode: required
   egress:
     - toEndpoints:
         - matchLabels:

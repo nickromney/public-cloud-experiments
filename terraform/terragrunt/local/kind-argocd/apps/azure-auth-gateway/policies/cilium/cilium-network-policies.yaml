@@ -65,6 +65,8 @@ spec:
         - ports:
             - port: "8000"
               protocol: TCP
+      authentication:
+        mode: required
 
     # SigNoz UI (observability)
     - toEndpoints:
