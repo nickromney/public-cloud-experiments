@@ -196,6 +196,11 @@ locals {
       replicas = 1
     }
 
+    # Expose cilium-agent Prometheus metrics (needed to scrape Cilium auth/mesh metrics into SigNoz).
+    prometheus = {
+      enabled = true
+    }
+
     # Mutual authentication (mTLS identity) + optional WireGuard encryption.
     # WireGuard has proven flaky on kind (node-specific DNS/service timeouts), so keep it disabled by default.
     encryption = {

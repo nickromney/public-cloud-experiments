@@ -140,6 +140,18 @@ This section is intentionally a scope checklist (not a full implementation), bec
 
       Expected output includes a `... = 1.000000` value.
 
+   4. SigNoz-based checks (recommended for ongoing visibility)
+
+      This repo wires Cilium + SigNoz so you can view Cilium metrics in the SigNoz UI:
+
+      - Cilium is configured to expose Prometheus metrics (`prometheus.enabled: true` in the Helm values)
+      - `signoz-k8s-infra` is configured to scrape `cilium-agent` pods on `:9962/metrics`
+
+      Once the cluster has reconciled, open the SigNoz UI and search for Cilium auth / mesh metrics:
+
+      - UI: `https://signoz.127.0.0.1.sslip.io/`
+      - Metrics Explorer: search for `cilium_feature_network_policies_mutual_auth_enabled` (expected value: `1`)
+
    Hubble-based checks (useful, but they answer different questions):
 
    1. Confirm SPIRE is actually talking on the network (identity plane traffic exists)
