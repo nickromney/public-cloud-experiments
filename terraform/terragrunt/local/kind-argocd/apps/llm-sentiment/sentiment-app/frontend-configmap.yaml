@@ -1,0 +1,122 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sentiment-frontend
+  namespace: sentiment-app
+  labels:
+    app.kubernetes.io/name: sentiment-frontend
+    app.kubernetes.io/component: frontend
+data:
+  index.html: |
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>LLM Sentiment (local)</title>
+        <style>
+          body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
+          textarea { width: 100%; max-width: 900px; height: 120px; }
+          .row { margin: 1rem 0; }
+          .result { padding: 0.75rem 1rem; border: 1px solid #ddd; border-radius: 8px; max-width: 900px; }
+          .items { max-width: 900px; }
+          table { border-collapse: collapse; width: 100%; }
+          th, td { border: 1px solid #eee; padding: 0.5rem; vertical-align: top; }
+          th { text-align: left; background: #fafafa; }
+          .muted { color: #666; }
+        </style>
+      </head>
+      <body>
+        <h1>LLM Sentiment (kind-local)</h1>
+        <p class="muted">This stores each comment + classification in a CSV file inside the cluster.</p>
+
+        <div class="row">
+          <textarea id="text" placeholder="Paste a comment here..."></textarea>
+        </div>
+        <div class="row">
+          <button id="submit">Analyze + Save</button>
+          <button id="refresh">Refresh</button>
+        </div>
+
+        <div id="result" class="result" style="display:none"></div>
+
+        <h2>Recent submissions</h2>
+        <div class="items">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Label</th>
+                <th>Confidence</th>
+                <th>Latency (ms)</th>
+                <th>Text</th>
+              </tr>
+            </thead>
+            <tbody id="items"></tbody>
+          </table>
+        </div>
+
+        <script src="./app.js"></script>
+      </body>
+    </html>
+  app.js: |
+    async function api(path, options) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.error || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    function el(id) {
+      return document.getElementById(id);
+    }
+
+    function renderItems(items) {
+      const tbody = el('items');
+      tbody.innerHTML = '';
+      for (const item of items) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${item.timestamp || ''}</td>
+          <td>${item.label || ''}</td>
+          <td>${Number.isFinite(item.confidence) ? item.confidence.toFixed(3) : ''}</td>
+          <td>${Number.isFinite(item.latency_ms) ? item.latency_ms : ''}</td>
+          <td>${(item.text || '').replaceAll('<','&lt;').replaceAll('>','&gt;')}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function refresh() {
+      const data = await api('/api/v1/comments?limit=25', { method: 'GET' });
+      renderItems(data.items || []);
+    }
+
+    async function submit() {
+      const text = el('text').value.trim();
+      if (!text) return;
+      const resultEl = el('result');
+      resultEl.style.display = 'block';
+      resultEl.textContent = 'Running...';
+      try {
+        const res = await api('/api/v1/comments', {
+          method: 'POST',
+          body: JSON.stringify({ text }),
+        });
+        resultEl.textContent = `Saved. label=${res.label} confidence=${res.confidence.toFixed(3)} latency_ms=${res.latency_ms}`;
+        el('text').value = '';
+        await refresh();
+      } catch (e) {
+        resultEl.textContent = `Error: ${e.message}`;
+      }
+    }
+
+    el('submit').addEventListener('click', submit);
+    el('refresh').addEventListener('click', refresh);
+    refresh().catch(() => {});

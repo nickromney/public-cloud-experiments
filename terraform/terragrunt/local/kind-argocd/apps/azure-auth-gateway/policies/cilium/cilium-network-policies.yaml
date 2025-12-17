@@ -107,6 +107,26 @@ spec:
             - port: "8081"
               protocol: TCP
 
+    # LLM sentiment demo (frontend + API)
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": sentiment-app
+            "k8s:app.kubernetes.io/name": sentiment-frontend
+            "k8s:app.kubernetes.io/component": frontend
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": sentiment-app
+            "k8s:app.kubernetes.io/name": sentiment-api
+            "k8s:app.kubernetes.io/component": backend
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+
     # DNS
     - toEndpoints:
         - matchLabels:

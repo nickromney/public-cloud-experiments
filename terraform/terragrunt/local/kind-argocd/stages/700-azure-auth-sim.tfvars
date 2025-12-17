@@ -28,6 +28,7 @@ enable_actions_runner      = true
 enable_docker_socket_mount = true
 enable_azure_auth_sim      = true
 enable_azure_auth_ports    = true
+enable_llm_sentiment       = true
 use_external_gitea         = false
 
 # Sidecar pattern: oauth2-proxy + frontend in same pod (4 pods instead of 5)

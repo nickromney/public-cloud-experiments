@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+commonLabels:
+  app.kubernetes.io/part-of: llm-sentiment
+
+resources:
+  - namespace-sentiment-app.yaml
+  - namespace-sentiment-llm.yaml
+
+  - sentiment-llm/ollama-pvc.yaml
+  - sentiment-llm/ollama-deployment.yaml
+  - sentiment-llm/ollama-service.yaml
+
+  - sentiment-app/api-pvc.yaml
+  - sentiment-app/api-configmap.yaml
+  - sentiment-app/api-deployment.yaml
+  - sentiment-app/api-service.yaml
+
+  - sentiment-app/frontend-configmap.yaml
+  - sentiment-app/frontend-deployment.yaml
+  - sentiment-app/frontend-service.yaml
+
+  - sentiment-app/referencegrant-gateway-routes.yaml
+
+  - policies/cilium/cilium-network-policies.yaml
