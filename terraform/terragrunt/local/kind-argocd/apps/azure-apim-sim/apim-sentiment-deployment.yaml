@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apim-sentiment
+  namespace: azure-apim-sim
+  labels:
+    app.kubernetes.io/name: apim-sentiment
+    app.kubernetes.io/component: gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: apim-sentiment
+      app.kubernetes.io/component: gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apim-sentiment
+        app.kubernetes.io/component: gateway
+    spec:
+      imagePullSecrets:
+        - name: gitea-registry-creds
+      containers:
+        - name: apim-simulator
+          image: localhost:30090/gitea-admin/azure-auth-sim-apim:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: BACKEND_BASE_URL
+              value: http://sentiment-api.sentiment.svc.cluster.local
+            - name: OIDC_ISSUER
+              value: https://sentiment.dev.127.0.0.1.sslip.io/realms/subnet-calculator
+            - name: OIDC_AUDIENCE
+              value: api-app
+            - name: OIDC_JWKS_URI
+              value: http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
+            - name: ALLOWED_ORIGINS
+              value: https://sentiment.dev.127.0.0.1.sslip.io
+            - name: ALLOW_ANONYMOUS
+              value: "true"
+            - name: APIM_SUBSCRIPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: azure-apim-secrets
+                  key: apim-subscription-key
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /apim/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /apim/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apim-sentiment-uat
+  namespace: azure-apim-sim
+  labels:
+    app.kubernetes.io/name: apim-sentiment-uat
+    app.kubernetes.io/component: gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: apim-sentiment-uat
+      app.kubernetes.io/component: gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apim-sentiment-uat
+        app.kubernetes.io/component: gateway
+    spec:
+      imagePullSecrets:
+        - name: gitea-registry-creds
+      containers:
+        - name: apim-simulator
+          image: localhost:30090/gitea-admin/azure-auth-sim-apim:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: BACKEND_BASE_URL
+              value: http://sentiment-api.sentiment.svc.cluster.local
+            - name: OIDC_ISSUER
+              value: https://sentiment.uat.127.0.0.1.sslip.io/realms/subnet-calculator
+            - name: OIDC_AUDIENCE
+              value: api-app
+            - name: OIDC_JWKS_URI
+              value: http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
+            - name: ALLOWED_ORIGINS
+              value: https://sentiment.uat.127.0.0.1.sslip.io
+            - name: ALLOW_ANONYMOUS
+              value: "true"
+            - name: APIM_SUBSCRIPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: azure-apim-secrets
+                  key: apim-subscription-key
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /apim/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /apim/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6

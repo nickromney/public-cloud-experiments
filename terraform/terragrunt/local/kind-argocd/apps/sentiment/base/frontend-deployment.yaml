@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: sentiment-frontend
-  namespace: sentiment-app
   labels:
     app.kubernetes.io/name: sentiment-frontend
     app.kubernetes.io/component: frontend

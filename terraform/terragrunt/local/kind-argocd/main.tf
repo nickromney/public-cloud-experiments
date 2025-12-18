@@ -356,10 +356,22 @@ resource "local_file" "app_platform_gateway_routes" {
   content  = templatefile("${path.module}/templates/apps/platform-gateway-routes.yaml.tpl", local.app_template_vars)
 }
 
-resource "local_file" "app_llm_sentiment" {
+resource "local_file" "app_sentiment_core" {
   count    = var.enable_llm_sentiment ? 1 : 0
-  filename = "${local.generated_apps_dir}/llm-sentiment.yaml"
-  content  = templatefile("${path.module}/templates/apps/llm-sentiment.yaml.tpl", local.app_template_vars)
+  filename = "${local.generated_apps_dir}/sentiment-core.yaml"
+  content  = templatefile("${path.module}/templates/apps/sentiment-core.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "app_sentiment_dev" {
+  count    = var.enable_llm_sentiment ? 1 : 0
+  filename = "${local.generated_apps_dir}/sentiment-dev.yaml"
+  content  = templatefile("${path.module}/templates/apps/sentiment-dev.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "app_sentiment_uat" {
+  count    = var.enable_llm_sentiment ? 1 : 0
+  filename = "${local.generated_apps_dir}/sentiment-uat.yaml"
+  content  = templatefile("${path.module}/templates/apps/sentiment-uat.yaml.tpl", local.app_template_vars)
 }
 
 # Azure Auth Sim deployment files
@@ -1227,8 +1239,14 @@ if [ "${var.enable_azure_auth_sim}" != "true" ]; then
   rm -f "$TMP_DIR/apps/_applications/platform-gateway-routes.yaml"
 fi
 
+# Deprecated app name/path cleanup (replaced by sentiment-core/sentiment-dev/sentiment-uat)
+rm -f "$TMP_DIR/apps/_applications/llm-sentiment.yaml"
+rm -rf "$TMP_DIR/apps/llm-sentiment"
+
 if [ "${var.enable_llm_sentiment}" != "true" ]; then
-  rm -f "$TMP_DIR/apps/_applications/llm-sentiment.yaml"
+  rm -f "$TMP_DIR/apps/_applications/sentiment-core.yaml"
+  rm -f "$TMP_DIR/apps/_applications/sentiment-dev.yaml"
+  rm -f "$TMP_DIR/apps/_applications/sentiment-uat.yaml"
 fi
 if [ "${var.enable_actions_runner}" != "true" ] || [ "${var.use_external_gitea}" = "true" ]; then
   rm -f "$TMP_DIR/apps/_applications/gitea-actions-runner.yaml"

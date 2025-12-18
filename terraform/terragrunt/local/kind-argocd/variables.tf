@@ -440,7 +440,7 @@ variable "enable_azure_auth_sim" {
 }
 
 variable "enable_llm_sentiment" {
-  description = "Enable deployment of the local LLM sentiment demo (Ollama + minimal API + minimal frontend) via app-of-apps."
+  description = "Enable deployment of the local LLM sentiment demo (Ollama + minimal API + dev/uat frontends via APIM simulator) via app-of-apps."
   type        = bool
   default     = false
 

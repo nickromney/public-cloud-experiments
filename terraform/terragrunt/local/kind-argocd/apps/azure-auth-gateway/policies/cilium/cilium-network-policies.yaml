@@ -107,25 +107,51 @@ spec:
             - port: "8081"
               protocol: TCP
 
-    # LLM sentiment demo (frontend + API)
+    # LLM sentiment demo (dev/uat frontends + APIM brokers)
     - toEndpoints:
         - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": sentiment-app
+            "k8s:io.kubernetes.pod.namespace": dev
             "k8s:app.kubernetes.io/name": sentiment-frontend
             "k8s:app.kubernetes.io/component": frontend
       toPorts:
         - ports:
             - port: "80"
               protocol: TCP
+      authentication:
+        mode: required
     - toEndpoints:
         - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": sentiment-app
-            "k8s:app.kubernetes.io/name": sentiment-api
-            "k8s:app.kubernetes.io/component": backend
+            "k8s:io.kubernetes.pod.namespace": uat
+            "k8s:app.kubernetes.io/name": sentiment-frontend
+            "k8s:app.kubernetes.io/component": frontend
       toPorts:
         - ports:
-            - port: "8080"
+            - port: "80"
               protocol: TCP
+      authentication:
+        mode: required
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
+            "k8s:app.kubernetes.io/name": apim-sentiment
+            "k8s:app.kubernetes.io/component": gateway
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+      authentication:
+        mode: required
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
+            "k8s:app.kubernetes.io/name": apim-sentiment-uat
+            "k8s:app.kubernetes.io/component": gateway
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+      authentication:
+        mode: required
 
     # DNS
     - toEndpoints:

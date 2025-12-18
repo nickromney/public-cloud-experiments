@@ -6,8 +6,6 @@ resources:
   - httproute-gitea.yaml
   - httproute-hubble.yaml
   - httproute-signoz.yaml
-  - httproute-sentiment.yaml
-  - httproute-sentiment-api.yaml
   - referencegrant-argocd.yaml
   - referencegrant-gitea.yaml
   - referencegrant-hubble.yaml

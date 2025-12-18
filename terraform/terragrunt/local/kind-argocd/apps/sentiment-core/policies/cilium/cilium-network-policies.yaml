@@ -1,46 +1,8 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: sentiment-frontend
-  namespace: sentiment-app
-spec:
-  endpointSelector:
-    matchLabels:
-      "k8s:app.kubernetes.io/name": sentiment-frontend
-      "k8s:app.kubernetes.io/component": frontend
-  ingress:
-    - fromEntities:
-        - host
-      toPorts:
-        - ports:
-            - port: "80"
-              protocol: TCP
-    - fromEndpoints:
-        - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": azure-auth-gateway
-            "k8s:app.kubernetes.io/name": azure-auth-gateway-nginx
-      toPorts:
-        - ports:
-            - port: "80"
-              protocol: TCP
-  egress:
-    - toEndpoints:
-        - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": kube-system
-            "k8s:k8s-app": kube-dns
-      toPorts:
-        - ports:
-            - port: "53"
-              protocol: UDP
-            - port: "53"
-              protocol: TCP
-
----
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
   name: sentiment-api
-  namespace: sentiment-app
+  namespace: sentiment
 spec:
   endpointSelector:
     matchLabels:
@@ -55,12 +17,19 @@ spec:
               protocol: TCP
     - fromEndpoints:
         - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": azure-auth-gateway
-            "k8s:app.kubernetes.io/name": azure-auth-gateway-nginx
+            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
+            "k8s:app.kubernetes.io/name": apim-sentiment
+            "k8s:app.kubernetes.io/component": gateway
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": azure-apim-sim
+            "k8s:app.kubernetes.io/name": apim-sentiment-uat
+            "k8s:app.kubernetes.io/component": gateway
       toPorts:
         - ports:
             - port: "8080"
               protocol: TCP
+      authentication:
+        mode: required
   egress:
     - toEndpoints:
         - matchLabels:
@@ -71,6 +40,8 @@ spec:
         - ports:
             - port: "11434"
               protocol: TCP
+      authentication:
+        mode: required
     - toEndpoints:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system
@@ -102,13 +73,15 @@ spec:
               protocol: TCP
     - fromEndpoints:
         - matchLabels:
-            "k8s:io.kubernetes.pod.namespace": sentiment-app
+            "k8s:io.kubernetes.pod.namespace": sentiment
             "k8s:app.kubernetes.io/name": sentiment-api
             "k8s:app.kubernetes.io/component": backend
       toPorts:
         - ports:
             - port: "11434"
               protocol: TCP
+      authentication:
+        mode: required
   egress:
     - toEndpoints:
         - matchLabels:
