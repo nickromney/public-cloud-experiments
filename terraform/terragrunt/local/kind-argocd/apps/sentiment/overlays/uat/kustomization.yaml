@@ -6,3 +6,4 @@ namespace: uat
 resources:
   - ../../base
   - route-sentiment.yaml
+  - route-sentiment-api.yaml

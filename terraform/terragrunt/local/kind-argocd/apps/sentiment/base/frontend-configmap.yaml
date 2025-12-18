@@ -29,6 +29,13 @@ data:
         <h1>LLM Sentiment (kind-local)</h1>
         <p class="muted">This stores each comment + classification in a CSV file inside the cluster.</p>
 
+        <h2>Try samples</h2>
+        <div class="row">
+          <button id="sample-positive" type="button">Paste positive</button>
+          <button id="sample-negative" type="button">Paste negative</button>
+          <button id="sample-moderate-negative" type="button">Paste moderately negative</button>
+        </div>
+
         <div class="row">
           <textarea id="text" placeholder="Paste a comment here..."></textarea>
         </div>
@@ -38,6 +45,10 @@ data:
         </div>
 
         <div id="result" class="result" style="display:none"></div>
+
+        <h2>Call the API from your laptop</h2>
+        <p class="muted">This uses the gateway + APIM simulator to reach the backend inside the cluster.</p>
+        <pre class="result"><code id="curl-example"></code></pre>
 
         <h2>Recent submissions</h2>
         <div class="items">
@@ -74,6 +85,22 @@ data:
 
     function el(id) {
       return document.getElementById(id);
+    }
+
+    function setText(value) {
+      el('text').value = value;
+      el('text').focus();
+    }
+
+    function renderCurl() {
+      const origin = window.location.origin;
+      el('curl-example').textContent = [
+        `# POST (analyze + save)`,
+        `curl -sk -X POST "${origin}/api/v1/comments" \\\n+  -H "Content-Type: application/json" \\\n+  -d '{"text":"This is great"}' | jq`,
+        ``,
+        `# GET recent submissions`,
+        `curl -sk "${origin}/api/v1/comments?limit=5" | jq`,
+      ].join('\n');
     }
 
     function renderItems(items) {
@@ -118,4 +145,16 @@ data:
 
     el('submit').addEventListener('click', submit);
     el('refresh').addEventListener('click', refresh);
+
+    el('sample-positive').addEventListener('click', () =>
+      setText('I loved this experience. The service was fast, friendly, and exceeded my expectations.')
+    );
+    el('sample-negative').addEventListener('click', () =>
+      setText('This was terrible. Everything was slow, broken, and it completely wasted my time.')
+    );
+    el('sample-moderate-negative').addEventListener('click', () =>
+      setText('It was okay overall, but I was disappointed by the delays and the lack of clear communication.')
+    );
+
+    renderCurl();
     refresh().catch(() => {});
