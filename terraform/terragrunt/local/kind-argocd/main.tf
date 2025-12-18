@@ -846,6 +846,9 @@ resource "null_resource" "wait_for_gitea" {
 
   triggers = {
     gitea_app = sha1(kubectl_manifest.argocd_app_gitea[0].yaml_body)
+    # If the cluster/kubeconfig is recreated, we must re-wait for the new Gitea deployment.
+    cluster_id    = kind_cluster.local.id
+    kubeconfig_id = local_sensitive_file.kubeconfig.id
   }
 
   provisioner "local-exec" {

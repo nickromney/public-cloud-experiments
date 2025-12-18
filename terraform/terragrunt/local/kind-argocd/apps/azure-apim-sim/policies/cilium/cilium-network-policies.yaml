@@ -168,7 +168,7 @@ spec:
             "k8s:io.kubernetes.pod.namespace": sentiment
       toPorts:
         - ports:
-            - port: "80"
+            - port: "8080"
               protocol: TCP
       authentication:
         mode: required
@@ -230,7 +230,7 @@ spec:
             "k8s:io.kubernetes.pod.namespace": sentiment
       toPorts:
         - ports:
-            - port: "80"
+            - port: "8080"
               protocol: TCP
       authentication:
         mode: required
