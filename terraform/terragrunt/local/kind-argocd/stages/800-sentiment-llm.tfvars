@@ -1,5 +1,5 @@
-# Stage 700 - Azure Auth Simulation
-# Deploys Actions runner and Azure auth sim via Argo CD
+# Stage 800 - Sentiment LLM Demo (without subnet calculator workload)
+# Deploys the sentiment demo via Argo CD while keeping the shared gateway/APIM platform.
 
 # -----------------------------------------------------------------------------
 # Core Configuration
@@ -26,15 +26,14 @@ enable_signoz              = true
 enable_signoz_k8s_infra    = true
 enable_actions_runner      = true
 enable_docker_socket_mount = true
-enable_azure_auth_sim      = true
-enable_subnetcalc_azure_auth_sim = true
-enable_azure_auth_ports    = true
-enable_llm_sentiment       = true
-use_external_gitea         = false
 
-# Sidecar pattern: oauth2-proxy + frontend in same pod (4 pods instead of 5)
-# See AZURE_AUTH_SIM.md for details.
-azure_auth_sim_use_sidecar = false
+# Keep the gateway/APIM platform enabled, but disable the subnet calculator demo apps.
+enable_azure_auth_sim            = true
+enable_subnetcalc_azure_auth_sim = false
+enable_azure_auth_ports          = true
+
+enable_llm_sentiment = true
+use_external_gitea   = false
 
 # -----------------------------------------------------------------------------
 # Versions / Ports
@@ -84,24 +83,11 @@ gitea_registry_host     = "localhost:30090"
 # -----------------------------------------------------------------------------
 
 generate_repo_ssh_key = true
-ssh_private_key_path  = "./.run/argocd-repo.id_ed25519"
-ssh_public_key_path   = "./.run/argocd-repo.id_ed25519.pub"
-
-# -----------------------------------------------------------------------------
-# Exposed Services (ports pre-configured, available after respective stages)
-# -----------------------------------------------------------------------------
-# - Argo CD UI: http://localhost:30080 (stage 400+)
-# - Hubble UI: http://localhost:31235 (stage 300+)
-# - Gitea UI: http://localhost:30090 (stage 500+)
-# - Gitea SSH: ssh://localhost:30022 (stage 500+)
-# - Azure auth sim (dev): http://localhost:3007 (stage 700)
-# - Azure auth sim (uat): http://localhost:3008 (stage 700)
-# - Azure auth gateway (NGINX Gateway Fabric): http://localhost:3007 (stage 700)
-#   Keycloak/APIM/FastAPI remain internal—use kubectl port-forward if you need direct access.
 
 # -----------------------------------------------------------------------------
 # Namespaces
 # -----------------------------------------------------------------------------
+
 azure_auth_namespaces = {
   dev = "dev"
   uat = "uat"

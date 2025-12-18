@@ -279,7 +279,7 @@ locals {
 # -----------------------------------------------------------------------------
 
 resource "local_file" "app_azure_auth_sim_dev" {
-  count    = var.enable_azure_auth_sim ? 1 : 0
+  count    = var.enable_azure_auth_sim && var.enable_subnetcalc_azure_auth_sim ? 1 : 0
   filename = "${local.generated_apps_dir}/azure-auth-sim-dev.yaml"
   content = templatefile("${path.module}/templates/apps/azure-auth-sim.yaml.tpl", merge(local.app_template_vars, {
     env_name             = "dev"
@@ -288,7 +288,7 @@ resource "local_file" "app_azure_auth_sim_dev" {
 }
 
 resource "local_file" "app_azure_auth_sim_uat" {
-  count    = var.enable_azure_auth_sim ? 1 : 0
+  count    = var.enable_azure_auth_sim && var.enable_subnetcalc_azure_auth_sim ? 1 : 0
   filename = "${local.generated_apps_dir}/azure-auth-sim-uat.yaml"
   content = templatefile("${path.module}/templates/apps/azure-auth-sim.yaml.tpl", merge(local.app_template_vars, {
     env_name             = "uat"
@@ -303,7 +303,7 @@ resource "local_file" "app_azure_auth_gateway" {
 }
 
 resource "local_file" "app_azure_entraid_sim" {
-  count    = var.enable_azure_auth_sim ? 1 : 0
+  count    = var.enable_azure_auth_sim && var.enable_subnetcalc_azure_auth_sim ? 1 : 0
   filename = "${local.generated_apps_dir}/azure-entraid-sim.yaml"
   content  = templatefile("${path.module}/templates/apps/azure-entraid-sim.yaml.tpl", local.app_template_vars)
 }
@@ -1191,9 +1191,9 @@ resource "null_resource" "seed_gitea_repo" {
       local_file.app_kyverno_policies.content,
       var.enable_policies ? local_file.app_kyverno[0].content : "",
       var.enable_signoz_k8s_infra ? local_file.app_signoz_k8s_infra[0].content : "",
-      var.enable_azure_auth_sim ? local_file.app_azure_auth_sim_dev[0].content : "",
-      var.enable_azure_auth_sim ? local_file.app_azure_auth_sim_uat[0].content : "",
-      var.enable_azure_auth_sim ? local_file.app_azure_entraid_sim[0].content : "",
+      var.enable_azure_auth_sim && var.enable_subnetcalc_azure_auth_sim ? local_file.app_azure_auth_sim_dev[0].content : "",
+      var.enable_azure_auth_sim && var.enable_subnetcalc_azure_auth_sim ? local_file.app_azure_auth_sim_uat[0].content : "",
+      var.enable_azure_auth_sim && var.enable_subnetcalc_azure_auth_sim ? local_file.app_azure_entraid_sim[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_azure_apim_sim[0].content : "",
       var.enable_actions_runner && !var.use_external_gitea ? local_file.app_gitea_actions_runner[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_nginx_gateway_fabric[0].content : "",
@@ -1240,6 +1240,11 @@ if [ "${var.enable_azure_auth_sim}" != "true" ]; then
   rm -f "$TMP_DIR/apps/_applications/azure-apim-sim.yaml"
   rm -f "$TMP_DIR/apps/_applications/nginx-gateway-fabric.yaml"
   rm -f "$TMP_DIR/apps/_applications/platform-gateway-routes.yaml"
+fi
+
+if [ "${var.enable_subnetcalc_azure_auth_sim}" != "true" ]; then
+  rm -f "$TMP_DIR/apps/_applications/azure-auth-sim-dev.yaml" "$TMP_DIR/apps/_applications/azure-auth-sim-uat.yaml"
+  rm -f "$TMP_DIR/apps/_applications/azure-entraid-sim.yaml"
 fi
 
 # Deprecated app name/path cleanup (replaced by sentiment-core/sentiment-dev/sentiment-uat)
