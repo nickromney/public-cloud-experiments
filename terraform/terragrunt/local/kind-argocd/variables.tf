@@ -34,7 +34,7 @@ variable "kubeconfig_context" {
 variable "cilium_version" {
   description = "Cilium Helm chart version to install."
   type        = string
-  default     = "1.18.4"
+  default     = "1.18.5"
 }
 
 variable "cilium_enable_wireguard" {
@@ -52,7 +52,7 @@ variable "enable_cilium_mesh_auth" {
 variable "argocd_chart_version" {
   description = "Argo CD Helm chart version to install."
   type        = string
-  default     = "7.5.2"
+  default     = "9.1.9"
 }
 
 variable "argocd_namespace" {

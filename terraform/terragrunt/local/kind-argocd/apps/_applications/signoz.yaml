@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://charts.signoz.io
     chart: signoz
-    targetRevision: 0.104.0
+    targetRevision: 0.104.1
     helm:
       values: |
         # kind-lite profile: keep things ephemeral + small by default.

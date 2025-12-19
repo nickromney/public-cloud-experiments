@@ -41,8 +41,8 @@ use_external_gitea             = false
 # Versions / Ports
 # -----------------------------------------------------------------------------
 
-cilium_version                        = "1.18.4"
-argocd_chart_version                  = "7.5.2"
+cilium_version                        = "1.18.5"
+argocd_chart_version                  = "9.1.9"
 argocd_namespace                      = "argocd"
 argocd_server_node_port               = 30080
 hubble_ui_node_port                   = 31235

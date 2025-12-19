@@ -107,6 +107,7 @@ LATEST_CILIUM=$(helm_latest_chart_version "cilium" "https://helm.cilium.io" "cil
 LATEST_SIGNOZ=$(helm_latest_chart_version "signoz" "https://charts.signoz.io" "signoz")
 LATEST_SIGNOZ_K8S_INFRA=$(helm_latest_chart_version "signoz" "https://charts.signoz.io" "k8s-infra")
 
+echo "checking for nickromney-org/github-release-version-checker installed locally"
 if command -v github-release-version-checker >/dev/null 2>&1; then
   # Uses your local caching + policy-aware checker if installed.
   LATEST_NGX_FABRIC_TAG=$(github-release-version-checker --repo nginxinc/nginx-gateway-fabric 2>/dev/null | head -n 1 | xargs || true)
