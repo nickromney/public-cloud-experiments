@@ -44,7 +44,7 @@ STAGE ?= 000
 STAGE_DEFAULT := 000
 
 # Valid verbs for argument parsing
-VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create prereqs reset gitea-sync check-health
+VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create prereqs reset gitea-sync check-health check-version
 
 # Shell function to find stage file
 # Usage: $(call find_stage_file,STAGE,STACK_DIR)
@@ -151,6 +151,7 @@ help:
 	@echo -e ""
 	@echo -e "$(YELLOW)Local kind: utilities$(NC)"
 	@echo -e "  make local kind check-health                                      # Post-stage health checks"
+	@echo -e "  make local kind check-version                                     # Check pinned versions vs latest (charts/images)"
 	@echo -e "  make local kind create                                            # Create kind cluster (manual, stage 100 is preferred)"
 	@echo -e "  make local kind gitea-sync                                        # Sync policies + apps to local Gitea (default: --all)"
 	@echo -e "  make local kind gitea-sync GITEA_SYNC_ARGS=\"--azure-auth-sim\"       # Only azure-auth-sim repo"
@@ -368,8 +369,8 @@ local:
 # Verb-based routing (alternative: make <verb> [stage] subnet-calc <stack>)
 # Note: 'test' is excluded as it conflicts with global test target
 # These targets only execute if they are the FIRST word in MAKECMDGOALS to prevent double-execution
-.PHONY: init plan apply destroy validate output prereqs deploy show get unlock gitea-sync check-health
-init plan apply destroy validate output prereqs gitea-sync check-health:
+.PHONY: init plan apply destroy validate output prereqs deploy show get unlock gitea-sync check-health check-version
+init plan apply destroy validate output prereqs gitea-sync check-health check-version:
 	@if [ "$(firstword $(MAKECMDGOALS))" = "$@" ]; then \
 		$(MAKE) --no-print-directory _parse-args ARG1=$(firstword $(MAKECMDGOALS)) ARG2=$(word 2,$(MAKECMDGOALS)) ARG3=$(word 3,$(MAKECMDGOALS)) ARG4=$(word 4,$(MAKECMDGOALS)) ARG5=$(word 5,$(MAKECMDGOALS)); \
 	fi
@@ -435,13 +436,14 @@ help-local-kind:
 	@echo -e ""
 	@echo -e "$(YELLOW)Utilities:$(NC)"
 	@echo -e "  make local kind check-health                                      # kubectl-based health checks"
+	@echo -e "  make local kind check-version                                     # Check pinned versions vs latest (charts/images)"
 	@echo -e "  make local kind create                                            # Manual kind create (stage 100 preferred)"
 	@echo -e "  make local kind gitea-sync                                        # Sync to Gitea (default: --all)"
 	@echo -e "  make local kind prereqs                                           # Optional prereqs (mkcert, images, etc.)"
 	@echo -e "  make local kind reset [AUTO_APPROVE=1]                            # Reset local kind environment"
 
 # Infrastructure lifecycle verbs
-.PHONY: _exec-init _exec-plan _exec-apply _exec-destroy _exec-validate _exec-output _exec-gitea-sync
+.PHONY: _exec-init _exec-plan _exec-apply _exec-destroy _exec-validate _exec-output _exec-gitea-sync _exec-check-health _exec-check-version
 
 _exec-init: check-env
 	@echo -e "$(YELLOW)Initializing $(STACK_DIR)...$(NC)"
@@ -859,6 +861,19 @@ _exec-check-health:
 		$$cmd; \
 	else \
 		echo -e "$(YELLOW)The 'check-health' verb is only supported for local/kind$(NC)"; \
+		exit 1; \
+	fi
+
+_exec-check-version:
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		cmd="$(ROOT_DIR)local/kind-argocd/scripts/check-version.sh"; \
+		if [ ! -x "$$cmd" ]; then \
+			echo -e "$(YELLOW)check-version.sh not found or not executable at $$cmd$(NC)"; \
+			exit 1; \
+		fi; \
+		$$cmd; \
+	else \
+		echo -e "$(YELLOW)The 'check-version' verb is only supported for local/kind$(NC)"; \
 		exit 1; \
 	fi
 
