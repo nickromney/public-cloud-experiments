@@ -103,6 +103,7 @@ PIN_NGX_FABRIC=$(
 LATEST_ARGOCD=$(helm_latest_chart_version "argo" "https://argoproj.github.io/argo-helm" "argo-cd")
 
 LATEST_GITEA=$(helm_latest_chart_version "gitea" "https://dl.gitea.io/charts/" "gitea")
+LATEST_CILIUM=$(helm_latest_chart_version "cilium" "https://helm.cilium.io" "cilium")
 LATEST_SIGNOZ=$(helm_latest_chart_version "signoz" "https://charts.signoz.io" "signoz")
 LATEST_SIGNOZ_K8S_INFRA=$(helm_latest_chart_version "signoz" "https://charts.signoz.io" "k8s-infra")
 
@@ -119,19 +120,14 @@ printf "%-22s %-16s %-16s %s\n" "Component" "Pinned" "Latest" "Status"
 printf "%-22s %-16s %-16s %s\n" "---------" "------" "------" "------"
 print_row "argo-cd chart" "${PIN_ARGOCD}" "${LATEST_ARGOCD}"
 print_row "gitea chart" "${PIN_GITEA}" "${LATEST_GITEA}"
+print_row "cilium chart" "${PIN_CILIUM}" "${LATEST_CILIUM}"
 print_row "nginx-fabric" "${PIN_NGX_FABRIC}" "${LATEST_NGX_FABRIC}"
 print_row "signoz chart" "${PIN_SIGNOZ}" "${LATEST_SIGNOZ}"
 print_row "signoz k8s-infra" "${PIN_SIGNOZ_K8S_INFRA}" "${LATEST_SIGNOZ_K8S_INFRA}"
 echo ""
 
-if [ -n "${PIN_CILIUM}" ]; then
-  echo "Note: cilium pinned version (no upstream check in this command): ${PIN_CILIUM}"
-  echo ""
-fi
-
 check_consistent_tfvars() {
   local key="$1"
-  local value
   local uniq
 
   uniq=$(grep -hE "^[[:space:]]*${key}[[:space:]]*=[[:space:]]*" "${STAGES_DIR}"/*.tfvars 2>/dev/null | \
@@ -145,7 +141,9 @@ check_consistent_tfvars() {
   count=$(echo "$uniq" | wc -l | tr -d ' ')
   if [ "$count" -gt 1 ]; then
     warn "Inconsistent ${key} across stages:"
-    echo "$uniq" | sed 's/^/  - /'
+    while IFS= read -r line; do
+      echo "  - ${line}"
+    done <<<"${uniq}"
     echo ""
   fi
 }
