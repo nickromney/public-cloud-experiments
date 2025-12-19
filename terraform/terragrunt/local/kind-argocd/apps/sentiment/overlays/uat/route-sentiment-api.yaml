@@ -21,7 +21,7 @@ spec:
           extensionRef:
             group: gateway.nginx.org
             kind: SnippetsFilter
-            name: http-to-https-redirect
+            name: sentiment-http-to-https-redirect
       backendRefs:
         - name: apim-sentiment-uat
           namespace: azure-apim-sim

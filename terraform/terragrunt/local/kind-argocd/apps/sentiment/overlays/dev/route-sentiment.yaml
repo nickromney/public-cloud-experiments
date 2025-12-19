@@ -10,7 +10,7 @@ spec:
     - name: azure-auth-gateway
       namespace: azure-auth-gateway
   hostnames:
-    - sentiment.dev.127.0.0.1.sslip.io
+    - sentiment-lite.dev.127.0.0.1.sslip.io
   rules:
     - matches:
         - path:
@@ -21,7 +21,7 @@ spec:
           extensionRef:
             group: gateway.nginx.org
             kind: SnippetsFilter
-            name: http-to-https-redirect
+            name: sentiment-http-to-https-redirect
       backendRefs:
         - name: apim-sentiment
           namespace: azure-apim-sim
@@ -37,7 +37,7 @@ spec:
           extensionRef:
             group: gateway.nginx.org
             kind: SnippetsFilter
-            name: http-to-https-redirect
+            name: sentiment-http-to-https-redirect
       backendRefs:
         - name: sentiment-frontend
           port: 80

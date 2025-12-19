@@ -30,10 +30,12 @@ enable_docker_socket_mount = true
 # Keep the gateway/APIM platform enabled, but disable the subnet calculator demo apps.
 enable_azure_auth_sim            = true
 enable_subnetcalc_azure_auth_sim = false
+enable_azure_entraid_sim         = false
 enable_azure_auth_ports          = true
 
-enable_llm_sentiment = true
-use_external_gitea   = false
+enable_llm_sentiment           = true
+enable_sentiment_auth_frontend = false
+use_external_gitea             = false
 
 # -----------------------------------------------------------------------------
 # Versions / Ports

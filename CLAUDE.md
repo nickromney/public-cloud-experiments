@@ -42,7 +42,7 @@ A full-stack IPv4/IPv6 subnet calculator with multiple backend and frontend impl
 
 **Authentication Stacks:**
 
-11. **React + Keycloak OIDC** (Stack 11) - Client-side OAuth/OIDC authentication
+1. **React + Keycloak OIDC** (Stack 11) - Client-side OAuth/OIDC authentication
     - Port: 3006
     - Backend: Azure Function API with OIDC validation (port 8081)
     - Auth: Client-side OIDC (oidc-client-ts)
@@ -50,7 +50,7 @@ A full-stack IPv4/IPv6 subnet calculator with multiple backend and frontend impl
     - Pattern: Standard SPA - users see UI before authenticating
     - Docs: See compose.yml Stack 11 section
 
-12. **React + OAuth2 Proxy** (Stack 12) - Server-side authentication (Easy Auth simulation)
+2. **React + OAuth2 Proxy** (Stack 12) - Server-side authentication (Easy Auth simulation)
     - Port: 3007
     - Backend: Azure Function API with OIDC validation (port 8081)
     - Auth: OAuth2 Proxy sidecar (forced login upfront)

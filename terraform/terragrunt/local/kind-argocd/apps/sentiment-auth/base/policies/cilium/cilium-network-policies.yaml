@@ -1,0 +1,97 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: sentiment-auth-oauth2-proxy
+spec:
+  endpointSelector:
+    matchLabels:
+      "k8s:app.kubernetes.io/name": oauth2-proxy-sentiment-auth
+      "k8s:app.kubernetes.io/component": auth-proxy
+  ingress:
+    - fromEntities:
+        - host
+      toPorts:
+        - ports:
+            - port: "4180"
+              protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": azure-auth-gateway
+            "k8s:app.kubernetes.io/name": azure-auth-gateway-nginx
+      toPorts:
+        - ports:
+            - port: "4180"
+              protocol: TCP
+      authentication:
+        mode: required
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            "k8s:app.kubernetes.io/name": sentiment-auth-frontend
+            "k8s:app.kubernetes.io/component": frontend
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+      authentication:
+        mode: required
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
+            "k8s:app.kubernetes.io/name": keycloak
+            "k8s:app.kubernetes.io/component": identity
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+      authentication:
+        mode: required
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: sentiment-auth-frontend
+spec:
+  endpointSelector:
+    matchLabels:
+      "k8s:app.kubernetes.io/name": sentiment-auth-frontend
+      "k8s:app.kubernetes.io/component": frontend
+  ingress:
+    - fromEntities:
+        - host
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            "k8s:app.kubernetes.io/name": oauth2-proxy-sentiment-auth
+            "k8s:app.kubernetes.io/component": auth-proxy
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+      authentication:
+        mode: required
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP

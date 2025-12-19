@@ -7,8 +7,8 @@ data:
     {
       "realm": "subnet-calculator",
       "enabled": true,
-      "displayName": "Subnet Calculator",
-      "displayNameHtml": "<div>Subnet Calculator</div>",
+      "displayName": "Entra ID Simulator",
+      "displayNameHtml": "<div>Entra ID Simulator</div>",
       "sslRequired": "none",
       "registrationAllowed": false,
       "loginWithEmailAllowed": true,
@@ -39,9 +39,13 @@ data:
           },
           "redirectUris": [
             "http://localhost:3006/*",
+            "https://subnetcalc.dev.127.0.0.1.sslip.io/oauth2/*",
             "http://localhost:3007/*",
+            "https://subnetcalc.uat.127.0.0.1.sslip.io/oauth2/*",
             "http://dev.127.0.0.1.sslip.io:3007/*",
+            "https://sentiment.dev.127.0.0.1.sslip.io/oauth2/*",
             "http://dev.127.0.0.1.sslip.io:3007/",
+            "https://sentiment.uat.127.0.0.1.sslip.io/oauth2/*",
             "http://dev.127.0.0.1.sslip.io:3007",
             "https://dev.127.0.0.1.sslip.io:3007/*",
             "https://dev.127.0.0.1.sslip.io:3007/",
@@ -106,8 +110,10 @@ data:
           "standardFlowEnabled": true,
           "implicitFlowEnabled": false,
           "redirectUris": [
-            "https://subnetcalc.dev.127.0.0.1.sslip.io/oauth2/callback",
-            "https://subnetcalc.uat.127.0.0.1.sslip.io/oauth2/callback"
+            "https://subnetcalc.dev.127.0.0.1.sslip.io/oauth2/*",
+            "https://subnetcalc.uat.127.0.0.1.sslip.io/oauth2/*",
+            "https://sentiment.dev.127.0.0.1.sslip.io/oauth2/*",
+            "https://sentiment.uat.127.0.0.1.sslip.io/oauth2/*"
           ],
           "webOrigins": [
             "+"

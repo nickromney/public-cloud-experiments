@@ -6,6 +6,7 @@ commonLabels:
 
 resources:
   - frontend-configmap.yaml
+  - http-to-https-snippetsfilter.yaml
   - frontend-deployment.yaml
   - frontend-service.yaml
   - policies/cilium/cilium-network-policies.yaml

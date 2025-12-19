@@ -8,12 +8,12 @@ Unlike Azure App Service and Azure Container Apps, **AKS does not have built-in 
 
 | Option | Complexity | Easy Auth-like? | Best For |
 |--------|-----------|----------------|----------|
-| **OAuth2 Proxy Sidecar** | Low-Medium | ✅ Yes | Most use cases, closest to Easy Auth |
-| **Cilium + OAuth2 Proxy** | Medium | ✅ Yes | If already using Cilium CNI |
+| **OAuth2 Proxy Sidecar** | Low-Medium | Yes | Most use cases, closest to Easy Auth |
+| **Cilium + OAuth2 Proxy** | Medium | Yes | If already using Cilium CNI |
 | **Service Mesh (Istio/Linkerd)** | High | Partial | Enterprise with existing mesh |
 | **Application Gateway + APIM** | Medium | No | API-first architectures |
 | **Client-Side SPA Auth** | Low | No | Simple apps, no forced login |
-| **Azure Container Apps** | Low | ✅ Yes | Alternative to AKS if Easy Auth needed |
+| **Azure Container Apps** | Low | Yes | Alternative to AKS if Easy Auth needed |
 
 ## Option 1: OAuth2 Proxy Sidecar (Recommended)
 
@@ -21,7 +21,7 @@ OAuth2 Proxy is an open-source reverse proxy that provides Easy Auth-like functi
 
 ### Architecture
 
-```
+```text
 User Request
     ↓
 Ingress (nginx/cilium)
@@ -38,7 +38,7 @@ App Gateway → APIM → Backend
 
 ### Deployment
 
-**1. Basic Pod Configuration**
+#### 1. Basic Pod Configuration
 
 ```yaml
 apiVersion: v1
@@ -150,7 +150,7 @@ spec:
       periodSeconds: 5
 ```
 
-**2. Secrets**
+#### 2. Secrets
 
 ```yaml
 apiVersion: v1
@@ -166,7 +166,7 @@ stringData:
   cookie-secret: "base64-encoded-32-byte-string"
 ```
 
-**3. Service**
+#### 3. Service
 
 ```yaml
 apiVersion: v1
@@ -184,7 +184,7 @@ spec:
   type: ClusterIP
 ```
 
-**4. Ingress**
+#### 4. Ingress
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -251,7 +251,7 @@ If you're using Cilium as your CNI, combine it with OAuth2 Proxy for enhanced se
 
 ### Architecture
 
-```
+```text
 User Request
     ↓
 Cilium Ingress (L7 policy enforcement)
@@ -269,7 +269,7 @@ APIM → Backend
 
 **1. OAuth2 Proxy Deployment** (same as Option 1)
 
-**2. Cilium Network Policy**
+#### 2. Cilium Network Policy
 
 ```yaml
 apiVersion: cilium.io/v2
@@ -298,7 +298,7 @@ spec:
           path: "/oauth2/sign_in"
 ```
 
-**3. L7 Policy for API Calls**
+#### 3. L7 Policy for API Calls
 
 ```yaml
 apiVersion: cilium.io/v2
@@ -326,7 +326,7 @@ spec:
           - "Authorization: Bearer.*"  # Require Authorization header
 ```
 
-**4. Cilium Ingress**
+#### 4. Cilium Ingress
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -356,11 +356,11 @@ spec:
 
 ### Benefits of Cilium + OAuth2 Proxy
 
-- ✅ L7 network policies enforce security at multiple layers
-- ✅ mTLS between services (if configured)
-- ✅ No additional service mesh needed (Cilium provides mesh features)
-- ✅ eBPF-based performance advantages
-- ✅ OAuth2 Proxy handles authentication flow
+- L7 network policies enforce security at multiple layers
+- mTLS between services (if configured)
+- No additional service mesh needed (Cilium provides mesh features)
+- eBPF-based performance advantages
+- OAuth2 Proxy handles authentication flow
 
 ## Option 3: Envoy + External Auth (Advanced)
 
@@ -425,7 +425,7 @@ Full service mesh with authentication capabilities.
 
 ### Istio Example
 
-**1. RequestAuthentication**
+#### 1. RequestAuthentication
 
 ```yaml
 apiVersion: security.istio.io/v1beta1
@@ -444,7 +444,7 @@ spec:
     - "api://your-client-id"
 ```
 
-**2. AuthorizationPolicy**
+#### 2. AuthorizationPolicy
 
 ```yaml
 apiVersion: security.istio.io/v1beta1
@@ -463,7 +463,7 @@ spec:
         requestPrincipals: ["*"]
 ```
 
-**3. OAuth2 Proxy Integration**
+#### 3. OAuth2 Proxy Integration
 
 ```yaml
 # Still use OAuth2 Proxy for login flow
@@ -523,7 +523,7 @@ Enforce authentication at the gateway layer.
 
 ### Architecture
 
-```
+```text
 User Request
     ↓
 Application Gateway (WAF, TLS termination)
@@ -577,7 +577,7 @@ Standard SPA pattern - users see UI before authenticating.
 
 ### Architecture
 
-```
+```text
 User Request
     ↓
 Ingress
@@ -614,8 +614,8 @@ If Easy Auth is critical, consider Container Apps instead of AKS.
 
 | Feature | AKS | Container Apps |
 |---------|-----|----------------|
-| Easy Auth | ❌ Requires OAuth2 Proxy | ✅ Built-in |
-| Kubernetes | ✅ Full control | Partial (Kubernetes API) |
+| Easy Auth | Requires OAuth2 Proxy | Built-in |
+| Kubernetes | Full control | Partial (Kubernetes API) |
 | Complexity | High | Low-Medium |
 | Cost | Pay for nodes | Pay per usage |
 | Service Mesh | Manual install | Built-in (Envoy) |
@@ -655,7 +655,7 @@ az containerapp auth microsoft update \
 
 ### Small to Medium Applications
 
-**Use: OAuth2 Proxy Sidecar**
+#### Use: OAuth2 Proxy Sidecar
 
 - Simplest Easy Auth alternative
 - Well-documented and maintained
@@ -663,7 +663,7 @@ az containerapp auth microsoft update \
 
 ### Already Using Cilium
 
-**Use: Cilium + OAuth2 Proxy**
+#### Use: Cilium + OAuth2 Proxy
 
 - Leverage existing Cilium investment
 - Enhanced L7 security policies
@@ -671,7 +671,7 @@ az containerapp auth microsoft update \
 
 ### Enterprise with Service Mesh
 
-**Use: Existing Service Mesh + OAuth2 Proxy**
+#### Use: Existing Service Mesh + OAuth2 Proxy
 
 - Integrate auth with existing mesh
 - Centralized observability
@@ -679,7 +679,7 @@ az containerapp auth microsoft update \
 
 ### Need Easy Auth Features
 
-**Use: Azure Container Apps**
+#### Use: Azure Container Apps
 
 - Simplest solution
 - No infrastructure management
@@ -687,7 +687,7 @@ az containerapp auth microsoft update \
 
 ### API-First / No Forced Login Required
 
-**Use: Client-Side SPA + APIM**
+#### Use: Client-Side SPA + APIM
 
 - Simplest implementation
 - Standard SPA pattern
@@ -721,25 +721,25 @@ az containerapp auth microsoft update \
 
 ### OAuth2 Proxy Issues
 
-**Problem: Infinite redirect loop**
+#### Problem: Infinite redirect loop
 
-```
+```text
 Solution: Check redirect_url matches ingress host
 - --redirect-url=https://myapp.example.com/oauth2/callback (correct)
 - --redirect-url=http://myapp.example.com/oauth2/callback (wrong if using HTTPS)
 ```
 
-**Problem: 403 Forbidden after login**
+#### Problem: 403 Forbidden after login
 
-```
+```text
 Solution: Check email-domain or allowed groups
 - --email-domain=* (allow all)
 - --allowed-group=your-group-id (specific groups)
 ```
 
-**Problem: Cookies not persisting**
+#### Problem: Cookies not persisting
 
-```
+```text
 Solution: Check cookie-secret and cookie-secure settings
 - Generate proper cookie-secret (32 bytes, base64)
 - Set cookie-secure=true only with HTTPS
@@ -747,7 +747,7 @@ Solution: Check cookie-secret and cookie-secure settings
 
 ### Cilium Policy Issues
 
-**Problem: Requests blocked by policy**
+#### Problem: Requests blocked by policy
 
 ```bash
 # Check policy status
@@ -758,7 +758,7 @@ kubectl describe cnp frontend-ingress-policy
 cilium policy trace --src-k8s-pod default:frontend-xxx --dst-k8s-pod default:backend-xxx
 ```
 
-**Problem: L7 policy not working**
+#### Problem: L7 policy not working
 
 ```bash
 # Verify Envoy is loaded

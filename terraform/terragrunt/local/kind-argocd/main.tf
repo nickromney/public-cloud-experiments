@@ -105,6 +105,15 @@ locals {
     [for file in local.azure_auth_source_files : filesha256("${local.subnet_calculator_root}/${file}")],
     [for file in local.azure_auth_workflow_files : filesha256("${path.module}/gitea-repos/azure-auth-sim/${file}")]
   )))
+
+  sentiment_auth_ui_root = "${local.repo_root}/sentiment-llm/frontend-react-vite/sentiment-auth-ui"
+  sentiment_auth_repo_files = concat(
+    tolist(fileset(local.sentiment_auth_ui_root, "**")),
+    [for file in fileset("${local.sentiment_auth_ui_root}/.gitea", "**") : ".gitea/${file}"]
+  )
+  sentiment_auth_repo_checksum = sha256(join("", [
+    for file in local.sentiment_auth_repo_files : filesha256("${local.sentiment_auth_ui_root}/${file}")
+  ]))
   extra_port_mappings = concat([
     {
       name           = "argocd"
@@ -303,7 +312,7 @@ resource "local_file" "app_azure_auth_gateway" {
 }
 
 resource "local_file" "app_azure_entraid_sim" {
-  count    = var.enable_azure_auth_sim && var.enable_subnetcalc_azure_auth_sim ? 1 : 0
+  count    = var.enable_azure_auth_sim && var.enable_azure_entraid_sim ? 1 : 0
   filename = "${local.generated_apps_dir}/azure-entraid-sim.yaml"
   content  = templatefile("${path.module}/templates/apps/azure-entraid-sim.yaml.tpl", local.app_template_vars)
 }
@@ -372,6 +381,18 @@ resource "local_file" "app_sentiment_uat" {
   count    = var.enable_llm_sentiment ? 1 : 0
   filename = "${local.generated_apps_dir}/sentiment-uat.yaml"
   content  = templatefile("${path.module}/templates/apps/sentiment-uat.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "app_sentiment_auth_dev" {
+  count    = var.enable_sentiment_auth_frontend ? 1 : 0
+  filename = "${local.generated_apps_dir}/sentiment-auth-dev.yaml"
+  content  = templatefile("${path.module}/templates/apps/sentiment-auth-dev.yaml.tpl", local.app_template_vars)
+}
+
+resource "local_file" "app_sentiment_auth_uat" {
+  count    = var.enable_sentiment_auth_frontend ? 1 : 0
+  filename = "${local.generated_apps_dir}/sentiment-auth-uat.yaml"
+  content  = templatefile("${path.module}/templates/apps/sentiment-auth-uat.yaml.tpl", local.app_template_vars)
 }
 
 # Azure Auth Sim deployment files
@@ -705,7 +726,7 @@ EOF
 }
 
 resource "kubectl_manifest" "azure_entraid_namespace" {
-  count = var.enable_azure_auth_sim ? 1 : 0
+  count = var.enable_azure_auth_sim && var.enable_azure_entraid_sim ? 1 : 0
 
   ignore_fields = [
     "metadata.annotations",
@@ -969,6 +990,35 @@ EOT
 
 }
 
+resource "null_resource" "gitea_create_repo_sentiment_auth" {
+  count = var.enable_gitea && var.enable_actions_runner && var.enable_sentiment_auth_frontend && !var.use_external_gitea ? 1 : 0
+
+  triggers = {
+    rollout = null_resource.wait_for_gitea[0].id
+  }
+
+  provisioner "local-exec" {
+    command     = <<EOT
+set -euo pipefail
+for i in {1..20}; do
+  status=$(curl ${local.gitea_curl_insecure} -s --connect-timeout 2 --max-time 10 -o /dev/null -w "%%{http_code}" -X POST \
+    -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
+    -H "Content-Type: application/json" \
+    -d '{"name":"sentiment-auth-ui","private":false,"default_branch":"main","auto_init":true,"description":"Sentiment authenticated UI (oauth2-proxy + React)"}' \
+    ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/user/repos || echo "000")
+  if echo "$status" | grep -Eq "200|201|409"; then
+    exit 0
+  fi
+  echo "Gitea sentiment-auth-ui repo create returned HTTP $status, retrying... ($i/20)" >&2
+  sleep 5
+done
+echo "Failed to create sentiment-auth-ui repo in Gitea" >&2
+exit 1
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+}
+
 resource "null_resource" "gitea_add_deploy_key" {
   count = var.enable_gitea && !var.use_external_gitea ? 1 : 0
 
@@ -1193,12 +1243,14 @@ resource "null_resource" "seed_gitea_repo" {
       var.enable_signoz_k8s_infra ? local_file.app_signoz_k8s_infra[0].content : "",
       var.enable_azure_auth_sim && var.enable_subnetcalc_azure_auth_sim ? local_file.app_azure_auth_sim_dev[0].content : "",
       var.enable_azure_auth_sim && var.enable_subnetcalc_azure_auth_sim ? local_file.app_azure_auth_sim_uat[0].content : "",
-      var.enable_azure_auth_sim && var.enable_subnetcalc_azure_auth_sim ? local_file.app_azure_entraid_sim[0].content : "",
+      var.enable_azure_auth_sim && var.enable_azure_entraid_sim ? local_file.app_azure_entraid_sim[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_azure_apim_sim[0].content : "",
       var.enable_actions_runner && !var.use_external_gitea ? local_file.app_gitea_actions_runner[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_nginx_gateway_fabric[0].content : "",
       var.enable_azure_auth_sim ? local_file.nginx_gateway_fabric_deploy[0].content : "",
       var.enable_azure_auth_sim ? local_file.app_platform_gateway_routes[0].content : "",
+      var.enable_sentiment_auth_frontend ? local_file.app_sentiment_auth_dev[0].content : "",
+      var.enable_sentiment_auth_frontend ? local_file.app_sentiment_auth_uat[0].content : "",
       "",
     ]))
   }
@@ -1244,6 +1296,9 @@ fi
 
 if [ "${var.enable_subnetcalc_azure_auth_sim}" != "true" ]; then
   rm -f "$TMP_DIR/apps/_applications/azure-auth-sim-dev.yaml" "$TMP_DIR/apps/_applications/azure-auth-sim-uat.yaml"
+fi
+
+if [ "${var.enable_azure_entraid_sim}" != "true" ]; then
   rm -f "$TMP_DIR/apps/_applications/azure-entraid-sim.yaml"
 fi
 
@@ -1255,6 +1310,11 @@ if [ "${var.enable_llm_sentiment}" != "true" ]; then
   rm -f "$TMP_DIR/apps/_applications/sentiment-core.yaml"
   rm -f "$TMP_DIR/apps/_applications/sentiment-dev.yaml"
   rm -f "$TMP_DIR/apps/_applications/sentiment-uat.yaml"
+fi
+
+if [ "${var.enable_sentiment_auth_frontend}" != "true" ]; then
+  rm -f "$TMP_DIR/apps/_applications/sentiment-auth-dev.yaml"
+  rm -f "$TMP_DIR/apps/_applications/sentiment-auth-uat.yaml"
 fi
 if [ "${var.enable_actions_runner}" != "true" ] || [ "${var.use_external_gitea}" = "true" ]; then
   rm -f "$TMP_DIR/apps/_applications/gitea-actions-runner.yaml"
@@ -1315,6 +1375,8 @@ EOT
     local_file.app_azure_auth_sim_uat,
     local_file.app_azure_entraid_sim,
     local_file.app_azure_apim_sim,
+    local_file.app_sentiment_auth_dev,
+    local_file.app_sentiment_auth_uat,
     local_file.app_gitea_actions_runner,
     local_file.app_nginx_gateway_fabric,
     local_file.nginx_gateway_fabric_deploy,
@@ -1381,6 +1443,64 @@ EOT
   # Ensure repo secrets exist before the initial push triggers the Actions workflow.
   depends_on = [
     null_resource.gitea_azure_auth_repo_secrets_internal[0]
+  ]
+}
+
+resource "null_resource" "seed_gitea_repo_sentiment_auth" {
+  count = var.enable_gitea && var.enable_actions_runner && var.enable_sentiment_auth_frontend && !var.use_external_gitea ? 1 : 0
+
+  triggers = {
+    repo_id    = null_resource.gitea_create_repo_sentiment_auth[0].id
+    host_key   = md5(data.local_file.gitea_known_hosts[0].content)
+    repo_files = local.sentiment_auth_repo_checksum
+    password   = md5(var.gitea_admin_pwd)
+    registry   = md5(local.gitea_registry_host)
+  }
+
+  provisioner "local-exec" {
+    command     = <<EOT
+set -euo pipefail
+if [ "${var.use_external_gitea}" = "true" ]; then
+  echo "External Gitea detected; skipping Terraform seeding (stage scripts handle this)." >&2
+  exit 0
+fi
+TMP_DIR=$(mktemp -d)
+cp -r ${local.sentiment_auth_ui_root}/. "$TMP_DIR"/
+cd "$TMP_DIR"
+git init -q
+git config user.email "argocd@gitea.local"
+git config user.name "argocd"
+git config commit.gpgsign false
+git add .
+git commit -q -m "Seed sentiment-auth-ui sources"
+git branch -M main
+git remote add origin ${local.gitea_http_scheme}://${var.gitea_http_host_local}:${var.gitea_http_port}/${var.gitea_admin_username}/sentiment-auth-ui.git
+
+ASKPASS=$(mktemp)
+trap 'rm -f "$ASKPASS"' EXIT
+cat > "$ASKPASS" <<'EOF'
+#!/usr/bin/env bash
+case "$1" in
+  *Username*) echo "$GITEA_USERNAME" ;;
+  *Password*) echo "$GITEA_PWD" ;;
+  *) echo "" ;;
+esac
+EOF
+chmod +x "$ASKPASS"
+GIT_TERMINAL_PROMPT=0 \
+  GIT_ASKPASS="$ASKPASS" \
+  GITEA_USERNAME="${var.gitea_admin_username}" \
+  GITEA_PWD="${var.gitea_admin_pwd}" \
+  git push -f origin main
+rm -f "$ASKPASS"
+trap - EXIT
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+
+  # Ensure repo secrets exist before the initial push triggers the Actions workflow.
+  depends_on = [
+    null_resource.gitea_sentiment_auth_repo_secrets_internal[0]
   ]
 }
 
@@ -1886,6 +2006,51 @@ EOT
 
   depends_on = [
     null_resource.gitea_create_repo_azure_auth[0],
+    null_resource.wait_for_gitea[0]
+  ]
+}
+
+# Create repo secrets for the sentiment-auth-ui workflow (in-cluster registry)
+resource "null_resource" "gitea_sentiment_auth_repo_secrets_internal" {
+  count = var.enable_gitea && var.enable_actions_runner && var.enable_sentiment_auth_frontend && !var.use_external_gitea ? 1 : 0
+
+  triggers = {
+    repo_id  = null_resource.gitea_create_repo_sentiment_auth[0].id
+    password = md5(var.gitea_admin_pwd)
+  }
+
+  provisioner "local-exec" {
+    command     = <<EOT
+set -euo pipefail
+create_secret() {
+  local name="$1"
+  local value="$2"
+  for i in {1..5}; do
+    status=$(curl ${local.gitea_curl_insecure} -s --connect-timeout 2 --max-time 10 -o /dev/null -w "%%{http_code}" -X PUT \
+      -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
+      -H "Content-Type: application/json" \
+      -d "{\"data\":\"$${value}\"}" \
+      ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/sentiment-auth-ui/actions/secrets/$${name} || echo "000")
+    if echo "$status" | grep -Eq "200|201|204"; then
+      return 0
+    fi
+    echo "Setting secret $${name} returned HTTP $status, retrying... ($i/5)" >&2
+    sleep 3
+  done
+  echo "Failed to create/update secret $${name}" >&2
+  exit 1
+}
+
+create_secret "REGISTRY_USERNAME" "${var.gitea_admin_username}"
+create_secret "REGISTRY_PWD" "${var.gitea_admin_pwd}"
+create_secret "REGISTRY_HOST" "${local.gitea_registry_host}"
+create_secret "GITEAHOST" "gitea-http.gitea.svc.cluster.local:${var.gitea_http_port_cluster}"
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+
+  depends_on = [
+    null_resource.gitea_create_repo_sentiment_auth[0],
     null_resource.wait_for_gitea[0]
   ]
 }

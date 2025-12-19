@@ -12,7 +12,7 @@ variable "worker_count" {
 variable "node_image" {
   description = "Kind node image."
   type        = string
-  default     = "kindest/node:v1.34.0"
+  default     = "kindest/node:v1.35.0"
 }
 
 variable "kind_config_path" {
@@ -449,6 +449,34 @@ variable "enable_subnetcalc_azure_auth_sim" {
   validation {
     condition     = !var.enable_subnetcalc_azure_auth_sim || var.enable_azure_auth_sim
     error_message = "enable_subnetcalc_azure_auth_sim requires enable_azure_auth_sim to be true."
+  }
+}
+
+variable "enable_azure_entraid_sim" {
+  description = "Deploy the Keycloak-based Entra ID simulator used by oauth2-proxy OIDC flows."
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.enable_azure_entraid_sim || var.enable_azure_auth_sim
+    error_message = "enable_azure_entraid_sim requires enable_azure_auth_sim to be true."
+  }
+}
+
+variable "enable_sentiment_auth_frontend" {
+  description = "Deploy the sentiment authenticated frontend (oauth2-proxy forced login + React UI) and seed the build pipeline into Gitea."
+  type        = bool
+  default     = false
+
+  validation {
+    condition = !var.enable_sentiment_auth_frontend || (
+      var.enable_gitea &&
+      var.enable_argocd &&
+      var.enable_actions_runner &&
+      var.enable_azure_auth_sim &&
+      var.enable_azure_entraid_sim
+    )
+    error_message = "enable_sentiment_auth_frontend requires enable_gitea, enable_argocd, enable_actions_runner, enable_azure_auth_sim, and enable_azure_entraid_sim to be true."
   }
 }
 

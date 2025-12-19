@@ -12,7 +12,7 @@ This document summarizes the testing, issues found, and fixes applied during the
 
 **Issue**: Frontend build failed with unused import errors in `oidcAuthProvider.tsx`
 
-```
+```text
 error TS6133: 'React' is declared but its value is never read.
 error TS6133: 'User' is declared but its value is never read.
 ```
@@ -30,7 +30,7 @@ import { User, UserManager, WebStorageStateStore } from 'oidc-client-ts'
 import { UserManager, WebStorageStateStore } from 'oidc-client-ts'
 ```
 
-**Status**: ✅ Fixed
+**Status**: Fixed
 
 ---
 
@@ -58,7 +58,7 @@ if auth_method in (AuthMethod.JWT, AuthMethod.OIDC, AuthMethod.AZURE_SWA, AuthMe
     return response
 ```
 
-**Status**: ✅ Fixed
+**Status**: Fixed
 
 ---
 
@@ -81,7 +81,7 @@ healthcheck:
 
 **Workaround**: The OIDC discovery endpoint (`/realms/subnet-calculator/.well-known/openid-configuration`) is working correctly, confirming Keycloak is functional. The health check issue doesn't affect functionality.
 
-**Status**: ⚠️ Known Issue (not blocking)
+**Status**: Known issue (not blocking)
 
 **Recommendation**: Update healthcheck to use OIDC discovery endpoint:
 
@@ -100,45 +100,45 @@ healthcheck:
 
 **Workaround**: Used `podman build --no-cache` to force a clean build
 
-**Status**: ✅ Resolved (one-time issue)
+**Status**: Resolved (one-time issue)
 
 ---
 
 ## Test Results
 
-### ✅ Keycloak Service
+### Keycloak Service
 
 | Test | Status | Notes |
 |------|--------|-------|
-| Container starts | ✅ Pass | Started successfully on port 8180 |
-| Realm import | ✅ Pass | `subnet-calculator` realm imported with warnings about built-in scopes |
-| OIDC discovery | ✅ Pass | `/.well-known/openid-configuration` returns valid JSON |
-| Admin console accessible | ✅ Pass | <http://localhost:8180> (admin / admin123) |
-| Clients configured | ✅ Pass | `frontend-app` (public) and `api-app` (bearer-only) |
-| Users created | ✅ Pass | demo / password123, admin / securepass |
-| Custom scope | ✅ Pass | `user_impersonation` scope with audience mapper |
+| Container starts | Pass | Started successfully on port 8180 |
+| Realm import | Pass | `subnet-calculator` realm imported with warnings about built-in scopes |
+| OIDC discovery | Pass | `/.well-known/openid-configuration` returns valid JSON |
+| Admin console accessible | Pass | <http://localhost:8180> (admin / admin123) |
+| Clients configured | Pass | `frontend-app` (public) and `api-app` (bearer-only) |
+| Users created | Pass | demo / password123, admin / securepass |
+| Custom scope | Pass | `user_impersonation` scope with audience mapper |
 
-### ✅ API Service (FastAPI)
-
-| Test | Status | Notes |
-|------|--------|-------|
-| Container starts | ✅ Pass | Started on port 8081 |
-| Health endpoint (no auth) | ✅ Pass | Returns `{"status": "healthy", ...}` |
-| OIDC config loaded | ✅ Pass | Logs show "Authentication: oidc" |
-| Middleware recognizes OIDC | ✅ Pass | After fix, requests pass through correctly |
-| JWKS fetching | ⏳ Pending | Requires actual token to test |
-| Token validation | ⏳ Pending | Requires browser-based auth flow |
-
-### ✅ Frontend Service (React)
+### API Service (FastAPI)
 
 | Test | Status | Notes |
 |------|--------|-------|
-| Container starts | ✅ Pass | Started on port 3006 |
-| HTML page loads | ✅ Pass | Serves index.html with React app |
-| Static assets | ✅ Pass | CSS and JS bundles load |
-| OIDC config embedded | ✅ Pass | Build-time env vars included |
-| Auth initialization | ⏳ Pending | Requires browser testing |
-| Login redirect | ⏳ Pending | Requires browser testing |
+| Container starts | Pass | Started on port 8081 |
+| Health endpoint (no auth) | Pass | Returns `{"status": "healthy", ...}` |
+| OIDC config loaded | Pass | Logs show "Authentication: oidc" |
+| Middleware recognizes OIDC | Pass | After fix, requests pass through correctly |
+| JWKS fetching | Pending | Requires actual token to test |
+| Token validation | Pending | Requires browser-based auth flow |
+
+### Frontend Service (React)
+
+| Test | Status | Notes |
+|------|--------|-------|
+| Container starts | Pass | Started on port 3006 |
+| HTML page loads | Pass | Serves index.html with React app |
+| Static assets | Pass | CSS and JS bundles load |
+| OIDC config embedded | Pass | Build-time env vars included |
+| Auth initialization | Pending | Requires browser testing |
+| Login redirect | Pending | Requires browser testing |
 
 ---
 
@@ -256,7 +256,7 @@ The compose file uses hardcoded hostnames (localhost:8180, localhost:8081, local
 
 ## Security Considerations
 
-### ✅ Implemented
+### Implemented
 
 - PKCE enabled on frontend client
 - Bearer-only API client (no client secret in SPA)
@@ -265,7 +265,7 @@ The compose file uses hardcoded hostnames (localhost:8180, localhost:8081, local
 - Token expiration checks
 - Argon2 hashed passwords for test users
 
-### ⚠️ Development-Only Settings
+### Development-only settings
 
 - HTTP instead of HTTPS
 - Permissive CORS (single origin)
@@ -316,12 +316,12 @@ The Keycloak OAuth2/OIDC stack is **functional and ready for manual testing**. A
 
 ### Summary
 
-- ✅ All services start correctly
-- ✅ Keycloak realm imported with users and clients
-- ✅ API recognizes OIDC and validates configuration
-- ✅ Frontend builds and serves correctly
-- ⏳ End-to-end OAuth flow requires manual browser testing
-- ⚠️ One known issue (Keycloak healthcheck) that doesn't affect functionality
+- All services start correctly
+- Keycloak realm imported with users and clients
+- API recognizes OIDC and validates configuration
+- Frontend builds and serves correctly
+- End-to-end OAuth flow requires manual browser testing
+- One known issue (Keycloak healthcheck) that doesn't affect functionality
 
 ### Recommendation
 

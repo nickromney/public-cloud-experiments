@@ -12,7 +12,7 @@ This directory contains configuration for running a complete OAuth2/OIDC authent
 
 ## Architecture
 
-```
+```text
 ┌─────────────┐
 │   Browser   │
 └──────┬──────┘
@@ -57,10 +57,10 @@ This directory contains configuration for running a complete OAuth2/OIDC authent
 
 1. **Start the stack:**
 
-```bash
-cd subnet-calculator
-podman-compose up keycloak api-fastapi-keycloak frontend-react-keycloak
-```
+   ```bash
+   cd subnet-calculator
+   podman-compose up keycloak api-fastapi-keycloak frontend-react-keycloak
+   ```
 
 2. **Access the application:**
    - React Frontend: <http://localhost:3006>
@@ -138,7 +138,7 @@ The realm is pre-configured via `realm-export.json` with:
 
 ## Security Warning
 
-**IMPORTANT: This configuration is for LOCAL DEVELOPMENT ONLY**
+### IMPORTANT: Local development only
 
 The `realm-export.json` file contains:
 

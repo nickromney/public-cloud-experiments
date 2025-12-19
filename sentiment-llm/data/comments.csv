@@ -1,0 +1,11 @@
+timestamp,text,label,confidence,latency_ms
+"2025-12-18T21:02:49.055Z","I absolutely love this. Great work and fantastic experience.","positive","1","7659"
+"2025-12-18T21:10:20.967Z","This is terrible. I want a refund and I will not use this again.","negative","1","3470"
+"2025-12-18T21:10:30.273Z","Some parts are fine, but overall I am disappointed and frustrated.","negative","1","1414"
+"2025-12-18T21:37:32.123Z","Some parts are fine, but overall I am disappointed and frustrated.","negative","1","39410"
+"2025-12-18T21:41:40.058Z","Some parts are fine, but overall I am disappointed and frustrated.","negative","1","38925"
+"2025-12-18T21:42:19.122Z","Custom test text 1766094139065 — I am not sure how I feel about this.","negative","1","1114"
+"2025-12-18T21:42:44.432Z","Some parts are fine, but overall I am disappointed and frustrated.","negative","1","1869"
+"2025-12-18T21:42:46.365Z","Custom test text 1766094166320 — I am not sure how I feel about this.","negative","1","775"
+"2025-12-18T22:54:31.164Z","Some parts are fine, but overall I am disappointed and frustrated.","negative","1","9202"
+"2025-12-18T22:54:40.494Z","Custom test text 1766098480424 — I am not sure how I feel about this.","neutral","1","3830"

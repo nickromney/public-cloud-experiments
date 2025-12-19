@@ -287,8 +287,19 @@ check_argo_app() {
 }
 
 check_argo_apps() {
+  local apps=(app-of-apps cilium-policies kyverno-policies azure-auth-gateway)
+
+  # azure-auth-sim-dev/uat are only present when the subnet calculator stack is enabled.
+  # Stage 900 can legitimately omit them.
+  if kubectl -n argocd get app azure-auth-sim-dev >/dev/null 2>&1; then
+    apps+=(azure-auth-sim-dev)
+  fi
+  if kubectl -n argocd get app azure-auth-sim-uat >/dev/null 2>&1; then
+    apps+=(azure-auth-sim-uat)
+  fi
+
   local tolerate_outofsync=("app-of-apps" "azure-auth-gateway" "azure-auth-sim-dev" "azure-auth-sim-uat")
-  for app in app-of-apps cilium-policies kyverno-policies azure-auth-gateway azure-auth-sim-dev azure-auth-sim-uat; do
+  for app in "${apps[@]}"; do
     # Don't abort the whole script on a single app failure.
     check_argo_app "${app}" "${tolerate_outofsync[@]}" || true
   done
@@ -340,8 +351,25 @@ check_signoz() {
     return
   fi
 
-  wait_for_argo_app_healthy "signoz-k8s-infra" 18 10 || true
-  wait_for_argo_app_healthy "signoz" 30 10 || true
+  # On newer Kubernetes versions, Argo CD can report sync=Unknown for some Helm apps due to
+  # schema/diff issues (ComparisonError) while the workload is actually healthy.
+  # Since SigNoz is optional and non-critical for the local demo, do not block health checks on it.
+  if kubectl -n argocd get app signoz-k8s-infra >/dev/null 2>&1; then
+    local sync health comparison_error
+    sync=$(kubectl -n argocd get app signoz-k8s-infra -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "")
+    health=$(kubectl -n argocd get app signoz-k8s-infra -o jsonpath='{.status.health.status}' 2>/dev/null || echo "")
+    comparison_error=$(kubectl -n argocd get app signoz-k8s-infra -o jsonpath='{range .status.conditions[?(@.type=="ComparisonError")]}{.message}{end}' 2>/dev/null || echo "")
+
+    if [[ "${health}" == "Healthy" && "${sync}" == "Unknown" && -n "${comparison_error}" ]]; then
+      ok "ArgoCD app signoz-k8s-infra is Healthy (sync=Unknown due to ComparisonError; tolerated)"
+    else
+      wait_for_argo_app_healthy "signoz-k8s-infra" 6 5 || true
+    fi
+  fi
+
+  if kubectl -n argocd get app signoz >/dev/null 2>&1; then
+    wait_for_argo_app_healthy "signoz" 12 5 || true
+  fi
 
   if kubectl -n observability get svc signoz-frontend >/dev/null 2>&1; then
     ok "SigNoz service present: observability/signoz-frontend"
@@ -469,8 +497,11 @@ print_failure_details() {
 }
 
 check_azure_auth_sim() {
-  check_env_deployments "dev"
-  check_env_deployments "uat"
+  # The subnet calculator's "azure-auth-sim" apps are optional (can be disabled in stage 800/900).
+  if kubectl -n argocd get app azure-auth-sim-dev >/dev/null 2>&1 || kubectl -n argocd get app azure-auth-sim-uat >/dev/null 2>&1; then
+    check_env_deployments "dev"
+    check_env_deployments "uat"
+  fi
   check_gateway_namespace
 }
 

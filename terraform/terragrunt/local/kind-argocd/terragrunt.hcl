@@ -14,7 +14,7 @@ inputs = {
   worker_count          = 2
   # Keep Kind nodes on the host-native architecture (arm64 on Apple Silicon).
   # The local setup relies on Docker's emulation/compat mode when running amd64-only images.
-  node_image            = "kindest/node:v1.34.0"
+  node_image            = "kindest/node:v1.35.0"
   kind_config_path      = "${get_terragrunt_dir()}/kind-config.yaml"
   kubeconfig_path       = pathexpand("~/.kube/config")
   kubeconfig_context    = "kind-kind-local"

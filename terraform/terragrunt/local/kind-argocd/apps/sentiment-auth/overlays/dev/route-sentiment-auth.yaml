@@ -1,0 +1,71 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: sentiment-auth-route
+  labels:
+    app.kubernetes.io/name: sentiment-auth-route
+    app.kubernetes.io/part-of: sentiment-auth
+spec:
+  parentRefs:
+    - name: azure-auth-gateway
+      namespace: azure-auth-gateway
+  hostnames:
+    - sentiment.dev.127.0.0.1.sslip.io
+  rules:
+    # Keycloak routes - cross-namespace to azure-entraid-sim
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /realms
+        - path:
+            type: PathPrefix
+            value: /resources
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.nginx.org
+            kind: SnippetsFilter
+            name: sentiment-auth-http-to-https-redirect
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.nginx.org
+            kind: SnippetsFilter
+            name: sentiment-auth-keycloak-hostport
+      backendRefs:
+        - name: keycloak
+          namespace: azure-entraid-sim
+          port: 8080
+          kind: Service
+
+    # Sentiment API routes - cross-namespace to azure-apim-sim (sentiment APIM instance)
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.nginx.org
+            kind: SnippetsFilter
+            name: sentiment-auth-http-to-https-redirect
+      backendRefs:
+        - name: apim-sentiment
+          namespace: azure-apim-sim
+          port: 8000
+          kind: Service
+
+    # Frontend route - forces login via oauth2-proxy
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.nginx.org
+            kind: SnippetsFilter
+            name: sentiment-auth-http-to-https-redirect
+      backendRefs:
+        - name: oauth2-proxy-sentiment-auth
+          port: 4180
+          kind: Service
