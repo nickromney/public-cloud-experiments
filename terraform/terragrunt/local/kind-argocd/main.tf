@@ -1422,6 +1422,8 @@ resource "null_resource" "argocd_add_gitea_known_host" {
 
   triggers = {
     gitea_host_key = md5(data.local_file.gitea_known_hosts_cluster[0].content)
+    # Helm upgrades can recreate/reset argocd-ssh-known-hosts-cm; rerun this safeguard when ArgoCD changes.
+    argocd_chart_version = var.argocd_chart_version
   }
 
   provisioner "local-exec" {
