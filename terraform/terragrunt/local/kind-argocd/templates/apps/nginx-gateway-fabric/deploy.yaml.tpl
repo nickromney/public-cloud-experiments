@@ -394,7 +394,6 @@ spec:
         fsGroup: 1001
         runAsNonRoot: true
       serviceAccountName: nginx-gateway-cert-generator
-  ttlSecondsAfterFinished: 30
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
