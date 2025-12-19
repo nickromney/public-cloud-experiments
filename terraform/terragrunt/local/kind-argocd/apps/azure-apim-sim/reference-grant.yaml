@@ -19,3 +19,9 @@ spec:
     - group: ""
       kind: Service
       name: apim-simulator-uat
+    - group: ""
+      kind: Service
+      name: apim-sentiment
+    - group: ""
+      kind: Service
+      name: apim-sentiment-uat

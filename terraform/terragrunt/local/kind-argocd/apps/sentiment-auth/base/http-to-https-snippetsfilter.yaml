@@ -1,0 +1,14 @@
+apiVersion: gateway.nginx.org/v1alpha1
+kind: SnippetsFilter
+metadata:
+  name: sentiment-auth-http-to-https-redirect
+  labels:
+    app.kubernetes.io/name: sentiment-auth
+spec:
+  snippets:
+    # When a browser accidentally sends plain HTTP to the HTTPS listener port,
+    # NGINX returns an internal 497 error which normally surfaces as a 400.
+    # Convert that into a proper redirect back to HTTPS (preserving host:port).
+    - context: http.server
+      value: |
+        error_page 497 =301 https://$http_host$request_uri;

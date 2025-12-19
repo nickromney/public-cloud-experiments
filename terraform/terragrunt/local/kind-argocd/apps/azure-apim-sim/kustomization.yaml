@@ -8,6 +8,9 @@ resources:
   - apim-deployment.yaml
   - apim-service.yaml
   - apim-service-uat.yaml
+  - apim-sentiment-deployment.yaml
+  - apim-sentiment-service.yaml
+  - apim-sentiment-service-uat.yaml
   - gateway.yaml
   - reference-grant.yaml
   - policies/cilium/cilium-network-policies.yaml

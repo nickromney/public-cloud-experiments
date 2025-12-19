@@ -145,7 +145,7 @@ spec:
       containers:
         # Sidecar container - OAuth2 Proxy (entry point)
         - name: oauth2-proxy
-          image: quay.io/oauth2-proxy/oauth2-proxy:v7.13.0
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.13.0@sha256:56e3daedf765c7a1eea6e366fbe684be7d3084830ade14b6174570d3c7960954
           imagePullPolicy: IfNotPresent
           args:
             # OIDC Provider (Keycloak in azure-entraid-sim namespace)

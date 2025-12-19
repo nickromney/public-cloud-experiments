@@ -6,7 +6,7 @@ This document explains how to visualize the multi-namespace Azure auth simulatio
 
 Hubble UI is available on NodePort 31235:
 
-```
+```text
 http://localhost:31235
 ```
 
@@ -33,7 +33,7 @@ curl -s http://localhost:3007/
 
 ## Expected Traffic Flow Diagram
 
-```
+```text
                     ┌─────────────────────────┐
                     │     nginx-gateway       │
                     │   (control plane)       │

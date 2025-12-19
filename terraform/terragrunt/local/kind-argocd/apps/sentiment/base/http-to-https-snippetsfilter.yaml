@@ -1,0 +1,11 @@
+apiVersion: gateway.nginx.org/v1alpha1
+kind: SnippetsFilter
+metadata:
+  name: sentiment-http-to-https-redirect
+  labels:
+    app.kubernetes.io/name: sentiment
+spec:
+  snippets:
+    - context: http.server
+      value: |
+        error_page 497 =301 https://$http_host$request_uri;

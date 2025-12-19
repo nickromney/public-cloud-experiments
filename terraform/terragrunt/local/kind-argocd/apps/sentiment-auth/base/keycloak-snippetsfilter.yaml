@@ -1,0 +1,23 @@
+apiVersion: gateway.nginx.org/v1alpha1
+kind: SnippetsFilter
+metadata:
+  name: sentiment-auth-keycloak-hostport
+  labels:
+    app.kubernetes.io/name: sentiment-auth
+spec:
+  snippets:
+    - context: http.server.location
+      value: |
+        # Keycloak's OIDC endpoints can return very large response headers (notably long redirect Location
+        # headers and/or Set-Cookie) when oauth2-proxy nests state/redirect parameters.
+        # Increase proxy response header buffer sizes to avoid: "upstream sent too big header" -> 502.
+        proxy_buffer_size 16k;
+        proxy_buffers 8 16k;
+        proxy_busy_buffers_size 24k;
+
+        set $proxy_forwarded_port $server_port;
+        if ($http_host ~* ":(\\d+)$") { set $proxy_forwarded_port $1; }
+
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Port $proxy_forwarded_port;

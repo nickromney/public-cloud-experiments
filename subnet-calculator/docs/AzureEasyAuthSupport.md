@@ -6,7 +6,7 @@ Azure Easy Authentication (Easy Auth) is a built-in authentication and authoriza
 
 ## How Easy Auth Works
 
-```
+```text
 User Request
     ↓
 Easy Auth Proxy (intercepts request, checks authentication)
@@ -54,24 +54,24 @@ Application receives request with user identity headers
 
 ## Where Easy Auth is Available
 
-### ✅ Services with Built-in Easy Auth
+### Services with Built-in Easy Auth
 
 | Service | Easy Auth Support | Configuration Method | Notes |
 |---------|------------------|---------------------|-------|
-| **Azure App Service** | ✅ Full support | Portal / ARM template / CLI | Original Easy Auth implementation |
-| **Azure Function Apps** | ✅ Full support | Portal / ARM template / CLI | Same as App Service |
-| **Azure Static Web Apps** | ✅ Full support | `staticwebapp.config.json` | Slightly different config format |
-| **Azure Container Apps** | ✅ Full support | ARM template / `az containerapp auth` | Built into ingress |
+| **Azure App Service** | Yes (full support) | Portal / ARM template / CLI | Original Easy Auth implementation |
+| **Azure Function Apps** | Yes (full support) | Portal / ARM template / CLI | Same as App Service |
+| **Azure Static Web Apps** | Yes (full support) | `staticwebapp.config.json` | Slightly different config format |
+| **Azure Container Apps** | Yes (full support) | ARM template / `az containerapp auth` | Built into ingress |
 
-### ❌ Services WITHOUT Easy Auth
+### Services without Easy Auth
 
 | Service | Easy Auth Support | Alternative Solutions |
 |---------|------------------|----------------------|
-| **Azure Kubernetes Service (AKS)** | ❌ Not available | OAuth2 Proxy sidecar, Service Mesh (Istio/Linkerd), API Gateway auth |
-| **Azure Container Instances** | ❌ Not available | Custom auth in application, reverse proxy with auth |
-| **Azure Virtual Machines** | ❌ Not available | Application-level auth, reverse proxy with auth |
-| **Azure App Gateway** | ❌ Not available | Can integrate with other auth services, but no built-in Easy Auth |
-| **Azure API Management** | ❌ Not available (has OAuth validation) | JWT validation policies, OAuth2 authorization |
+| **Azure Kubernetes Service (AKS)** | No | OAuth2 Proxy sidecar, Service Mesh (Istio/Linkerd), API Gateway auth |
+| **Azure Container Instances** | No | Custom auth in application, reverse proxy with auth |
+| **Azure Virtual Machines** | No | Application-level auth, reverse proxy with auth |
+| **Azure App Gateway** | No | Can integrate with other auth services, but no built-in Easy Auth |
+| **Azure API Management** | No (has OAuth validation) | JWT validation policies, OAuth2 authorization |
 
 ## Configuration Examples
 
@@ -236,33 +236,33 @@ az containerapp auth microsoft update \
 
 **Pros:**
 
-- ✅ Enforces authentication before serving content
-- ✅ No application code changes required
-- ✅ Centralized authentication configuration
-- ✅ Built-in token management and refresh
-- ✅ Security team can manage independently
+- Enforces authentication before serving content
+- No application code changes required
+- Centralized authentication configuration
+- Built-in token management and refresh
+- Security team can manage independently
 
 **Cons:**
 
-- ❌ Only available on specific Azure services
-- ❌ Less flexibility in customizing auth flow
-- ❌ Limited to supported identity providers
+- Only available on specific Azure services
+- Less flexibility in customizing auth flow
+- Limited to supported identity providers
 
 ### Application-Level Authentication (Client-Side SPA)
 
 **Pros:**
 
-- ✅ Works on any hosting platform (AKS, VMs, other clouds)
-- ✅ Full control over authentication flow
-- ✅ Can customize UX extensively
-- ✅ Works with any OAuth/OIDC provider
+- Works on any hosting platform (AKS, VMs, other clouds)
+- Full control over authentication flow
+- Can customize UX extensively
+- Works with any OAuth/OIDC provider
 
 **Cons:**
 
-- ❌ Users see UI before authentication
-- ❌ Requires application code changes
-- ❌ More complex to implement correctly
-- ❌ Token management must be handled in code
+- Users see UI before authentication
+- Requires application code changes
+- More complex to implement correctly
+- Token management must be handled in code
 
 ## Using Easy Auth Headers in Downstream Services
 

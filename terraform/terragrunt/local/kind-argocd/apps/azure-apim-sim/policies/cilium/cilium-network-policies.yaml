@@ -136,6 +136,130 @@ spec:
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
+  name: azure-apim-sentiment-dev
+  namespace: azure-apim-sim
+spec:
+  endpointSelector:
+    matchLabels:
+      "k8s:app.kubernetes.io/name": apim-sentiment
+      "k8s:app.kubernetes.io/component": gateway
+  ingress:
+    - fromEntities:
+        - host
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            "k8s:app.kubernetes.io/name": azure-auth-gateway-nginx
+            "k8s:io.kubernetes.pod.namespace": azure-auth-gateway
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+      authentication:
+        mode: required
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            "k8s:app.kubernetes.io/name": sentiment-api
+            "k8s:app.kubernetes.io/component": backend
+            "k8s:io.kubernetes.pod.namespace": sentiment
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+      authentication:
+        mode: required
+    - toEndpoints:
+        - matchLabels:
+            "k8s:app.kubernetes.io/name": keycloak
+            "k8s:app.kubernetes.io/component": identity
+            "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+      authentication:
+        mode: required
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: azure-apim-sentiment-uat
+  namespace: azure-apim-sim
+spec:
+  endpointSelector:
+    matchLabels:
+      "k8s:app.kubernetes.io/name": apim-sentiment-uat
+      "k8s:app.kubernetes.io/component": gateway
+  ingress:
+    - fromEntities:
+        - host
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            "k8s:app.kubernetes.io/name": azure-auth-gateway-nginx
+            "k8s:io.kubernetes.pod.namespace": azure-auth-gateway
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP
+      authentication:
+        mode: required
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            "k8s:app.kubernetes.io/name": sentiment-api
+            "k8s:app.kubernetes.io/component": backend
+            "k8s:io.kubernetes.pod.namespace": sentiment
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+      authentication:
+        mode: required
+    - toEndpoints:
+        - matchLabels:
+            "k8s:app.kubernetes.io/name": keycloak
+            "k8s:app.kubernetes.io/component": identity
+            "k8s:io.kubernetes.pod.namespace": azure-entraid-sim
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+      authentication:
+        mode: required
+    - toEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": kube-system
+            "k8s:k8s-app": kube-dns
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
+
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
   name: azure-apim-gateway-ingress
   namespace: azure-apim-sim
 spec:

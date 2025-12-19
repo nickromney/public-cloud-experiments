@@ -12,7 +12,7 @@ variable "worker_count" {
 variable "node_image" {
   description = "Kind node image."
   type        = string
-  default     = "kindest/node:v1.34.0"
+  default     = "kindest/node:v1.35.0"
 }
 
 variable "kind_config_path" {
@@ -326,11 +326,13 @@ variable "generate_repo_ssh_key" {
 variable "ssh_private_key_path" {
   description = "Path to write the generated SSH private key (gitignored)."
   type        = string
+  default     = "./.run/argocd-repo.id_ed25519"
 }
 
 variable "ssh_public_key_path" {
   description = "Path to write the generated SSH public key."
   type        = string
+  default     = "./.run/argocd-repo.id_ed25519.pub"
 }
 
 # -----------------------------------------------------------------------------
@@ -439,8 +441,47 @@ variable "enable_azure_auth_sim" {
   }
 }
 
+variable "enable_subnetcalc_azure_auth_sim" {
+  description = "Deploy the subnet calculator demo workloads (dev/uat) that sit behind the azure-auth-gateway/APIM simulator stack. Set false to keep the gateway/APIM platform while disabling the subnetcalc demo apps."
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.enable_subnetcalc_azure_auth_sim || var.enable_azure_auth_sim
+    error_message = "enable_subnetcalc_azure_auth_sim requires enable_azure_auth_sim to be true."
+  }
+}
+
+variable "enable_azure_entraid_sim" {
+  description = "Deploy the Keycloak-based Entra ID simulator used by oauth2-proxy OIDC flows."
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.enable_azure_entraid_sim || var.enable_azure_auth_sim
+    error_message = "enable_azure_entraid_sim requires enable_azure_auth_sim to be true."
+  }
+}
+
+variable "enable_sentiment_auth_frontend" {
+  description = "Deploy the sentiment authenticated frontend (oauth2-proxy forced login + React UI) and seed the build pipeline into Gitea."
+  type        = bool
+  default     = false
+
+  validation {
+    condition = !var.enable_sentiment_auth_frontend || (
+      var.enable_gitea &&
+      var.enable_argocd &&
+      var.enable_actions_runner &&
+      var.enable_azure_auth_sim &&
+      var.enable_azure_entraid_sim
+    )
+    error_message = "enable_sentiment_auth_frontend requires enable_gitea, enable_argocd, enable_actions_runner, enable_azure_auth_sim, and enable_azure_entraid_sim to be true."
+  }
+}
+
 variable "enable_llm_sentiment" {
-  description = "Enable deployment of the local LLM sentiment demo (Ollama + minimal API + minimal frontend) via app-of-apps."
+  description = "Enable deployment of the local LLM sentiment demo (Ollama + minimal API + dev/uat frontends via APIM simulator) via app-of-apps."
   type        = bool
   default     = false
 

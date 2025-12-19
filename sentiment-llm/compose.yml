@@ -1,0 +1,119 @@
+# Compose configuration for sentiment-llm (local equivalent of kind-local demo)
+# Works with both docker compose and podman-compose.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    # Runs native to your machine's architecture (fastest on Apple Silicon).
+    # If you ever need to force amd64 (slower on Apple Silicon), set:
+    #   DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose up -d --build
+    volumes:
+      - ollama:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+    command: ["serve"]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.5
+    command: ["/bin/sh", "/opt/keycloak/local/start-with-templated-realm.sh"]
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD}
+      - KC_DB=dev-file
+      - KC_HTTP_ENABLED=true
+      - KC_HOSTNAME_STRICT=false
+      - KC_HOSTNAME_STRICT_HTTPS=false
+      - KC_PROXY_HEADERS=xforwarded
+      - KC_HEALTH_ENABLED=true
+      - KC_METRICS_ENABLED=true
+      - OAUTH2_PROXY_CLIENT_SECRET=${OAUTH2_PROXY_CLIENT_SECRET:?Set OAUTH2_PROXY_CLIENT_SECRET}
+      - KEYCLOAK_DEMO_PASSWORD=${KEYCLOAK_DEMO_PASSWORD:?Set KEYCLOAK_DEMO_PASSWORD}
+    ports:
+      - "8300:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/local/realm-export.template.json:ro
+      - ./keycloak/start-with-templated-realm.sh:/opt/keycloak/local/start-with-templated-realm.sh:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200\\|UP'",
+        ]
+      interval: 10s
+      timeout: 5s
+      # Keycloak can take 2-4 minutes to start on Apple Silicon when running linux/amd64.
+      retries: 30
+      start_period: 240s
+
+  sentiment-api:
+    build:
+      context: ./api-sentiment
+      dockerfile: Dockerfile
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:0.5b}
+      - DATA_DIR=/data
+      - CSV_PATH=/data/comments.csv
+    volumes:
+      - ./data:/data
+    depends_on:
+      - ollama
+
+  sentiment-auth-frontend:
+    build:
+      context: ./frontend-react-vite/sentiment-auth-ui
+      dockerfile: Dockerfile
+      args:
+        VITE_KEYCLOAK_BASE_URL: http://localhost:8300
+    expose:
+      - "80"
+
+  edge:
+    image: nginx:alpine
+    volumes:
+      - ./edge/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    expose:
+      - "80"
+    depends_on:
+      - sentiment-api
+      - sentiment-auth-frontend
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.13.0@sha256:56e3daedf765c7a1eea6e366fbe684be7d3084830ade14b6174570d3c7960954
+    restart: unless-stopped
+    ports:
+      - "8304:4180"
+    environment:
+      - OAUTH2_PROXY_COOKIE_SECRET=${OAUTH2_PROXY_COOKIE_SECRET:?Set OAUTH2_PROXY_COOKIE_SECRET}
+    command:
+      - --provider=oidc
+      - --skip-oidc-discovery=true
+      - --oidc-issuer-url=http://localhost:8300/realms/subnet-calculator
+      - --login-url=http://localhost:8300/realms/subnet-calculator/protocol/openid-connect/auth?max_age=0
+      - --redeem-url=http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/token
+      - --oidc-jwks-url=http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/certs
+      - --validate-url=http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/userinfo
+      - --client-id=oauth2-proxy
+      - --client-secret=${OAUTH2_PROXY_CLIENT_SECRET:?Set OAUTH2_PROXY_CLIENT_SECRET}
+      - --redirect-url=http://localhost:8304/oauth2/callback
+      - --code-challenge-method=S256
+      - --upstream=http://edge:80
+      - --http-address=0.0.0.0:4180
+      - --cookie-secure=false
+      - --cookie-httponly=true
+      - --cookie-expire=4h
+      - --cookie-refresh=1h
+      - --email-domain=*
+      - --scope=openid
+      - --prompt=login
+      - --standard-logging=true
+      - --auth-logging=true
+      - --request-logging=true
+      - --upstream-timeout=180s
+    depends_on:
+      - keycloak
+      - edge
+
+volumes:
+  ollama: {}

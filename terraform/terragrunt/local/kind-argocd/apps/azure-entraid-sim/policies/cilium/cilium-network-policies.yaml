@@ -22,7 +22,15 @@ spec:
             "k8s:app.kubernetes.io/component": auth-proxy
             "k8s:io.kubernetes.pod.namespace": dev
         - matchLabels:
+            "k8s:app.kubernetes.io/name": oauth2-proxy-sentiment-auth
+            "k8s:app.kubernetes.io/component": auth-proxy
+            "k8s:io.kubernetes.pod.namespace": dev
+        - matchLabels:
             "k8s:app.kubernetes.io/name": oauth2-proxy-frontend
+            "k8s:app.kubernetes.io/component": auth-proxy
+            "k8s:io.kubernetes.pod.namespace": uat
+        - matchLabels:
+            "k8s:app.kubernetes.io/name": oauth2-proxy-sentiment-auth
             "k8s:app.kubernetes.io/component": auth-proxy
             "k8s:io.kubernetes.pod.namespace": uat
       toPorts:

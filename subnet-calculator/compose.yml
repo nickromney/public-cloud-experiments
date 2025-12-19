@@ -74,7 +74,7 @@
 #     - Auth: OAuth2/OIDC with Keycloak (simulates Azure Entra ID)
 #     - Test users: demo / password123, admin / securepass
 #   local-stack-12 - React + OAuth2 Proxy + APIM + Keycloak (Easy Auth simulation):
-#     - Frontend via OAuth2 Proxy: http://localhost:8304
+#     - Frontend via OAuth2 Proxy: http://localhost:3007
 #     - APIM Simulator: http://localhost:8302
 #     - Keycloak Admin: http://localhost:8300 (admin / admin123)
 #     - Auth: OAuth2 Proxy forces login upfront (simulates Azure Easy Auth)
@@ -331,7 +331,6 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.4.5
-    platform: linux/amd64
     ports:
       - "8300:8080"
     environment:
@@ -360,8 +359,9 @@ services:
         ]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 60s
+      # Keycloak startup can be slow if the user forces emulation (e.g. DOCKER_DEFAULT_PLATFORM=linux/amd64 on arm64).
+      retries: 30
+      start_period: 240s
 
   api-fastapi-keycloak:
     build:
@@ -378,8 +378,8 @@ services:
       - OIDC_ISSUER=http://localhost:8300/realms/subnet-calculator
       - OIDC_AUDIENCE=api-app
       - OIDC_JWKS_URI=http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/certs
-      # CORS for React frontends (Stack 11 on :3006, Stack 12 on :8304)
-      - CORS_ORIGINS=http://localhost:3006,http://localhost:8304
+      # CORS for React frontends (Stack 11 on :3006, Stack 12 on :3007)
+      - CORS_ORIGINS=http://localhost:3006,http://localhost:3007
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/api/v1/health"]
       interval: 10s
@@ -418,7 +418,7 @@ services:
   # -----------------------------------------------------------------------------
   # Local Stack 12 - OAuth2 Proxy Sidecar Pattern (Easy Auth Simulation)
   # Demonstrates "forced login upfront" similar to Azure Easy Auth
-  # Architecture: User → OAuth2 Proxy :8304 → Frontend Nginx (internal)
+  # Architecture: User → OAuth2 Proxy :3007 → Frontend Nginx (internal)
   # -----------------------------------------------------------------------------
 
   # Frontend (not directly exposed - only accessible through OAuth2 Proxy)
@@ -433,7 +433,7 @@ services:
         VITE_AUTH_METHOD: "oidc"
         VITE_OIDC_AUTHORITY: "http://localhost:8300/realms/subnet-calculator"
         VITE_OIDC_CLIENT_ID: "frontend-app"
-        VITE_OIDC_REDIRECT_URI: "http://localhost:8304"
+        VITE_OIDC_REDIRECT_URI: "http://localhost:3007"
         VITE_APIM_SUBSCRIPTION_KEY: stack12-demo-key
         VITE_OIDC_AUTO_LOGIN: "true"
     platform: linux/amd64
@@ -448,7 +448,7 @@ services:
       VITE_AUTH_METHOD: "oidc"
       VITE_OIDC_AUTHORITY: "http://localhost:8300/realms/subnet-calculator"
       VITE_OIDC_CLIENT_ID: "frontend-app"
-      VITE_OIDC_REDIRECT_URI: "http://localhost:8304"
+      VITE_OIDC_REDIRECT_URI: "http://localhost:3007"
       VITE_OIDC_AUTO_LOGIN: "true"
       VITE_APIM_SUBSCRIPTION_KEY: stack12-demo-key
     depends_on:
@@ -464,7 +464,7 @@ services:
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.13.0
     platform: linux/amd64
     ports:
-      - "8304:4180"
+      - "3007:4180"
     command:
       # OIDC Provider (Keycloak)
       - --provider=oidc
@@ -483,7 +483,7 @@ services:
       # variables or a secrets management system (Azure Key Vault, Kubernetes Secrets).
       # ---------------------------------------------------------------------------------
       - --client-secret=frontend-secret
-      - --redirect-url=http://localhost:8304/oauth2/callback
+      - --redirect-url=http://localhost:3007/oauth2/callback
       - --code-challenge-method=S256
 
       # Skip discovery and manually configure endpoints
@@ -564,7 +564,7 @@ services:
       - OIDC_AUDIENCE=api-app
       - OIDC_JWKS_URI=http://keycloak:8080/realms/subnet-calculator/protocol/openid-connect/certs
       - APIM_SUBSCRIPTION_KEY=stack12-demo-key
-      - ALLOWED_ORIGINS=http://localhost:8304
+      - ALLOWED_ORIGINS=http://localhost:3007
     depends_on:
       api-fastapi-keycloak:
         condition: service_healthy

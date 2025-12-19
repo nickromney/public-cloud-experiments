@@ -18,19 +18,17 @@ repos:
         exclude: ^terraform/claranet-tfwrapper/
       - id: terraform_validate
         exclude: ^terraform/(claranet-tfwrapper|terragrunt)/
-        # terragrunt_validate below handles the actual Terragrunt stacks (excluding modules).
-        # terraform_validate only runs against root Terraform modules outside terragrunt/.
-      - id: terragrunt_validate
-        exclude: ^terraform/(claranet-tfwrapper|terragrunt/modules)/
+        # Note: Terragrunt stacks are validated via their own project Makefiles; we don't run terragrunt_validate
+        # repo-wide because it requires stack-specific env vars and remote state access.
       - id: terraform_tflint
-        exclude: ^terraform/(claranet-tfwrapper|terragrunt/modules)/
+        exclude: ^terraform/(claranet-tfwrapper|terragrunt)/
         args:
           # The repo's .tflint.hcl is intentionally gitignored (auto-generated in some stacks),
           # so avoid hard-coding a required config path here.
           # We also disable unused-declarations to keep local Kind/Terragrunt variable stubs from failing commits.
           - --args=--disable-rule=terraform_unused_declarations
       - id: terraform_trivy
-        exclude: ^terraform/(claranet-tfwrapper|terragrunt/modules)/
+        exclude: ^terraform/(claranet-tfwrapper|terragrunt)/
         args:
           # Only scan Terraform misconfigurations; Kubernetes manifests in this repo are not intended to be
           # held to Trivy's default k8s hardening checks for local simulations.
