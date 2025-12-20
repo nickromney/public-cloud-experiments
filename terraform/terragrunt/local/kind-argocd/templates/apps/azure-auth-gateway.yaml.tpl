@@ -16,6 +16,7 @@ spec:
       namespace: ${azure_auth_gateway_namespace}
       name: azure-auth-gateway-nginx
       jsonPointers:
+        - /metadata/labels/app.kubernetes.io~1part-of
         - /metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration
         - /spec/clusterIP
         - /spec/clusterIPs

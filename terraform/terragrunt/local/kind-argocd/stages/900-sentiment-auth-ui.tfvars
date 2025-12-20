@@ -27,6 +27,7 @@ enable_signoz              = true
 enable_signoz_k8s_infra    = true
 enable_actions_runner      = true
 enable_docker_socket_mount = true
+enable_platform_sso        = true
 
 # Shared gateway/APIM platform
 enable_azure_auth_sim            = true

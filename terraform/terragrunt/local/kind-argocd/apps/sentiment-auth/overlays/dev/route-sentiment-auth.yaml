@@ -7,7 +7,9 @@ metadata:
     app.kubernetes.io/part-of: sentiment-auth
 spec:
   parentRefs:
-    - name: azure-auth-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: azure-auth-gateway
       namespace: azure-auth-gateway
   hostnames:
     - sentiment.dev.127.0.0.1.sslip.io
@@ -32,10 +34,12 @@ spec:
             kind: SnippetsFilter
             name: sentiment-auth-keycloak-hostport
       backendRefs:
-        - name: keycloak
+        - group: ""
+          kind: Service
+          name: keycloak
           namespace: azure-entraid-sim
           port: 8080
-          kind: Service
+          weight: 1
 
     # Sentiment API routes - cross-namespace to azure-apim-sim (sentiment APIM instance)
     - matches:
@@ -49,10 +53,12 @@ spec:
             kind: SnippetsFilter
             name: sentiment-auth-http-to-https-redirect
       backendRefs:
-        - name: apim-sentiment
+        - group: ""
+          kind: Service
+          name: apim-sentiment
           namespace: azure-apim-sim
           port: 8000
-          kind: Service
+          weight: 1
 
     # Frontend route - forces login via oauth2-proxy
     - matches:
@@ -66,6 +72,8 @@ spec:
             kind: SnippetsFilter
             name: sentiment-auth-http-to-https-redirect
       backendRefs:
-        - name: oauth2-proxy-sentiment-auth
-          port: 4180
+        - group: ""
           kind: Service
+          name: oauth2-proxy-sentiment-auth
+          port: 4180
+          weight: 1

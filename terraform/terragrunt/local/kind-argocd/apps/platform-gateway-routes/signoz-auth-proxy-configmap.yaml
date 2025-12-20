@@ -1,0 +1,159 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: signoz-auth-proxy
+  namespace: observability
+data:
+  proxy.mjs: |
+    import express from 'express'
+    import axios from 'axios'
+    import dotenv from 'dotenv'
+
+    dotenv.config()
+
+    const CFG = {
+      SIGNOZ_URL: process.env.SIGNOZ_URL,
+      SIGNOZ_USER: process.env.SIGNOZ_USER,
+      SIGNOZ_PASSWORD: process.env.SIGNOZ_PASSWORD,
+    }
+
+    let missingVar = false
+    for (const [key, value] of Object.entries(CFG)) {
+      if (!value) {
+        console.error(`Missing environment variable: ${key}`)
+        missingVar = true
+      }
+    }
+    if (missingVar) process.exit(1)
+
+    let tokenCache = null
+    const unwrapToken = (resp) => {
+      if (!resp || typeof resp !== 'object') return null
+      // SigNoz can return either {accessJwt, refreshJwt} or {data:{accessJwt, refreshJwt}}
+      const candidate = resp?.data?.accessJwt ? resp.data : resp
+      if (!candidate?.accessJwt) return null
+      return {
+        accessJwt: candidate.accessJwt,
+        refreshJwt: candidate.refreshJwt,
+      }
+    }
+
+    const getToken = async (reset = false) => {
+      if (tokenCache && !reset) return tokenCache
+      const url = new URL(CFG.SIGNOZ_URL)
+      url.pathname = '/api/v1/login'
+
+      const res = await axios.post(url.toString(), {
+        email: CFG.SIGNOZ_USER,
+        password: CFG.SIGNOZ_PASSWORD,
+      })
+
+      const tok = unwrapToken(res.data)
+      if (!tok) {
+        console.error('Auth Proxy: login response did not contain accessJwt')
+        tokenCache = null
+        throw new Error('Invalid SigNoz login response')
+      }
+
+      tokenCache = tok
+      return tokenCache
+    }
+
+    const decodeJwtPayload = (jwt) => {
+      const parts = jwt.split('.')
+      if (parts.length < 2) return null
+
+      let payload = parts[1]
+      payload = payload.replace(/-/g, '+').replace(/_/g, '/')
+      while (payload.length % 4 !== 0) payload += '='
+
+      try {
+        return JSON.parse(Buffer.from(payload, 'base64').toString('utf8'))
+      } catch {
+        return null
+      }
+    }
+
+    const app = express()
+
+    app.use(express.json({ limit: '50mb' }))
+    app.use(express.urlencoded({ limit: '50mb', extended: true }))
+    app.use(express.text({ limit: '50mb' }))
+    app.use(express.raw({ limit: '50mb' }))
+
+    const denyAccess = (_, res) => res.status(403).send('Auth Proxy: Access denied for security reasons')
+
+    app.all('/api/v1/loginPrecheck', denyAccess)
+    app.all('/api/v1/invite', denyAccess)
+    app.all('/api/v1/invite/*', denyAccess)
+    app.all('/api/v1/getResetPasswordToken/*', denyAccess)
+    app.delete('/api/v1/user/*', denyAccess)
+    app.put('/api/v1/user/*', denyAccess)
+    app.post('/api/v1/user/*', denyAccess)
+    app.patch('/api/v1/user/*', denyAccess)
+
+    app.all('/api/v1/login', async (_, res) => res.send(await getToken()))
+
+    app.get('/main.*.js', async (req, res) => {
+      const url = new URL(CFG.SIGNOZ_URL)
+      url.pathname = req.path
+
+      const token = await getToken()
+      const payload = decodeJwtPayload(token.accessJwt)
+      const userId = payload?.id || ''
+
+      const original = await axios.get(url.toString()).then((r) => r.data)
+
+      res
+        .header('Content-Type', 'application/javascript')
+        .header('Cache-Control', 'no-cache')
+        .send(`
+    ;(() => {
+      try {
+        window.localStorage.setItem('AUTH_TOKEN', '${token.accessJwt}');
+        window.localStorage.setItem('REFRESH_AUTH_TOKEN', '${token.refreshJwt}');
+        window.localStorage.setItem('IS_LOGGED_IN', 'true');
+        window.localStorage.setItem('IS_IDENTIFIED_USER', 'true');
+        if ('${userId}') window.localStorage.setItem('USER_ID', '${userId}');
+      } catch (e) {
+        // ignore
+      }
+    })();
+    ${original}
+    `)
+    })
+
+    app.all('*', async (req, res) => {
+      const url = new URL(CFG.SIGNOZ_URL)
+      url.pathname = req.path
+      for (const [key, value] of Object.entries(req.query)) url.searchParams.append(key, value)
+
+      try {
+        const { data, status, headers } = await axios({
+          method: req.method,
+          url: url.toString(),
+          headers: {
+            ...req.headers,
+            Host: undefined,
+            Authorization: `Bearer ${(await getToken()).accessJwt}`,
+          },
+          data: req.body,
+          validateStatus: (s) => s !== 401 && s !== 403,
+          responseType: 'arraybuffer',
+        })
+
+        res.header(headers).status(status).send(data)
+      } catch (error) {
+        if (error.response) {
+          await getToken(true)
+          res.header({ Refresh: '1; url=/' }).send('Auth Proxy: Refreshing token, please wait...')
+        } else {
+          res.status(500).send('Auth Proxy: Internal server error')
+          console.error(error)
+        }
+      }
+    })
+
+    app.listen(3000, () => {
+      console.log('Auth Proxy: Listening on port 3000')
+    })

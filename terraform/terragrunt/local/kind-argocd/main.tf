@@ -168,14 +168,44 @@ locals {
   ] : [])
 
   argocd_values = {
-    configs = {
-      cm = {
-        url = "https://argocd.127.0.0.1.sslip.io"
-      }
-      params = {
-        "server.insecure" = true
-      }
-    }
+    configs = merge(
+      {
+        cm = merge(
+          {
+            url = "https://argocd.127.0.0.1.sslip.io"
+          },
+          var.enable_platform_sso ? {
+            "oidc.config"                   = <<-EOT
+              name: Keycloak
+              issuer: https://${var.platform_sso_keycloak_host}/realms/subnet-calculator
+              clientID: ${var.argocd_oidc_client_id}
+              clientSecret: $oidc.keycloak.clientSecret
+              requestedScopes:
+                - openid
+                - profile
+                - email
+            EOT
+            "oidc.tls.insecure.skip.verify" = "true"
+          } : {}
+        )
+        params = {
+          "server.insecure" = true
+        }
+        rbac = {
+          "policy.csv"       = ""
+          "policy.default"   = "role:admin"
+          "policy.matchMode" = "glob"
+          "scopes"           = "[groups]"
+        }
+      },
+      var.enable_platform_sso ? {
+        secret = {
+          extra = {
+            "oidc.keycloak.clientSecret" = var.argocd_oidc_client_secret
+          }
+        }
+      } : {}
+    )
     controller = {
       replicas = 1
     }
@@ -606,6 +636,37 @@ EOT
   ]
 }
 
+# When platform SSO is enabled, ArgoCD needs to resolve the Keycloak issuer hostname from inside the cluster.
+# sslip.io hostnames resolve to 127.0.0.1 by default, so we add a CoreDNS rewrite that points the login hostname
+# at the in-cluster Gateway dataplane service.
+resource "null_resource" "patch_coredns_login_host" {
+  count = var.enable_platform_sso ? 1 : 0
+
+  triggers = {
+    script_sha  = filesha256(abspath("${path.module}/scripts/patch-coredns-rewrite-login-host.sh"))
+    login_host  = var.platform_sso_keycloak_host
+    target_host = "azure-auth-gateway-nginx.azure-auth-gateway.svc.cluster.local"
+  }
+
+  provisioner "local-exec" {
+    command     = <<-EOT
+set -euo pipefail
+export KUBECONFIG=~/.kube/config
+
+bash "${path.module}/scripts/patch-coredns-rewrite-login-host.sh" \
+  "${var.platform_sso_keycloak_host}" \
+  "azure-auth-gateway-nginx.azure-auth-gateway.svc.cluster.local"
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+
+  depends_on = [
+    kind_cluster.local,
+    local_sensitive_file.kubeconfig,
+    null_resource.bootstrap_mkcert_ca,
+  ]
+}
+
 resource "kubernetes_namespace" "gitea" {
   count = var.enable_namespaces && !var.use_external_gitea ? 1 : 0
 
@@ -639,6 +700,24 @@ resource "kubernetes_secret" "gitea_admin" {
 
     # Backwards-compatible key used by our Helm values.
     adminPwd = var.gitea_admin_pwd
+  }
+
+  depends_on = [kubernetes_namespace.gitea[0]]
+}
+
+resource "kubernetes_secret" "gitea_oidc" {
+  count = var.enable_gitea && !var.use_external_gitea ? 1 : 0
+
+  metadata {
+    name      = "gitea-oidc-secret"
+    namespace = kubernetes_namespace.gitea[0].metadata[0].name
+  }
+
+  type = "Opaque"
+
+  data = {
+    key    = var.gitea_oidc_client_id
+    secret = var.gitea_oidc_client_secret
   }
 
   depends_on = [kubernetes_namespace.gitea[0]]
@@ -1963,11 +2042,25 @@ spec:
             passwordKey: password
             username: ${var.gitea_admin_username}
             email: "admin@gitea.local"
+          oauth:
+            - name: "Keycloak"
+              provider: "openidConnect"
+              existingSecret: gitea-oidc-secret
+              autoDiscoverUrl: "http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/.well-known/openid-configuration"
           config:
             server:
               DISABLE_SSH: false
               SSH_PORT: ${var.gitea_ssh_node_port}
-              ROOT_URL: http://127.0.0.1:${var.gitea_http_node_port}/
+              DOMAIN: gitea.127.0.0.1.sslip.io
+              ROOT_URL: https://gitea.127.0.0.1.sslip.io/
+            openid:
+              ENABLE_OPENID_SIGNIN: true
+              ENABLE_OPENID_SIGNUP: true
+            oauth2_client:
+              ENABLE_AUTO_REGISTRATION: true
+              ACCOUNT_LINKING: auto
+              USERNAME: preferred_username
+              OPENID_CONNECT_SCOPES: openid profile email
             packages:
               ENABLED: true
               ALLOWED_TYPES: "*"
@@ -1990,7 +2083,9 @@ EOF
 
   depends_on = [
     helm_release.argocd[0],
-    kubernetes_namespace.gitea[0]
+    kubernetes_namespace.gitea[0],
+    kubernetes_secret.gitea_admin,
+    kubernetes_secret.gitea_oidc,
   ]
 }
 

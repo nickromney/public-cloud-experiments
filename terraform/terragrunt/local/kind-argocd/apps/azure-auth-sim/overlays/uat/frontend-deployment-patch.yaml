@@ -11,6 +11,6 @@ spec:
             - name: VITE_API_URL
               value: https://subnetcalc.uat.127.0.0.1.sslip.io
             - name: VITE_OIDC_AUTHORITY
-              value: https://subnetcalc.uat.127.0.0.1.sslip.io/realms/subnet-calculator
+              value: https://login.127.0.0.1.sslip.io/realms/subnet-calculator
             - name: VITE_OIDC_REDIRECT_URI
               value: https://subnetcalc.uat.127.0.0.1.sslip.io

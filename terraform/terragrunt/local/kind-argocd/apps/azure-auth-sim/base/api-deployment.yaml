@@ -30,7 +30,7 @@ spec:
             - name: AUTH_METHOD
               value: oidc
             - name: OIDC_ISSUER
-              value: https://subnetcalc.dev.127.0.0.1.sslip.io/realms/subnet-calculator
+              value: https://login.127.0.0.1.sslip.io/realms/subnet-calculator
             - name: OIDC_AUDIENCE
               value: api-app
             # Cross-namespace reference to Keycloak in azure-entraid-sim

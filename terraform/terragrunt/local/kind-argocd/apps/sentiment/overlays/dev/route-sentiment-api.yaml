@@ -7,7 +7,9 @@ metadata:
     app.kubernetes.io/part-of: sentiment
 spec:
   parentRefs:
-    - name: azure-auth-gateway
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: azure-auth-gateway
       namespace: azure-auth-gateway
   hostnames:
     - sentiment-api.dev.127.0.0.1.sslip.io
@@ -23,7 +25,9 @@ spec:
             kind: SnippetsFilter
             name: sentiment-http-to-https-redirect
       backendRefs:
-        - name: apim-sentiment
+        - group: ""
+          kind: Service
+          name: apim-sentiment
           namespace: azure-apim-sim
           port: 8000
-          kind: Service
+          weight: 1

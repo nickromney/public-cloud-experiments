@@ -28,7 +28,7 @@ spec:
             - name: BACKEND_BASE_URL
               value: http://api-fastapi-keycloak.dev.svc.cluster.local
             - name: OIDC_ISSUER
-              value: https://subnetcalc.dev.127.0.0.1.sslip.io/realms/subnet-calculator
+              value: https://login.127.0.0.1.sslip.io/realms/subnet-calculator
             - name: OIDC_AUDIENCE
               value: api-app
             # Cross-namespace reference to Keycloak in azure-entraid-sim
@@ -93,7 +93,7 @@ spec:
             - name: BACKEND_BASE_URL
               value: http://api-fastapi-keycloak.uat.svc.cluster.local
             - name: OIDC_ISSUER
-              value: https://subnetcalc.uat.127.0.0.1.sslip.io/realms/subnet-calculator
+              value: https://login.127.0.0.1.sslip.io/realms/subnet-calculator
             - name: OIDC_AUDIENCE
               value: api-app
             - name: OIDC_JWKS_URI
