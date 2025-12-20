@@ -114,6 +114,18 @@ locals {
   sentiment_auth_repo_checksum = sha256(join("", [
     for file in local.sentiment_auth_repo_files : filesha256("${local.sentiment_auth_ui_root}/${file}")
   ]))
+
+  sentiment_api_root = "${local.repo_root}/sentiment-llm/api-sentiment"
+  sentiment_api_repo_files = concat(
+    [
+      for file in fileset(local.sentiment_api_root, "**") : file
+      if !startswith(file, "node_modules/") && file != "node_modules"
+    ],
+    [for file in fileset("${local.sentiment_api_root}/.gitea", "**") : ".gitea/${file}"]
+  )
+  sentiment_api_repo_checksum = sha256(join("", [
+    for file in local.sentiment_api_repo_files : filesha256("${local.sentiment_api_root}/${file}")
+  ]))
   extra_port_mappings = concat([
     {
       name           = "argocd"
@@ -801,6 +813,80 @@ EOF
   ]
 }
 
+resource "kubectl_manifest" "sentiment_namespace" {
+  count = var.enable_llm_sentiment ? 1 : 0
+
+  ignore_fields = [
+    "metadata.annotations",
+    "metadata.creationTimestamp",
+    "metadata.labels.kubernetes.io/metadata.name",
+    "metadata.labels.argocd.argoproj.io/instance",
+    "metadata.managedFields",
+    "metadata.resourceVersion",
+    "metadata.uid",
+    "spec.finalizers",
+    "status",
+  ]
+
+  yaml_body = <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sentiment
+  labels:
+    app.kubernetes.io/part-of: sentiment
+    app.kubernetes.io/managed-by: terraform
+    kyverno.io/isolate: "true"
+EOF
+
+  wait              = true
+  validate_schema   = false
+  force_conflicts   = true
+  server_side_apply = true
+
+  depends_on = [
+    kind_cluster.local,
+    local_sensitive_file.kubeconfig
+  ]
+}
+
+resource "kubectl_manifest" "sentiment_llm_namespace" {
+  count = var.enable_llm_sentiment ? 1 : 0
+
+  ignore_fields = [
+    "metadata.annotations",
+    "metadata.creationTimestamp",
+    "metadata.labels.kubernetes.io/metadata.name",
+    "metadata.labels.argocd.argoproj.io/instance",
+    "metadata.managedFields",
+    "metadata.resourceVersion",
+    "metadata.uid",
+    "spec.finalizers",
+    "status",
+  ]
+
+  yaml_body = <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sentiment-llm
+  labels:
+    app.kubernetes.io/part-of: sentiment
+    app.kubernetes.io/managed-by: terraform
+    kyverno.io/isolate: "true"
+EOF
+
+  wait              = true
+  validate_schema   = false
+  force_conflicts   = true
+  server_side_apply = true
+
+  depends_on = [
+    kind_cluster.local,
+    local_sensitive_file.kubeconfig
+  ]
+}
+
 resource "kubernetes_namespace" "argocd" {
   count = var.enable_namespaces ? 1 : 0
 
@@ -1013,6 +1099,35 @@ for i in {1..20}; do
   sleep 5
 done
 echo "Failed to create sentiment-auth-ui repo in Gitea" >&2
+exit 1
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+}
+
+resource "null_resource" "gitea_create_repo_sentiment_api" {
+  count = var.enable_gitea && var.enable_actions_runner && var.enable_llm_sentiment && !var.use_external_gitea ? 1 : 0
+
+  triggers = {
+    rollout = null_resource.wait_for_gitea[0].id
+  }
+
+  provisioner "local-exec" {
+    command     = <<EOT
+set -euo pipefail
+for i in {1..20}; do
+  status=$(curl ${local.gitea_curl_insecure} -s --connect-timeout 2 --max-time 10 -o /dev/null -w "%%{http_code}" -X POST \
+    -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
+    -H "Content-Type: application/json" \
+    -d '{"name":"sentiment-api","private":false,"default_branch":"main","auto_init":true,"description":"Sentiment API (LLM inference + CSV persistence)"}' \
+    ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/user/repos || echo "000")
+  if echo "$status" | grep -Eq "200|201|409"; then
+    exit 0
+  fi
+  echo "Gitea sentiment-api repo create returned HTTP $status, retrying... ($i/20)" >&2
+  sleep 5
+done
+echo "Failed to create sentiment-api repo in Gitea" >&2
 exit 1
 EOT
     interpreter = ["/bin/bash", "-c"]
@@ -1504,6 +1619,67 @@ EOT
   ]
 }
 
+resource "null_resource" "seed_gitea_repo_sentiment_api" {
+  count = var.enable_gitea && var.enable_actions_runner && var.enable_llm_sentiment && !var.use_external_gitea ? 1 : 0
+
+  triggers = {
+    repo_id    = null_resource.gitea_create_repo_sentiment_api[0].id
+    host_key   = md5(data.local_file.gitea_known_hosts[0].content)
+    repo_files = local.sentiment_api_repo_checksum
+    password   = md5(var.gitea_admin_pwd)
+    registry   = md5(local.gitea_registry_host)
+  }
+
+  provisioner "local-exec" {
+    command     = <<EOT
+set -euo pipefail
+if [ "${var.use_external_gitea}" = "true" ]; then
+  echo "External Gitea detected; skipping Terraform seeding (stage scripts handle this)." >&2
+  exit 0
+fi
+TMP_DIR=$(mktemp -d)
+
+# Copy sources without node_modules/ (people may have run npm install locally).
+tar --exclude='node_modules' -C ${local.sentiment_api_root} -cf - . | tar -C "$TMP_DIR" -xf -
+
+cd "$TMP_DIR"
+git init -q
+git config user.email "argocd@gitea.local"
+git config user.name "argocd"
+git config commit.gpgsign false
+git add .
+git commit -q -m "Seed sentiment-api sources"
+git branch -M main
+git remote add origin ${local.gitea_http_scheme}://${var.gitea_http_host_local}:${var.gitea_http_port}/${var.gitea_admin_username}/sentiment-api.git
+
+ASKPASS=$(mktemp)
+trap 'rm -f "$ASKPASS"' EXIT
+cat > "$ASKPASS" <<'EOF'
+#!/usr/bin/env bash
+case "$1" in
+  *Username*) echo "$GITEA_USERNAME" ;;
+  *Password*) echo "$GITEA_PWD" ;;
+  *) echo "" ;;
+esac
+EOF
+chmod +x "$ASKPASS"
+GIT_TERMINAL_PROMPT=0 \
+  GIT_ASKPASS="$ASKPASS" \
+  GITEA_USERNAME="${var.gitea_admin_username}" \
+  GITEA_PWD="${var.gitea_admin_pwd}" \
+  git push -f origin main
+rm -f "$ASKPASS"
+trap - EXIT
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+
+  # Ensure repo secrets exist before the initial push triggers the Actions workflow.
+  depends_on = [
+    null_resource.gitea_sentiment_api_repo_secrets_internal[0]
+  ]
+}
+
 # For external Gitea (not currently used - external build process handles this)
 # For in-cluster Gitea, use gitea_azure_auth_repo_secrets_internal instead
 resource "null_resource" "gitea_azure_auth_repo_secrets" {
@@ -1635,6 +1811,35 @@ resource "kubernetes_secret" "azure_apim_registry_credentials" {
 
   depends_on = [
     kubectl_manifest.azure_apim_namespace[0]
+  ]
+}
+
+resource "kubernetes_secret" "sentiment_registry_credentials" {
+  for_each = var.enable_llm_sentiment ? {
+    sentiment     = "sentiment"
+    sentiment_llm = "sentiment-llm"
+  } : {}
+
+  metadata {
+    name      = "gitea-registry-creds"
+    namespace = each.value
+  }
+
+  data = {
+    ".dockerconfigjson" = jsonencode({
+      auths = {
+        (local.gitea_registry_host) = {
+          auth = base64encode("${var.gitea_admin_username}:${var.gitea_admin_pwd}")
+        }
+      }
+    })
+  }
+
+  type = "kubernetes.io/dockerconfigjson"
+
+  depends_on = [
+    kubectl_manifest.sentiment_namespace,
+    kubectl_manifest.sentiment_llm_namespace,
   ]
 }
 
@@ -2051,6 +2256,51 @@ EOT
 
   depends_on = [
     null_resource.gitea_create_repo_sentiment_auth[0],
+    null_resource.wait_for_gitea[0]
+  ]
+}
+
+# Create repo secrets for the sentiment-api workflow (in-cluster registry)
+resource "null_resource" "gitea_sentiment_api_repo_secrets_internal" {
+  count = var.enable_gitea && var.enable_actions_runner && var.enable_llm_sentiment && !var.use_external_gitea ? 1 : 0
+
+  triggers = {
+    repo_id  = null_resource.gitea_create_repo_sentiment_api[0].id
+    password = md5(var.gitea_admin_pwd)
+  }
+
+  provisioner "local-exec" {
+    command     = <<EOT
+set -euo pipefail
+create_secret() {
+  local name="$1"
+  local value="$2"
+  for i in {1..5}; do
+    status=$(curl ${local.gitea_curl_insecure} -s --connect-timeout 2 --max-time 10 -o /dev/null -w "%%{http_code}" -X PUT \
+      -u "${var.gitea_admin_username}:${var.gitea_admin_pwd}" \
+      -H "Content-Type: application/json" \
+      -d "{\"data\":\"$${value}\"}" \
+      ${local.gitea_http_scheme}://${local.gitea_http_host_local}:${local.gitea_http_port}/api/v1/repos/${var.gitea_admin_username}/sentiment-api/actions/secrets/$${name} || echo "000")
+    if echo "$status" | grep -Eq "200|201|204"; then
+      return 0
+    fi
+    echo "Setting secret $${name} returned HTTP $status, retrying... ($i/5)" >&2
+    sleep 3
+  done
+  echo "Failed to create/update secret $${name}" >&2
+  exit 1
+}
+
+create_secret "REGISTRY_USERNAME" "${var.gitea_admin_username}"
+create_secret "REGISTRY_PWD" "${var.gitea_admin_pwd}"
+create_secret "REGISTRY_HOST" "${local.gitea_registry_host}"
+create_secret "GITEAHOST" "gitea-http.gitea.svc.cluster.local:${var.gitea_http_port_cluster}"
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+
+  depends_on = [
+    null_resource.gitea_create_repo_sentiment_api[0],
     null_resource.wait_for_gitea[0]
   ]
 }

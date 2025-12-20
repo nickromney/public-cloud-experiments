@@ -44,6 +44,19 @@ spec:
         mode: required
     - toEndpoints:
         - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": observability
+            "k8s:app.kubernetes.io/name": signoz
+            "k8s:app.kubernetes.io/component": otel-collector
+      toPorts:
+        - ports:
+            - port: "4317"
+              protocol: TCP
+            - port: "4318"
+              protocol: TCP
+      authentication:
+        mode: required
+    - toEndpoints:
+        - matchLabels:
             "k8s:io.kubernetes.pod.namespace": kube-system
             "k8s:k8s-app": kube-dns
       toPorts:
