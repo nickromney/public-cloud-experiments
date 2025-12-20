@@ -28,7 +28,7 @@ spec:
             - name: BACKEND_BASE_URL
               value: http://sentiment-api.sentiment.svc.cluster.local
             - name: OIDC_ISSUER
-              value: https://sentiment.dev.127.0.0.1.sslip.io/realms/subnet-calculator
+              value: https://login.127.0.0.1.sslip.io/realms/subnet-calculator
             - name: OIDC_AUDIENCE
               value: api-app
             - name: OIDC_JWKS_URI
@@ -93,7 +93,7 @@ spec:
             - name: BACKEND_BASE_URL
               value: http://sentiment-api.sentiment.svc.cluster.local
             - name: OIDC_ISSUER
-              value: https://sentiment.uat.127.0.0.1.sslip.io/realms/subnet-calculator
+              value: https://login.127.0.0.1.sslip.io/realms/subnet-calculator
             - name: OIDC_AUDIENCE
               value: api-app
             - name: OIDC_JWKS_URI

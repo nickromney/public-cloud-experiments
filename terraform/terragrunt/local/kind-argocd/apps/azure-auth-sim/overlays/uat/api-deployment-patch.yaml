@@ -9,6 +9,6 @@ spec:
         - name: api-fastapi-keycloak
           env:
             - name: OIDC_ISSUER
-              value: https://subnetcalc.uat.127.0.0.1.sslip.io/realms/subnet-calculator
+              value: https://login.127.0.0.1.sslip.io/realms/subnet-calculator
             - name: CORS_ORIGINS
               value: https://subnetcalc.uat.127.0.0.1.sslip.io

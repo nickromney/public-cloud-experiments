@@ -20,7 +20,7 @@ spec:
       backendRefs:
         - group: ""
           kind: Service
-          name: signoz
+          name: oauth2-proxy-signoz
           namespace: observability
-          port: 8080
+          port: 4180
           weight: 1

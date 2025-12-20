@@ -463,6 +463,47 @@ variable "enable_azure_entraid_sim" {
   }
 }
 
+variable "enable_platform_sso" {
+  description = "Enable platform SSO (ArgoCD + Gitea + SigNoz) using the Entra ID simulator (Keycloak)."
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.enable_platform_sso || (var.enable_azure_auth_sim && var.enable_azure_entraid_sim)
+    error_message = "enable_platform_sso requires enable_azure_auth_sim and enable_azure_entraid_sim to be true."
+  }
+}
+
+variable "platform_sso_keycloak_host" {
+  description = "External hostname (via Gateway API) used for Keycloak OIDC endpoints."
+  type        = string
+  default     = "login.127.0.0.1.sslip.io"
+}
+
+variable "argocd_oidc_client_id" {
+  description = "Keycloak OIDC client ID for ArgoCD."
+  type        = string
+  default     = "argocd"
+}
+
+variable "argocd_oidc_client_secret" {
+  description = "Keycloak OIDC client secret for ArgoCD (local dev only)."
+  type        = string
+  default     = "argocd-secret"
+}
+
+variable "gitea_oidc_client_id" {
+  description = "Keycloak OIDC client ID for Gitea."
+  type        = string
+  default     = "gitea"
+}
+
+variable "gitea_oidc_client_secret" {
+  description = "Keycloak OIDC client secret for Gitea (local dev only)."
+  type        = string
+  default     = "gitea-secret"
+}
+
 variable "enable_sentiment_auth_frontend" {
   description = "Deploy the sentiment authenticated frontend (oauth2-proxy forced login + React UI) and seed the build pipeline into Gitea."
   type        = bool

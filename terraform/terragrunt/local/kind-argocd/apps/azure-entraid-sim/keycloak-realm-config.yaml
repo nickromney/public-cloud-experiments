@@ -113,7 +113,8 @@ data:
             "https://subnetcalc.dev.127.0.0.1.sslip.io/oauth2/*",
             "https://subnetcalc.uat.127.0.0.1.sslip.io/oauth2/*",
             "https://sentiment.dev.127.0.0.1.sslip.io/oauth2/*",
-            "https://sentiment.uat.127.0.0.1.sslip.io/oauth2/*"
+            "https://sentiment.uat.127.0.0.1.sslip.io/oauth2/*",
+            "https://signoz.127.0.0.1.sslip.io/oauth2/*"
           ],
           "webOrigins": [
             "+"
@@ -150,6 +151,42 @@ data:
           ]
         },
         {
+          "clientId": "argocd",
+          "name": "Argo CD",
+          "description": "Argo CD UI SSO client.",
+          "enabled": true,
+          "publicClient": false,
+          "protocol": "openid-connect",
+          "standardFlowEnabled": true,
+          "implicitFlowEnabled": false,
+          "directAccessGrantsEnabled": false,
+          "secret": "argocd-secret",
+          "redirectUris": [
+            "https://argocd.127.0.0.1.sslip.io/auth/callback"
+          ],
+          "webOrigins": [
+            "+"
+          ]
+        },
+        {
+          "clientId": "gitea",
+          "name": "Gitea",
+          "description": "Gitea UI SSO client.",
+          "enabled": true,
+          "publicClient": false,
+          "protocol": "openid-connect",
+          "standardFlowEnabled": true,
+          "implicitFlowEnabled": false,
+          "directAccessGrantsEnabled": false,
+          "secret": "gitea-secret",
+          "redirectUris": [
+            "https://gitea.127.0.0.1.sslip.io/user/oauth2/*"
+          ],
+          "webOrigins": [
+            "+"
+          ]
+        },
+        {
           "clientId": "api-app",
           "name": "FastAPI Backend",
           "description": "FastAPI backend API",
@@ -167,6 +204,82 @@ data:
         }
       ],
       "clientScopes": [
+        {
+          "name": "profile",
+          "description": "Standard OIDC profile scope",
+          "protocol": "openid-connect",
+          "attributes": {
+            "include.in.token.scope": "true"
+          },
+          "protocolMappers": [
+            {
+              "name": "preferred_username",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-property-mapper",
+              "consentRequired": false,
+              "config": {
+                "userinfo.token.claim": "true",
+                "user.attribute": "username",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "claim.name": "preferred_username",
+                "jsonType.label": "String"
+              }
+            },
+            {
+              "name": "given_name",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-property-mapper",
+              "consentRequired": false,
+              "config": {
+                "userinfo.token.claim": "true",
+                "user.attribute": "firstName",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "claim.name": "given_name",
+                "jsonType.label": "String"
+              }
+            },
+            {
+              "name": "family_name",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-property-mapper",
+              "consentRequired": false,
+              "config": {
+                "userinfo.token.claim": "true",
+                "user.attribute": "lastName",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "claim.name": "family_name",
+                "jsonType.label": "String"
+              }
+            }
+          ]
+        },
+        {
+          "name": "email",
+          "description": "Standard OIDC email scope",
+          "protocol": "openid-connect",
+          "attributes": {
+            "include.in.token.scope": "true"
+          },
+          "protocolMappers": [
+            {
+              "name": "email",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-property-mapper",
+              "consentRequired": false,
+              "config": {
+                "userinfo.token.claim": "true",
+                "user.attribute": "email",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "claim.name": "email",
+                "jsonType.label": "String"
+              }
+            }
+          ]
+        },
         {
           "name": "user_impersonation",
           "description": "Access Subnet Calculator API on behalf of user",
@@ -212,6 +325,25 @@ data:
             }
           ],
           "realmRoles": [
+            "user"
+          ]
+        },
+        {
+          "username": "gitea-admin",
+          "enabled": true,
+          "emailVerified": true,
+          "firstName": "Gitea",
+          "lastName": "Admin",
+          "email": "admin@gitea.local",
+          "credentials": [
+            {
+              "type": "password",
+              "value": "ChangeMe123!",
+              "temporary": false
+            }
+          ],
+          "realmRoles": [
+            "admin",
             "user"
           ]
         },

@@ -12,6 +12,9 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       namespace: uat
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: gateway-routes
   to:
     - group: ""
       kind: Service

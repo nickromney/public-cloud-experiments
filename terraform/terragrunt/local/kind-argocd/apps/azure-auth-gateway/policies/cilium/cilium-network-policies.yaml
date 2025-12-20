@@ -16,6 +16,18 @@ spec:
               protocol: TCP
             - port: "8443"
               protocol: TCP
+    # Allow in-cluster callers (e.g., Argo CD OIDC discovery) to reach the gateway VIP.
+    - fromEndpoints:
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": argocd
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": gitea
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": observability
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
   egress:
     # NGINX Gateway Fabric dataplane (this pod) talks to the control plane on the
     # Service port 443, which kube-proxy DNATs to the pod targetPort 8443.
@@ -42,6 +54,10 @@ spec:
         - matchLabels:
             "k8s:io.kubernetes.pod.namespace": uat
             "k8s:app.kubernetes.io/name": oauth2-proxy-sentiment-auth
+        - matchLabels:
+            "k8s:io.kubernetes.pod.namespace": observability
+            "k8s:app.kubernetes.io/name": oauth2-proxy-signoz
+            "k8s:app.kubernetes.io/component": auth-proxy
       toPorts:
         - ports:
             - port: "4180"

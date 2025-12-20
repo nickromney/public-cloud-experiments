@@ -5,9 +5,17 @@ resources:
   - httproute-argocd.yaml
   - httproute-gitea.yaml
   - httproute-hubble.yaml
+  - httproute-keycloak.yaml
   - httproute-signoz.yaml
+  - signoz-auth-proxy-configmap.yaml
+  - signoz-auth-proxy-deployment.yaml
+  - signoz-auth-proxy-service.yaml
+  - oauth2-proxy-signoz-deployment.yaml
+  - oauth2-proxy-signoz-service.yaml
   - referencegrant-argocd.yaml
   - referencegrant-gitea.yaml
   - referencegrant-hubble.yaml
   - referencegrant-signoz.yaml
+  - http-to-https-snippetsfilter.yaml
+  - keycloak-snippetsfilter.yaml
   - service-signoz-ui-nodeport.yaml

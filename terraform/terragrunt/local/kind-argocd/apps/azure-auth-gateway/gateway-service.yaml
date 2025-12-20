@@ -9,13 +9,19 @@ metadata:
     gateway.networking.k8s.io/gateway-name: azure-auth-gateway
 spec:
   type: NodePort
+  externalTrafficPolicy: Cluster
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: PreferDualStack
+  sessionAffinity: None
   selector:
     app.kubernetes.io/instance: nginx-gateway
     app.kubernetes.io/managed-by: nginx-gateway-nginx
     app.kubernetes.io/name: azure-auth-gateway-nginx
     gateway.networking.k8s.io/gateway-name: azure-auth-gateway
   ports:
-    - name: https
+    - name: port-443
       port: 443
       protocol: TCP
       targetPort: 443

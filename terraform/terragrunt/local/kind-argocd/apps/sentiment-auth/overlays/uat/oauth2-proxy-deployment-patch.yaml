@@ -9,13 +9,13 @@ spec:
         - name: oauth2-proxy
           args:
             - --provider=oidc
-            - --oidc-issuer-url=https://sentiment.uat.127.0.0.1.sslip.io/realms/subnet-calculator
+            - --oidc-issuer-url=https://login.127.0.0.1.sslip.io/realms/subnet-calculator
             - --client-id=oauth2-proxy
             - --client-secret-file=/etc/oauth2-proxy/secrets/client_secret
             - --redirect-url=https://sentiment.uat.127.0.0.1.sslip.io/oauth2/callback
             - --code-challenge-method=S256
             - --skip-oidc-discovery=true
-            - --login-url=https://sentiment.uat.127.0.0.1.sslip.io/realms/subnet-calculator/protocol/openid-connect/auth?max_age=0
+            - --login-url=https://login.127.0.0.1.sslip.io/realms/subnet-calculator/protocol/openid-connect/auth?max_age=0
             - --redeem-url=http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/token
             - --oidc-jwks-url=http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
             - --validate-url=http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/userinfo

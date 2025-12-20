@@ -44,8 +44,7 @@ spec:
           args:
             # OIDC Provider (Keycloak)
             - --provider=oidc
-            # Issuer/login must go through the Gateway (dev endpoint)
-            - --oidc-issuer-url=https://sentiment.dev.127.0.0.1.sslip.io/realms/subnet-calculator
+            - --oidc-issuer-url=https://login.127.0.0.1.sslip.io/realms/subnet-calculator
             - --client-id=oauth2-proxy
             - --client-secret-file=/etc/oauth2-proxy/secrets/client_secret
             - --redirect-url=https://sentiment.dev.127.0.0.1.sslip.io/oauth2/callback
@@ -53,7 +52,7 @@ spec:
 
             # Skip discovery and pin endpoints to the Keycloak service (in azure-entraid-sim namespace)
             - --skip-oidc-discovery=true
-            - --login-url=https://sentiment.dev.127.0.0.1.sslip.io/realms/subnet-calculator/protocol/openid-connect/auth?max_age=0
+            - --login-url=https://login.127.0.0.1.sslip.io/realms/subnet-calculator/protocol/openid-connect/auth?max_age=0
             - --redeem-url=http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/token
             - --oidc-jwks-url=http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
             - --validate-url=http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/userinfo

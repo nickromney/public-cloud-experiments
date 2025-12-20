@@ -12,3 +12,6 @@ spec:
     - group: ""
       kind: Service
       name: signoz
+    - group: ""
+      kind: Service
+      name: oauth2-proxy-signoz

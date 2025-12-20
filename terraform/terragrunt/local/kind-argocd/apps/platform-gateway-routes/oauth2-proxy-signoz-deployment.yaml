@@ -1,20 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: oauth2-proxy-frontend
+  name: oauth2-proxy-signoz
+  namespace: observability
   labels:
-    app.kubernetes.io/name: oauth2-proxy-frontend
+    app.kubernetes.io/name: oauth2-proxy-signoz
     app.kubernetes.io/component: auth-proxy
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: oauth2-proxy-frontend
+      app.kubernetes.io/name: oauth2-proxy-signoz
       app.kubernetes.io/component: auth-proxy
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: oauth2-proxy-frontend
+        app.kubernetes.io/name: oauth2-proxy-signoz
         app.kubernetes.io/component: auth-proxy
     spec:
       initContainers:
@@ -47,8 +48,9 @@ spec:
             - --oidc-issuer-url=https://login.127.0.0.1.sslip.io/realms/subnet-calculator
             - --client-id=oauth2-proxy
             - --client-secret-file=/etc/oauth2-proxy/secrets/client_secret
-            - --redirect-url=https://subnetcalc.dev.127.0.0.1.sslip.io/oauth2/callback
+            - --redirect-url=https://signoz.127.0.0.1.sslip.io/oauth2/callback
             - --code-challenge-method=S256
+            - --skip-provider-button
 
             # Skip discovery and pin endpoints to the Keycloak service (in azure-entraid-sim namespace)
             - --skip-oidc-discovery=true
@@ -57,8 +59,8 @@ spec:
             - --oidc-jwks-url=http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/certs
             - --validate-url=http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/userinfo
 
-            # Upstream (frontend only; SPA calls APIM sim directly)
-            - --upstream=http://frontend-react-keycloak-protected
+            # Upstream (SigNoz UI)
+            - --upstream=http://signoz-auth-proxy:3000
 
             # Listen address
             - --http-address=0.0.0.0:4180
@@ -69,15 +71,13 @@ spec:
             - --cookie-expire=4h
             - --cookie-refresh=1h
             - --cookie-secret-file=/etc/oauth2-proxy/secrets/cookie_secret
-            - --cookie-name=_oauth2_proxy_dev
-            - --cookie-domain=.dev.127.0.0.1.sslip.io
-            - --whitelist-domain=.dev.127.0.0.1.sslip.io
+            - --cookie-name=_oauth2_proxy_signoz
+            - --cookie-domain=.127.0.0.1.sslip.io
+            - --whitelist-domain=.127.0.0.1.sslip.io
             - --email-domain=*
 
             # Scopes and headers
             - --scope=openid user_impersonation
-            # Some local Keycloak flows omit email/preferred_username claims.
-            # Use the always-present OIDC subject to avoid 500s on callback.
             - --oidc-email-claim=sub
             - --pass-authorization-header=true
             - --pass-access-token=true
