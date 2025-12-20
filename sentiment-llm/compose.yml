@@ -15,7 +15,7 @@ services:
     command: ["serve"]
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.4.5
+    image: quay.io/keycloak/keycloak:26.4.7
     command: ["/bin/sh", "/opt/keycloak/local/start-with-templated-realm.sh"]
     environment:
       - KC_BOOTSTRAP_ADMIN_USERNAME=admin

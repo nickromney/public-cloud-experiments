@@ -18,6 +18,8 @@ spec:
         app.kubernetes.io/name: sentiment-api
         app.kubernetes.io/component: backend
     spec:
+      imagePullSecrets:
+        - name: gitea-registry-creds
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -25,32 +27,36 @@ spec:
         fsGroup: 1000
       containers:
         - name: api
-          image: node:22-alpine
+          image: localhost:30090/gitea-admin/sentiment-api:latest
           imagePullPolicy: IfNotPresent
-          command: ["node", "/app/server.js"]
           env:
             - name: PORT
               value: "8080"
             - name: DATA_DIR
               value: "/data"
-            - name: OLLAMA_URL
+            - name: CSV_PATH
+              value: "/data/comments.csv"
+            - name: OLLAMA_BASE_URL
               value: "http://ollama.sentiment-llm.svc.cluster.local:11434"
             - name: OLLAMA_MODEL
               value: "qwen2.5:0.5b"
             - name: OLLAMA_PULL_ON_DEMAND
               value: "true"
+            - name: OTEL_SERVICE_NAME
+              value: "sentiment-api"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://signoz-otel-collector.observability.svc.cluster.local:4318"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
           ports:
             - name: http
               containerPort: 8080
           volumeMounts:
-            - name: app
-              mountPath: /app/server.js
-              subPath: server.js
             - name: data
               mountPath: /data
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /api/v1/health
               port: 8080
             initialDelaySeconds: 2
             periodSeconds: 5
@@ -58,7 +64,7 @@ spec:
             failureThreshold: 12
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: /api/v1/health
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 15
@@ -72,9 +78,6 @@ spec:
               cpu: 500m
               memory: 512Mi
       volumes:
-        - name: app
-          configMap:
-            name: sentiment-api
         - name: data
           persistentVolumeClaim:
             claimName: sentiment-api-data

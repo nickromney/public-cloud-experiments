@@ -104,9 +104,27 @@ print_useful_urls() {
   echo ""
   ok "Useful URLs"
 
-  # Fixed defaults from stages/700-azure-auth-sim.tfvars (best-effort; don't fail if absent).
-  echo "  • Subnet calculator (dev): https://subnetcalc.dev.127.0.0.1.sslip.io/"
-  echo "  • Subnet calculator (uat): https://subnetcalc.uat.127.0.0.1.sslip.io/"
+  # Workload URLs are printed only if their ArgoCD Applications exist (stages can toggle stacks on/off).
+  if kubectl -n argocd get app azure-auth-sim-dev >/dev/null 2>&1; then
+    echo "  • Subnet calculator (dev): https://subnetcalc.dev.127.0.0.1.sslip.io/"
+  fi
+  if kubectl -n argocd get app azure-auth-sim-uat >/dev/null 2>&1; then
+    echo "  • Subnet calculator (uat): https://subnetcalc.uat.127.0.0.1.sslip.io/"
+  fi
+
+  if kubectl -n argocd get app sentiment-dev >/dev/null 2>&1; then
+    echo "  • Sentiment lite (dev):    https://sentiment-lite.dev.127.0.0.1.sslip.io/"
+  fi
+  if kubectl -n argocd get app sentiment-uat >/dev/null 2>&1; then
+    echo "  • Sentiment lite (uat):    https://sentiment-lite.uat.127.0.0.1.sslip.io/"
+  fi
+  if kubectl -n argocd get app sentiment-auth-dev >/dev/null 2>&1; then
+    echo "  • Sentiment (auth) (dev):  https://sentiment.dev.127.0.0.1.sslip.io/"
+  fi
+  if kubectl -n argocd get app sentiment-auth-uat >/dev/null 2>&1; then
+    echo "  • Sentiment (auth) (uat):  https://sentiment.uat.127.0.0.1.sslip.io/"
+  fi
+
   echo "  • Argo CD UI:              https://argocd.127.0.0.1.sslip.io/ (fallback: http://localhost:30080)"
   echo "  • Argo CD admin password:  argocd admin initial-password -n argocd"
   echo "  • Hubble UI:               https://hubble.127.0.0.1.sslip.io/ (fallback: http://localhost:31235)"

@@ -1,11 +1,26 @@
+import './telemetry.js'
+
 import express from 'express'
 import fs from 'node:fs/promises'
 import { createReadStream } from 'node:fs'
 import path from 'node:path'
 import readline from 'node:readline'
 
+import { SpanStatusCode, metrics, trace } from '@opentelemetry/api'
+import apiLogs from '@opentelemetry/api-logs'
+
 const app = express()
 app.use(express.json({ limit: '1mb' }))
+
+const { logs } = apiLogs
+
+const tracer = trace.getTracer('sentiment-api')
+const meter = metrics.getMeter('sentiment-api')
+const ollamaLatencyMs = meter.createHistogram('ollama_inference_latency_ms', {
+  unit: 'ms',
+})
+const sentimentWrites = meter.createCounter('sentiment_comments_created_total')
+const otelLogger = logs.getLogger('sentiment-api')
 
 const port = Number.parseInt(process.env.PORT || '8080', 10)
 const dataDir = process.env.DATA_DIR || '/data'
@@ -121,86 +136,124 @@ function normalizeLabel(label) {
 }
 
 async function analyzeWithOllama(text) {
-  const start = Date.now()
+  return tracer.startActiveSpan(
+    'ollama.chat',
+    {
+      attributes: {
+        'ollama.model': ollamaModel,
+      },
+    },
+    async (span) => {
+      const start = Date.now()
+      try {
+        if (!modelEnsured && ollamaPullOnDemand) {
+          // Ensure the model exists (best effort). This avoids first-request failures when the
+          // Ollama container is up but the model isn't pulled yet.
+          try {
+            const show = await fetch(`${ollamaBaseUrl}/api/show`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: ollamaModel }),
+            })
 
-  if (!modelEnsured && ollamaPullOnDemand) {
-    // Ensure the model exists (best effort). This avoids first-request failures when the
-    // Ollama container is up but the model isn't pulled yet.
-    try {
-      const show = await fetch(`${ollamaBaseUrl}/api/show`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: ollamaModel }),
-      })
+            if (!show.ok) {
+              await fetch(`${ollamaBaseUrl}/api/pull`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: ollamaModel, stream: false }),
+              }).catch(() => null)
+            }
+          } catch {
+            // If Ollama isn't reachable yet, the main request will throw anyway.
+          }
 
-      if (!show.ok) {
-        await fetch(`${ollamaBaseUrl}/api/pull`, {
+          modelEnsured = true
+        }
+
+        const body = {
+          model: ollamaModel,
+          stream: false,
+          format: 'json',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a strict sentiment classifier. Return ONLY valid JSON with shape: {"label":"positive|negative|neutral","confidence":number between 0 and 1}.',
+            },
+            {
+              role: 'user',
+              content: text,
+            },
+          ],
+          options: {
+            temperature: 0,
+          },
+        }
+
+        const res = await fetch(`${ollamaBaseUrl}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: ollamaModel, stream: false }),
-        }).catch(() => null)
+          body: JSON.stringify(body),
+        })
+
+        const latencyMs = Date.now() - start
+        span.setAttribute('ollama.latency_ms', latencyMs)
+
+        if (!res.ok) {
+          const msg = await res.text().catch(() => '')
+          throw new Error(`ollama HTTP ${res.status}: ${msg}`)
+        }
+
+        const data = await res.json()
+        const content = data?.message?.content
+        const raw = typeof content === 'string' ? content : ''
+        let parsed = null
+        try {
+          parsed = typeof content === 'string' ? JSON.parse(content) : null
+        } catch {
+          parsed = null
+        }
+
+        const label = normalizeLabel(parsed?.label ?? raw)
+        let confidence = 0.5
+        if (typeof parsed?.confidence === 'number') {
+          confidence = parsed.confidence
+        } else {
+          const match = raw.match(/"confidence"\s*:\s*([0-9]*\.?[0-9]+)/)
+          if (match) confidence = Number.parseFloat(match[1])
+        }
+        confidence = Math.max(0, Math.min(1, confidence))
+
+        ollamaLatencyMs.record(latencyMs, {
+          'ollama.model': ollamaModel,
+          'sentiment.label': label,
+        })
+
+        span.setAttribute('sentiment.label', label)
+        span.setAttribute('sentiment.confidence', confidence)
+
+        otelLogger.emit({
+          severityText: 'INFO',
+          body: 'ollama sentiment inference complete',
+          attributes: {
+            'ollama.model': ollamaModel,
+            'sentiment.label': label,
+          },
+        })
+
+        return { label, confidence, latency_ms: latencyMs }
+      } catch (e) {
+        span.recordException(e)
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: e?.message || 'ollama_error',
+        })
+        throw e
+      } finally {
+        span.end()
       }
-    } catch {
-      // If Ollama isn't reachable yet, the main request will throw anyway.
-    }
-
-    modelEnsured = true
-  }
-
-  const body = {
-    model: ollamaModel,
-    stream: false,
-    format: 'json',
-    messages: [
-      {
-        role: 'system',
-        content:
-          'You are a strict sentiment classifier. Return ONLY valid JSON with shape: {"label":"positive|negative|neutral","confidence":number between 0 and 1}.',
-      },
-      {
-        role: 'user',
-        content: text,
-      },
-    ],
-    options: {
-      temperature: 0,
     },
-  }
-
-  const res = await fetch(`${ollamaBaseUrl}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-
-  const latencyMs = Date.now() - start
-
-  if (!res.ok) {
-    const msg = await res.text().catch(() => '')
-    throw new Error(`ollama HTTP ${res.status}: ${msg}`)
-  }
-
-  const data = await res.json()
-  const content = data?.message?.content
-  const raw = typeof content === 'string' ? content : ''
-  let parsed = null
-  try {
-    parsed = typeof content === 'string' ? JSON.parse(content) : null
-  } catch {
-    parsed = null
-  }
-
-  const label = normalizeLabel(parsed?.label ?? raw)
-  let confidence = 0.5
-  if (typeof parsed?.confidence === 'number') {
-    confidence = parsed.confidence
-  } else {
-    const match = raw.match(/"confidence"\s*:\s*([0-9]*\.?[0-9]+)/)
-    if (match) confidence = Number.parseFloat(match[1])
-  }
-  confidence = Math.max(0, Math.min(1, confidence))
-
-  return { label, confidence, latency_ms: latencyMs }
+  )
 }
 
 app.get('/api/v1/health', async (_req, res) => {
@@ -239,6 +292,9 @@ app.post('/api/v1/comments', async (req, res) => {
     }
 
     await appendRecord(record)
+    sentimentWrites.add(1, {
+      'sentiment.label': record.label,
+    })
     res.json(record)
   } catch (e) {
     res.status(500).json({ error: e?.message || String(e) })
