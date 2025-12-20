@@ -6,7 +6,7 @@ import autoInstr from '@opentelemetry/auto-instrumentations-node'
 import logsExporter from '@opentelemetry/exporter-logs-otlp-http'
 import metricsExporter from '@opentelemetry/exporter-metrics-otlp-http'
 import tracesExporter from '@opentelemetry/exporter-trace-otlp-http'
-import resourcesPkg from '@opentelemetry/resources'
+import { resourceFromAttributes } from '@opentelemetry/resources'
 import sdkLogsPkg from '@opentelemetry/sdk-logs'
 import sdkMetricsPkg from '@opentelemetry/sdk-metrics'
 import sdkNodePkg from '@opentelemetry/sdk-node'
@@ -16,7 +16,6 @@ const { getNodeAutoInstrumentations } = autoInstr
 const { OTLPLogExporter } = logsExporter
 const { OTLPMetricExporter } = metricsExporter
 const { OTLPTraceExporter } = tracesExporter
-const { Resource } = resourcesPkg
 const { LoggerProvider, BatchLogRecordProcessor } = sdkLogsPkg
 const { PeriodicExportingMetricReader } = sdkMetricsPkg
 const { NodeSDK } = sdkNodePkg
@@ -31,17 +30,17 @@ if (!otlpEndpoint) {
   diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR)
 
   const serviceName = process.env.OTEL_SERVICE_NAME || 'sentiment-api'
-  const resource = new Resource({
-    'service.name': serviceName,
-  })
+  const resource = resourceFromAttributes({ 'service.name': serviceName })
 
   const metricReader = new PeriodicExportingMetricReader({
     exporter: new OTLPMetricExporter(),
     exportIntervalMillis: 60_000,
   })
 
-  const loggerProvider = new LoggerProvider({ resource })
-  loggerProvider.addLogRecordProcessor(new BatchLogRecordProcessor(new OTLPLogExporter()))
+  const loggerProvider = new LoggerProvider({
+    resource,
+    processors: [new BatchLogRecordProcessor(new OTLPLogExporter())],
+  })
   logs.setGlobalLoggerProvider(loggerProvider)
 
   const sdk = new NodeSDK({

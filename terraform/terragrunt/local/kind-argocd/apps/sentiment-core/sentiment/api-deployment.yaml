@@ -28,7 +28,7 @@ spec:
       containers:
         - name: api
           image: localhost:30090/gitea-admin/sentiment-api:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           env:
             - name: PORT
               value: "8080"
