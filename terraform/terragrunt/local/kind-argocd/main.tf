@@ -619,8 +619,37 @@ if ! command -v kind >/dev/null 2>&1; then
 fi
 
 echo "Preloading ${var.keycloak_container_image} into kind nodes..." >&2
-docker pull "${var.keycloak_container_image}"
-kind load docker-image --name "${var.cluster_name}" "${var.keycloak_container_image}"
+
+# On Docker Desktop (and other multi-arch setups), pulling without an explicit platform can leave us with a manifest
+# list where not all referenced blobs are present locally. kind's containerd import uses --all-platforms which can
+# then fail with "content digest ... not found". Force a single-platform pull that matches the Docker engine.
+platform=""
+arch="$(docker info --format '{{.Architecture}}' 2>/dev/null || true)"
+case "$arch" in
+  aarch64|arm64) platform="linux/arm64" ;;
+  x86_64|amd64) platform="linux/amd64" ;;
+esac
+
+if [ -n "$platform" ]; then
+  docker pull --platform="$platform" "${var.keycloak_container_image}"
+
+  # Avoid kind's "content digest ... not found" failure by exporting a single-platform archive.
+  tmp_archive="$(mktemp -t kind-image-XXXXXX.tar)"
+  trap 'rm -f "$tmp_archive"' EXIT
+  docker save --platform="$platform" -o "$tmp_archive" "${var.keycloak_container_image}"
+
+  if ! kind load image-archive --name "${var.cluster_name}" "$tmp_archive"; then
+    echo "WARN: kind load image-archive failed; continuing without image preload" >&2
+    exit 0
+  fi
+else
+  docker pull "${var.keycloak_container_image}"
+
+  if ! kind load docker-image --name "${var.cluster_name}" "${var.keycloak_container_image}"; then
+    echo "WARN: kind load docker-image failed; continuing without image preload" >&2
+    exit 0
+  fi
+fi
 EOT
     interpreter = ["/bin/bash", "-c"]
   }
