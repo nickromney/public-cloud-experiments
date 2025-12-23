@@ -474,6 +474,18 @@ variable "enable_platform_sso" {
   }
 }
 
+variable "preload_kind_images" {
+  description = "Pre-pull and 'kind load' large images (e.g., Keycloak) into the kind nodes right after cluster creation to avoid slow in-cluster image pulls."
+  type        = bool
+  default     = true
+}
+
+variable "keycloak_container_image" {
+  description = "Keycloak container image to preload into kind nodes (must match the image used by the azure-entraid-sim manifests)."
+  type        = string
+  default     = "quay.io/keycloak/keycloak:26.4.7"
+}
+
 variable "platform_sso_keycloak_host" {
   description = "External hostname (via Gateway API) used for Keycloak OIDC endpoints."
   type        = string

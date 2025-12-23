@@ -60,7 +60,7 @@ spec:
             - --validate-url=http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/protocol/openid-connect/userinfo
 
             # Upstream (SigNoz UI)
-            - --upstream=http://signoz-auth-proxy:3000
+            - --upstream=http://signoz:8080
 
             # Listen address
             - --http-address=0.0.0.0:4180
