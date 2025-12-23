@@ -3,6 +3,8 @@ kind: Job
 metadata:
   name: signoz-bootstrap
   namespace: observability
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true
   labels:
     app.kubernetes.io/name: signoz-bootstrap
     app.kubernetes.io/component: setup
