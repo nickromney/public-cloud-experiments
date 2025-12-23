@@ -512,10 +512,12 @@ locals {
 resource "local_file" "kind_config" {
   filename = var.kind_config_path
   content = templatefile("${path.module}/templates/kind-config.yaml.tpl", {
-    workers         = local.kind_workers
-    ports           = local.extra_port_mappings
-    extra_mounts    = local.kind_extra_mounts
-    api_server_port = var.kind_api_server_port
+    workers            = local.kind_workers
+    ports              = local.extra_port_mappings
+    extra_mounts       = local.kind_extra_mounts
+    api_server_port    = var.kind_api_server_port
+    dockerhub_username = var.dockerhub_username
+    dockerhub_password = var.dockerhub_password
     # For in-cluster Gitea, configure containerd to allow HTTP registry
     insecure_registry = var.use_external_gitea ? "" : "gitea-http.gitea.svc.cluster.local:3000"
   })
@@ -536,17 +538,26 @@ resource "kind_cluster" "local" {
     # - In-cluster Gitea: allow insecure HTTP registry using gitea_registry_host (e.g., localhost:30090)
     #   Note: containerd runs on nodes, not pods, so it cannot resolve Kubernetes DNS names.
     #   For in-cluster Gitea, use localhost:NodePort which Kind nodes can access.
-    containerd_config_patches = var.use_external_gitea ? [
-      <<-EOT
-      [plugins."io.containerd.grpc.v1.cri".registry.configs."${var.gitea_registry_host}".tls]
-        ca_file = "/etc/containerd/certs.d/${var.gitea_registry_host}/ca.crt"
-      EOT
-      ] : [
-      <<-EOT
-      [plugins."io.containerd.grpc.v1.cri".registry.configs."${var.gitea_registry_host}".tls]
-        insecure_skip_verify = true
-      EOT
-    ]
+    containerd_config_patches = concat(
+      var.use_external_gitea ? [
+        <<-EOT
+        [plugins."io.containerd.grpc.v1.cri".registry.configs."${var.gitea_registry_host}".tls]
+          ca_file = "/etc/containerd/certs.d/${var.gitea_registry_host}/ca.crt"
+        EOT
+        ] : [
+        <<-EOT
+        [plugins."io.containerd.grpc.v1.cri".registry.configs."${var.gitea_registry_host}".tls]
+          insecure_skip_verify = true
+        EOT
+      ],
+      length(trimspace(var.dockerhub_username)) > 0 && length(trimspace(var.dockerhub_password)) > 0 ? [
+        <<-EOT
+        [plugins."io.containerd.grpc.v1.cri".registry.configs."docker.io".auth]
+          username = "${var.dockerhub_username}"
+          password = "${var.dockerhub_password}"
+        EOT
+      ] : []
+    )
 
     networking {
       api_server_address  = "127.0.0.1"

@@ -21,6 +21,20 @@ variable "kind_api_server_port" {
   default     = 6443
 }
 
+variable "dockerhub_username" {
+  description = "Optional Docker Hub username for kind node containerd pulls (helps avoid anonymous pull rate limits)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "dockerhub_password" {
+  description = "Optional Docker Hub password/token for kind node containerd pulls (helps avoid anonymous pull rate limits)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "kind_config_path" {
   description = "Path to write the rendered kind cluster config."
   type        = string

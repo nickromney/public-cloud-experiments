@@ -5,7 +5,7 @@ networking:
   apiServerPort: ${api_server_port}
   disableDefaultCNI: true
   kubeProxyMode: "iptables"
-%{ if length(extra_mounts) > 0 || try(insecure_registry, "") != "" ~}
+%{ if length(extra_mounts) > 0 || try(insecure_registry, "") != "" || (try(dockerhub_username, "") != "" && try(dockerhub_password, "") != "") ~}
 containerdConfigPatches:
   - |-
 %{ for mnt in extra_mounts ~}
@@ -17,6 +17,11 @@ containerdConfigPatches:
 %{ if try(insecure_registry, "") != "" ~}
     [plugins."io.containerd.grpc.v1.cri".registry.configs."${insecure_registry}".tls]
       insecure_skip_verify = true
+%{ endif ~}
+%{ if try(dockerhub_username, "") != "" && try(dockerhub_password, "") != "" ~}
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."docker.io".auth]
+      username = "${dockerhub_username}"
+      password = "${dockerhub_password}"
 %{ endif ~}
 %{ endif ~}
 nodes:
