@@ -17,7 +17,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: bootstrap
-          image: curlimages/curl:8.7.1
+          image: quay.io/prometheus/busybox:latest
           imagePullPolicy: IfNotPresent
           command:
             - /bin/sh
@@ -29,7 +29,7 @@ spec:
 
               echo "Waiting for SigNoz to become reachable..."
               i=0
-              until curl -fsS "${SIGNOZ_URL}/api/v1/version" -o /tmp/version.json; do
+              until wget -qO /tmp/version.json "${SIGNOZ_URL}/api/v1/version"; do
                 i=$((i+1))
                 if [ "$i" -ge 180 ]; then
                   echo "Timed out waiting for SigNoz"
@@ -49,11 +49,12 @@ spec:
               # These credentials are only used to create the initial org/user and are not used for SSO.
               EMAIL="admin@local.dev"
               PASSWORD="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)Aa1!"
-              PAYLOAD="$(printf '{\"firstName\":\"Admin\",\"email\":\"%s\",\"organizationName\":\"Local\",\"password\":\"%s\",\"confirmPassword\":\"%s\"}' "$EMAIL" "$PASSWORD" "$PASSWORD")"
-              curl -fsS -X POST "${SIGNOZ_URL}/api/v1/register" \
-                -H "content-type: application/json" \
-                --data "$PAYLOAD" \
-                -o /tmp/register.json
+              PAYLOAD="$(printf '{"firstName":"Admin","email":"%s","organizationName":"Local","password":"%s","confirmPassword":"%s"}' "$EMAIL" "$PASSWORD" "$PASSWORD")"
+              if ! wget -qO /tmp/register.json --header "content-type: application/json" --post-data "$PAYLOAD" "${SIGNOZ_URL}/api/v1/register"; then
+                echo "SigNoz register failed. Response:"
+                cat /tmp/register.json || true
+                exit 1
+              fi
 
-              curl -fsS "${SIGNOZ_URL}/api/v1/version" -o /tmp/version2.json
+              wget -qO /tmp/version2.json "${SIGNOZ_URL}/api/v1/version"
               grep -q '"setupCompleted":true' /tmp/version2.json
