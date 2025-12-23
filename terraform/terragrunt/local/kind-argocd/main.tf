@@ -600,6 +600,34 @@ resource "local_sensitive_file" "kubeconfig" {
   depends_on           = [kind_cluster.local]
 }
 
+# Pre-load large images into kind nodes to avoid slow in-cluster image pulls (notably Keycloak).
+resource "null_resource" "kind_preload_images" {
+  count = var.preload_kind_images ? 1 : 0
+
+  triggers = {
+    cluster_id = kind_cluster.local.id
+    keycloak   = var.keycloak_container_image
+  }
+
+  provisioner "local-exec" {
+    command     = <<-EOT
+set -euo pipefail
+
+if ! command -v kind >/dev/null 2>&1; then
+  echo "kind binary not found; skipping image preload" >&2
+  exit 0
+fi
+
+echo "Preloading ${var.keycloak_container_image} into kind nodes..." >&2
+docker pull "${var.keycloak_container_image}"
+kind load docker-image --name "${var.cluster_name}" "${var.keycloak_container_image}"
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+
+  depends_on = [kind_cluster.local]
+}
+
 # If mkcert is installed on the host, automatically bootstrap the mkcert CA into the cluster.
 # This unblocks cert-manager's mkcert-ca ClusterIssuer so gateway TLS certs can be issued.
 resource "null_resource" "bootstrap_mkcert_ca" {
