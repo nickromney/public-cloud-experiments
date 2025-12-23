@@ -1,0 +1,59 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: signoz-bootstrap
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: signoz-bootstrap
+    app.kubernetes.io/component: setup
+spec:
+  backoffLimit: 20
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: signoz-bootstrap
+        app.kubernetes.io/component: setup
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: bootstrap
+          image: curlimages/curl:8.7.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+
+              SIGNOZ_URL="http://signoz:8080"
+
+              echo "Waiting for SigNoz to become reachable..."
+              i=0
+              until curl -fsS "${SIGNOZ_URL}/api/v1/version" -o /tmp/version.json; do
+                i=$((i+1))
+                if [ "$i" -ge 180 ]; then
+                  echo "Timed out waiting for SigNoz"
+                  exit 1
+                fi
+                sleep 2
+              done
+
+              if grep -q '"setupCompleted":true' /tmp/version.json; then
+                echo "SigNoz setup already completed"
+                exit 0
+              fi
+
+              echo "Completing SigNoz first-run setup..."
+
+              # SigNoz requires setup completion even when auth is disabled; otherwise the UI forces /signup.
+              # These credentials are only used to create the initial org/user and are not used for SSO.
+              EMAIL="admin@local.dev"
+              PASSWORD="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)Aa1!"
+              PAYLOAD="$(printf '{\"firstName\":\"Admin\",\"email\":\"%s\",\"organizationName\":\"Local\",\"password\":\"%s\",\"confirmPassword\":\"%s\"}' "$EMAIL" "$PASSWORD" "$PASSWORD")"
+              curl -fsS -X POST "${SIGNOZ_URL}/api/v1/register" \
+                -H "content-type: application/json" \
+                --data "$PAYLOAD" \
+                -o /tmp/register.json
+
+              curl -fsS "${SIGNOZ_URL}/api/v1/version" -o /tmp/version2.json
+              grep -q '"setupCompleted":true' /tmp/version2.json
