@@ -1,6 +1,8 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 networking:
+  apiServerAddress: "127.0.0.1"
+  apiServerPort: ${api_server_port}
   disableDefaultCNI: true
   kubeProxyMode: "iptables"
 %{ if length(extra_mounts) > 0 || try(insecure_registry, "") != "" ~}

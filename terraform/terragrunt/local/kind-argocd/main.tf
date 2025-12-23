@@ -512,9 +512,10 @@ locals {
 resource "local_file" "kind_config" {
   filename = var.kind_config_path
   content = templatefile("${path.module}/templates/kind-config.yaml.tpl", {
-    workers      = local.kind_workers
-    ports        = local.extra_port_mappings
-    extra_mounts = local.kind_extra_mounts
+    workers         = local.kind_workers
+    ports           = local.extra_port_mappings
+    extra_mounts    = local.kind_extra_mounts
+    api_server_port = var.kind_api_server_port
     # For in-cluster Gitea, configure containerd to allow HTTP registry
     insecure_registry = var.use_external_gitea ? "" : "gitea-http.gitea.svc.cluster.local:3000"
   })
@@ -548,6 +549,8 @@ resource "kind_cluster" "local" {
     ]
 
     networking {
+      api_server_address  = "127.0.0.1"
+      api_server_port     = var.kind_api_server_port
       disable_default_cni = true
       kube_proxy_mode     = "iptables"
     }

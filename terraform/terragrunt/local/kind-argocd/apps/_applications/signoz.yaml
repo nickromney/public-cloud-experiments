@@ -40,7 +40,7 @@ spec:
           # Turnkey local UX: no login/signup flow.
           # See https://signoz.io/docs/operate/configuration (SIGNOZ_AUTH_ENABLED).
           env:
-            signoz_auth_enabled: false
+            SIGNOZ_AUTH_ENABLED: "false"
           resources:
             requests:
               cpu: 100m

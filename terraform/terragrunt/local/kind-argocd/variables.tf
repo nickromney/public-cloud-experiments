@@ -15,6 +15,12 @@ variable "node_image" {
   default     = "kindest/node:v1.35.0"
 }
 
+variable "kind_api_server_port" {
+  description = "Host port to bind the Kubernetes API server to (prevents kind from choosing a random port that may already be in use)."
+  type        = number
+  default     = 6443
+}
+
 variable "kind_config_path" {
   description = "Path to write the rendered kind cluster config."
   type        = string
