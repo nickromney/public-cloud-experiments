@@ -1053,7 +1053,7 @@ for i in {1..120}; do
   sleep 5
 done
 
-for i in {1..180}; do
+for i in {1..120}; do
   sync=$(kubectl -n argocd get app gitea -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "")
   health=$(kubectl -n argocd get app gitea -o jsonpath='{.status.health.status}' 2>/dev/null || echo "")
   if [ "$sync" = "Synced" ] && [ "$health" = "Healthy" ]; then
@@ -2042,11 +2042,6 @@ spec:
             passwordKey: password
             username: ${var.gitea_admin_username}
             email: "admin@gitea.local"
-          oauth:
-            - name: "Keycloak"
-              provider: "openidConnect"
-              existingSecret: gitea-oidc-secret
-              autoDiscoverUrl: "http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/.well-known/openid-configuration"
           config:
             server:
               DISABLE_SSH: false
@@ -2137,6 +2132,88 @@ EOF
     kubernetes_secret.argocd_repo_gitea[0],
     null_resource.seed_gitea_repo[0],
     null_resource.argocd_add_gitea_known_host[0]
+  ]
+}
+
+# Post-bootstrap: configure Gitea OIDC *after* Keycloak exists.
+# Keycloak is deployed from the policies repo hosted on Gitea, so baking this into the Helm chart init
+# container creates a cyclic dependency (Gitea fails before Keycloak exists). Instead, we configure the
+# auth source as soon as Keycloak is reachable (avoids waiting for ArgoCD health to flip).
+resource "null_resource" "gitea_configure_oidc" {
+  count = var.enable_platform_sso && var.enable_gitea && var.enable_azure_auth_sim && var.enable_azure_entraid_sim && !var.use_external_gitea ? 1 : 0
+
+  triggers = {
+    cluster_id           = kind_cluster.local.id
+    kubeconfig_id        = local_sensitive_file.kubeconfig.id
+    gitea_app_id         = null_resource.wait_for_gitea[0].id
+    app_of_apps_revision = kubectl_manifest.argocd_app_of_apps[0].id
+    keycloak_host        = var.platform_sso_keycloak_host
+    gitea_oidc_client_id = var.gitea_oidc_client_id
+  }
+
+  provisioner "local-exec" {
+    command     = <<EOT
+set -euo pipefail
+export KUBECONFIG=${var.kubeconfig_path}
+
+AUTO_URL="http://keycloak.azure-entraid-sim.svc.cluster.local:8080/realms/subnet-calculator/.well-known/openid-configuration"
+
+CLIENT_ID=$(kubectl -n gitea get secret gitea-oidc-secret -o jsonpath='{.data.key}' | base64 -d)
+CLIENT_SECRET=$(kubectl -n gitea get secret gitea-oidc-secret -o jsonpath='{.data.secret}' | base64 -d)
+
+for i in {1..120}; do
+  sync=$(kubectl -n argocd get app azure-entraid-sim -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "")
+  health=$(kubectl -n argocd get app azure-entraid-sim -o jsonpath='{.status.health.status}' 2>/dev/null || echo "")
+  kc_ready=$(kubectl -n azure-entraid-sim get deploy keycloak -o jsonpath='{.status.availableReplicas}' 2>/dev/null || echo "")
+  kc_total=$(kubectl -n azure-entraid-sim get deploy keycloak -o jsonpath='{.status.replicas}' 2>/dev/null || echo "")
+  if [ -n "$kc_total" ]; then
+    echo "Keycloak rollout: $${kc_ready:-0}/$kc_total available; Argo azure-entraid-sim: sync=$sync health=$health" >&2
+  else
+    echo "Waiting for Keycloak to exist; Argo azure-entraid-sim: sync=$sync health=$health" >&2
+  fi
+
+  AUTH_ID=$(kubectl -n gitea exec deploy/gitea -c gitea -- gitea admin auth list --vertical-bars 2>/dev/null \
+    | awk -F'|' '$2 ~ /Keycloak/ && $3 ~ /OAuth2/ {gsub(/ /,"",$1); print $1; exit}')
+
+  if [ -z "$AUTH_ID" ]; then
+    echo "Creating Gitea auth source 'Keycloak'... (attempt $i/120)" >&2
+    if kubectl -n gitea exec deploy/gitea -c gitea -- gitea admin auth add-oauth \
+      --auto-discover-url "$AUTO_URL" \
+      --key "$CLIENT_ID" \
+      --name "Keycloak" \
+      --provider "openidConnect" \
+      --secret "$CLIENT_SECRET" >/dev/null 2>&1; then
+      echo "Gitea auth source 'Keycloak' created." >&2
+      exit 0
+    fi
+  else
+    echo "Updating Gitea auth source 'Keycloak' (id=$AUTH_ID)... (attempt $i/120)" >&2
+    if kubectl -n gitea exec deploy/gitea -c gitea -- gitea admin auth update-oauth \
+      --id "$AUTH_ID" \
+      --auto-discover-url "$AUTO_URL" \
+      --key "$CLIENT_ID" \
+      --name "Keycloak" \
+      --provider "openidConnect" \
+      --secret "$CLIENT_SECRET" >/dev/null 2>&1; then
+      echo "Gitea auth source 'Keycloak' updated." >&2
+      exit 0
+    fi
+  fi
+
+  echo "Gitea OIDC config not ready yet; retrying..." >&2
+  sleep 5
+done
+
+echo "Failed to configure Gitea OIDC after retries." >&2
+exit 1
+EOT
+    interpreter = ["/bin/bash", "-c"]
+  }
+
+  depends_on = [
+    null_resource.wait_for_gitea[0],
+    kubectl_manifest.argocd_app_of_apps[0],
+    kubernetes_secret.gitea_oidc,
   ]
 }
 
