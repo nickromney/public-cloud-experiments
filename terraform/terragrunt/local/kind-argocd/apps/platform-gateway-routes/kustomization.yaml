@@ -7,6 +7,7 @@ resources:
   - httproute-hubble.yaml
   - httproute-keycloak.yaml
   - httproute-signoz.yaml
+  - job-signoz-bootstrap.yaml
   - oauth2-proxy-signoz-deployment.yaml
   - oauth2-proxy-signoz-service.yaml
   - referencegrant-argocd.yaml
