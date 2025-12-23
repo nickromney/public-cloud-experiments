@@ -2076,6 +2076,7 @@ spec:
               SSH_PORT: ${var.gitea_ssh_node_port}
               DOMAIN: gitea.127.0.0.1.sslip.io
               ROOT_URL: https://gitea.127.0.0.1.sslip.io/
+              PUBLIC_URL_DETECTION: auto
             openid:
               ENABLE_OPENID_SIGNIN: true
               ENABLE_OPENID_SIGNUP: true
