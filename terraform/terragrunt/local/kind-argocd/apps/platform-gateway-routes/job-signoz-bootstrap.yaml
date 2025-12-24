@@ -4,13 +4,17 @@ metadata:
   name: signoz-bootstrap
   namespace: observability
   annotations:
-    argocd.argoproj.io/sync-options: Replace=true
+    # This is a one-time bootstrap task (complete SigNoz setup + create the auth-proxy secret).
+    # Model it as an Argo CD hook so it can be safely re-run and re-created (Jobs have immutable selectors).
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
     argocd.argoproj.io/sync-wave: "0"
   labels:
     app.kubernetes.io/name: signoz-bootstrap
     app.kubernetes.io/component: setup
 spec:
   backoffLimit: 20
+  ttlSecondsAfterFinished: 300
   template:
     metadata:
       labels:
@@ -21,7 +25,7 @@ spec:
       serviceAccountName: signoz-bootstrap
       containers:
         - name: bootstrap
-          image: quay.io/prometheus/busybox:latest
+          image: curlimages/curl:8.10.1
           imagePullPolicy: IfNotPresent
           command:
             - /bin/sh
@@ -41,15 +45,16 @@ spec:
               SECRET_CREATE_URL="${K8S_API}/api/v1/namespaces/${NAMESPACE}/secrets"
 
               secret_exists() {
-                wget -qO /tmp/secret.json \
-                  --ca-certificate "${SA_CA_FILE}" \
-                  --header "Authorization: Bearer ${SA_TOKEN}" \
+                curl -fsS \
+                  --cacert "${SA_CA_FILE}" \
+                  -H "Authorization: Bearer ${SA_TOKEN}" \
+                  -o /tmp/secret.json \
                   "${SECRET_GET_URL}" >/dev/null 2>&1
               }
 
               echo "Waiting for SigNoz to become reachable..."
               i=0
-              until wget -qO /tmp/version.json "${SIGNOZ_URL}/api/v1/version"; do
+              until curl -fsS -o /tmp/version.json "${SIGNOZ_URL}/api/v1/version" >/dev/null 2>&1; do
                 i=$((i+1))
                 if [ "$i" -ge 180 ]; then
                   echo "Timed out waiting for SigNoz"
@@ -75,7 +80,10 @@ spec:
               EMAIL="admin@local.dev"
               PASSWORD="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 16)Aa1!"
               PAYLOAD="$(printf '{"firstName":"Admin","email":"%s","organizationName":"Local","password":"%s","confirmPassword":"%s"}' "$EMAIL" "$PASSWORD" "$PASSWORD")"
-              if ! wget -qO /tmp/register.json --header "content-type: application/json" --post-data "$PAYLOAD" "${SIGNOZ_URL}/api/v1/register"; then
+              if ! curl -fsS -o /tmp/register.json \
+                -H "content-type: application/json" \
+                -d "$PAYLOAD" \
+                "${SIGNOZ_URL}/api/v1/register" >/dev/null 2>&1; then
                 echo "SigNoz register failed. Response:"
                 cat /tmp/register.json || true
                 exit 1
@@ -86,17 +94,17 @@ spec:
 
                 SECRET_PAYLOAD="$(printf '{"apiVersion":"v1","kind":"Secret","metadata":{"name":"%s","namespace":"%s"},"type":"Opaque","stringData":{"SIGNOZ_URL":"%s","SIGNOZ_USER":"%s","SIGNOZ_PASSWORD":"%s"}}' "$SECRET_NAME" "$NAMESPACE" "$SIGNOZ_URL" "$EMAIL" "$PASSWORD")"
 
-                if ! wget -qO /tmp/secret-create.json \
-                  --ca-certificate "${SA_CA_FILE}" \
-                  --header "Authorization: Bearer ${SA_TOKEN}" \
-                  --header "content-type: application/json" \
-                  --post-data "$SECRET_PAYLOAD" \
-                  "${SECRET_CREATE_URL}"; then
+                if ! curl -fsS -o /tmp/secret-create.json \
+                  --cacert "${SA_CA_FILE}" \
+                  -H "Authorization: Bearer ${SA_TOKEN}" \
+                  -H "content-type: application/json" \
+                  -d "$SECRET_PAYLOAD" \
+                  "${SECRET_CREATE_URL}" >/dev/null 2>&1; then
                   echo "Failed to create ${SECRET_NAME}"
                   cat /tmp/secret-create.json || true
                   exit 1
                 fi
               fi
 
-              wget -qO /tmp/version2.json "${SIGNOZ_URL}/api/v1/version"
+              curl -fsS -o /tmp/version2.json "${SIGNOZ_URL}/api/v1/version" >/dev/null 2>&1
               grep -q '"setupCompleted":true' /tmp/version2.json
