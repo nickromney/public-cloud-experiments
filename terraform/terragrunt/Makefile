@@ -41,6 +41,7 @@ SKIP_AZURE_AUTH_PREREQS ?= 0
 LOCAL_KIND_IMAGE_PLATFORM ?= linux/amd64
 LOCAL_KIND_REQUIRED_IMAGES ?= \
 	registry:2 \
+	kindest/node:v1.35.0 \
 	busybox:1.35 \
 	alpine:3.18.2 \
 	groundnuty/k8s-wait-for:v2.0 \
@@ -918,9 +919,17 @@ _exec-check-containers:
 			echo -e "$(YELLOW)❌ docker is required but was not found in PATH$(NC)"; \
 			exit 1; \
 		fi; \
+		MIRROR_RUNNING=0; \
+		MIRROR_HOST="localhost:$(LOCAL_DOCKERHUB_MIRROR_PORT)"; \
+		if docker ps --format '{{.Names}}' | grep -qx "$(LOCAL_DOCKERHUB_MIRROR_NAME)"; then \
+			MIRROR_RUNNING=1; \
+		fi; \
 		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
 		echo -e "$(CYAN)  Checking required container images (platform: $(LOCAL_KIND_IMAGE_PLATFORM))$(NC)"; \
 		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		if [ "$$MIRROR_RUNNING" = "1" ]; then \
+			echo -e "$(CYAN)Using local docker.io mirror (if needed): http://$$MIRROR_HOST$(NC)"; \
+		fi; \
 		images=( $(LOCAL_KIND_REQUIRED_IMAGES) ); \
 		missing=(); \
 		for img in "$${images[@]}"; do \
@@ -935,10 +944,14 @@ _exec-check-containers:
 			echo -e ""; \
 			echo -e "$(YELLOW)Missing $${#missing[@]} image(s).$(NC)"; \
 			if [ "$(AUTO_APPROVE)" != "1" ]; then \
-				echo -e "$(CYAN)Do you want to run 'docker login' now? [y/N]$(NC)"; \
-				read -r do_login; \
-				if [ "$$do_login" = "y" ] || [ "$$do_login" = "Y" ]; then \
-					docker login; \
+				if [ "$$MIRROR_RUNNING" != "1" ]; then \
+					echo -e "$(CYAN)Do you want to run 'docker login' now? [y/N]$(NC)"; \
+					read -r do_login; \
+					if [ "$$do_login" = "y" ] || [ "$$do_login" = "Y" ]; then \
+						docker login; \
+					fi; \
+				else \
+					echo -e "$(CYAN)Local docker.io mirror is running; docker login is optional (mirror can carry credentials).$(NC)"; \
 				fi; \
 				echo -e "$(CYAN)Pull missing images now? [y/N]$(NC)"; \
 				read -r do_pull; \
@@ -946,10 +959,40 @@ _exec-check-containers:
 				do_pull="y"; \
 			fi; \
 			if [ "$$do_pull" = "y" ] || [ "$$do_pull" = "Y" ]; then \
+				is_dockerhub_ref() { \
+					local ref="$$1"; \
+					if ! echo "$$ref" | grep -q '/'; then return 0; fi; \
+					local first="$${ref%%/*}"; \
+					if [ "$$first" = "docker.io" ]; then return 0; fi; \
+					if echo "$$first" | grep -qE '[\.:]'; then return 1; fi; \
+					return 0; \
+				}; \
+				dockerhub_mirror_pull() { \
+					local original="$$1"; \
+					local ref="$$original"; \
+					local repo="$$ref"; \
+					local tag="latest"; \
+					if echo "$$ref" | grep -q ':'; then \
+						repo="$${ref%:*}"; \
+						tag="$${ref##*:}"; \
+					fi; \
+					repo="$${repo#docker.io/}"; \
+					if ! echo "$$repo" | grep -q '/'; then repo="library/$$repo"; fi; \
+					local mirror_ref="$$MIRROR_HOST/$$repo:$$tag"; \
+					echo -e "$(CYAN)Pulling via mirror: $$mirror_ref$(NC)"; \
+					docker pull --platform "$(LOCAL_KIND_IMAGE_PLATFORM)" "$$mirror_ref" || return 1; \
+					docker tag "$$mirror_ref" "$$original" || return 1; \
+					docker rmi "$$mirror_ref" >/dev/null 2>&1 || true; \
+				}; \
 				for img in "$${missing[@]}"; do \
 					for i in 1 2 3; do \
 						echo -e "$(CYAN)Pulling $$img (attempt $$i/3)...$(NC)"; \
-						if docker pull --platform "$(LOCAL_KIND_IMAGE_PLATFORM)" "$$img"; then \
+						if [ "$$MIRROR_RUNNING" = "1" ] && is_dockerhub_ref "$$img"; then \
+							if dockerhub_mirror_pull "$$img"; then \
+								echo -e "$(GREEN)✓ Pulled $$img$(NC)"; \
+								break; \
+							fi; \
+						elif docker pull --platform "$(LOCAL_KIND_IMAGE_PLATFORM)" "$$img"; then \
 							echo -e "$(GREEN)✓ Pulled $$img$(NC)"; \
 							break; \
 						fi; \
