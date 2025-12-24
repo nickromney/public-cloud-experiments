@@ -5,6 +5,7 @@ metadata:
   namespace: observability
   annotations:
     argocd.argoproj.io/sync-options: Replace=true
+    argocd.argoproj.io/sync-wave: "0"
   labels:
     app.kubernetes.io/name: signoz-bootstrap
     app.kubernetes.io/component: setup
@@ -17,6 +18,7 @@ spec:
         app.kubernetes.io/component: setup
     spec:
       restartPolicy: OnFailure
+      serviceAccountName: signoz-bootstrap
       containers:
         - name: bootstrap
           image: quay.io/prometheus/busybox:latest
@@ -28,6 +30,22 @@ spec:
               set -eu
 
               SIGNOZ_URL="http://signoz:8080"
+              NAMESPACE="observability"
+              SECRET_NAME="signoz-auth-proxy-credentials"
+
+              K8S_API="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}"
+              SA_TOKEN_FILE="/var/run/secrets/kubernetes.io/serviceaccount/token"
+              SA_CA_FILE="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+              SA_TOKEN="$(cat "${SA_TOKEN_FILE}")"
+              SECRET_GET_URL="${K8S_API}/api/v1/namespaces/${NAMESPACE}/secrets/${SECRET_NAME}"
+              SECRET_CREATE_URL="${K8S_API}/api/v1/namespaces/${NAMESPACE}/secrets"
+
+              secret_exists() {
+                wget -qO /tmp/secret.json \
+                  --ca-certificate "${SA_CA_FILE}" \
+                  --header "Authorization: Bearer ${SA_TOKEN}" \
+                  "${SECRET_GET_URL}" >/dev/null 2>&1
+              }
 
               echo "Waiting for SigNoz to become reachable..."
               i=0
@@ -41,8 +59,13 @@ spec:
               done
 
               if grep -q '"setupCompleted":true' /tmp/version.json; then
-                echo "SigNoz setup already completed"
-                exit 0
+                if secret_exists; then
+                  echo "SigNoz setup already completed (auth-proxy secret present)"
+                  exit 0
+                fi
+
+                echo "SigNoz setup already completed but ${SECRET_NAME} is missing; cannot auto-configure auth proxy"
+                exit 1
               fi
 
               echo "Completing SigNoz first-run setup..."
@@ -56,6 +79,23 @@ spec:
                 echo "SigNoz register failed. Response:"
                 cat /tmp/register.json || true
                 exit 1
+              fi
+
+              if ! secret_exists; then
+                echo "Creating ${SECRET_NAME} for signoz-auth-proxy..."
+
+                SECRET_PAYLOAD="$(printf '{"apiVersion":"v1","kind":"Secret","metadata":{"name":"%s","namespace":"%s"},"type":"Opaque","stringData":{"SIGNOZ_URL":"%s","SIGNOZ_USER":"%s","SIGNOZ_PASSWORD":"%s"}}' "$SECRET_NAME" "$NAMESPACE" "$SIGNOZ_URL" "$EMAIL" "$PASSWORD")"
+
+                if ! wget -qO /tmp/secret-create.json \
+                  --ca-certificate "${SA_CA_FILE}" \
+                  --header "Authorization: Bearer ${SA_TOKEN}" \
+                  --header "content-type: application/json" \
+                  --post-data "$SECRET_PAYLOAD" \
+                  "${SECRET_CREATE_URL}"; then
+                  echo "Failed to create ${SECRET_NAME}"
+                  cat /tmp/secret-create.json || true
+                  exit 1
+                fi
               fi
 
               wget -qO /tmp/version2.json "${SIGNOZ_URL}/api/v1/version"
