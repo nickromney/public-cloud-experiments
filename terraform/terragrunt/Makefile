@@ -37,6 +37,22 @@ PERSONAL_SUB_REGION ?= uksouth
 AUTO_APPROVE ?= 0
 SKIP_AZURE_AUTH_PREREQS ?= 0
 
+# Local/kind image management
+LOCAL_KIND_IMAGE_PLATFORM ?= linux/amd64
+LOCAL_KIND_REQUIRED_IMAGES ?= \
+	busybox:1.35 \
+	alpine:3.18.2 \
+	groundnuty/k8s-wait-for:v2.0 \
+	gitea/act_runner:0.2.13 \
+	docker:27.5-cli \
+	clickhouse/clickhouse-server:25.5.6 \
+	signoz/signoz:v0.105.1 \
+	signoz/signoz-schema-migrator:v0.129.12 \
+	signoz/signoz-otel-collector:v0.129.12 \
+	nginx:alpine \
+	node:22-alpine \
+	curlimages/curl:8.10.1
+
 # Terragrunt wrapper arguments
 TG_ARGS ?=
 VAR_FILE ?=
@@ -44,7 +60,7 @@ STAGE ?= 000
 STAGE_DEFAULT := 000
 
 # Valid verbs for argument parsing
-VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create prereqs reset gitea-sync check-health check-version
+VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create prereqs reset gitea-sync check-health check-version check-containers
 
 # Shell function to find stage file
 # Usage: $(call find_stage_file,STAGE,STACK_DIR)
@@ -152,6 +168,7 @@ help:
 	@echo -e "$(YELLOW)Local kind: utilities$(NC)"
 	@echo -e "  make local kind check-health                                      # Post-stage health checks"
 	@echo -e "  make local kind check-version                                     # Check pinned versions vs latest (charts/images)"
+	@echo -e "  make local kind check-containers                                  # Ensure required container images are available locally (and load into kind if present)"
 	@echo -e "  make local kind create                                            # Create kind cluster (manual, stage 100 is preferred)"
 	@echo -e "  make local kind gitea-sync                                        # Sync policies + apps to local Gitea (default: --all)"
 	@echo -e "  make local kind gitea-sync GITEA_SYNC_ARGS=\"--azure-auth-sim\"       # Only azure-auth-sim repo"
@@ -443,7 +460,7 @@ help-local-kind:
 	@echo -e "  make local kind reset [AUTO_APPROVE=1]                            # Reset local kind environment"
 
 # Infrastructure lifecycle verbs
-.PHONY: _exec-init _exec-plan _exec-apply _exec-destroy _exec-validate _exec-output _exec-gitea-sync _exec-check-health _exec-check-version
+.PHONY: _exec-init _exec-plan _exec-apply _exec-destroy _exec-validate _exec-output _exec-gitea-sync _exec-check-health _exec-check-version _exec-check-containers
 
 _exec-init: check-env
 	@echo -e "$(YELLOW)Initializing $(STACK_DIR)...$(NC)"
@@ -877,6 +894,67 @@ _exec-check-version:
 		exit 1; \
 	fi
 
+_exec-check-containers:
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		set -euo pipefail; \
+		if ! command -v docker >/dev/null 2>&1; then \
+			echo -e "$(YELLOW)❌ docker is required but was not found in PATH$(NC)"; \
+			exit 1; \
+		fi; \
+		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		echo -e "$(CYAN)  Checking required container images (platform: $(LOCAL_KIND_IMAGE_PLATFORM))$(NC)"; \
+		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		images=( $(LOCAL_KIND_REQUIRED_IMAGES) ); \
+		missing=(); \
+		for img in "$${images[@]}"; do \
+			if docker image inspect "$$img" >/dev/null 2>&1; then \
+				echo -e "$(GREEN)✔ $$img$(NC)"; \
+			else \
+				echo -e "$(YELLOW)✗ $$img (missing)$(NC)"; \
+				missing+=("$$img"); \
+			fi; \
+		done; \
+		if [ $${#missing[@]} -gt 0 ]; then \
+			echo -e ""; \
+			echo -e "$(YELLOW)Missing $${#missing[@]} image(s).$(NC)"; \
+			if [ "$(AUTO_APPROVE)" != "1" ]; then \
+				echo -e "$(CYAN)Do you want to run 'docker login' now? [y/N]$(NC)"; \
+				read -r do_login; \
+				if [ "$$do_login" = "y" ] || [ "$$do_login" = "Y" ]; then \
+					docker login; \
+				fi; \
+				echo -e "$(CYAN)Pull missing images now? [y/N]$(NC)"; \
+				read -r do_pull; \
+			else \
+				do_pull="y"; \
+			fi; \
+			if [ "$$do_pull" = "y" ] || [ "$$do_pull" = "Y" ]; then \
+				for img in "$${missing[@]}"; do \
+					for i in 1 2 3; do \
+						echo -e "$(CYAN)Pulling $$img (attempt $$i/3)...$(NC)"; \
+						if docker pull --platform "$(LOCAL_KIND_IMAGE_PLATFORM)" "$$img"; then \
+							echo -e "$(GREEN)✓ Pulled $$img$(NC)"; \
+							break; \
+						fi; \
+						echo -e "$(YELLOW)Retry $$i failed for $$img; sleeping...$(NC)"; \
+						sleep 5; \
+					done; \
+				done; \
+			fi; \
+		fi; \
+		echo -e ""; \
+		if kind get clusters 2>/dev/null | grep -qx "kind-local"; then \
+			echo -e "$(CYAN)kind-local found; loading required images into kind-local...$(NC)"; \
+			kind load docker-image --name kind-local $${images[@]}; \
+			echo -e "$(GREEN)✓ Images loaded into kind-local$(NC)"; \
+		else \
+			echo -e "$(YELLOW)kind-local not found; skipping kind image load$(NC)"; \
+		fi; \
+	else \
+		echo -e "$(YELLOW)The 'check-containers' verb is only supported for local/kind$(NC)"; \
+		exit 1; \
+	fi
+
 _exec-reset:
 	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
 		echo -e "$(YELLOW)═══════════════════════════════════════════════════════════════$(NC)"; \
@@ -942,6 +1020,7 @@ _exec-reset:
 		echo -e "$(GREEN)  ✓ Reset complete$(NC)"; \
 		echo -e "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"; \
 		echo -e ""; \
+		$(MAKE) --no-print-directory local kind check-containers AUTO_APPROVE=$(AUTO_APPROVE) || true; \
 		echo -e "You can now run: make local kind 100 apply AUTO_APPROVE=1"; \
 	else \
 		echo -e "$(YELLOW)The 'reset' verb is only supported for local/kind$(NC)"; \
