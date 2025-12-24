@@ -179,6 +179,7 @@ help:
 	@echo -e "  make local kind registry-down                                     # Stop local docker.io pull-through cache"
 	@echo -e "    - Uses DOCKERHUB_USERNAME/DOCKERHUB_PASSWORD or prompts (AUTO_APPROVE=1 skips prompts → anonymous pulls)"
 	@echo -e "    - To use as a kind mirror: export TF_VAR_dockerhub_mirror_enabled=true (then recreate kind-local / stage 100)"
+	@echo -e "    - Override port: LOCAL_DOCKERHUB_MIRROR_PORT=5001"
 	@echo -e "  make local kind create                                            # Create kind cluster (manual, stage 100 is preferred)"
 	@echo -e "  make local kind gitea-sync                                        # Sync policies + apps to local Gitea (default: --all)"
 	@echo -e "  make local kind gitea-sync GITEA_SYNC_ARGS=\"--azure-auth-sim\"       # Only azure-auth-sim repo"
@@ -469,6 +470,7 @@ help-local-kind:
 	@echo -e "  make local kind registry-down                                     # Stop local docker.io pull-through cache"
 	@echo -e "    - Uses DOCKERHUB_USERNAME/DOCKERHUB_PASSWORD or prompts (AUTO_APPROVE=1 skips prompts → anonymous pulls)"
 	@echo -e "    - To use as a kind mirror: export TF_VAR_dockerhub_mirror_enabled=true (then recreate kind-local / stage 100)"
+	@echo -e "    - Override port: LOCAL_DOCKERHUB_MIRROR_PORT=5001"
 	@echo -e "  make local kind create                                            # Manual kind create (stage 100 preferred)"
 	@echo -e "  make local kind gitea-sync                                        # Sync to Gitea (default: --all)"
 	@echo -e "  make local kind prereqs                                           # Optional prereqs (mkcert, images, etc.)"
@@ -977,11 +979,42 @@ _exec-registry-up:
 			echo -e "$(YELLOW)❌ docker is required but was not found in PATH$(NC)"; \
 			exit 1; \
 		fi; \
+		PORT="$(LOCAL_DOCKERHUB_MIRROR_PORT)"; \
+		check_port_free() { \
+			local p="$$1"; \
+			if command -v lsof >/dev/null 2>&1; then \
+				! lsof -nP -iTCP:"$$p" -sTCP:LISTEN >/dev/null 2>&1; \
+			else \
+				! docker ps --format '{{.Ports}}' | grep -qE "(:|\.)$$p->"; \
+			fi; \
+		}; \
+		if ! check_port_free "$$PORT"; then \
+			echo -e "$(YELLOW)❌ Port $$PORT is already in use on your machine.$(NC)"; \
+			if command -v lsof >/dev/null 2>&1; then \
+				echo -e "$(CYAN)Listeners on $$PORT:$(NC)"; \
+				lsof -nP -iTCP:"$$PORT" -sTCP:LISTEN || true; \
+			fi; \
+			if [ "$(AUTO_APPROVE)" = "1" ]; then \
+				echo -e "$(YELLOW)Set LOCAL_DOCKERHUB_MIRROR_PORT=<free-port> and retry.$(NC)"; \
+				exit 1; \
+			fi; \
+			while true; do \
+				echo -e "$(CYAN)Choose an alternate port for the mirror (e.g. 5001), or press Enter to abort:$(NC)"; \
+				read -r new_port; \
+				if [ -z "$$new_port" ]; then \
+					echo -e "$(YELLOW)Aborted.$(NC)"; \
+					exit 0; \
+				fi; \
+				PORT="$$new_port"; \
+				if check_port_free "$$PORT"; then break; fi; \
+				echo -e "$(YELLOW)Port $$PORT is still in use.$(NC)"; \
+			done; \
+		fi; \
 		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
 		echo -e "$(CYAN)  Starting local docker.io pull-through cache (registry:2 proxy)$(NC)"; \
 		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
 		echo -e "Container: $(LOCAL_DOCKERHUB_MIRROR_NAME)"; \
-		echo -e "Host port: $(LOCAL_DOCKERHUB_MIRROR_PORT)"; \
+		echo -e "Host port: $$PORT"; \
 		echo -e "Upstream:  $(LOCAL_DOCKERHUB_MIRROR_REMOTEURL)"; \
 		DOCKERHUB_USERNAME="$${DOCKERHUB_USERNAME:-$${TF_VAR_dockerhub_username:-}}"; \
 		DOCKERHUB_PASSWORD="$${DOCKERHUB_PASSWORD:-$${TF_VAR_dockerhub_password:-}}"; \
@@ -1004,19 +1037,19 @@ _exec-registry-up:
 		fi; \
 		docker run -d --restart=unless-stopped \
 			--name "$(LOCAL_DOCKERHUB_MIRROR_NAME)" \
-			-p "$(LOCAL_DOCKERHUB_MIRROR_PORT):5000" \
+			-p "$$PORT:5000" \
 			-v "$(LOCAL_DOCKERHUB_MIRROR_NAME)-data:/var/lib/registry" \
 			-e REGISTRY_PROXY_REMOTEURL \
 			-e REGISTRY_PROXY_USERNAME \
 			-e REGISTRY_PROXY_PASSWORD \
 			registry:2 >/dev/null; \
 		echo -e "$(GREEN)✓ Registry started$(NC)"; \
-		echo -e "Try: curl -sI http://localhost:$(LOCAL_DOCKERHUB_MIRROR_PORT)/v2/ | head -n 1"; \
-		echo -e "Kind mirror endpoint (Terraform): http://host.docker.internal:$(LOCAL_DOCKERHUB_MIRROR_PORT)"; \
+		echo -e "Try: curl -sI http://localhost:$$PORT/v2/ | head -n 1"; \
+		echo -e "Kind mirror endpoint (Terraform): http://host.docker.internal:$$PORT"; \
 		echo -e ""; \
 		echo -e "To enable this mirror for kind node pulls:"; \
 		echo -e "  export TF_VAR_dockerhub_mirror_enabled=true"; \
-		echo -e "  export TF_VAR_dockerhub_mirror_endpoint=http://host.docker.internal:$(LOCAL_DOCKERHUB_MIRROR_PORT)"; \
+		echo -e "  export TF_VAR_dockerhub_mirror_endpoint=http://host.docker.internal:$$PORT"; \
 		echo -e "  make local kind 100 apply AUTO_APPROVE=1   # mirror is applied at kind create time"; \
 	else \
 		echo -e "$(YELLOW)The 'registry-up' verb is only supported for local/kind$(NC)"; \
