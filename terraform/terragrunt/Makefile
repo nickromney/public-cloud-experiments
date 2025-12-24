@@ -56,7 +56,7 @@ LOCAL_KIND_REQUIRED_IMAGES ?= \
 
 # Local docker.io pull-through cache (registry:2 in proxy mode)
 LOCAL_DOCKERHUB_MIRROR_NAME ?= dockerhub-mirror
-LOCAL_DOCKERHUB_MIRROR_PORT ?= 5000
+LOCAL_DOCKERHUB_MIRROR_PORT ?= 5001
 LOCAL_DOCKERHUB_MIRROR_REMOTEURL ?= https://registry-1.docker.io
 
 # Terragrunt wrapper arguments

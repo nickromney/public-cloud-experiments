@@ -42,9 +42,9 @@ variable "dockerhub_mirror_enabled" {
 }
 
 variable "dockerhub_mirror_endpoint" {
-  description = "Local docker.io mirror endpoint reachable from kind node containers (e.g., http://host.docker.internal:5000)."
+  description = "Local docker.io mirror endpoint reachable from kind node containers (e.g., http://host.docker.internal:5001)."
   type        = string
-  default     = "http://host.docker.internal:5000"
+  default     = "http://host.docker.internal:5001"
 }
 
 variable "kind_config_path" {
