@@ -37,6 +37,11 @@ PERSONAL_SUB_REGION ?= uksouth
 AUTO_APPROVE ?= 0
 SKIP_AZURE_AUTH_PREREQS ?= 0
 
+# When running with AUTO_APPROVE=1, make terragrunt fully non-interactive.
+# Also force backend state migration/copy during init so OpenTofu/Terraform won't prompt.
+TG_NON_INTERACTIVE ?= $(if $(filter 1,$(AUTO_APPROVE)),--terragrunt-non-interactive,)
+TF_INIT_MIGRATE_ARGS ?= $(if $(filter 1,$(AUTO_APPROVE)),-migrate-state -force-copy,)
+
 # Local/kind image management
 LOCAL_KIND_IMAGE_PLATFORM ?= linux/amd64
 LOCAL_KIND_REQUIRED_IMAGES ?= \
@@ -482,7 +487,7 @@ help-local-kind:
 
 _exec-init: check-env
 	@echo -e "$(YELLOW)Initializing $(STACK_DIR)...$(NC)"
-	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade
+	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) $(TG_NON_INTERACTIVE) init -upgrade $(TF_INIT_MIGRATE_ARGS)
 
 _exec-plan: check-env
 	@echo -e "$(YELLOW)Planning $(STACK_DIR)...$(NC)"
@@ -494,7 +499,7 @@ _exec-plan: check-env
 	fi
 	@$(call find_stage_file,$(STAGE),$(STACK_DIR)); \
 	[ -z "$(VAR_FILE)" ] || STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
-	cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) plan $$STAGE_VAR_FILE_ARG
+	cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) $(TG_NON_INTERACTIVE) init -upgrade $(TF_INIT_MIGRATE_ARGS) && $(TERRAGRUNT) $(TG_ARGS) $(TG_NON_INTERACTIVE) plan $$STAGE_VAR_FILE_ARG
 
 _exec-apply: check-env
 	@echo -e "$(YELLOW)Applying $(STACK_DIR)...$(NC)"
@@ -513,7 +518,7 @@ _exec-apply: check-env
 			cd $(ROOT_DIR)$(STACK_DIR) && $(TERRAGRUNT) state rm kind_cluster.local local_sensitive_file.kubeconfig >/dev/null 2>&1 || true; \
 			if [ "$(STAGE)" -ge "200" ]; then \
 				echo -e "$(CYAN)Creating kind-local via stage 100 (auto-approve)$(NC)"; \
-				cd $(ROOT_DIR)$(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) apply -var-file=stages/100-kind.tfvars -auto-approve; \
+				cd $(ROOT_DIR)$(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) $(TG_NON_INTERACTIVE) init -upgrade $(TF_INIT_MIGRATE_ARGS) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) $(TG_NON_INTERACTIVE) apply -var-file=stages/100-kind.tfvars -auto-approve; \
 				echo -e "$(GREEN)✓ kind-local created (stage 100)$(NC)"; \
 				echo -e "$(CYAN)Clearing provider cache to pick up new kubeconfig...$(NC)"; \
 				rm -rf $(ROOT_DIR)$(STACK_DIR)/.terragrunt-cache $(ROOT_DIR)$(STACK_DIR)/.terraform; \
@@ -535,7 +540,7 @@ _exec-apply: check-env
 	$(call find_stage_file,$(STAGE),$(STACK_DIR)); \
 	[ -z "$(VAR_FILE)" ] || STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
 	if [ "$(AUTO_APPROVE)" = "1" ]; then \
-		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) apply $$STAGE_VAR_FILE_ARG -auto-approve; \
+		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) $(TG_NON_INTERACTIVE) init -upgrade $(TF_INIT_MIGRATE_ARGS) && $(TERRAGRUNT) $(TG_ARGS) $(TG_NON_INTERACTIVE) apply $$STAGE_VAR_FILE_ARG -auto-approve; \
 	else \
 		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) apply $$STAGE_VAR_FILE_ARG; \
 	fi
