@@ -5,9 +5,10 @@
 # Core Configuration
 # -----------------------------------------------------------------------------
 
-cluster_name       = "kind-local"
-kubeconfig_path    = "~/.kube/config"
-kubeconfig_context = "kind-kind-local"
+cluster_name    = "kind-local"
+kubeconfig_path = "~/.kube/config"
+# Stage 100 creates the cluster, so the context may not exist yet; leave blank.
+kubeconfig_context = ""
 kind_config_path   = "./kind-config.yaml"
 
 # -----------------------------------------------------------------------------
