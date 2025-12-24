@@ -992,6 +992,10 @@ _exec-check-containers:
 								echo -e "$(GREEN)✓ Pulled $$img$(NC)"; \
 								break; \
 							fi; \
+							if docker pull --platform "$(LOCAL_KIND_IMAGE_PLATFORM)" "$$img"; then \
+								echo -e "$(GREEN)✓ Pulled $$img$(NC)"; \
+								break; \
+							fi; \
 						elif docker pull --platform "$(LOCAL_KIND_IMAGE_PLATFORM)" "$$img"; then \
 							echo -e "$(GREEN)✓ Pulled $$img$(NC)"; \
 							break; \
@@ -1072,8 +1076,15 @@ _exec-registry-up:
 			fi; \
 		fi; \
 		export REGISTRY_PROXY_REMOTEURL="$(LOCAL_DOCKERHUB_MIRROR_REMOTEURL)"; \
-		export REGISTRY_PROXY_USERNAME="$$DOCKERHUB_USERNAME"; \
-		export REGISTRY_PROXY_PASSWORD="$$DOCKERHUB_PASSWORD"; \
+		if [ -n "$$DOCKERHUB_USERNAME" ] && [ -n "$$DOCKERHUB_PASSWORD" ]; then \
+			export REGISTRY_PROXY_USERNAME="$$DOCKERHUB_USERNAME"; \
+			export REGISTRY_PROXY_PASSWORD="$$DOCKERHUB_PASSWORD"; \
+			echo -e "Auth:      Docker Hub credentials provided"; \
+		else \
+			export REGISTRY_PROXY_USERNAME=""; \
+			export REGISTRY_PROXY_PASSWORD=""; \
+			echo -e "Auth:      anonymous"; \
+		fi; \
 		if docker ps -a --format '{{.Names}}' | grep -qx "$(LOCAL_DOCKERHUB_MIRROR_NAME)"; then \
 			echo -e "$(YELLOW)Existing $(LOCAL_DOCKERHUB_MIRROR_NAME) container found; replacing...$(NC)"; \
 			docker rm -f "$(LOCAL_DOCKERHUB_MIRROR_NAME)" >/dev/null; \
