@@ -512,12 +512,13 @@ locals {
 resource "local_file" "kind_config" {
   filename = var.kind_config_path
   content = templatefile("${path.module}/templates/kind-config.yaml.tpl", {
-    workers            = local.kind_workers
-    ports              = local.extra_port_mappings
-    extra_mounts       = local.kind_extra_mounts
-    api_server_port    = var.kind_api_server_port
-    dockerhub_username = var.dockerhub_username
-    dockerhub_password = var.dockerhub_password
+    workers                   = local.kind_workers
+    ports                     = local.extra_port_mappings
+    extra_mounts              = local.kind_extra_mounts
+    api_server_port           = var.kind_api_server_port
+    dockerhub_username        = var.dockerhub_username
+    dockerhub_password        = var.dockerhub_password
+    dockerhub_mirror_endpoint = var.dockerhub_mirror_enabled ? var.dockerhub_mirror_endpoint : ""
     # For in-cluster Gitea, configure containerd to allow HTTP registry
     insecure_registry = var.use_external_gitea ? "" : "gitea-http.gitea.svc.cluster.local:3000"
   })
@@ -550,6 +551,12 @@ resource "kind_cluster" "local" {
           insecure_skip_verify = true
         EOT
       ],
+      var.dockerhub_mirror_enabled && length(trimspace(var.dockerhub_mirror_endpoint)) > 0 ? [
+        <<-EOT
+        [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
+          endpoint = ["${var.dockerhub_mirror_endpoint}"]
+        EOT
+      ] : [],
       length(trimspace(var.dockerhub_username)) > 0 && length(trimspace(var.dockerhub_password)) > 0 ? [
         <<-EOT
         [plugins."io.containerd.grpc.v1.cri".registry.configs."docker.io".auth]

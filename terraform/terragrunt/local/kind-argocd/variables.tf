@@ -35,6 +35,18 @@ variable "dockerhub_password" {
   sensitive   = true
 }
 
+variable "dockerhub_mirror_enabled" {
+  description = "Use a local docker.io pull-through cache (registry:2 proxy) as a containerd mirror for kind nodes."
+  type        = bool
+  default     = false
+}
+
+variable "dockerhub_mirror_endpoint" {
+  description = "Local docker.io mirror endpoint reachable from kind node containers (e.g., http://host.docker.internal:5000)."
+  type        = string
+  default     = "http://host.docker.internal:5000"
+}
+
 variable "kind_config_path" {
   description = "Path to write the rendered kind cluster config."
   type        = string

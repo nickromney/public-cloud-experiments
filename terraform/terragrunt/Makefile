@@ -40,6 +40,7 @@ SKIP_AZURE_AUTH_PREREQS ?= 0
 # Local/kind image management
 LOCAL_KIND_IMAGE_PLATFORM ?= linux/amd64
 LOCAL_KIND_REQUIRED_IMAGES ?= \
+	registry:2 \
 	busybox:1.35 \
 	alpine:3.18.2 \
 	groundnuty/k8s-wait-for:v2.0 \
@@ -53,6 +54,11 @@ LOCAL_KIND_REQUIRED_IMAGES ?= \
 	node:22-alpine \
 	curlimages/curl:8.10.1
 
+# Local docker.io pull-through cache (registry:2 in proxy mode)
+LOCAL_DOCKERHUB_MIRROR_NAME ?= dockerhub-mirror
+LOCAL_DOCKERHUB_MIRROR_PORT ?= 5000
+LOCAL_DOCKERHUB_MIRROR_REMOTEURL ?= https://registry-1.docker.io
+
 # Terragrunt wrapper arguments
 TG_ARGS ?=
 VAR_FILE ?=
@@ -60,7 +66,7 @@ STAGE ?= 000
 STAGE_DEFAULT := 000
 
 # Valid verbs for argument parsing
-VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create prereqs reset gitea-sync check-health check-version check-containers
+VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create prereqs reset gitea-sync check-health check-version check-containers registry-up registry-down
 
 # Shell function to find stage file
 # Usage: $(call find_stage_file,STAGE,STACK_DIR)
@@ -169,6 +175,8 @@ help:
 	@echo -e "  make local kind check-health                                      # Post-stage health checks"
 	@echo -e "  make local kind check-version                                     # Check pinned versions vs latest (charts/images)"
 	@echo -e "  make local kind check-containers                                  # Ensure required container images are available locally (and load into kind if present)"
+	@echo -e "  make local kind registry-up                                       # Start local docker.io pull-through cache (registry:2 proxy)"
+	@echo -e "  make local kind registry-down                                     # Stop local docker.io pull-through cache"
 	@echo -e "  make local kind create                                            # Create kind cluster (manual, stage 100 is preferred)"
 	@echo -e "  make local kind gitea-sync                                        # Sync policies + apps to local Gitea (default: --all)"
 	@echo -e "  make local kind gitea-sync GITEA_SYNC_ARGS=\"--azure-auth-sim\"       # Only azure-auth-sim repo"
@@ -454,13 +462,16 @@ help-local-kind:
 	@echo -e "$(YELLOW)Utilities:$(NC)"
 	@echo -e "  make local kind check-health                                      # kubectl-based health checks"
 	@echo -e "  make local kind check-version                                     # Check pinned versions vs latest (charts/images)"
+	@echo -e "  make local kind check-containers                                  # Ensure required container images are available locally (and load into kind if present)"
+	@echo -e "  make local kind registry-up                                       # Start local docker.io pull-through cache (registry:2 proxy)"
+	@echo -e "  make local kind registry-down                                     # Stop local docker.io pull-through cache"
 	@echo -e "  make local kind create                                            # Manual kind create (stage 100 preferred)"
 	@echo -e "  make local kind gitea-sync                                        # Sync to Gitea (default: --all)"
 	@echo -e "  make local kind prereqs                                           # Optional prereqs (mkcert, images, etc.)"
 	@echo -e "  make local kind reset [AUTO_APPROVE=1]                            # Reset local kind environment"
 
 # Infrastructure lifecycle verbs
-.PHONY: _exec-init _exec-plan _exec-apply _exec-destroy _exec-validate _exec-output _exec-gitea-sync _exec-check-health _exec-check-version _exec-check-containers
+.PHONY: _exec-init _exec-plan _exec-apply _exec-destroy _exec-validate _exec-output _exec-gitea-sync _exec-check-health _exec-check-version _exec-check-containers _exec-registry-up _exec-registry-down
 
 _exec-init: check-env
 	@echo -e "$(YELLOW)Initializing $(STACK_DIR)...$(NC)"
@@ -952,6 +963,72 @@ _exec-check-containers:
 		fi; \
 	else \
 		echo -e "$(YELLOW)The 'check-containers' verb is only supported for local/kind$(NC)"; \
+		exit 1; \
+	fi
+
+_exec-registry-up:
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		set -euo pipefail; \
+		if ! command -v docker >/dev/null 2>&1; then \
+			echo -e "$(YELLOW)❌ docker is required but was not found in PATH$(NC)"; \
+			exit 1; \
+		fi; \
+		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		echo -e "$(CYAN)  Starting local docker.io pull-through cache (registry:2 proxy)$(NC)"; \
+		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		echo -e "Container: $(LOCAL_DOCKERHUB_MIRROR_NAME)"; \
+		echo -e "Host port: $(LOCAL_DOCKERHUB_MIRROR_PORT)"; \
+		echo -e "Upstream:  $(LOCAL_DOCKERHUB_MIRROR_REMOTEURL)"; \
+		DOCKERHUB_USERNAME="$${DOCKERHUB_USERNAME:-}"; \
+		DOCKERHUB_PASSWORD="$${DOCKERHUB_PASSWORD:-}"; \
+		if [ -z "$$DOCKERHUB_USERNAME" ] || [ -z "$$DOCKERHUB_PASSWORD" ]; then \
+			if [ "$(AUTO_APPROVE)" != "1" ]; then \
+				echo -e ""; \
+				echo -e "$(CYAN)Docker Hub credentials (optional, but recommended to avoid 429 rate limits)$(NC)"; \
+				printf "Docker Hub username (leave empty for anonymous): "; read -r DOCKERHUB_USERNAME; \
+				if [ -n "$$DOCKERHUB_USERNAME" ]; then \
+					printf "Docker Hub password/token: "; read -rs DOCKERHUB_PASSWORD; echo ""; \
+				fi; \
+			fi; \
+		fi; \
+		export REGISTRY_PROXY_REMOTEURL="$(LOCAL_DOCKERHUB_MIRROR_REMOTEURL)"; \
+		export REGISTRY_PROXY_USERNAME="$$DOCKERHUB_USERNAME"; \
+		export REGISTRY_PROXY_PASSWORD="$$DOCKERHUB_PASSWORD"; \
+		if docker ps -a --format '{{.Names}}' | grep -qx "$(LOCAL_DOCKERHUB_MIRROR_NAME)"; then \
+			echo -e "$(YELLOW)Existing $(LOCAL_DOCKERHUB_MIRROR_NAME) container found; replacing...$(NC)"; \
+			docker rm -f "$(LOCAL_DOCKERHUB_MIRROR_NAME)" >/dev/null; \
+		fi; \
+		docker run -d --restart=unless-stopped \
+			--name "$(LOCAL_DOCKERHUB_MIRROR_NAME)" \
+			-p "$(LOCAL_DOCKERHUB_MIRROR_PORT):5000" \
+			-v "$(LOCAL_DOCKERHUB_MIRROR_NAME)-data:/var/lib/registry" \
+			-e REGISTRY_PROXY_REMOTEURL \
+			-e REGISTRY_PROXY_USERNAME \
+			-e REGISTRY_PROXY_PASSWORD \
+			registry:2 >/dev/null; \
+		echo -e "$(GREEN)✓ Registry started$(NC)"; \
+		echo -e "Try: curl -sI http://localhost:$(LOCAL_DOCKERHUB_MIRROR_PORT)/v2/ | head -n 1"; \
+		echo -e "Kind mirror endpoint (Terraform): http://host.docker.internal:$(LOCAL_DOCKERHUB_MIRROR_PORT)"; \
+	else \
+		echo -e "$(YELLOW)The 'registry-up' verb is only supported for local/kind$(NC)"; \
+		exit 1; \
+	fi
+
+_exec-registry-down:
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		set -euo pipefail; \
+		if ! command -v docker >/dev/null 2>&1; then \
+			echo -e "$(YELLOW)❌ docker is required but was not found in PATH$(NC)"; \
+			exit 1; \
+		fi; \
+		if docker ps -a --format '{{.Names}}' | grep -qx "$(LOCAL_DOCKERHUB_MIRROR_NAME)"; then \
+			docker rm -f "$(LOCAL_DOCKERHUB_MIRROR_NAME)" >/dev/null; \
+			echo -e "$(GREEN)✓ Stopped $(LOCAL_DOCKERHUB_MIRROR_NAME)$(NC)"; \
+		else \
+			echo -e "$(YELLOW)$(LOCAL_DOCKERHUB_MIRROR_NAME) not found (skipped)$(NC)"; \
+		fi; \
+	else \
+		echo -e "$(YELLOW)The 'registry-down' verb is only supported for local/kind$(NC)"; \
 		exit 1; \
 	fi
 
