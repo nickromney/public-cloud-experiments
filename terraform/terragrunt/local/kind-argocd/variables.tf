@@ -21,6 +21,32 @@ variable "kind_api_server_port" {
   default     = 6443
 }
 
+variable "dockerhub_username" {
+  description = "Optional Docker Hub username for kind node containerd pulls (helps avoid anonymous pull rate limits)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "dockerhub_password" {
+  description = "Optional Docker Hub password/token for kind node containerd pulls (helps avoid anonymous pull rate limits)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "dockerhub_mirror_enabled" {
+  description = "Use a local docker.io pull-through cache (registry:2 proxy) as a containerd mirror for kind nodes."
+  type        = bool
+  default     = false
+}
+
+variable "dockerhub_mirror_endpoint" {
+  description = "Local docker.io mirror endpoint reachable from kind node containers (e.g., http://host.docker.internal:5001)."
+  type        = string
+  default     = "http://host.docker.internal:5001"
+}
+
 variable "kind_config_path" {
   description = "Path to write the rendered kind cluster config."
   type        = string

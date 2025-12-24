@@ -483,6 +483,10 @@ locals {
   # CA cert path for external Gitea registry - used by Kind nodes for containerd TLS
   gitea_ca_cert_path = abspath("${path.module}/certs/ca.crt")
 
+  # Containerd registry configuration (containerd v2 uses config_path/hosts.toml;
+  # setting registry.mirrors in config.toml conflicts with config_path and breaks CRI).
+  containerd_certs_dir = abspath("${path.module}/.run/containerd-certs.d")
+
   # Docker socket mount for in-cluster Actions runner (host socket approach)
   # Kept independent from enable_actions_runner so the Kind cluster config stays stable across stages
   docker_socket_mount = var.enable_docker_socket_mount && !var.use_external_gitea ? [
@@ -497,16 +501,55 @@ locals {
   # Extra mounts for Kind nodes - mount CA cert when using external Gitea
   # registry_host is explicitly passed for containerd config (avoids path parsing in template)
   kind_extra_mounts = concat(
-    var.use_external_gitea ? [
+    [
       {
-        host_path      = local.gitea_ca_cert_path
-        container_path = "/etc/containerd/certs.d/${var.gitea_registry_host}/ca.crt"
-        registry_host  = var.gitea_registry_host
+        host_path      = local.containerd_certs_dir
+        container_path = "/etc/containerd/certs.d"
+        registry_host  = ""
         read_only      = true
       }
-    ] : [],
+    ],
     local.docker_socket_mount
   )
+}
+
+resource "local_file" "containerd_hosts_dockerio" {
+  filename             = "${local.containerd_certs_dir}/docker.io/hosts.toml"
+  directory_permission = "0755"
+  file_permission      = "0644"
+
+  content = trimspace(join("\n", compact([
+    "server = \"https://registry-1.docker.io\"",
+    "",
+    var.dockerhub_mirror_enabled && length(trimspace(var.dockerhub_mirror_endpoint)) > 0 ? join("\n", [
+      "[host.\"${var.dockerhub_mirror_endpoint}\"]",
+      "  capabilities = [\"pull\", \"resolve\"]",
+      "",
+    ]) : "",
+    join("\n", [
+      "[host.\"https://registry-1.docker.io\"]",
+      "  capabilities = [\"pull\", \"resolve\"]",
+    ]),
+    length(trimspace(var.dockerhub_username)) > 0 && length(trimspace(var.dockerhub_password)) > 0 ? join("\n", [
+      "  [host.\"https://registry-1.docker.io\".auth]",
+      "    username = \"${var.dockerhub_username}\"",
+      "    password = \"${var.dockerhub_password}\"",
+    ]) : "",
+  ])))
+}
+
+resource "local_file" "containerd_hosts_gitea" {
+  filename             = "${local.containerd_certs_dir}/${var.gitea_registry_host}/hosts.toml"
+  directory_permission = "0755"
+  file_permission      = "0644"
+
+  content = trimspace(join("\n", compact([
+    "server = \"${var.gitea_http_scheme}://${var.gitea_registry_host}\"",
+    "",
+    "[host.\"${var.gitea_http_scheme}://${var.gitea_registry_host}\"]",
+    "  capabilities = [\"pull\", \"resolve\"]",
+    var.use_external_gitea ? "  skip_verify = true" : "",
+  ])))
 }
 
 resource "local_file" "kind_config" {
@@ -516,8 +559,6 @@ resource "local_file" "kind_config" {
     ports           = local.extra_port_mappings
     extra_mounts    = local.kind_extra_mounts
     api_server_port = var.kind_api_server_port
-    # For in-cluster Gitea, configure containerd to allow HTTP registry
-    insecure_registry = var.use_external_gitea ? "" : "gitea-http.gitea.svc.cluster.local:3000"
   })
 }
 
@@ -526,6 +567,11 @@ resource "kind_cluster" "local" {
   wait_for_ready  = false # avoid replacements between stages; kubernetes provider connects once API is up
   kubeconfig_path = local.kubeconfig_path_expanded
   node_image      = var.node_image
+
+  depends_on = [
+    local_file.containerd_hosts_dockerio,
+    local_file.containerd_hosts_gitea,
+  ]
 
   kind_config {
     kind        = "Cluster"
@@ -536,17 +582,9 @@ resource "kind_cluster" "local" {
     # - In-cluster Gitea: allow insecure HTTP registry using gitea_registry_host (e.g., localhost:30090)
     #   Note: containerd runs on nodes, not pods, so it cannot resolve Kubernetes DNS names.
     #   For in-cluster Gitea, use localhost:NodePort which Kind nodes can access.
-    containerd_config_patches = var.use_external_gitea ? [
-      <<-EOT
-      [plugins."io.containerd.grpc.v1.cri".registry.configs."${var.gitea_registry_host}".tls]
-        ca_file = "/etc/containerd/certs.d/${var.gitea_registry_host}/ca.crt"
-      EOT
-      ] : [
-      <<-EOT
-      [plugins."io.containerd.grpc.v1.cri".registry.configs."${var.gitea_registry_host}".tls]
-        insecure_skip_verify = true
-      EOT
-    ]
+    # Registry auth/mirror/HTTP allowlisting is configured via /etc/containerd/certs.d (hosts.toml)
+    # because containerd v2 CRI rejects registry.mirrors when config_path is set.
+    containerd_config_patches = []
 
     networking {
       api_server_address  = "127.0.0.1"

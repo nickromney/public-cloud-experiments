@@ -37,6 +37,35 @@ PERSONAL_SUB_REGION ?= uksouth
 AUTO_APPROVE ?= 0
 SKIP_AZURE_AUTH_PREREQS ?= 0
 
+# When running with AUTO_APPROVE=1, make terragrunt fully non-interactive.
+# Also force backend state migration/copy during init so OpenTofu/Terraform won't prompt.
+# Terragrunt v0.95+ uses --non-interactive (and env var TG_NON_INTERACTIVE).
+TG_NON_INTERACTIVE_FLAG ?= $(if $(filter 1,$(AUTO_APPROVE)),--non-interactive,)
+TF_INIT_MIGRATE_ARGS ?= $(if $(filter 1,$(AUTO_APPROVE)),-migrate-state -force-copy,)
+
+# Local/kind image management
+LOCAL_KIND_IMAGE_PLATFORM ?= linux/amd64
+LOCAL_KIND_REQUIRED_IMAGES ?= \
+	registry:2 \
+	kindest/node:v1.35.0 \
+	busybox:1.35 \
+	alpine:3.18.2 \
+	groundnuty/k8s-wait-for:v2.0 \
+	gitea/act_runner:0.2.13 \
+	docker:27.5-cli \
+	clickhouse/clickhouse-server:25.5.6 \
+	signoz/signoz:v0.105.1 \
+	signoz/signoz-schema-migrator:v0.129.12 \
+	signoz/signoz-otel-collector:v0.129.12 \
+	nginx:alpine \
+	node:22-alpine \
+	curlimages/curl:8.10.1
+
+# Local docker.io pull-through cache (registry:2 in proxy mode)
+LOCAL_DOCKERHUB_MIRROR_NAME ?= dockerhub-mirror
+LOCAL_DOCKERHUB_MIRROR_PORT ?= 5001
+LOCAL_DOCKERHUB_MIRROR_REMOTEURL ?= https://registry-1.docker.io
+
 # Terragrunt wrapper arguments
 TG_ARGS ?=
 VAR_FILE ?=
@@ -44,7 +73,7 @@ STAGE ?= 000
 STAGE_DEFAULT := 000
 
 # Valid verbs for argument parsing
-VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create prereqs reset gitea-sync check-health check-version
+VALID_VERBS := init plan apply destroy validate output deploy test show get clean unlock create prereqs reset gitea-sync check-health check-version check-containers registry-up registry-down
 
 # Shell function to find stage file
 # Usage: $(call find_stage_file,STAGE,STACK_DIR)
@@ -152,6 +181,12 @@ help:
 	@echo -e "$(YELLOW)Local kind: utilities$(NC)"
 	@echo -e "  make local kind check-health                                      # Post-stage health checks"
 	@echo -e "  make local kind check-version                                     # Check pinned versions vs latest (charts/images)"
+	@echo -e "  make local kind check-containers                                  # Ensure required container images are available locally (and load into kind if present)"
+	@echo -e "  make local kind registry-up                                       # Start local docker.io pull-through cache (registry:2 proxy)"
+	@echo -e "  make local kind registry-down                                     # Stop local docker.io pull-through cache"
+	@echo -e "    - Uses DOCKERHUB_USERNAME/DOCKERHUB_PASSWORD or prompts (AUTO_APPROVE=1 skips prompts → anonymous pulls)"
+	@echo -e "    - To use as a kind mirror: export TF_VAR_dockerhub_mirror_enabled=true (then recreate kind-local / stage 100)"
+	@echo -e "    - Override port: LOCAL_DOCKERHUB_MIRROR_PORT=5001"
 	@echo -e "  make local kind create                                            # Create kind cluster (manual, stage 100 is preferred)"
 	@echo -e "  make local kind gitea-sync                                        # Sync policies + apps to local Gitea (default: --all)"
 	@echo -e "  make local kind gitea-sync GITEA_SYNC_ARGS=\"--azure-auth-sim\"       # Only azure-auth-sim repo"
@@ -437,17 +472,23 @@ help-local-kind:
 	@echo -e "$(YELLOW)Utilities:$(NC)"
 	@echo -e "  make local kind check-health                                      # kubectl-based health checks"
 	@echo -e "  make local kind check-version                                     # Check pinned versions vs latest (charts/images)"
+	@echo -e "  make local kind check-containers                                  # Ensure required container images are available locally (and load into kind if present)"
+	@echo -e "  make local kind registry-up                                       # Start local docker.io pull-through cache (registry:2 proxy)"
+	@echo -e "  make local kind registry-down                                     # Stop local docker.io pull-through cache"
+	@echo -e "    - Uses DOCKERHUB_USERNAME/DOCKERHUB_PASSWORD or prompts (AUTO_APPROVE=1 skips prompts → anonymous pulls)"
+	@echo -e "    - To use as a kind mirror: export TF_VAR_dockerhub_mirror_enabled=true (then recreate kind-local / stage 100)"
+	@echo -e "    - Override port: LOCAL_DOCKERHUB_MIRROR_PORT=5001"
 	@echo -e "  make local kind create                                            # Manual kind create (stage 100 preferred)"
 	@echo -e "  make local kind gitea-sync                                        # Sync to Gitea (default: --all)"
 	@echo -e "  make local kind prereqs                                           # Optional prereqs (mkcert, images, etc.)"
 	@echo -e "  make local kind reset [AUTO_APPROVE=1]                            # Reset local kind environment"
 
 # Infrastructure lifecycle verbs
-.PHONY: _exec-init _exec-plan _exec-apply _exec-destroy _exec-validate _exec-output _exec-gitea-sync _exec-check-health _exec-check-version
+.PHONY: _exec-init _exec-plan _exec-apply _exec-destroy _exec-validate _exec-output _exec-gitea-sync _exec-check-health _exec-check-version _exec-check-containers _exec-registry-up _exec-registry-down
 
 _exec-init: check-env
 	@echo -e "$(YELLOW)Initializing $(STACK_DIR)...$(NC)"
-	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade
+	@cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) $(TG_NON_INTERACTIVE_FLAG) init -upgrade $(TF_INIT_MIGRATE_ARGS)
 
 _exec-plan: check-env
 	@echo -e "$(YELLOW)Planning $(STACK_DIR)...$(NC)"
@@ -459,7 +500,7 @@ _exec-plan: check-env
 	fi
 	@$(call find_stage_file,$(STAGE),$(STACK_DIR)); \
 	[ -z "$(VAR_FILE)" ] || STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
-	cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) plan $$STAGE_VAR_FILE_ARG
+	cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) $(TG_NON_INTERACTIVE_FLAG) init -upgrade $(TF_INIT_MIGRATE_ARGS) && $(TERRAGRUNT) $(TG_ARGS) $(TG_NON_INTERACTIVE_FLAG) plan $$STAGE_VAR_FILE_ARG
 
 _exec-apply: check-env
 	@echo -e "$(YELLOW)Applying $(STACK_DIR)...$(NC)"
@@ -478,7 +519,7 @@ _exec-apply: check-env
 			cd $(ROOT_DIR)$(STACK_DIR) && $(TERRAGRUNT) state rm kind_cluster.local local_sensitive_file.kubeconfig >/dev/null 2>&1 || true; \
 			if [ "$(STAGE)" -ge "200" ]; then \
 				echo -e "$(CYAN)Creating kind-local via stage 100 (auto-approve)$(NC)"; \
-				cd $(ROOT_DIR)$(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) apply -var-file=stages/100-kind.tfvars -auto-approve; \
+				cd $(ROOT_DIR)$(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) $(TG_NON_INTERACTIVE_FLAG) init -upgrade $(TF_INIT_MIGRATE_ARGS) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) $(TG_NON_INTERACTIVE_FLAG) apply -var-file=stages/100-kind.tfvars -auto-approve; \
 				echo -e "$(GREEN)✓ kind-local created (stage 100)$(NC)"; \
 				echo -e "$(CYAN)Clearing provider cache to pick up new kubeconfig...$(NC)"; \
 				rm -rf $(ROOT_DIR)$(STACK_DIR)/.terragrunt-cache $(ROOT_DIR)$(STACK_DIR)/.terraform; \
@@ -500,7 +541,7 @@ _exec-apply: check-env
 	$(call find_stage_file,$(STAGE),$(STACK_DIR)); \
 	[ -z "$(VAR_FILE)" ] || STAGE_VAR_FILE_ARG="$(VAR_FILE_ARG)"; \
 	if [ "$(AUTO_APPROVE)" = "1" ]; then \
-		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) apply $$STAGE_VAR_FILE_ARG -auto-approve; \
+		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) $(TG_NON_INTERACTIVE_FLAG) init -upgrade $(TF_INIT_MIGRATE_ARGS) && $(TERRAGRUNT) $(TG_ARGS) $(TG_NON_INTERACTIVE_FLAG) apply $$STAGE_VAR_FILE_ARG -auto-approve; \
 	else \
 		cd $(STACK_DIR) && PERSONAL_SUB_REGION=$(PERSONAL_SUB_REGION) $(TERRAGRUNT) $(TG_ARGS) init -upgrade && $(TERRAGRUNT) $(TG_ARGS) apply $$STAGE_VAR_FILE_ARG; \
 	fi
@@ -877,6 +918,222 @@ _exec-check-version:
 		exit 1; \
 	fi
 
+_exec-check-containers:
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		set -euo pipefail; \
+		if ! command -v docker >/dev/null 2>&1; then \
+			echo -e "$(YELLOW)❌ docker is required but was not found in PATH$(NC)"; \
+			exit 1; \
+		fi; \
+		MIRROR_RUNNING=0; \
+		MIRROR_HOST="localhost:$(LOCAL_DOCKERHUB_MIRROR_PORT)"; \
+		if docker ps --format '{{.Names}}' | grep -qx "$(LOCAL_DOCKERHUB_MIRROR_NAME)"; then \
+			MIRROR_RUNNING=1; \
+		fi; \
+		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		echo -e "$(CYAN)  Checking required container images (platform: $(LOCAL_KIND_IMAGE_PLATFORM))$(NC)"; \
+		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		if [ "$$MIRROR_RUNNING" = "1" ]; then \
+			echo -e "$(CYAN)Using local docker.io mirror (if needed): http://$$MIRROR_HOST$(NC)"; \
+		fi; \
+		images=( $(LOCAL_KIND_REQUIRED_IMAGES) ); \
+		missing=(); \
+		for img in "$${images[@]}"; do \
+			if docker image inspect "$$img" >/dev/null 2>&1; then \
+				echo -e "$(GREEN)✔ $$img$(NC)"; \
+			else \
+				echo -e "$(YELLOW)✗ $$img (missing)$(NC)"; \
+				missing+=("$$img"); \
+			fi; \
+		done; \
+		if [ $${#missing[@]} -gt 0 ]; then \
+			echo -e ""; \
+			echo -e "$(YELLOW)Missing $${#missing[@]} image(s).$(NC)"; \
+			if [ "$(AUTO_APPROVE)" != "1" ]; then \
+				if [ "$$MIRROR_RUNNING" != "1" ]; then \
+					echo -e "$(CYAN)Do you want to run 'docker login' now? [y/N]$(NC)"; \
+					read -r do_login; \
+					if [ "$$do_login" = "y" ] || [ "$$do_login" = "Y" ]; then \
+						docker login; \
+					fi; \
+				else \
+					echo -e "$(CYAN)Local docker.io mirror is running; docker login is optional (mirror can carry credentials).$(NC)"; \
+				fi; \
+				echo -e "$(CYAN)Pull missing images now? [y/N]$(NC)"; \
+				read -r do_pull; \
+			else \
+				do_pull="y"; \
+			fi; \
+			if [ "$$do_pull" = "y" ] || [ "$$do_pull" = "Y" ]; then \
+				is_dockerhub_ref() { \
+					local ref="$$1"; \
+					if ! echo "$$ref" | grep -q '/'; then return 0; fi; \
+					local first="$${ref%%/*}"; \
+					if [ "$$first" = "docker.io" ]; then return 0; fi; \
+					if echo "$$first" | grep -qE '[\.:]'; then return 1; fi; \
+					return 0; \
+				}; \
+				dockerhub_mirror_pull() { \
+					local original="$$1"; \
+					local ref="$$original"; \
+					local repo="$$ref"; \
+					local tag="latest"; \
+					if echo "$$ref" | grep -q ':'; then \
+						repo="$${ref%:*}"; \
+						tag="$${ref##*:}"; \
+					fi; \
+					repo="$${repo#docker.io/}"; \
+					if ! echo "$$repo" | grep -q '/'; then repo="library/$$repo"; fi; \
+					local mirror_ref="$$MIRROR_HOST/$$repo:$$tag"; \
+					echo -e "$(CYAN)Pulling via mirror: $$mirror_ref$(NC)"; \
+					docker pull --platform "$(LOCAL_KIND_IMAGE_PLATFORM)" "$$mirror_ref" || return 1; \
+					docker tag "$$mirror_ref" "$$original" || return 1; \
+					docker rmi "$$mirror_ref" >/dev/null 2>&1 || true; \
+				}; \
+				for img in "$${missing[@]}"; do \
+					for i in 1 2 3; do \
+						echo -e "$(CYAN)Pulling $$img (attempt $$i/3)...$(NC)"; \
+						if [ "$$MIRROR_RUNNING" = "1" ] && is_dockerhub_ref "$$img"; then \
+							if dockerhub_mirror_pull "$$img"; then \
+								echo -e "$(GREEN)✓ Pulled $$img$(NC)"; \
+								break; \
+							fi; \
+							if docker pull --platform "$(LOCAL_KIND_IMAGE_PLATFORM)" "$$img"; then \
+								echo -e "$(GREEN)✓ Pulled $$img$(NC)"; \
+								break; \
+							fi; \
+						elif docker pull --platform "$(LOCAL_KIND_IMAGE_PLATFORM)" "$$img"; then \
+							echo -e "$(GREEN)✓ Pulled $$img$(NC)"; \
+							break; \
+						fi; \
+						echo -e "$(YELLOW)Retry $$i failed for $$img; sleeping...$(NC)"; \
+						sleep 5; \
+					done; \
+				done; \
+			fi; \
+		fi; \
+		echo -e ""; \
+		if kind get clusters 2>/dev/null | grep -qx "kind-local"; then \
+			echo -e "$(CYAN)kind-local found; loading required images into kind-local...$(NC)"; \
+			kind load docker-image --name kind-local $${images[@]}; \
+			echo -e "$(GREEN)✓ Images loaded into kind-local$(NC)"; \
+		else \
+			echo -e "$(YELLOW)kind-local not found; skipping kind image load$(NC)"; \
+		fi; \
+	else \
+		echo -e "$(YELLOW)The 'check-containers' verb is only supported for local/kind$(NC)"; \
+		exit 1; \
+	fi
+
+_exec-registry-up:
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		set -euo pipefail; \
+		if ! command -v docker >/dev/null 2>&1; then \
+			echo -e "$(YELLOW)❌ docker is required but was not found in PATH$(NC)"; \
+			exit 1; \
+		fi; \
+		PORT="$(LOCAL_DOCKERHUB_MIRROR_PORT)"; \
+		check_port_free() { \
+			local p="$$1"; \
+			if command -v lsof >/dev/null 2>&1; then \
+				! lsof -nP -iTCP:"$$p" -sTCP:LISTEN >/dev/null 2>&1; \
+			else \
+				! docker ps --format '{{.Ports}}' | grep -qE "(:|\.)$$p->"; \
+			fi; \
+		}; \
+		if ! check_port_free "$$PORT"; then \
+			echo -e "$(YELLOW)❌ Port $$PORT is already in use on your machine.$(NC)"; \
+			if command -v lsof >/dev/null 2>&1; then \
+				echo -e "$(CYAN)Listeners on $$PORT:$(NC)"; \
+				lsof -nP -iTCP:"$$PORT" -sTCP:LISTEN || true; \
+			fi; \
+			if [ "$(AUTO_APPROVE)" = "1" ]; then \
+				echo -e "$(YELLOW)Set LOCAL_DOCKERHUB_MIRROR_PORT=<free-port> and retry.$(NC)"; \
+				exit 1; \
+			fi; \
+			while true; do \
+				echo -e "$(CYAN)Choose an alternate port for the mirror (e.g. 5001), or press Enter to abort:$(NC)"; \
+				read -r new_port; \
+				if [ -z "$$new_port" ]; then \
+					echo -e "$(YELLOW)Aborted.$(NC)"; \
+					exit 0; \
+				fi; \
+				PORT="$$new_port"; \
+				if check_port_free "$$PORT"; then break; fi; \
+				echo -e "$(YELLOW)Port $$PORT is still in use.$(NC)"; \
+			done; \
+		fi; \
+		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		echo -e "$(CYAN)  Starting local docker.io pull-through cache (registry:2 proxy)$(NC)"; \
+		echo -e "$(CYAN)═══════════════════════════════════════════════════════════════$(NC)"; \
+		echo -e "Container: $(LOCAL_DOCKERHUB_MIRROR_NAME)"; \
+		echo -e "Host port: $$PORT"; \
+		echo -e "Upstream:  $(LOCAL_DOCKERHUB_MIRROR_REMOTEURL)"; \
+		DOCKERHUB_USERNAME="$${DOCKERHUB_USERNAME:-$${TF_VAR_dockerhub_username:-}}"; \
+		DOCKERHUB_PASSWORD="$${DOCKERHUB_PASSWORD:-$${TF_VAR_dockerhub_password:-}}"; \
+		if [ -z "$$DOCKERHUB_USERNAME" ] || [ -z "$$DOCKERHUB_PASSWORD" ]; then \
+			if [ "$(AUTO_APPROVE)" != "1" ]; then \
+				echo -e ""; \
+				echo -e "$(CYAN)Docker Hub credentials (optional, but recommended to avoid 429 rate limits)$(NC)"; \
+				printf "Docker Hub username (leave empty for anonymous): "; read -r DOCKERHUB_USERNAME; \
+				if [ -n "$$DOCKERHUB_USERNAME" ]; then \
+					printf "Docker Hub password/token: "; read -rs DOCKERHUB_PASSWORD; echo ""; \
+				fi; \
+			fi; \
+		fi; \
+		export REGISTRY_PROXY_REMOTEURL="$(LOCAL_DOCKERHUB_MIRROR_REMOTEURL)"; \
+		if [ -n "$$DOCKERHUB_USERNAME" ] && [ -n "$$DOCKERHUB_PASSWORD" ]; then \
+			export REGISTRY_PROXY_USERNAME="$$DOCKERHUB_USERNAME"; \
+			export REGISTRY_PROXY_PASSWORD="$$DOCKERHUB_PASSWORD"; \
+			echo -e "Auth:      Docker Hub credentials provided"; \
+		else \
+			export REGISTRY_PROXY_USERNAME=""; \
+			export REGISTRY_PROXY_PASSWORD=""; \
+			echo -e "Auth:      anonymous"; \
+		fi; \
+		if docker ps -a --format '{{.Names}}' | grep -qx "$(LOCAL_DOCKERHUB_MIRROR_NAME)"; then \
+			echo -e "$(YELLOW)Existing $(LOCAL_DOCKERHUB_MIRROR_NAME) container found; replacing...$(NC)"; \
+			docker rm -f "$(LOCAL_DOCKERHUB_MIRROR_NAME)" >/dev/null; \
+		fi; \
+		docker run -d --restart=unless-stopped \
+			--name "$(LOCAL_DOCKERHUB_MIRROR_NAME)" \
+			-p "$$PORT:5000" \
+			-v "$(LOCAL_DOCKERHUB_MIRROR_NAME)-data:/var/lib/registry" \
+			-e REGISTRY_PROXY_REMOTEURL \
+			-e REGISTRY_PROXY_USERNAME \
+			-e REGISTRY_PROXY_PASSWORD \
+			registry:2 >/dev/null; \
+		echo -e "$(GREEN)✓ Registry started$(NC)"; \
+		echo -e "Try: curl -sI http://localhost:$$PORT/v2/ | head -n 1"; \
+		echo -e "Kind mirror endpoint (Terraform): http://host.docker.internal:$$PORT"; \
+		echo -e ""; \
+		echo -e "To enable this mirror for kind node pulls:"; \
+		echo -e "  export TF_VAR_dockerhub_mirror_enabled=true"; \
+		echo -e "  export TF_VAR_dockerhub_mirror_endpoint=http://host.docker.internal:$$PORT"; \
+		echo -e "  make local kind 100 apply AUTO_APPROVE=1   # mirror is applied at kind create time"; \
+	else \
+		echo -e "$(YELLOW)The 'registry-up' verb is only supported for local/kind$(NC)"; \
+		exit 1; \
+	fi
+
+_exec-registry-down:
+	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
+		set -euo pipefail; \
+		if ! command -v docker >/dev/null 2>&1; then \
+			echo -e "$(YELLOW)❌ docker is required but was not found in PATH$(NC)"; \
+			exit 1; \
+		fi; \
+		if docker ps -a --format '{{.Names}}' | grep -qx "$(LOCAL_DOCKERHUB_MIRROR_NAME)"; then \
+			docker rm -f "$(LOCAL_DOCKERHUB_MIRROR_NAME)" >/dev/null; \
+			echo -e "$(GREEN)✓ Stopped $(LOCAL_DOCKERHUB_MIRROR_NAME)$(NC)"; \
+		else \
+			echo -e "$(YELLOW)$(LOCAL_DOCKERHUB_MIRROR_NAME) not found (skipped)$(NC)"; \
+		fi; \
+	else \
+		echo -e "$(YELLOW)The 'registry-down' verb is only supported for local/kind$(NC)"; \
+		exit 1; \
+	fi
+
 _exec-reset:
 	@if [ "$(PROJECT)" = "local" ] && [ "$(STACK)" = "kind" ]; then \
 		echo -e "$(YELLOW)═══════════════════════════════════════════════════════════════$(NC)"; \
@@ -942,6 +1199,7 @@ _exec-reset:
 		echo -e "$(GREEN)  ✓ Reset complete$(NC)"; \
 		echo -e "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"; \
 		echo -e ""; \
+		$(MAKE) --no-print-directory local kind check-containers AUTO_APPROVE=$(AUTO_APPROVE) || true; \
 		echo -e "You can now run: make local kind 100 apply AUTO_APPROVE=1"; \
 	else \
 		echo -e "$(YELLOW)The 'reset' verb is only supported for local/kind$(NC)"; \

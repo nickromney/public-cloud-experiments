@@ -5,20 +5,6 @@ networking:
   apiServerPort: ${api_server_port}
   disableDefaultCNI: true
   kubeProxyMode: "iptables"
-%{ if length(extra_mounts) > 0 || try(insecure_registry, "") != "" ~}
-containerdConfigPatches:
-  - |-
-%{ for mnt in extra_mounts ~}
-%{ if try(mnt.registry_host, "") != "" ~}
-    [plugins."io.containerd.grpc.v1.cri".registry.configs."${mnt.registry_host}".tls]
-      ca_file = "${mnt.container_path}"
-%{ endif ~}
-%{ endfor ~}
-%{ if try(insecure_registry, "") != "" ~}
-    [plugins."io.containerd.grpc.v1.cri".registry.configs."${insecure_registry}".tls]
-      insecure_skip_verify = true
-%{ endif ~}
-%{ endif ~}
 nodes:
   - role: control-plane
 %{ if length(ports) > 0 ~}
