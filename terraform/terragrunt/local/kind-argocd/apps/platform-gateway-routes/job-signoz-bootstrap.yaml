@@ -6,7 +6,7 @@ metadata:
   annotations:
     # This is a one-time bootstrap task (complete SigNoz setup + create the auth-proxy secret).
     # Model it as an Argo CD hook so it can be safely re-run and re-created (Jobs have immutable selectors).
-    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
     argocd.argoproj.io/sync-wave: "0"
   labels:
