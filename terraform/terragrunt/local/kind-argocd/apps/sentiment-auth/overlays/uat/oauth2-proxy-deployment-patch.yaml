@@ -27,8 +27,8 @@ spec:
             - --cookie-refresh=1h
             - --cookie-secret-file=/etc/oauth2-proxy/secrets/cookie_secret
             - --cookie-name=_oauth2_proxy_sentiment_uat
-            - --cookie-domain=.uat.127.0.0.1.sslip.io
-            - --whitelist-domain=.uat.127.0.0.1.sslip.io
+            - --cookie-domain=.127.0.0.1.sslip.io
+            - --whitelist-domain=.127.0.0.1.sslip.io
             - --email-domain=*
             - --scope=openid user_impersonation
             - --oidc-email-claim=sub

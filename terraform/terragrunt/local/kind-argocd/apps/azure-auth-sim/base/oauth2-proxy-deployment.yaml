@@ -70,8 +70,8 @@ spec:
             - --cookie-refresh=1h
             - --cookie-secret-file=/etc/oauth2-proxy/secrets/cookie_secret
             - --cookie-name=_oauth2_proxy_dev
-            - --cookie-domain=.dev.127.0.0.1.sslip.io
-            - --whitelist-domain=.dev.127.0.0.1.sslip.io
+            - --cookie-domain=.127.0.0.1.sslip.io
+            - --whitelist-domain=.127.0.0.1.sslip.io
             - --email-domain=*
 
             # Scopes and headers
